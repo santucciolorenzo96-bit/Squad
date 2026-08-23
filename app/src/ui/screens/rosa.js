@@ -13,11 +13,13 @@ export function renderRosaTab(c) {
         <button class="btn btn-secondary" id="rAdd">+ Aggiungi</button>
       </div>
     </div>
-    <div class="section-label">Rosa (${state.roster.length})</div>
+    <div class="section-label" id="rosaCountLabel">Rosa (${state.roster.length})</div>
     <div id="rosterList"></div>
-    ${state.roster.length < 5 ? `<div class="hint">Servono almeno 5 giocatori in rosa per poter avviare una partita.</div>` : ''}
+    <div id="rosaHint">${state.roster.length < 5 ? `<div class="hint">Servono almeno 5 giocatori in rosa per poter avviare una partita.</div>` : ''}</div>
   `;
   function drawList() {
+    document.getElementById('rosaCountLabel').textContent = `Rosa (${state.roster.length})`;
+    document.getElementById('rosaHint').innerHTML = state.roster.length < 5 ? `<div class="hint">Servono almeno 5 giocatori in rosa per poter avviare una partita.</div>` : '';
     const holder = document.getElementById('rosterList');
     holder.innerHTML = '';
     if (state.roster.length === 0) { holder.innerHTML = '<div class="placeholder-card">Nessun giocatore in rosa.</div>'; return; }
