@@ -97,7 +97,7 @@ returns uuid language sql stable security definer set search_path = public as $$
   select team_id from profiles where id = auth.uid() and active
 $$;
 
-create or replace function current_role()
+create or replace function my_role()
 returns text language sql stable security definer set search_path = public as $$
   select role from profiles where id = auth.uid() and active
 $$;
@@ -117,7 +117,7 @@ alter table standings enable row level security;
 create policy "teams_select_own" on teams for select
   using (id = current_team_id());
 create policy "teams_update_admin" on teams for update
-  using (id = current_team_id() and current_role() = 'admin');
+  using (id = current_team_id() and my_role() = 'admin');
 
 -- profiles: membri dello stesso team si vedono tra loro;
 -- ognuno modifica il proprio display_name, solo admin modifica ruolo/attivo di altri
@@ -126,14 +126,14 @@ create policy "profiles_select_team" on profiles for select
 create policy "profiles_update_self_name" on profiles for update
   using (id = auth.uid());
 create policy "profiles_update_admin" on profiles for update
-  using (team_id = current_team_id() and current_role() = 'admin');
+  using (team_id = current_team_id() and my_role() = 'admin');
 
 -- players (rosa): letti da tutto lo staff, scritti da admin/allenatore
 create policy "players_select_team" on players for select
   using (team_id = current_team_id());
 create policy "players_write_staff" on players for all
-  using (team_id = current_team_id() and current_role() in ('admin','allenatore'))
-  with check (team_id = current_team_id() and current_role() in ('admin','allenatore'));
+  using (team_id = current_team_id() and my_role() in ('admin','allenatore'))
+  with check (team_id = current_team_id() and my_role() in ('admin','allenatore'));
 
 -- games: letti da tutto lo staff; scritti da tutti mentre 'live', solo admin/allenatore dopo
 create policy "games_select_team" on games for select
@@ -143,22 +143,22 @@ create policy "games_insert_team" on games for insert
 create policy "games_update_live_or_staff" on games for update
   using (
     team_id = current_team_id()
-    and (status = 'live' or current_role() in ('admin','allenatore'))
+    and (status = 'live' or my_role() in ('admin','allenatore'))
   );
 
 -- next_match: letto da tutti, scritto da admin/allenatore
 create policy "next_match_select_team" on next_match for select
   using (team_id = current_team_id());
 create policy "next_match_write_staff" on next_match for all
-  using (team_id = current_team_id() and current_role() in ('admin','allenatore'))
-  with check (team_id = current_team_id() and current_role() in ('admin','allenatore'));
+  using (team_id = current_team_id() and my_role() in ('admin','allenatore'))
+  with check (team_id = current_team_id() and my_role() in ('admin','allenatore'));
 
 -- standings: letta da tutti, scritta da admin/allenatore
 create policy "standings_select_team" on standings for select
   using (team_id = current_team_id());
 create policy "standings_write_staff" on standings for all
-  using (team_id = current_team_id() and current_role() in ('admin','allenatore'))
-  with check (team_id = current_team_id() and current_role() in ('admin','allenatore'));
+  using (team_id = current_team_id() and my_role() in ('admin','allenatore'))
+  with check (team_id = current_team_id() and my_role() in ('admin','allenatore'));
 
 -- ============================================================================
 -- RPC: creazione squadra (primo admin) e ingresso in squadra esistente
@@ -222,7 +222,7 @@ language plpgsql security definer set search_path = public as $$
 declare
   v_code text;
 begin
-  if current_role() <> 'admin' then
+  if my_role() <> 'admin' then
     raise exception 'Solo un amministratore può rigenerare il codice invito';
   end if;
   v_code := upper(substr(md5(random()::text), 1, 6));
@@ -245,13 +245,13 @@ create policy "team_logos_public_read" on storage.objects for select
 create policy "team_logos_admin_write" on storage.objects for insert
   with check (
     bucket_id = 'team-logos'
-    and current_role() = 'admin'
+    and my_role() = 'admin'
     and (storage.foldername(name))[1] = current_team_id()::text
   );
 
 create policy "team_logos_admin_update" on storage.objects for update
   using (
     bucket_id = 'team-logos'
-    and current_role() = 'admin'
+    and my_role() = 'admin'
     and (storage.foldername(name))[1] = current_team_id()::text
   );
