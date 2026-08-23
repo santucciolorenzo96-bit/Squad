@@ -1,0 +1,142 @@
+import { state } from '../../state.js';
+import { esc } from '../../utils/format.js';
+import { canEditHome } from '../../utils/permissions.js';
+import { teamInitials } from '../../utils/theme.js';
+import {
+  standingsPosition, computeRecord, computeStreak, computeTeamPPG,
+  computeSeasonStats, computeLastGameMVP, daysUntil
+} from '../../utils/stats.js';
+import { formModal } from '../modal.js';
+import { saveNextMatch, clearNextMatch } from '../../api/nextMatch.js';
+
+export function renderHomeTab(c) {
+  const lastGame = state.history.length ? state.history[state.history.length - 1] : null;
+  const ourPos = standingsPosition(state.standings, state.teamProfile.name);
+  const record = computeRecord(state.history);
+  const streak = computeStreak(state.history);
+  const ppg = computeTeamPPG(state.history);
+  const seasonScorer = [...computeSeasonStats(state.history)].sort((a, b) => b.pts - a.pts)[0] || null;
+  const mvp = computeLastGameMVP(lastGame);
+  const oppPos = state.nextMatch ? standingsPosition(state.standings, state.nextMatch.opponent) : null;
+  const days = state.nextMatch ? daysUntil(state.nextMatch.date) : null;
+  const canEdit = canEditHome(state.currentUser);
+  let countdownTxt = '—';
+  if (days != null) { countdownTxt = days === 0 ? 'Oggi' : (days === 1 ? 'Domani' : (days > 1 ? `Tra ${days} giorni` : 'Giocata')); }
+
+  c.innerHTML = `
+    <div class="hero-wrap">
+      <div class="glow-blob b1"></div><div class="glow-blob b2"></div>
+      <div class="hero-content">
+        <div class="hero-logo">${state.teamProfile.logo_url ? `<img src="${esc(state.teamProfile.logo_url)}">` : '🏀'}</div>
+        <div class="hero-team-name">${esc(state.teamProfile.name)}</div>
+        <div class="hero-pos-pill">${ourPos ? `🏆 ${ourPos}° in classifica` : (canEdit ? 'Imposta la classifica →' : 'Classifica non ancora impostata')}</div>
+      </div>
+    </div>
+
+    <div class="xl-card">
+      <div class="xl-card-label"><span>Prossima partita</span>${canEdit ? '<button class="icon-btn" id="editNextMatchBtn" style="color:var(--gold);">✎</button>' : ''}</div>
+      ${state.nextMatch ? `
+        <div class="match-row">
+          <div class="match-side">
+            <div class="match-avatar">${state.teamProfile.logo_url ? `<img src="${esc(state.teamProfile.logo_url)}">` : teamInitials(state.teamProfile.name)}</div>
+            <div class="match-team-nm">${esc(state.teamProfile.name)}</div>
+            <div class="match-pos-tag">${ourPos ? ourPos + '°' : '—'}</div>
+          </div>
+          <div class="match-mid">
+            <div class="match-time">${state.nextMatch.time || '—'}</div>
+            <div class="match-meta">${state.nextMatch.date ? new Date(state.nextMatch.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }) : 'Data da definire'}${state.nextMatch.location ? '<br>' + esc(state.nextMatch.location) : ''}</div>
+            <div class="match-countdown">${state.nextMatch.home ? '🏠 Casa' : '🚌 Trasferta'} · ${countdownTxt}</div>
+          </div>
+          <div class="match-side">
+            <div class="match-avatar">${teamInitials(state.nextMatch.opponent)}</div>
+            <div class="match-team-nm">${esc(state.nextMatch.opponent)}</div>
+            <div class="match-pos-tag">${oppPos ? oppPos + '°' : '—'}</div>
+          </div>
+        </div>
+      ` : `<div class="hint" style="text-align:center;padding:14px 0;">Nessuna prossima partita impostata.${canEdit ? '<br><button class="btn btn-secondary" id="setNextMatchBtn" style="margin-top:10px;">+ Imposta</button>' : ''}</div>`}
+    </div>
+
+    <div class="xl-card">
+      <div class="xl-card-label"><span>Miglior giocatore ultima partita</span></div>
+      ${mvp ? `
+        <div class="mvp-card">
+          <div class="mvp-avatar">#${esc(mvp.number)}</div>
+          <div class="mvp-info">
+            <div class="nm">${esc(mvp.name)}</div>
+            <div class="line">${mvp.pts} pt · ${mvp.stats.orb + mvp.stats.drb} reb · ${mvp.stats.ast} ast vs ${esc(lastGame.oppName)}</div>
+          </div>
+          <div class="mvp-index"><div class="val">${mvp.ind}</div><div class="lbl">Valutazione</div></div>
+        </div>
+      ` : `<div class="hint">Disponibile dopo la prima partita registrata.</div>`}
+    </div>
+
+    <div class="mini-grid">
+      <div class="mini-card">
+        <div class="lbl">Andamento stagione</div>
+        <div class="val">${state.history.length ? `${record.w}V - ${record.l}S` : '—'}</div>
+        <div class="sub">${state.history.length ? streak : 'Nessuna partita giocata'}</div>
+      </div>
+      <div class="mini-card">
+        <div class="lbl">Media punti</div>
+        <div class="val">${ppg != null ? ppg.toFixed(1) : '—'}</div>
+        <div class="sub">${state.history.length ? `su ${state.history.length} partite` : 'Nessun dato'}</div>
+      </div>
+      <div class="mini-card">
+        <div class="lbl">Miglior marcatore</div>
+        <div class="val small">${seasonScorer ? `#${esc(seasonScorer.number)} ${esc(seasonScorer.name)}` : '—'}</div>
+        <div class="sub">${seasonScorer ? `${(seasonScorer.pts / seasonScorer.games).toFixed(1)} pt/partita` : 'Nessun dato'}</div>
+      </div>
+      <div class="mini-card">
+        <div class="lbl">Prossima partita</div>
+        <div class="val small">${countdownTxt}</div>
+        <div class="sub">${state.nextMatch ? 'vs ' + esc(state.nextMatch.opponent) : 'Da impostare'}</div>
+      </div>
+    </div>
+  `;
+
+  const editBtn = document.getElementById('editNextMatchBtn') || document.getElementById('setNextMatchBtn');
+  if (editBtn) editBtn.onclick = openNextMatchModal;
+  const heroPill = c.querySelector('.hero-pos-pill');
+  if (heroPill && canEdit && !ourPos) heroPill.onclick = async () => {
+    state.currentTab = 'classifica';
+    const { renderApp } = await import('../layout.js');
+    renderApp();
+  };
+}
+
+function openNextMatchModal() {
+  const nm = state.nextMatch || { opponent: '', date: '', time: '', location: '', home: true };
+  formModal('Prossima partita', `
+    <div class="field"><label>Avversario</label><input type="text" id="nmOpp" value="${esc(nm.opponent)}"></div>
+    <div class="row2">
+      <div class="field"><label>Data</label><input type="text" id="nmDate" placeholder="AAAA-MM-GG" value="${esc(nm.date)}"></div>
+      <div class="field"><label>Ora</label><input type="text" id="nmTime" placeholder="18:30" value="${esc(nm.time)}"></div>
+    </div>
+    <div class="field"><label>Luogo</label><input type="text" id="nmLoc" value="${esc(nm.location || '')}"></div>
+    <div class="field"><label>Casa o trasferta</label>
+      <select id="nmHome"><option value="1" ${nm.home ? 'selected' : ''}>Casa</option><option value="0" ${!nm.home ? 'selected' : ''}>Trasferta</option></select>
+    </div>
+    ${state.nextMatch ? '<button class="btn btn-ghost" id="nmClear" style="width:100%;margin-top:4px;">Rimuovi prossima partita</button>' : ''}
+  `, async () => {
+    const opponent = document.getElementById('nmOpp').value.trim();
+    if (!opponent) return "Inserisci l'avversario.";
+    state.nextMatch = {
+      opponent,
+      date: document.getElementById('nmDate').value.trim(),
+      time: document.getElementById('nmTime').value.trim(),
+      location: document.getElementById('nmLoc').value.trim(),
+      home: document.getElementById('nmHome').value === '1'
+    };
+    await saveNextMatch(state.teamProfile.id, state.nextMatch);
+    const { renderApp } = await import('../layout.js');
+    renderApp();
+  });
+  const clearBtn = document.getElementById('nmClear');
+  if (clearBtn) clearBtn.onclick = async () => {
+    await clearNextMatch(state.teamProfile.id);
+    state.nextMatch = null;
+    document.getElementById('modalRoot').innerHTML = '';
+    const { renderApp } = await import('../layout.js');
+    renderApp();
+  };
+}
