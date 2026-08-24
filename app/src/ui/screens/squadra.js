@@ -1,7 +1,8 @@
 import { state } from '../../state.js';
 import { esc } from '../../utils/format.js';
-import { toast, confirmModal } from '../modal.js';
+import { toast, confirmModal, formModal } from '../modal.js';
 import { updateTeam, uploadTeamLogo, regenerateInviteCode } from '../../api/teams.js';
+import { createSector, renameSector, removeSector } from '../../api/sectors.js';
 import { resizeImageFile } from '../../utils/image.js';
 import { applyTheme } from '../../utils/theme.js';
 
@@ -30,10 +31,15 @@ export function renderSquadraTab(c) {
       <button class="btn btn-primary" id="sqSave">Salva modifiche</button>
     </div>
     <div class="card">
-      <h2>Codice invito staff</h2>
-      <div class="hint">Condividi questo codice con allenatori/segnapunti: potranno registrarsi da "Entra in una squadra esistente" e tu potrai poi assegnare il ruolo da Utenti.</div>
+      <h2>Codice invito</h2>
+      <div class="hint">Condividi questo codice con staff e genitori/giocatori: potranno registrarsi da "Entra in una squadra esistente" scegliendo il proprio ruolo.</div>
       <div style="font-family:var(--font-mono);font-size:24px;letter-spacing:0.1em;color:var(--gold);margin:12px 0;text-align:center;">${esc(state.teamProfile.invite_code)}</div>
       <button class="btn btn-secondary" id="sqRegenCode" style="width:100%;">Rigenera codice</button>
+    </div>
+    <div class="card">
+      <h2>Settori</h2>
+      <div id="sectorList"></div>
+      <button class="btn btn-secondary" id="addSectorBtn" style="width:100%;margin-top:10px;">+ Nuovo settore</button>
     </div>
   `;
   let pendingLogoBlob = null;
@@ -74,4 +80,55 @@ export function renderSquadraTab(c) {
       renderSquadraTab(c);
     }, 'Rigenera');
   };
+
+  drawSectors();
+  document.getElementById('addSectorBtn').onclick = () => {
+    formModal('Nuovo settore', `<div class="field"><label>Nome</label><input type="text" id="secName" placeholder="Es. Under 15"></div>`, async () => {
+      const name = document.getElementById('secName').value.trim();
+      if (!name) return 'Inserisci un nome.';
+      const created = await createSector(state.teamProfile.id, name);
+      state.sectors.push(created);
+      toast('Settore creato');
+      const { renderApp } = await import('../layout.js');
+      renderApp();
+    });
+  };
+}
+
+function drawSectors() {
+  const holder = document.getElementById('sectorList');
+  if (!holder) return;
+  if (state.sectors.length === 0) { holder.innerHTML = '<div class="hint">Nessun settore creato.</div>'; return; }
+  holder.innerHTML = '';
+  state.sectors.forEach(s => {
+    const row = document.createElement('div');
+    row.className = 'list-row';
+    row.innerHTML = `<div class="main"><div class="nm">${esc(s.name)}</div></div><button class="icon-btn" data-edit="${s.id}">✎</button><button class="icon-btn danger" data-rm="${s.id}">✕</button>`;
+    holder.appendChild(row);
+  });
+  holder.querySelectorAll('[data-edit]').forEach(btn => btn.onclick = () => {
+    const sector = state.sectors.find(s => s.id === btn.getAttribute('data-edit'));
+    formModal('Rinomina settore', `<div class="field"><label>Nome</label><input type="text" id="secName" value="${esc(sector.name)}"></div>`, async () => {
+      const name = document.getElementById('secName').value.trim();
+      if (!name) return 'Inserisci un nome.';
+      await renameSector(sector.id, name);
+      sector.name = name;
+      drawSectors();
+      const { renderApp } = await import('../layout.js');
+      renderApp();
+    });
+  });
+  holder.querySelectorAll('[data-rm]').forEach(btn => btn.onclick = () => {
+    const sector = state.sectors.find(s => s.id === btn.getAttribute('data-rm'));
+    confirmModal('Eliminare il settore?', `"${sector.name}" verrà eliminato insieme a rosa, partite, classifica e allenamenti collegati a questo settore. Operazione irreversibile.`, async () => {
+      await removeSector(sector.id);
+      state.sectors = state.sectors.filter(s => s.id !== sector.id);
+      if (state.activeSectorId === sector.id) {
+        const { switchSector } = await import('../../router.js');
+        await switchSector(state.sectors[0] ? state.sectors[0].id : null);
+      }
+      drawSectors();
+      toast('Settore eliminato');
+    }, 'Elimina');
+  });
 }

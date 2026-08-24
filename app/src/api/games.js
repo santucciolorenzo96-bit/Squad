@@ -4,6 +4,7 @@ function fromDbGame(row) {
   if (!row) return null;
   return {
     id: row.id,
+    sectorId: row.sector_id,
     oppName: row.opp_name,
     quarterLength: row.quarter_length,
     numQuarters: row.num_quarters,
@@ -35,23 +36,24 @@ function toDbPatch(g) {
   return patch;
 }
 
-export async function fetchLiveGame(teamId) {
+export async function fetchLiveGame(sectorId) {
   const { data, error } = await supabase.from('games')
-    .select('*').eq('team_id', teamId).eq('status', 'live').maybeSingle();
+    .select('*').eq('sector_id', sectorId).eq('status', 'live').maybeSingle();
   if (error) throw error;
   return fromDbGame(data);
 }
 
-export async function fetchHistory(teamId) {
+export async function fetchHistory(sectorId) {
   const { data, error } = await supabase.from('games')
-    .select('*').eq('team_id', teamId).eq('status', 'finished').order('started_at');
+    .select('*').eq('sector_id', sectorId).eq('status', 'finished').order('started_at');
   if (error) throw error;
   return data.map(fromDbGame);
 }
 
-export async function startGame(teamId, liveGame, startedByProfileId) {
+export async function startGame(teamId, sectorId, liveGame, startedByProfileId) {
   const { data, error } = await supabase.from('games').insert({
     team_id: teamId,
+    sector_id: sectorId,
     status: 'live',
     ...toDbPatch(liveGame),
     started_by: startedByProfileId
@@ -74,10 +76,10 @@ export async function endGame(gameId, liveGame) {
   if (error) throw error;
 }
 
-export function subscribeLiveGame(teamId, onChange) {
-  const channel = supabase.channel(`games-live-${teamId}`)
+export function subscribeLiveGame(sectorId, onChange) {
+  const channel = supabase.channel(`games-live-${sectorId}`)
     .on('postgres_changes',
-      { event: '*', schema: 'public', table: 'games', filter: `team_id=eq.${teamId}` },
+      { event: '*', schema: 'public', table: 'games', filter: `sector_id=eq.${sectorId}` },
       payload => onChange(payload)
     )
     .subscribe();

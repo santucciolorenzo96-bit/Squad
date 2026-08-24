@@ -3,16 +3,25 @@ import { esc } from '../../utils/format.js';
 import { ROLES, ROLE_CLASS } from '../../utils/permissions.js';
 import { confirmModal, formModal, toast } from '../modal.js';
 import { updateProfile, deactivateProfile } from '../../api/profiles.js';
+import { assignStaffToSector, removeStaffFromSector, fetchStaffSectors } from '../../api/sectors.js';
+import { fetchFamilyLinksForTeam, linkProfileToPlayer, unlinkProfileFromPlayer } from '../../api/family.js';
 
 export function renderUtentiTab(c) {
   c.innerHTML = `
     <div class="placeholder-card">
       <span class="tag">Codice invito</span><br>
-      Per aggiungere staff, condividi il codice invito della squadra (sezione Squadra): la persona si registra da sola scegliendo "Entra in una squadra esistente", poi qui puoi assegnarle il ruolo giusto.
+      Condividi il codice invito della squadra (sezione Squadra): staff e genitori/giocatori si registrano da soli scegliendo "Entra in una squadra esistente", poi qui puoi assegnare ruolo/settori o collegare l'account al giocatore giusto.
     </div>
     <div class="section-label">Staff (${state.staff.length})</div>
     <div id="userList"></div>
+    <div class="section-label" style="margin-top:24px;">Account famiglia</div>
+    <div id="familyList" class="hint">Caricamento…</div>
   `;
+  function sectorNames(profileId) {
+    const ids = state.staffSectors[profileId] || [];
+    if (ids.length === 0) return 'Nessun settore assegnato';
+    return ids.map(id => (state.sectors.find(s => s.id === id) || {}).name).filter(Boolean).join(', ');
+  }
   function drawUsers() {
     const holder = document.getElementById('userList');
     holder.innerHTML = '';
@@ -20,7 +29,7 @@ export function renderUtentiTab(c) {
       const row = document.createElement('div');
       row.className = 'list-row';
       const isSelf = u.id === state.currentUser.id;
-      row.innerHTML = `<div class="main"><div class="nm">${esc(u.display_name)} ${isSelf ? '<span class="hint">(tu)</span>' : ''}</div></div>
+      row.innerHTML = `<div class="main"><div class="nm">${esc(u.display_name)} ${isSelf ? '<span class="hint">(tu)</span>' : ''}</div><div class="sub">${u.role === 'admin' ? 'Tutti i settori' : esc(sectorNames(u.id))}</div></div>
         <span class="role-badge ${ROLE_CLASS[u.role]}">${ROLES[u.role]}</span>
         <button class="icon-btn" data-edit="${u.id}">✎</button>
         ${!isSelf ? `<button class="icon-btn danger" data-rm="${u.id}">✕</button>` : ''}`;
@@ -54,6 +63,10 @@ export function renderUtentiTab(c) {
           <option value="segnapunti" ${existing.role === 'segnapunti' ? 'selected' : ''}>Segnapunti</option>
         </select>
       </div>
+      <div class="field" id="sectorCheckWrap">
+        <label>Settori assegnati</label>
+        ${state.sectors.map(s => `<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><input type="checkbox" data-sector="${s.id}" ${(state.staffSectors[existing.id] || []).includes(s.id) ? 'checked' : ''} style="width:auto;"> ${esc(s.name)}</label>`).join('') || '<div class="hint">Nessun settore creato: creane uno da Squadra.</div>'}
+      </div>
     `, async () => {
       const displayName = document.getElementById('uName').value.trim();
       const role = document.getElementById('uRole').value;
@@ -65,8 +78,56 @@ export function renderUtentiTab(c) {
       const updated = await updateProfile(existing.id, { display_name: displayName, role });
       Object.assign(existing, updated);
       if (existing.id === state.currentUser.id) Object.assign(state.currentUser, updated);
+
+      const checked = Array.from(document.querySelectorAll('#sectorCheckWrap [data-sector]:checked')).map(el => el.getAttribute('data-sector'));
+      const before = state.staffSectors[existing.id] || [];
+      const toAdd = checked.filter(id => !before.includes(id));
+      const toRemove = before.filter(id => !checked.includes(id));
+      for (const id of toAdd) await assignStaffToSector(existing.id, id);
+      for (const id of toRemove) await removeStaffFromSector(existing.id, id);
+      state.staffSectors = await fetchStaffSectors(state.teamProfile.id);
+
       drawUsers();
       toast('Utente salvato');
+    });
+  }
+
+  drawFamily();
+  async function drawFamily() {
+    const holder = document.getElementById('familyList');
+    const families = await fetchFamilyLinksForTeam(state.teamProfile.id);
+    if (families.length === 0) { holder.innerHTML = '<div class="placeholder-card">Nessun account famiglia registrato.</div>'; return; }
+    holder.innerHTML = '';
+    families.forEach(f => {
+      const row = document.createElement('div');
+      row.className = 'card';
+      row.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:700;">${esc(f.display_name)}</div>
+            <div class="hint">${f.linkedPlayers.length ? f.linkedPlayers.map(p => `#${p.number} ${esc(p.name)}`).join(', ') : 'Non ancora collegato a nessun giocatore'}</div>
+          </div>
+          <button class="btn btn-secondary" data-link="${f.id}">Collega giocatore</button>
+        </div>
+      `;
+      holder.appendChild(row);
+    });
+    holder.querySelectorAll('[data-link]').forEach(btn => btn.onclick = () => openLinkModal(btn.getAttribute('data-link')));
+  }
+
+  function openLinkModal(profileId) {
+    const allPlayers = state.roster; // giocatori del settore attivo; per collegare un giocatore di un altro settore, cambia settore e riprova
+    formModal('Collega a un giocatore', `
+      <div class="field"><label>Giocatore (settore attivo)</label>
+        <select id="lnkPlayer">${allPlayers.map(p => `<option value="${p.id}">#${esc(p.number)} ${esc(p.name)}</option>`).join('') || '<option disabled>Nessun giocatore in questo settore</option>'}</select>
+      </div>
+      <div class="hint">Per collegare un giocatore di un altro settore, cambia settore dall'header e riapri questa finestra.</div>
+    `, async () => {
+      const playerId = document.getElementById('lnkPlayer').value;
+      if (!playerId) return 'Seleziona un giocatore.';
+      await linkProfileToPlayer(profileId, playerId);
+      toast('Collegato');
+      drawFamily();
     });
   }
 }

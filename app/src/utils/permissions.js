@@ -1,5 +1,5 @@
-export const ROLES = { admin: 'Amministratore', allenatore: 'Allenatore', segnapunti: 'Segnapunti' };
-export const ROLE_CLASS = { admin: 'role-admin', allenatore: 'role-allenatore', segnapunti: 'role-segnapunti' };
+export const ROLES = { admin: 'Amministratore', allenatore: 'Allenatore', segnapunti: 'Segnapunti', famiglia: 'Famiglia' };
+export const ROLE_CLASS = { admin: 'role-admin', allenatore: 'role-allenatore', segnapunti: 'role-segnapunti', famiglia: 'role-famiglia' };
 
 export const TOV_TYPES = [
   { key: 'generica', label: 'Generica' },
@@ -8,16 +8,23 @@ export const TOV_TYPES = [
   { key: 'passi', label: 'Passi/Sup.' }
 ];
 
+export const DOC_TYPES = [
+  { key: 'certificato_medico', label: 'Certificato medico agonistico' },
+  { key: 'tesseramento_fip', label: 'Tesseramento FIP' }
+];
+
 export const TABS = [
-  { id: 'home', label: 'Home', roles: ['admin', 'allenatore', 'segnapunti'] },
-  { id: 'rosa', label: 'Rosa', roles: ['admin', 'allenatore'] },
-  { id: 'partita', label: 'Partita', roles: ['admin', 'allenatore', 'segnapunti'] },
-  { id: 'storico', label: 'Storico', roles: ['admin', 'allenatore', 'segnapunti'] },
-  { id: 'statistiche', label: 'Statistiche', roles: ['admin', 'allenatore', 'segnapunti'] },
-  { id: 'classifica', label: 'Classifica', roles: ['admin', 'allenatore', 'segnapunti'] },
-  { id: 'calendario', label: 'Calendario', roles: ['admin', 'allenatore'] },
-  { id: 'utenti', label: 'Utenti', roles: ['admin'] },
-  { id: 'squadra', label: 'Squadra', roles: ['admin'] }
+  { id: 'home', label: 'Home', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti', 'famiglia'] },
+  { id: 'rosa', label: 'Rosa', group: 'settore', roles: ['admin', 'allenatore', 'famiglia'] },
+  { id: 'anagrafica', label: 'Anagrafica', group: 'settore', roles: ['admin', 'allenatore', 'famiglia'] },
+  { id: 'partita', label: 'Partita', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti'] },
+  { id: 'allenamenti', label: 'Allenamenti', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti', 'famiglia'] },
+  { id: 'classifica', label: 'Classifica', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti', 'famiglia'] },
+  { id: 'storico', label: 'Storico', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti'] },
+  { id: 'statistiche', label: 'Statistiche', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti'] },
+  { id: 'calendario', label: 'Calendario', group: 'settore', roles: ['admin', 'allenatore'] },
+  { id: 'utenti', label: 'Utenti', group: 'societa', roles: ['admin'] },
+  { id: 'squadra', label: 'Squadra', group: 'societa', roles: ['admin'] }
 ];
 
 export function canSeeTab(tab, user) {
@@ -30,4 +37,12 @@ export function canEditHome(user) {
 
 export function canEditRoster(user) {
   return !!user && (user.role === 'admin' || user.role === 'allenatore');
+}
+
+export function canReviewDocuments(user) {
+  return !!user && (user.role === 'admin' || user.role === 'allenatore');
+}
+
+export function isFamiglia(user) {
+  return !!user && user.role === 'famiglia';
 }

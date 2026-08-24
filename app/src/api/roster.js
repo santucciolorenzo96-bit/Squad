@@ -1,19 +1,84 @@
 import { supabase } from '../supabaseClient.js';
 
-export async function fetchRoster(teamId) {
-  const { data, error } = await supabase.from('players').select('*').eq('team_id', teamId).order('created_at');
+export async function fetchRosterBySector(sectorId) {
+  const { data, error } = await supabase.from('player_sectors')
+    .select('players(*)').eq('sector_id', sectorId);
   if (error) throw error;
-  return data;
+  return data.map(row => row.players).sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
 }
 
-export async function addPlayer(teamId, number, name) {
-  const { data, error } = await supabase.from('players')
+export async function addPlayer(teamId, sectorId, number, name) {
+  const { data: player, error } = await supabase.from('players')
     .insert({ team_id: teamId, number, name }).select().single();
   if (error) throw error;
+  const { error: linkErr } = await supabase.from('player_sectors').insert({ player_id: player.id, sector_id: sectorId });
+  if (linkErr) throw linkErr;
+  return player;
+}
+
+export async function removePlayerFromSector(playerId, sectorId) {
+  const { error } = await supabase.from('player_sectors').delete()
+    .eq('player_id', playerId).eq('sector_id', sectorId);
+  if (error) throw error;
+}
+
+export async function deletePlayer(id) {
+  const { error } = await supabase.from('players').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function fetchPlayer(id) {
+  const { data, error } = await supabase.from('players').select('*').eq('id', id).single();
+  if (error) throw error;
   return data;
 }
 
-export async function removePlayer(id) {
-  const { error } = await supabase.from('players').delete().eq('id', id);
+export async function updatePlayer(id, fields) {
+  const { data, error } = await supabase.from('players').update(fields).eq('id', id).select().single();
   if (error) throw error;
+  return data;
+}
+
+export async function fetchPlayerDocuments(playerId) {
+  const { data, error } = await supabase.from('player_documents')
+    .select('*').eq('player_id', playerId).order('uploaded_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function uploadPlayerDocument(teamId, playerId, docType, blob, extension, uploadedBy) {
+  const path = `${teamId}/${playerId}/${docType}_${Date.now()}.${extension}`;
+  const { error: upErr } = await supabase.storage.from('player-documents').upload(path, blob, { upsert: false });
+  if (upErr) throw upErr;
+  const { data, error } = await supabase.from('player_documents').insert({
+    team_id: teamId, player_id: playerId, doc_type: docType,
+    file_path: path, file_name: path.split('/').pop(),
+    status: 'in_review', uploaded_by: uploadedBy
+  }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function getDocumentSignedUrl(filePath) {
+  const { data, error } = await supabase.storage.from('player-documents').createSignedUrl(filePath, 300);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
+export async function reviewDocument(docId, status, reviewerId, note) {
+  const { data, error } = await supabase.from('player_documents').update({
+    status, reviewed_by: reviewerId, reviewed_at: new Date().toISOString(), review_note: note || null
+  }).eq('id', docId).select().single();
+  if (error) throw error;
+  return data;
+}
+
+// RLS su player_documents restringe già ai soli documenti dei settori a cui questo
+// utente ha accesso (has_sector_access_to_player) — nessun filtro aggiuntivo necessario qui.
+export async function fetchPendingDocuments(teamId) {
+  const { data, error } = await supabase.from('player_documents')
+    .select('*, players(name, number)').eq('team_id', teamId).eq('status', 'in_review')
+    .order('uploaded_at');
+  if (error) throw error;
+  return data;
 }

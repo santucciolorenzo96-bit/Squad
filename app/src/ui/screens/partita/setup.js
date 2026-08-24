@@ -64,7 +64,7 @@ function renderMatchSetup(c) {
       teamScore: 0, oppScore: 0, players, quarterFouls: { 1: 0 }
     };
     state.undoStack = []; state.selectedCourtId = null; state.pendingBenchId = null;
-    state.liveGame = await startGame(state.teamProfile.id, draftGame, state.currentUser.id);
+    state.liveGame = await startGame(state.teamProfile.id, state.activeSectorId, draftGame, state.currentUser.id);
     const { renderApp } = await import('../../layout.js');
     renderApp();
   };

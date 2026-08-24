@@ -1,10 +1,13 @@
 import { state } from '../../state.js';
 import { esc } from '../../utils/format.js';
 import { confirmModal, toast } from '../modal.js';
-import { addPlayer, removePlayer } from '../../api/roster.js';
+import { addPlayer, removePlayerFromSector } from '../../api/roster.js';
+import { canEditRoster } from '../../utils/permissions.js';
 
 export function renderRosaTab(c) {
+  const canEdit = canEditRoster(state.currentUser);
   c.innerHTML = `
+    ${canEdit ? `
     <div class="card">
       <h2>Aggiungi giocatore</h2>
       <div class="player-add-row">
@@ -12,29 +15,32 @@ export function renderRosaTab(c) {
         <input type="text" id="rName" placeholder="Nome giocatore">
         <button class="btn btn-secondary" id="rAdd">+ Aggiungi</button>
       </div>
-    </div>
+      <div class="hint">Per dati anagrafici e certificato medico vai su Anagrafica.</div>
+    </div>` : ''}
     <div class="section-label" id="rosaCountLabel">Rosa (${state.roster.length})</div>
     <div id="rosterList"></div>
-    <div id="rosaHint">${state.roster.length < 5 ? `<div class="hint">Servono almeno 5 giocatori in rosa per poter avviare una partita.</div>` : ''}</div>
+    <div id="rosaHint">${canEdit && state.roster.length < 5 ? `<div class="hint">Servono almeno 5 giocatori in rosa per poter avviare una partita.</div>` : ''}</div>
   `;
   function drawList() {
     document.getElementById('rosaCountLabel').textContent = `Rosa (${state.roster.length})`;
-    document.getElementById('rosaHint').innerHTML = state.roster.length < 5 ? `<div class="hint">Servono almeno 5 giocatori in rosa per poter avviare una partita.</div>` : '';
+    const hintEl = document.getElementById('rosaHint');
+    if (hintEl) hintEl.innerHTML = canEdit && state.roster.length < 5 ? `<div class="hint">Servono almeno 5 giocatori in rosa per poter avviare una partita.</div>` : '';
     const holder = document.getElementById('rosterList');
     holder.innerHTML = '';
     if (state.roster.length === 0) { holder.innerHTML = '<div class="placeholder-card">Nessun giocatore in rosa.</div>'; return; }
     state.roster.forEach(p => {
       const row = document.createElement('div');
       row.className = 'list-row';
-      row.innerHTML = `<div class="jersey-num">${esc(p.number)}</div><div class="main"><div class="nm">${esc(p.name)}</div></div><button class="icon-btn danger" data-rm="${p.id}">✕</button>`;
+      row.innerHTML = `<div class="jersey-num">${esc(p.number)}</div><div class="main"><div class="nm">${esc(p.name)}</div></div>${canEdit ? `<button class="icon-btn danger" data-rm="${p.id}">✕</button>` : ''}`;
       holder.appendChild(row);
     });
+    if (!canEdit) return;
     holder.querySelectorAll('[data-rm]').forEach(btn => {
       btn.onclick = () => {
         const id = btn.getAttribute('data-rm');
         const pl = state.roster.find(x => x.id === id);
-        confirmModal('Rimuovere giocatore?', `#${pl.number} ${pl.name} verrà rimosso dalla rosa (le statistiche delle partite già giocate restano).`, async () => {
-          await removePlayer(id);
+        confirmModal('Rimuovere giocatore dal settore?', `#${pl.number} ${pl.name} verrà rimosso dalla rosa di questo settore (resta nell'anagrafica e negli altri settori in cui è eventualmente rosterizzato).`, async () => {
+          await removePlayerFromSector(id, state.activeSectorId);
           state.roster = state.roster.filter(x => x.id !== id);
           drawList();
         }, 'Rimuovi');
@@ -42,11 +48,12 @@ export function renderRosaTab(c) {
     });
   }
   drawList();
+  if (!canEdit) return;
   document.getElementById('rAdd').onclick = async () => {
     const numIn = document.getElementById('rNum'), nameIn = document.getElementById('rName');
     const num = numIn.value.trim(), name = nameIn.value.trim();
     if (!name) { toast('Inserisci il nome del giocatore'); return; }
-    const created = await addPlayer(state.teamProfile.id, num || '-', name);
+    const created = await addPlayer(state.teamProfile.id, state.activeSectorId, num || '-', name);
     state.roster.push(created);
     numIn.value = ''; nameIn.value = ''; numIn.focus();
     drawList();

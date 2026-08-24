@@ -20,6 +20,9 @@ export function renderHomeTab(c) {
   const oppPos = state.nextMatch ? standingsPosition(state.standings, state.nextMatch.opponent) : null;
   const days = state.nextMatch ? daysUntil(state.nextMatch.date) : null;
   const canEdit = canEditHome(state.currentUser);
+  const sectorName = (state.sectors.find(s => s.id === state.activeSectorId) || {}).name || '';
+  const today = new Date().toISOString().slice(0, 10);
+  const nextTraining = [...state.trainings].filter(t => t.date >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
   let countdownTxt = '—';
   if (days != null) { countdownTxt = days === 0 ? 'Oggi' : (days === 1 ? 'Domani' : (days > 1 ? `Tra ${days} giorni` : 'Giocata')); }
 
@@ -29,6 +32,7 @@ export function renderHomeTab(c) {
       <div class="hero-content">
         <div class="hero-logo">${state.teamProfile.logo_url ? `<img src="${esc(state.teamProfile.logo_url)}">` : '🏀'}</div>
         <div class="hero-team-name">${esc(state.teamProfile.name)}</div>
+        ${sectorName ? `<div class="hint" style="margin-top:2px;">${esc(sectorName)}</div>` : ''}
         <div class="hero-pos-pill">${ourPos ? `🏆 ${ourPos}° in classifica` : (canEdit ? 'Imposta la classifica →' : 'Classifica non ancora impostata')}</div>
       </div>
     </div>
@@ -91,6 +95,17 @@ export function renderHomeTab(c) {
         <div class="val small">${countdownTxt}</div>
         <div class="sub">${state.nextMatch ? 'vs ' + esc(state.nextMatch.opponent) : 'Da impostare'}</div>
       </div>
+      <div class="mini-card">
+        <div class="lbl">Prossimo allenamento</div>
+        <div class="val small">${nextTraining ? new Date(nextTraining.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }) : '—'}</div>
+        <div class="sub">${nextTraining ? esc(nextTraining.title) + (nextTraining.location ? ' · ' + esc(nextTraining.location) : '') : 'Nessuno in programma'}</div>
+      </div>
+      ${canEdit ? `
+      <div class="mini-card">
+        <div class="lbl">Certificati da approvare</div>
+        <div class="val small" style="color:${state.pendingDocsCount > 0 ? 'var(--amber)' : 'var(--text)'};">${state.pendingDocsCount}</div>
+        <div class="sub">${state.pendingDocsCount > 0 ? 'In Anagrafica' : 'Tutto in regola'}</div>
+      </div>` : ''}
     </div>
   `;
 
@@ -127,13 +142,13 @@ function openNextMatchModal() {
       location: document.getElementById('nmLoc').value.trim(),
       home: document.getElementById('nmHome').value === '1'
     };
-    await saveNextMatch(state.teamProfile.id, state.nextMatch);
+    await saveNextMatch(state.teamProfile.id, state.activeSectorId, state.nextMatch);
     const { renderApp } = await import('../layout.js');
     renderApp();
   });
   const clearBtn = document.getElementById('nmClear');
   if (clearBtn) clearBtn.onclick = async () => {
-    await clearNextMatch(state.teamProfile.id);
+    await clearNextMatch(state.activeSectorId);
     state.nextMatch = null;
     document.getElementById('modalRoot').innerHTML = '';
     const { renderApp } = await import('../layout.js');

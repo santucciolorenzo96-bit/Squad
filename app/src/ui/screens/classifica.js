@@ -61,12 +61,12 @@ export function renderClassificaTab(c) {
       };
       if (is_us) state.standings.forEach(r => r.is_us = false);
       if (existing) {
-        await upsertStanding(state.teamProfile.id, { id: existing.id, ...data });
+        await upsertStanding(state.teamProfile.id, state.activeSectorId, { id: existing.id, ...data });
         Object.assign(existing, data);
       } else {
-        await upsertStanding(state.teamProfile.id, data);
+        await upsertStanding(state.teamProfile.id, state.activeSectorId, data);
         const { fetchStandings } = await import('../../api/standings.js');
-        state.standings = await fetchStandings(state.teamProfile.id);
+        state.standings = await fetchStandings(state.activeSectorId);
       }
       draw();
       toast('Classifica aggiornata');

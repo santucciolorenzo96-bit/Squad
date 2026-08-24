@@ -10,7 +10,7 @@ export async function fetchMyProfile() {
 
 export async function fetchTeamStaff(teamId) {
   const { data, error } = await supabase.from('profiles')
-    .select('*').eq('team_id', teamId).eq('active', true).order('created_at');
+    .select('*').eq('team_id', teamId).eq('active', true).neq('role', 'famiglia').order('created_at');
   if (error) throw error;
   return data;
 }
