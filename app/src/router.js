@@ -7,6 +7,7 @@ import { fetchNextMatch } from './api/nextMatch.js';
 import { fetchStandings } from './api/standings.js';
 import { fetchSectors, fetchStaffSectors, fetchPlayerSectorIds } from './api/sectors.js';
 import { fetchTrainings } from './api/trainings.js';
+import { fetchCalendar } from './api/calendar.js';
 import { fetchLinkedPlayers } from './api/family.js';
 import { applyTheme } from './utils/theme.js';
 
@@ -61,16 +62,17 @@ function pickDefaultSectorId() {
 export async function loadSectorData(sectorId) {
   if (!sectorId) {
     state.roster = []; state.history = []; state.liveGame = null;
-    state.nextMatch = null; state.standings = []; state.trainings = [];
+    state.nextMatch = null; state.standings = []; state.trainings = []; state.calendar = [];
     return;
   }
-  const [roster, history, liveGame, nextMatch, standings, trainings] = await Promise.all([
+  const [roster, history, liveGame, nextMatch, standings, trainings, calendar] = await Promise.all([
     fetchRosterBySector(sectorId),
     fetchHistory(sectorId),
     fetchLiveGame(sectorId),
     fetchNextMatch(sectorId),
     fetchStandings(sectorId),
-    fetchTrainings(sectorId)
+    fetchTrainings(sectorId),
+    fetchCalendar(sectorId)
   ]);
   state.roster = roster;
   state.history = history;
@@ -78,6 +80,7 @@ export async function loadSectorData(sectorId) {
   state.nextMatch = nextMatch;
   state.standings = standings;
   state.trainings = trainings;
+  state.calendar = calendar;
 }
 
 export async function switchSector(sectorId) {

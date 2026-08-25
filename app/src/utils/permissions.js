@@ -22,7 +22,7 @@ export const TABS = [
   { id: 'classifica', label: 'Classifica', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti', 'famiglia'] },
   { id: 'storico', label: 'Storico', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti'] },
   { id: 'statistiche', label: 'Statistiche', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti'] },
-  { id: 'calendario', label: 'Calendario', group: 'settore', roles: ['admin', 'allenatore'] },
+  { id: 'calendario', label: 'Calendario', group: 'settore', roles: ['admin', 'allenatore', 'famiglia'] },
   { id: 'utenti', label: 'Utenti', group: 'societa', roles: ['admin'] },
   { id: 'squadra', label: 'Squadra', group: 'societa', roles: ['admin'] }
 ];

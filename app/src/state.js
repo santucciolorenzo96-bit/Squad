@@ -13,6 +13,7 @@ export const state = {
   nextMatch: null,
   standings: [],
   trainings: [],
+  calendar: [],
   pendingDocsCount: 0,
   currentTab: 'home',
   undoStack: [],
@@ -36,6 +37,7 @@ export function resetState() {
   state.nextMatch = null;
   state.standings = [];
   state.trainings = [];
+  state.calendar = [];
   state.pendingDocsCount = 0;
   state.currentTab = 'home';
   state.undoStack = [];

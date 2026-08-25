@@ -17,8 +17,12 @@ export function renderHomeTab(c) {
   const ppg = computeTeamPPG(state.history);
   const seasonScorer = [...computeSeasonStats(state.history)].sort((a, b) => b.pts - a.pts)[0] || null;
   const mvp = computeLastGameMVP(lastGame);
-  const oppPos = state.nextMatch ? standingsPosition(state.standings, state.nextMatch.opponent) : null;
-  const days = state.nextMatch ? daysUntil(state.nextMatch.date) : null;
+  const fromCalendar = state.calendar.length > 0;
+  const nextMatch = fromCalendar
+    ? [...state.calendar].filter(m => !m.played).sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'))[0] || null
+    : state.nextMatch;
+  const oppPos = nextMatch ? standingsPosition(state.standings, nextMatch.opponent) : null;
+  const days = nextMatch ? daysUntil(nextMatch.date) : null;
   const canEdit = canEditHome(state.currentUser);
   const sectorName = (state.sectors.find(s => s.id === state.activeSectorId) || {}).name || '';
   const today = new Date().toISOString().slice(0, 10);
@@ -38,8 +42,8 @@ export function renderHomeTab(c) {
     </div>
 
     <div class="xl-card">
-      <div class="xl-card-label"><span>Prossima partita</span>${canEdit ? '<button class="icon-btn" id="editNextMatchBtn" style="color:var(--gold);">✎</button>' : ''}</div>
-      ${state.nextMatch ? `
+      <div class="xl-card-label"><span>Prossima partita</span>${fromCalendar ? '<span class="hint" style="margin:0;">Dal calendario</span>' : (canEdit ? '<button class="icon-btn" id="editNextMatchBtn" style="color:var(--gold);">✎</button>' : '')}</div>
+      ${nextMatch ? `
         <div class="match-row">
           <div class="match-side">
             <div class="match-avatar">${state.teamProfile.logo_url ? `<img src="${esc(state.teamProfile.logo_url)}">` : teamInitials(state.teamProfile.name)}</div>
@@ -47,17 +51,17 @@ export function renderHomeTab(c) {
             <div class="match-pos-tag">${ourPos ? ourPos + '°' : '—'}</div>
           </div>
           <div class="match-mid">
-            <div class="match-time">${state.nextMatch.time || '—'}</div>
-            <div class="match-meta">${state.nextMatch.date ? new Date(state.nextMatch.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }) : 'Data da definire'}${state.nextMatch.location ? '<br>' + esc(state.nextMatch.location) : ''}</div>
-            <div class="match-countdown">${state.nextMatch.home ? '🏠 Casa' : '🚌 Trasferta'} · ${countdownTxt}</div>
+            <div class="match-time">${nextMatch.time || '—'}</div>
+            <div class="match-meta">${nextMatch.date ? new Date(nextMatch.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }) : 'Data da definire'}${nextMatch.location ? '<br>' + esc(nextMatch.location) : ''}</div>
+            <div class="match-countdown">${nextMatch.home ? '🏠 Casa' : '🚌 Trasferta'} · ${countdownTxt}</div>
           </div>
           <div class="match-side">
-            <div class="match-avatar">${teamInitials(state.nextMatch.opponent)}</div>
-            <div class="match-team-nm">${esc(state.nextMatch.opponent)}</div>
+            <div class="match-avatar">${teamInitials(nextMatch.opponent)}</div>
+            <div class="match-team-nm">${esc(nextMatch.opponent)}</div>
             <div class="match-pos-tag">${oppPos ? oppPos + '°' : '—'}</div>
           </div>
         </div>
-      ` : `<div class="hint" style="text-align:center;padding:14px 0;">Nessuna prossima partita impostata.${canEdit ? '<br><button class="btn btn-secondary" id="setNextMatchBtn" style="margin-top:10px;">+ Imposta</button>' : ''}</div>`}
+      ` : `<div class="hint" style="text-align:center;padding:14px 0;">${fromCalendar ? 'Nessuna partita in programma nel calendario.' : `Nessuna prossima partita impostata.${canEdit ? '<br><button class="btn btn-secondary" id="setNextMatchBtn" style="margin-top:10px;">+ Imposta</button>' : ''}`}</div>`}
     </div>
 
     <div class="xl-card">
@@ -93,7 +97,7 @@ export function renderHomeTab(c) {
       <div class="mini-card">
         <div class="lbl">Prossima partita</div>
         <div class="val small">${countdownTxt}</div>
-        <div class="sub">${state.nextMatch ? 'vs ' + esc(state.nextMatch.opponent) : 'Da impostare'}</div>
+        <div class="sub">${nextMatch ? 'vs ' + esc(nextMatch.opponent) : 'Da impostare'}</div>
       </div>
       <div class="mini-card">
         <div class="lbl">Prossimo allenamento</div>
