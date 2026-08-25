@@ -95,7 +95,7 @@ export function renderCalendarioTab(c) {
         toast('Nessuna partita riconosciuta automaticamente: aggiungile a mano qui sotto.');
         reviewRows = [emptyRow()];
       } else {
-        reviewRows = parsed.map(m => ({ ...m, include: true }));
+        reviewRows = parsed.map(m => ({ ...m, home: m.home == null ? true : m.home, include: true }));
       }
       draw();
     } catch (e) {

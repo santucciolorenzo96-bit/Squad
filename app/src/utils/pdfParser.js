@@ -4,7 +4,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 const DATE_RE = /\b(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})\b/;
 const TIME_RE = /\b(\d{1,2})[:.](\d{2})\b/;
-const GIORNATA_RE = /(\d+)\s*[ªA°]?\s*giornata/i;
+const GIORNATA_RE = /giornata\s*n?\.?\s*(\d+)|(\d+)\s*[ªa°]?\s*giornata/i;
+const LOCATION_RE = /\s+(?:presso|c\/o)\s+(.+)$/i;
 const PAIR_RE = /^(.+?)\s+[-–]\s+(.+)$/;
 
 function normalizeDate(d, m, y) {
@@ -48,6 +49,11 @@ function parseMatchesFromLines(lines, teamName) {
     let rest = line.replace(DATE_RE, ' ').replace(TIME_RE, ' ');
     if (giornataMatch) rest = rest.replace(giornataMatch[0], ' ');
     rest = rest.replace(/\s+/g, ' ').trim();
+    rest = rest.replace(/^[-–]+\s*/, '').replace(/\s*[-–]+$/, '').trim();
+
+    const locationMatch = rest.match(LOCATION_RE);
+    let location = null;
+    if (locationMatch) { location = locationMatch[1].trim(); rest = rest.replace(LOCATION_RE, '').trim(); }
 
     const pairMatch = rest.match(PAIR_RE);
     if (!pairMatch) return;
@@ -62,12 +68,12 @@ function parseMatchesFromLines(lines, teamName) {
     else { opponent = teamB; }
 
     matches.push({
-      giornata: giornataMatch ? parseInt(giornataMatch[1], 10) : null,
+      giornata: giornataMatch ? parseInt(giornataMatch[1] || giornataMatch[2], 10) : null,
       date: normalizeDate(dateMatch[1], dateMatch[2], dateMatch[3]),
       time: timeMatch ? `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}` : null,
       opponent,
       home,
-      location: null,
+      location,
       sourceLine: line
     });
   });
