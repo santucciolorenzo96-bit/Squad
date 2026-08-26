@@ -1,6 +1,6 @@
 export const state = {
   teamProfile: null,   // { id, name, city, category, logo_url, primary_color, secondary_color, invite_code }
-  currentUser: null,   // profile row + email: { id, team_id, display_name, role, email }
+  currentUser: null,   // profile row + email: { id, team_id, display_name, role, email, notifications_seen_at }
   staff: [],
   staffSectors: {},    // { [profileId]: sectorId[] }
   sectors: [],
@@ -13,7 +13,9 @@ export const state = {
   nextMatch: null,
   standings: [],
   trainings: [],
+  trainingRecurrences: [],
   calendar: [],
+  notifications: [],
   pendingDocsCount: 0,
   currentTab: 'home',
   undoStack: [],
@@ -37,7 +39,9 @@ export function resetState() {
   state.nextMatch = null;
   state.standings = [];
   state.trainings = [];
+  state.trainingRecurrences = [];
   state.calendar = [];
+  state.notifications = [];
   state.pendingDocsCount = 0;
   state.currentTab = 'home';
   state.undoStack = [];

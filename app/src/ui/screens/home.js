@@ -34,7 +34,7 @@ export function renderHomeTab(c) {
     <div class="hero-wrap">
       <div class="glow-blob b1"></div><div class="glow-blob b2"></div>
       <div class="hero-content">
-        <div class="hero-logo">${state.teamProfile.logo_url ? `<img src="${esc(state.teamProfile.logo_url)}">` : '🏀'}</div>
+        <div class="hero-logo${state.teamProfile.logo_url ? ' has-logo' : ''}">${state.teamProfile.logo_url ? `<img src="${esc(state.teamProfile.logo_url)}">` : '🏀'}</div>
         <div class="hero-team-name">${esc(state.teamProfile.name)}</div>
         ${sectorName ? `<div class="hint" style="margin-top:2px;">${esc(sectorName)}</div>` : ''}
         <div class="hero-pos-pill">${ourPos ? `🏆 ${ourPos}° in classifica` : (canEdit ? 'Imposta la classifica →' : 'Classifica non ancora impostata')}</div>
@@ -46,7 +46,7 @@ export function renderHomeTab(c) {
       ${nextMatch ? `
         <div class="match-row">
           <div class="match-side">
-            <div class="match-avatar">${state.teamProfile.logo_url ? `<img src="${esc(state.teamProfile.logo_url)}">` : teamInitials(state.teamProfile.name)}</div>
+            <div class="match-avatar${state.teamProfile.logo_url ? ' has-logo' : ''}">${state.teamProfile.logo_url ? `<img src="${esc(state.teamProfile.logo_url)}">` : teamInitials(state.teamProfile.name)}</div>
             <div class="match-team-nm">${esc(state.teamProfile.name)}</div>
             <div class="match-pos-tag">${ourPos ? ourPos + '°' : '—'}</div>
           </div>

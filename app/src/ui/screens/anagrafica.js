@@ -4,8 +4,10 @@ import { toast, confirmModal } from '../modal.js';
 import { DOC_TYPES, canReviewDocuments, isFamiglia } from '../../utils/permissions.js';
 import {
   fetchPlayer, updatePlayer, fetchPlayerDocuments, uploadPlayerDocument,
-  getDocumentSignedUrl, reviewDocument, fetchPendingDocuments
+  getDocumentSignedUrl, reviewDocument, fetchPendingDocuments,
+  uploadPlayerPhoto, getPlayerPhotoSignedUrl
 } from '../../api/roster.js';
+import { resizeImageFile } from '../../utils/image.js';
 
 export function renderAnagraficaTab(c) {
   if (isFamiglia(state.currentUser)) return renderFamiglia(c);
@@ -106,13 +108,15 @@ async function renderPlayerDetail(c, playerId, { readOnlyIdentity }) {
   const docs = await fetchPlayerDocuments(playerId);
   const canReview = canReviewDocuments(state.currentUser);
   const canEditFields = !readOnlyIdentity;
+  const photoUrl = player.photo_path ? await getPlayerPhotoSignedUrl(player.photo_path) : null;
 
   c.innerHTML = `
     ${!readOnlyIdentity ? `<button class="btn btn-ghost" id="backBtn" style="margin-bottom:14px;">← Torna alla rosa</button>` : ''}
     <div class="card" style="text-align:center;">
-      <div style="width:72px;height:72px;border-radius:20px;background:linear-gradient(135deg,var(--orange),var(--gold));margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:800;font-size:22px;color:#1a0d00;">${esc((player.name || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase())}</div>
+      <div class="player-avatar" id="playerAvatar">${photoUrl ? `<img src="${esc(photoUrl)}">` : esc((player.name || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase())}</div>
+      ${canEditFields ? `<input type="file" id="fPhotoInput" accept="image/*" class="hidden"><button class="file-btn" id="fPhotoBtn" style="margin-bottom:10px;">${photoUrl ? 'Cambia foto' : 'Carica foto'}</button>` : ''}
       <div style="font-family:var(--font-display);font-weight:800;font-size:18px;">${esc(player.name)}</div>
-      <div class="hint">#${esc(player.number)}${player.role_position ? ' · ' + esc(player.role_position) : ''}</div>
+      <div class="hint">#${esc(player.number)}${player.role_position ? ' · ' + esc(player.role_position) : ''}${player.height_cm ? ' · ' + player.height_cm + ' cm' : ''}</div>
     </div>
 
     <div class="card">
@@ -123,12 +127,13 @@ async function renderPlayerDetail(c, playerId, { readOnlyIdentity }) {
       </div>
       <div class="row2">
         <div class="field"><label>Ruolo in campo</label><input type="text" id="fRole" value="${esc(player.role_position || '')}" placeholder="Es. Guardia" ${canEditFields ? '' : 'disabled'}></div>
-        <div class="field"><label>In rosa dal</label><input type="date" id="fJoined" value="${player.joined_at || ''}" ${canEditFields ? '' : 'disabled'}></div>
+        <div class="field"><label>Altezza (cm)</label><input type="number" id="fHeight" min="100" max="250" value="${player.height_cm ?? ''}" ${canEditFields ? '' : 'disabled'}></div>
       </div>
       <div class="row2">
+        <div class="field"><label>In rosa dal</label><input type="date" id="fJoined" value="${player.joined_at || ''}" ${canEditFields ? '' : 'disabled'}></div>
         <div class="field"><label>Telefono genitore/tutore</label><input type="tel" id="fPhone" value="${esc(player.guardian_phone || '')}" ${canEditFields ? '' : 'disabled'}></div>
-        <div class="field"><label>Email</label><input type="email" id="fEmail" value="${esc(player.email || '')}" ${canEditFields ? '' : 'disabled'}></div>
       </div>
+      <div class="field"><label>Email</label><input type="email" id="fEmail" value="${esc(player.email || '')}" ${canEditFields ? '' : 'disabled'}></div>
       ${canEditFields ? `<div class="error-msg" id="fError"></div><button class="btn btn-primary" id="fSave">Salva dati</button>` : `<div class="hint">Per modificare questi dati contatta lo staff della squadra.</div>`}
     </div>
 
@@ -139,6 +144,22 @@ async function renderPlayerDetail(c, playerId, { readOnlyIdentity }) {
   if (!readOnlyIdentity) {
     document.getElementById('backBtn').onclick = () => renderStaffList(c);
   }
+  const photoBtn = document.getElementById('fPhotoBtn');
+  if (photoBtn) {
+    photoBtn.onclick = () => document.getElementById('fPhotoInput').click();
+    document.getElementById('fPhotoInput').onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const blob = await resizeImageFile(file, 480);
+        await uploadPlayerPhoto(state.teamProfile.id, playerId, blob);
+        toast('Foto aggiornata');
+        renderPlayerDetail(c, playerId, { readOnlyIdentity });
+      } catch (err) {
+        toast(err.message || 'Errore nel caricamento della foto');
+      }
+    };
+  }
   const saveBtn = document.getElementById('fSave');
   if (saveBtn) saveBtn.onclick = async () => {
     const errEl = document.getElementById('fError');
@@ -147,6 +168,7 @@ async function renderPlayerDetail(c, playerId, { readOnlyIdentity }) {
         birth_date: document.getElementById('fBirth').value || null,
         fiscal_code: document.getElementById('fFiscal').value.trim() || null,
         role_position: document.getElementById('fRole').value.trim() || null,
+        height_cm: document.getElementById('fHeight').value ? parseInt(document.getElementById('fHeight').value, 10) : null,
         joined_at: document.getElementById('fJoined').value || null,
         guardian_phone: document.getElementById('fPhone').value.trim() || null,
         email: document.getElementById('fEmail').value.trim() || null

@@ -39,6 +39,21 @@ export async function updatePlayer(id, fields) {
   return data;
 }
 
+export async function uploadPlayerPhoto(teamId, playerId, blob) {
+  const path = `${teamId}/${playerId}/photo_${Date.now()}.jpg`;
+  const { error: upErr } = await supabase.storage.from('player-photos').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+  if (upErr) throw upErr;
+  const { data, error } = await supabase.from('players').update({ photo_path: path }).eq('id', playerId).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function getPlayerPhotoSignedUrl(filePath) {
+  const { data, error } = await supabase.storage.from('player-photos').createSignedUrl(filePath, 300);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
 export async function fetchPlayerDocuments(playerId) {
   const { data, error } = await supabase.from('player_documents')
     .select('*').eq('player_id', playerId).order('uploaded_at', { ascending: false });

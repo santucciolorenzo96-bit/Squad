@@ -7,8 +7,10 @@ import { fetchNextMatch } from './api/nextMatch.js';
 import { fetchStandings } from './api/standings.js';
 import { fetchSectors, fetchStaffSectors, fetchPlayerSectorIds } from './api/sectors.js';
 import { fetchTrainings } from './api/trainings.js';
+import { fetchRecurrences } from './api/trainingRecurrences.js';
 import { fetchCalendar } from './api/calendar.js';
 import { fetchLinkedPlayers } from './api/family.js';
+import { fetchNotifications } from './api/notifications.js';
 import { applyTheme } from './utils/theme.js';
 
 const LAST_SECTOR_KEY = 'bbapp_active_sector';
@@ -31,6 +33,20 @@ export async function loadTeamWideData() {
     try { state.pendingDocsCount = (await fetchPendingDocuments(teamId)).length; }
     catch (e) { state.pendingDocsCount = 0; }
   }
+
+  try { state.notifications = await fetchNotifications(teamId); }
+  catch (e) { state.notifications = []; }
+}
+
+export async function refreshNotifications() {
+  state.notifications = await fetchNotifications(state.teamProfile.id);
+}
+
+export function unseenNotificationsCount() {
+  const seenAt = state.currentUser.notifications_seen_at;
+  const others = state.notifications.filter(n => n.actor_id !== state.currentUser.id);
+  if (!seenAt) return others.length;
+  return others.filter(n => n.created_at > seenAt).length;
 }
 
 export async function loadFamilyLinks() {
@@ -63,16 +79,18 @@ export async function loadSectorData(sectorId) {
   if (!sectorId) {
     state.roster = []; state.history = []; state.liveGame = null;
     state.nextMatch = null; state.standings = []; state.trainings = []; state.calendar = [];
+    state.trainingRecurrences = [];
     return;
   }
-  const [roster, history, liveGame, nextMatch, standings, trainings, calendar] = await Promise.all([
+  const [roster, history, liveGame, nextMatch, standings, trainings, calendar, trainingRecurrences] = await Promise.all([
     fetchRosterBySector(sectorId),
     fetchHistory(sectorId),
     fetchLiveGame(sectorId),
     fetchNextMatch(sectorId),
     fetchStandings(sectorId),
     fetchTrainings(sectorId),
-    fetchCalendar(sectorId)
+    fetchCalendar(sectorId),
+    fetchRecurrences(sectorId)
   ]);
   state.roster = roster;
   state.history = history;
@@ -81,6 +99,7 @@ export async function loadSectorData(sectorId) {
   state.standings = standings;
   state.trainings = trainings;
   state.calendar = calendar;
+  state.trainingRecurrences = trainingRecurrences;
 }
 
 export async function switchSector(sectorId) {

@@ -3,7 +3,8 @@ import { ROLES, ROLE_CLASS, TABS, canSeeTab } from '../utils/permissions.js';
 import { esc } from '../utils/format.js';
 import { formModal, toast } from './modal.js';
 import { changePassword } from '../auth.js';
-import { goLogout, switchSector } from '../router.js';
+import { goLogout, switchSector, unseenNotificationsCount } from '../router.js';
+import { updateProfile } from '../api/profiles.js';
 
 import { renderHomeTab } from './screens/home.js';
 import { renderRosaTab } from './screens/rosa.js';
@@ -35,6 +36,18 @@ function navIcon(id) {
   return `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${NAV_ICONS[id] || ''}</svg>`;
 }
 
+function formatRelativeTime(iso) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'adesso';
+  if (mins < 60) return `${mins} min fa`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} ${hours === 1 ? 'ora' : 'ore'} fa`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} ${days === 1 ? 'giorno' : 'giorni'} fa`;
+  return new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+}
+
 function accessibleSectorList() {
   if (state.currentUser.role === 'admin') return state.sectors;
   if (state.currentUser.role === 'famiglia') return state.sectors.filter(s => state.familySectorIds.includes(s.id));
@@ -56,9 +69,15 @@ export function renderApp() {
           <div class="team-name">${esc(state.teamProfile.name)}</div>
         </div>
         ${mySectors.length > 1 ? `<div class="sector-switcher" id="sectorSwitcher"></div>` : (mySectors.length === 1 ? `<div class="hint" style="margin:0;">${esc(mySectors[0].name)}</div>` : '')}
-        <div class="user-pill" id="userPill">
-          <span>${esc(state.currentUser.display_name)}</span>
-          <span class="role-badge ${ROLE_CLASS[state.currentUser.role]}">${ROLES[state.currentUser.role]}</span>
+        <div class="header-right">
+          <button class="bell-btn" id="notifBell">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8a5 5 0 0 1 10 0c0 4 1.5 5 1.5 5h-13S5 12 5 8Z"/><path d="M8 15.5a2 2 0 0 0 4 0"/></svg>
+            ${unseenNotificationsCount() > 0 ? `<span class="badge-count bell-badge">${unseenNotificationsCount()}</span>` : ''}
+          </button>
+          <div class="user-pill" id="userPill">
+            <span>${esc(state.currentUser.display_name)}</span>
+            <span class="role-badge ${ROLE_CLASS[state.currentUser.role]}">${ROLES[state.currentUser.role]}</span>
+          </div>
         </div>
       </div>
       <div class="tabbar" id="tabbarMobile"></div>
@@ -105,6 +124,41 @@ export function renderApp() {
     mb.onclick = () => { state.currentTab = t.id; renderApp(); };
     mobileBar.appendChild(mb);
   });
+
+  document.getElementById('notifBell').onclick = (e) => {
+    e.stopPropagation();
+    const existing = document.getElementById('notifPanel');
+    if (existing) { existing.remove(); return; }
+    const panel = document.createElement('div');
+    panel.className = 'notif-panel'; panel.id = 'notifPanel';
+    if (state.notifications.length === 0) {
+      panel.innerHTML = `<div class="notif-panel-title">Notifiche</div><div class="hint" style="padding:14px;">Nessuna notifica per ora.</div>`;
+    } else {
+      panel.innerHTML = `<div class="notif-panel-title">Notifiche</div>` + state.notifications.map(n => {
+        const sector = state.sectors.find(s => s.id === n.sector_id);
+        return `<div class="notif-row">
+          <div class="notif-row-title">${esc(n.title)}</div>
+          ${n.body ? `<div class="notif-row-body">${esc(n.body)}</div>` : ''}
+          <div class="notif-row-meta">${sector ? esc(sector.name) + ' · ' : ''}${formatRelativeTime(n.created_at)}</div>
+        </div>`;
+      }).join('');
+    }
+    document.body.appendChild(panel);
+    setTimeout(() => {
+      document.addEventListener('click', function h() {
+        const p = document.getElementById('notifPanel'); if (p) p.remove();
+        document.removeEventListener('click', h);
+      }, 0);
+    }, 0);
+
+    if (unseenNotificationsCount() > 0) {
+      const seenAt = new Date().toISOString();
+      state.currentUser.notifications_seen_at = seenAt;
+      updateProfile(state.currentUser.id, { notifications_seen_at: seenAt }).catch(() => {});
+      const badge = document.querySelector('#notifBell .bell-badge');
+      if (badge) badge.remove();
+    }
+  };
 
   document.getElementById('userPill').onclick = (e) => {
     e.stopPropagation();
