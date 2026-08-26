@@ -17,6 +17,7 @@ import { renderClassificaTab } from './screens/classifica.js';
 import { renderCalendarioTab } from './screens/calendario.js';
 import { renderUtentiTab } from './screens/utenti.js';
 import { renderSquadraTab } from './screens/squadra.js';
+import { renderFinanzaTab } from './screens/finanza/index.js';
 
 const NAV_ICONS = {
   home: '<path d="M3 9.5 10 3l7 6.5"/><path d="M5 8.5V17h10V8.5"/>',
@@ -29,7 +30,8 @@ const NAV_ICONS = {
   statistiche: '<path d="M3 17V3M3 17h14"/><rect x="5.5" y="11" width="2.6" height="6"/><rect x="9.7" y="7" width="2.6" height="10"/><rect x="13.9" y="9.5" width="2.6" height="7.5"/>',
   calendario: '<rect x="2.5" y="4" width="15" height="13" rx="2"/><path d="M2.5 8h15M6.5 2.5v3M13.5 2.5v3"/><path d="M6 12h2M9 12h2M12 12h2"/>',
   utenti: '<circle cx="7" cy="6.5" r="2.5"/><path d="M2.5 16c0-3 2-5 4.5-5s4.5 2 4.5 5"/><circle cx="15" cy="7.5" r="1.6"/><path d="M15 5.3v.6M15 9v.6M16.9 6.4l-.5.3M13.6 8.3l-.5.3M13.1 6.4l.5.3M16.4 8.3l.5.3"/>',
-  squadra: '<path d="M10 2.5 16 5v5c0 4-2.6 6.6-6 7.5-3.4-.9-6-3.5-6-7.5V5z" stroke-linejoin="round"/>'
+  squadra: '<path d="M10 2.5 16 5v5c0 4-2.6 6.6-6 7.5-3.4-.9-6-3.5-6-7.5V5z" stroke-linejoin="round"/>',
+  finanza: '<circle cx="10" cy="10" r="7.2"/><path d="M10 6.2v7.6M12.3 7.8c0-1-1-1.6-2.3-1.6-1.5 0-2.5.7-2.5 1.7 0 2.6 4.8 1.3 4.8 3.9 0 1-1 1.7-2.5 1.7-1.3 0-2.3-.6-2.3-1.6"/>'
 };
 
 function navIcon(id) {
@@ -206,7 +208,7 @@ function openChangePasswordModal() {
 
 function renderTabContent() {
   const c = document.getElementById('tabContent');
-  if (!state.activeSectorId && !['utenti', 'squadra'].includes(state.currentTab)) {
+  if (!state.activeSectorId && !['utenti', 'squadra', 'finanza'].includes(state.currentTab)) {
     const isFamiglia = state.currentUser.role === 'famiglia';
     c.innerHTML = `<div class="placeholder-card">
       ${isFamiglia
@@ -226,6 +228,7 @@ function renderTabContent() {
   if (state.currentTab === 'calendario') return renderCalendarioTab(c);
   if (state.currentTab === 'utenti') return renderUtentiTab(c);
   if (state.currentTab === 'squadra') return renderSquadraTab(c);
+  if (state.currentTab === 'finanza') return renderFinanzaTab(c);
 }
 
 export { renderTabContent };

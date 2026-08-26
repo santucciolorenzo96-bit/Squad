@@ -1,6 +1,6 @@
 import { state } from '../../state.js';
 import { esc } from '../../utils/format.js';
-import { ROLES, ROLE_CLASS } from '../../utils/permissions.js';
+import { ROLES, ROLE_CLASS, isFinanceAdmin } from '../../utils/permissions.js';
 import { confirmModal, formModal, toast } from '../modal.js';
 import { updateProfile, deactivateProfile } from '../../api/profiles.js';
 import { assignStaffToSector, removeStaffFromSector, fetchStaffSectors } from '../../api/sectors.js';
@@ -54,6 +54,7 @@ export function renderUtentiTab(c) {
   drawUsers();
 
   function openUserModal(existing) {
+    const canGrantFinance = isFinanceAdmin(state.currentUser);
     formModal('Modifica utente', `
       <div class="field"><label>Nome e cognome</label><input type="text" id="uName" value="${esc(existing.display_name)}"></div>
       <div class="field"><label>Ruolo</label>
@@ -67,6 +68,16 @@ export function renderUtentiTab(c) {
         <label>Settori assegnati</label>
         ${state.sectors.map(s => `<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><input type="checkbox" data-sector="${s.id}" ${(state.staffSectors[existing.id] || []).includes(s.id) ? 'checked' : ''} style="width:auto;"> ${esc(s.name)}</label>`).join('') || '<div class="hint">Nessun settore creato: creane uno da Squadra.</div>'}
       </div>
+      ${canGrantFinance ? `
+      <div class="field"><label>Ruolo finanza</label>
+        <select id="uFinanceRole">
+          <option value="" ${!existing.finance_role ? 'selected' : ''}>Nessun accesso</option>
+          <option value="admin" ${existing.finance_role === 'admin' ? 'selected' : ''}>Amministratore</option>
+          <option value="manager" ${existing.finance_role === 'manager' ? 'selected' : ''}>Responsabile amministrativo</option>
+          <option value="viewer_team" ${existing.finance_role === 'viewer_team' ? 'selected' : ''}>Responsabile società (sola lettura)</option>
+          <option value="viewer_sector" ${existing.finance_role === 'viewer_sector' ? 'selected' : ''}>Responsabile settore (sola lettura, solo i propri settori)</option>
+        </select>
+      </div>` : ''}
     `, async () => {
       const displayName = document.getElementById('uName').value.trim();
       const role = document.getElementById('uRole').value;
@@ -75,7 +86,9 @@ export function renderUtentiTab(c) {
         const adminCount = state.staff.filter(x => x.role === 'admin').length;
         if (adminCount <= 1) return 'Deve rimanere almeno un amministratore.';
       }
-      const updated = await updateProfile(existing.id, { display_name: displayName, role });
+      const patch = { display_name: displayName, role };
+      if (canGrantFinance) patch.finance_role = document.getElementById('uFinanceRole').value || null;
+      const updated = await updateProfile(existing.id, patch);
       Object.assign(existing, updated);
       if (existing.id === state.currentUser.id) Object.assign(state.currentUser, updated);
 

@@ -11,6 +11,12 @@ import { fetchRecurrences } from './api/trainingRecurrences.js';
 import { fetchCalendar } from './api/calendar.js';
 import { fetchLinkedPlayers } from './api/family.js';
 import { fetchNotifications } from './api/notifications.js';
+import { fetchFiscalYears } from './api/financeFiscalYears.js';
+import { fetchCategories } from './api/financeCategories.js';
+import { fetchCostCenters } from './api/financeCostCenters.js';
+import { fetchAccounts, fetchAccountBalances } from './api/financeAccounts.js';
+import { fetchSuppliers } from './api/financeSuppliers.js';
+import { fetchSponsors } from './api/financeSponsors.js';
 import { applyTheme } from './utils/theme.js';
 
 const LAST_SECTOR_KEY = 'bbapp_active_sector';
@@ -36,6 +42,28 @@ export async function loadTeamWideData() {
 
   try { state.notifications = await fetchNotifications(teamId); }
   catch (e) { state.notifications = []; }
+
+  if (state.currentUser.finance_role) await loadFinanceConfig();
+}
+
+export async function loadFinanceConfig() {
+  const teamId = state.teamProfile.id;
+  const [fiscalYears, categories, costCenters, accounts, balances, suppliers, sponsors] = await Promise.all([
+    fetchFiscalYears(teamId),
+    fetchCategories(teamId),
+    fetchCostCenters(teamId),
+    fetchAccounts(teamId),
+    fetchAccountBalances(teamId),
+    fetchSuppliers(teamId),
+    fetchSponsors(teamId)
+  ]);
+  state.financeFiscalYears = fiscalYears;
+  state.financeCategories = categories;
+  state.financeCostCenters = costCenters;
+  state.financeAccounts = accounts;
+  state.financeAccountBalances = balances;
+  state.financeSuppliers = suppliers;
+  state.financeSponsors = sponsors;
 }
 
 export async function refreshNotifications() {

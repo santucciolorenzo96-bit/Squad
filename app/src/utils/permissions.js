@@ -24,11 +24,22 @@ export const TABS = [
   { id: 'statistiche', label: 'Statistiche', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti'] },
   { id: 'calendario', label: 'Calendario', group: 'settore', roles: ['admin', 'allenatore', 'famiglia'] },
   { id: 'utenti', label: 'Utenti', group: 'societa', roles: ['admin'] },
-  { id: 'squadra', label: 'Squadra', group: 'societa', roles: ['admin'] }
+  { id: 'squadra', label: 'Squadra', group: 'societa', roles: ['admin'] },
+  { id: 'finanza', label: 'Finanza', group: 'societa', financeGated: true }
 ];
 
 export function canSeeTab(tab, user) {
-  return !!user && tab.roles.includes(user.role);
+  if (!user) return false;
+  if (tab.financeGated) return !!user.finance_role;
+  return tab.roles.includes(user.role);
+}
+
+export function canManageFinance(user) {
+  return !!user && (user.finance_role === 'admin' || user.finance_role === 'manager');
+}
+
+export function isFinanceAdmin(user) {
+  return !!user && user.finance_role === 'admin';
 }
 
 export function canEditHome(user) {

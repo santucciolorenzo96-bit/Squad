@@ -1,6 +1,6 @@
 export const state = {
   teamProfile: null,   // { id, name, city, category, logo_url, primary_color, secondary_color, invite_code }
-  currentUser: null,   // profile row + email: { id, team_id, display_name, role, email, notifications_seen_at }
+  currentUser: null,   // profile row + email: { id, team_id, display_name, role, email, notifications_seen_at, finance_role }
   staff: [],
   staffSectors: {},    // { [profileId]: sectorId[] }
   sectors: [],
@@ -17,6 +17,14 @@ export const state = {
   calendar: [],
   notifications: [],
   pendingDocsCount: 0,
+  financeSubTab: 'conti',
+  financeFiscalYears: [],
+  financeCategories: [],
+  financeCostCenters: [],
+  financeAccounts: [],
+  financeAccountBalances: {},
+  financeSuppliers: [],
+  financeSponsors: [],
   currentTab: 'home',
   undoStack: [],
   selectedCourtId: null,
@@ -43,6 +51,14 @@ export function resetState() {
   state.calendar = [];
   state.notifications = [];
   state.pendingDocsCount = 0;
+  state.financeSubTab = 'conti';
+  state.financeFiscalYears = [];
+  state.financeCategories = [];
+  state.financeCostCenters = [];
+  state.financeAccounts = [];
+  state.financeAccountBalances = {};
+  state.financeSuppliers = [];
+  state.financeSponsors = [];
   state.currentTab = 'home';
   state.undoStack = [];
   state.selectedCourtId = null;
