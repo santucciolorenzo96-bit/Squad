@@ -208,7 +208,7 @@ async function renderPlayerDetail(c, playerId, { readOnlyIdentity }) {
       card.innerHTML = `
         <div class="lbl" style="margin-bottom:10px;">${esc(dt.label)}</div>
         <div class="doc-row ${statusClass}">
-          <div class="doc-icon" style="background:rgba(255,255,255,0.05);">
+          <div class="doc-icon" style="background:var(--tint);">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="var(--text)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5h6l3 3V17a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1z"/><path d="M12 2.5V6h3"/></svg>
           </div>
           <div style="flex:1;min-width:0;">

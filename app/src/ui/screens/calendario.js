@@ -51,7 +51,7 @@ export function renderCalendarioTab(c) {
         row.style.alignItems = 'center';
         row.style.gap = '14px';
         row.innerHTML = `
-          <div style="width:44px;height:44px;border-radius:11px;background:rgba(255,255,255,0.05);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-mono);flex-shrink:0;">
+          <div style="width:44px;height:44px;border-radius:11px;background:var(--tint);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-mono);flex-shrink:0;">
             ${m.giornata ? `<span style="font-size:9px;color:var(--dim);">GG</span><span style="font-size:15px;font-weight:700;">${m.giornata}</span>` : '<span style="font-size:16px;">🏀</span>'}
           </div>
           <div style="flex:1;min-width:0;">
