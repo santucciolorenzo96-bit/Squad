@@ -43,7 +43,10 @@ export async function loadTeamWideData() {
   try { state.notifications = await fetchNotifications(teamId); }
   catch (e) { state.notifications = []; }
 
-  if (state.currentUser.finance_role) await loadFinanceConfig();
+  if (state.currentUser.finance_role) {
+    try { await loadFinanceConfig(); }
+    catch (e) { console.error('Errore nel caricamento dati finanza:', e); }
+  }
 }
 
 export async function loadFinanceConfig() {
