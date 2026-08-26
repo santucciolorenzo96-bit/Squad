@@ -6,6 +6,8 @@ import {
   WEEKDAY_LABELS, createRecurrence, updateRecurrence, removeRecurrence, ensureOccurrencesGenerated
 } from '../../api/trainingRecurrences.js';
 import { fetchAttendance, setAttendance } from '../../api/attendance.js';
+import { fetchPlayerPhotoUrls } from '../../api/roster.js';
+import { avatarHtml, wireAvatarClicks } from '../playerAvatar.js';
 import { canEditHome } from '../../utils/permissions.js';
 
 export function renderAllenamentiTab(c) {
@@ -188,6 +190,7 @@ export function renderAllenamentiTab(c) {
     const holder = document.getElementById('attList');
     if (!holder) return; // modale chiusa nel frattempo
     if (state.roster.length === 0) { holder.innerHTML = '<div class="placeholder-card">Nessun giocatore in rosa.</div>'; return; }
+    const photoUrls = await fetchPlayerPhotoUrls(state.roster).catch(() => ({}));
     holder.innerHTML = '';
     const STATUSES = [
       { key: 'present', label: 'Presente', cls: 'made' },
@@ -197,11 +200,12 @@ export function renderAllenamentiTab(c) {
     state.roster.forEach(p => {
       const row = document.createElement('div');
       row.className = 'list-row';
-      row.innerHTML = `<div class="jersey-num">${esc(p.number)}</div><div class="main"><div class="nm">${esc(p.name)}</div></div>
+      row.innerHTML = `${avatarHtml(p, photoUrls[p.id], 32)}<div class="main"><div class="nm">${esc(p.name)} <span class="hint" style="display:inline;">#${esc(p.number)}</span></div></div>
         <div style="display:flex;gap:4px;" data-player="${p.id}">
           ${STATUSES.map(s => `<button class="stat-btn ${s.cls}" data-status="${s.key}" style="padding:6px 9px;font-size:10.5px;opacity:${byPlayer[p.id] === s.key ? '1' : '0.4'};">${s.label}</button>`).join('')}
         </div>`;
       holder.appendChild(row);
+      wireAvatarClicks(row, photoUrls);
       row.querySelectorAll('[data-status]').forEach(btn => btn.onclick = async () => {
         const status = btn.getAttribute('data-status');
         row.querySelectorAll('[data-status]').forEach(b => b.style.opacity = b === btn ? '1' : '0.4');

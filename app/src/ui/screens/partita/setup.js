@@ -4,6 +4,8 @@ import { clamp } from '../../../utils/format.js';
 import { newPlayerStats } from '../../../utils/stats.js';
 import { toast } from '../../modal.js';
 import { startGame } from '../../../api/games.js';
+import { fetchPlayerPhotoUrls } from '../../../api/roster.js';
+import { avatarHtml, wireAvatarClicks } from '../../playerAvatar.js';
 import { renderLiveMatch } from './tracker.js';
 
 export function renderPartitaTab(c) {
@@ -11,7 +13,7 @@ export function renderPartitaTab(c) {
   else { renderMatchSetup(c); }
 }
 
-function renderMatchSetup(c) {
+async function renderMatchSetup(c) {
   if (state.roster.length < 5) {
     c.innerHTML = `<div class="placeholder-card">Servono almeno 5 giocatori in rosa per avviare una partita.<br><br>Vai nella sezione <b>Rosa</b> per aggiungerli.</div>`;
     return;
@@ -34,11 +36,12 @@ function renderMatchSetup(c) {
     <button class="btn btn-primary" id="mStart">Inizia partita</button>
   `;
   const holder = document.getElementById('starterList');
+  const photoUrls = await fetchPlayerPhotoUrls(state.roster).catch(() => ({}));
   state.roster.forEach(p => {
     const row = document.createElement('div');
     row.className = 'list-row';
     row.style.cursor = 'pointer';
-    row.innerHTML = `<div class="jersey-num">${esc(p.number)}</div><div class="main"><div class="nm">${esc(p.name)}</div></div><span class="role-badge" id="tag_${p.id}" style="background:var(--panel2);color:var(--dim);">Panchina</span>`;
+    row.innerHTML = `${avatarHtml(p, photoUrls[p.id], 36)}<div class="main"><div class="nm">${esc(p.name)} <span class="hint" style="display:inline;">#${esc(p.number)}</span></div></div><span class="role-badge" id="tag_${p.id}" style="background:var(--panel2);color:var(--dim);">Panchina</span>`;
     row.onclick = () => {
       const count = Object.keys(starters).length;
       if (starters[p.id]) { delete starters[p.id]; }
@@ -49,6 +52,7 @@ function renderMatchSetup(c) {
     };
     holder.appendChild(row);
   });
+  wireAvatarClicks(holder, photoUrls);
 
   document.getElementById('mStart').onclick = async () => {
     const errEl = document.getElementById('mError');

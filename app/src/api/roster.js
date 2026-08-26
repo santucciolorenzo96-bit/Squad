@@ -54,6 +54,18 @@ export async function getPlayerPhotoSignedUrl(filePath) {
   return data.signedUrl;
 }
 
+// Firma in un'unica chiamata le foto di più giocatori: { [playerId]: signedUrl }
+export async function fetchPlayerPhotoUrls(players) {
+  const withPhoto = players.filter(p => p.photo_path);
+  if (withPhoto.length === 0) return {};
+  const { data, error } = await supabase.storage.from('player-photos')
+    .createSignedUrls(withPhoto.map(p => p.photo_path), 600);
+  if (error) throw error;
+  const map = {};
+  withPhoto.forEach((p, i) => { if (data[i] && data[i].signedUrl) map[p.id] = data[i].signedUrl; });
+  return map;
+}
+
 export async function fetchPlayerDocuments(playerId) {
   const { data, error } = await supabase.from('player_documents')
     .select('*').eq('player_id', playerId).order('uploaded_at', { ascending: false });

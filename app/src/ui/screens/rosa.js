@@ -1,10 +1,11 @@
 import { state } from '../../state.js';
 import { esc } from '../../utils/format.js';
 import { confirmModal, toast } from '../modal.js';
-import { addPlayer, removePlayerFromSector } from '../../api/roster.js';
+import { addPlayer, removePlayerFromSector, fetchPlayerPhotoUrls } from '../../api/roster.js';
 import { canEditRoster } from '../../utils/permissions.js';
+import { avatarHtml, wireAvatarClicks } from '../playerAvatar.js';
 
-export function renderRosaTab(c) {
+export async function renderRosaTab(c) {
   const canEdit = canEditRoster(state.currentUser);
   c.innerHTML = `
     ${canEdit ? `
@@ -21,6 +22,8 @@ export function renderRosaTab(c) {
     <div id="rosterList"></div>
     <div id="rosaHint">${canEdit && state.roster.length < 5 ? `<div class="hint">Servono almeno 5 giocatori in rosa per poter avviare una partita.</div>` : ''}</div>
   `;
+  const photoUrls = await fetchPlayerPhotoUrls(state.roster).catch(() => ({}));
+
   function drawList() {
     document.getElementById('rosaCountLabel').textContent = `Rosa (${state.roster.length})`;
     const hintEl = document.getElementById('rosaHint');
@@ -31,9 +34,10 @@ export function renderRosaTab(c) {
     state.roster.forEach(p => {
       const row = document.createElement('div');
       row.className = 'list-row';
-      row.innerHTML = `<div class="jersey-num">${esc(p.number)}</div><div class="main"><div class="nm">${esc(p.name)}</div></div>${canEdit ? `<button class="icon-btn danger" data-rm="${p.id}">✕</button>` : ''}`;
+      row.innerHTML = `${avatarHtml(p, photoUrls[p.id], 36)}<div class="main"><div class="nm">${esc(p.name)} <span class="hint" style="display:inline;">#${esc(p.number)}</span></div></div>${canEdit ? `<button class="icon-btn danger" data-rm="${p.id}">✕</button>` : ''}`;
       holder.appendChild(row);
     });
+    wireAvatarClicks(holder, photoUrls);
     if (!canEdit) return;
     holder.querySelectorAll('[data-rm]').forEach(btn => {
       btn.onclick = () => {

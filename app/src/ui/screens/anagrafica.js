@@ -5,9 +5,11 @@ import { DOC_TYPES, canReviewDocuments, isFamiglia } from '../../utils/permissio
 import {
   fetchPlayer, updatePlayer, fetchPlayerDocuments, uploadPlayerDocument,
   getDocumentSignedUrl, reviewDocument, fetchPendingDocuments,
-  uploadPlayerPhoto, getPlayerPhotoSignedUrl
+  uploadPlayerPhoto, getPlayerPhotoSignedUrl, fetchPlayerPhotoUrls
 } from '../../api/roster.js';
 import { resizeImageFile } from '../../utils/image.js';
+import { avatarHtml, wireAvatarClicks, openPhotoViewModal } from '../playerAvatar.js';
+import { openPhotoPositionModal } from '../photoEditor.js';
 
 export function renderAnagraficaTab(c) {
   if (isFamiglia(state.currentUser)) return renderFamiglia(c);
@@ -30,7 +32,7 @@ function renderFamiglia(c) {
 }
 
 /* ======================= STAFF: lista rosa + dettaglio ======================= */
-function renderStaffList(c) {
+async function renderStaffList(c) {
   c.innerHTML = `
     ${state.pendingDocsCount > 0 ? `<button class="btn btn-secondary" id="pendingBtn" style="width:100%;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:8px;">
       <span class="status-badge pending">${state.pendingDocsCount} da approvare</span>
@@ -40,14 +42,16 @@ function renderStaffList(c) {
   `;
   const holder = document.getElementById('anagraficaList');
   if (state.roster.length === 0) { holder.innerHTML = '<div class="placeholder-card">Nessun giocatore in rosa.</div>'; }
+  const photoUrls = await fetchPlayerPhotoUrls(state.roster).catch(() => ({}));
   state.roster.forEach(p => {
     const row = document.createElement('div');
     row.className = 'list-row';
     row.style.cursor = 'pointer';
-    row.innerHTML = `<div class="jersey-num">${esc(p.number)}</div><div class="main"><div class="nm">${esc(p.name)}</div></div><span class="icon-btn">›</span>`;
+    row.innerHTML = `${avatarHtml(p, photoUrls[p.id], 36)}<div class="main"><div class="nm">${esc(p.name)} <span class="hint" style="display:inline;">#${esc(p.number)}</span></div></div><span class="icon-btn">›</span>`;
     row.onclick = () => renderPlayerDetail(c, p.id, {});
     holder.appendChild(row);
   });
+  wireAvatarClicks(holder, photoUrls);
   const pendingBtn = document.getElementById('pendingBtn');
   if (pendingBtn) pendingBtn.onclick = () => renderPendingQueue(c);
 }
@@ -113,8 +117,8 @@ async function renderPlayerDetail(c, playerId, { readOnlyIdentity }) {
   c.innerHTML = `
     ${!readOnlyIdentity ? `<button class="btn btn-ghost" id="backBtn" style="margin-bottom:14px;">← Torna alla rosa</button>` : ''}
     <div class="card" style="text-align:center;">
-      <div class="player-avatar" id="playerAvatar">${photoUrl ? `<img src="${esc(photoUrl)}">` : esc((player.name || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase())}</div>
-      ${canEditFields ? `<input type="file" id="fPhotoInput" accept="image/*" class="hidden"><button class="file-btn" id="fPhotoBtn" style="margin-bottom:10px;">${photoUrl ? 'Cambia foto' : 'Carica foto'}</button>` : ''}
+      <div class="player-avatar${photoUrl ? ' clickable' : ''}" id="playerAvatar">${photoUrl ? `<img src="${esc(photoUrl)}" style="object-position:${player.photo_focal_x ?? 50}% ${player.photo_focal_y ?? 50}%;">` : esc((player.name || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase())}</div>
+      ${canEditFields ? `<input type="file" id="fPhotoInput" accept="image/*" class="hidden"><div style="display:flex;gap:8px;justify-content:center;margin-bottom:10px;"><button class="file-btn" id="fPhotoBtn">${photoUrl ? 'Cambia foto' : 'Carica foto'}</button>${photoUrl ? '<button class="file-btn" id="fPhotoReframe">Inquadra</button>' : ''}</div>` : ''}
       <div style="font-family:var(--font-display);font-weight:800;font-size:18px;">${esc(player.name)}</div>
       <div class="hint">#${esc(player.number)}${player.role_position ? ' · ' + esc(player.role_position) : ''}${player.height_cm ? ' · ' + player.height_cm + ' cm' : ''}</div>
     </div>
@@ -144,6 +148,8 @@ async function renderPlayerDetail(c, playerId, { readOnlyIdentity }) {
   if (!readOnlyIdentity) {
     document.getElementById('backBtn').onclick = () => renderStaffList(c);
   }
+  const avatarEl = document.getElementById('playerAvatar');
+  if (avatarEl && photoUrl) avatarEl.onclick = () => openPhotoViewModal(photoUrl);
   const photoBtn = document.getElementById('fPhotoBtn');
   if (photoBtn) {
     photoBtn.onclick = () => document.getElementById('fPhotoInput').click();
@@ -153,13 +159,25 @@ async function renderPlayerDetail(c, playerId, { readOnlyIdentity }) {
       try {
         const blob = await resizeImageFile(file, 480);
         await uploadPlayerPhoto(state.teamProfile.id, playerId, blob);
-        toast('Foto aggiornata');
-        renderPlayerDetail(c, playerId, { readOnlyIdentity });
+        const previewUrl = URL.createObjectURL(blob);
+        openPhotoPositionModal(previewUrl, 50, 50, async (x, y) => {
+          await updatePlayer(playerId, { photo_focal_x: x, photo_focal_y: y });
+          toast('Foto aggiornata');
+          renderPlayerDetail(c, playerId, { readOnlyIdentity });
+        });
       } catch (err) {
         toast(err.message || 'Errore nel caricamento della foto');
       }
     };
   }
+  const reframeBtn = document.getElementById('fPhotoReframe');
+  if (reframeBtn) reframeBtn.onclick = () => {
+    openPhotoPositionModal(photoUrl, player.photo_focal_x ?? 50, player.photo_focal_y ?? 50, async (x, y) => {
+      await updatePlayer(playerId, { photo_focal_x: x, photo_focal_y: y });
+      toast('Inquadratura salvata');
+      renderPlayerDetail(c, playerId, { readOnlyIdentity });
+    });
+  };
   const saveBtn = document.getElementById('fSave');
   if (saveBtn) saveBtn.onclick = async () => {
     const errEl = document.getElementById('fError');
