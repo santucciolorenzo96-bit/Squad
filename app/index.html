@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>Team Manager — Basket</title>
+<script>
+(function(){
+  try {
+    var m = localStorage.getItem('bbapp_theme') || 'system';
+    if (m !== 'system') document.documentElement.setAttribute('data-theme', m);
+  } catch (e) {}
+})();
+</script>
 <link rel="stylesheet" href="/src/styles/app.css">
 </head>
 <body>

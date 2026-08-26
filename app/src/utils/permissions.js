@@ -25,15 +25,15 @@ export const FINANCE_DOC_TYPES = [
 ];
 
 export const TABS = [
-  { id: 'home', label: 'Home', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti', 'famiglia'] },
+  { id: 'home', label: 'Home', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti', 'famiglia'], primary: true },
   { id: 'rosa', label: 'Rosa', group: 'settore', roles: ['admin', 'allenatore', 'famiglia'] },
   { id: 'anagrafica', label: 'Anagrafica', group: 'settore', roles: ['admin', 'allenatore', 'famiglia'] },
-  { id: 'partita', label: 'Partita', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti'] },
-  { id: 'allenamenti', label: 'Allenamenti', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti', 'famiglia'] },
+  { id: 'partita', label: 'Partita', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti'], primary: true },
+  { id: 'allenamenti', label: 'Allenamenti', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti', 'famiglia'], primary: true },
   { id: 'classifica', label: 'Classifica', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti', 'famiglia'] },
   { id: 'storico', label: 'Storico', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti'] },
   { id: 'statistiche', label: 'Statistiche', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti'] },
-  { id: 'calendario', label: 'Calendario', group: 'settore', roles: ['admin', 'allenatore', 'famiglia'] },
+  { id: 'calendario', label: 'Calendario', group: 'settore', roles: ['admin', 'allenatore', 'famiglia'], primary: true },
   { id: 'utenti', label: 'Utenti', group: 'societa', roles: ['admin'] },
   { id: 'squadra', label: 'Squadra', group: 'societa', roles: ['admin'] },
   { id: 'finanza', label: 'Finanza', group: 'societa', financeGated: true }

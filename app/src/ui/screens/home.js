@@ -9,6 +9,18 @@ import {
 import { formModal } from '../modal.js';
 import { saveNextMatch, clearNextMatch } from '../../api/nextMatch.js';
 
+function fmtMoney(n) {
+  return (n ?? 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+}
+
+function greetingWord() {
+  const h = new Date().getHours();
+  if (h < 6) return 'Buonanotte';
+  if (h < 13) return 'Buongiorno';
+  if (h < 18) return 'Buon pomeriggio';
+  return 'Buonasera';
+}
+
 export function renderHomeTab(c) {
   const lastGame = state.history.length ? state.history[state.history.length - 1] : null;
   const ourPos = standingsPosition(state.standings, state.teamProfile.name);
@@ -24,100 +36,121 @@ export function renderHomeTab(c) {
   const oppPos = nextMatch ? standingsPosition(state.standings, nextMatch.opponent) : null;
   const days = nextMatch ? daysUntil(nextMatch.date) : null;
   const canEdit = canEditHome(state.currentUser);
-  const sectorName = (state.sectors.find(s => s.id === state.activeSectorId) || {}).name || '';
+  const hasFinance = !!state.currentUser.finance_role;
   const today = new Date().toISOString().slice(0, 10);
   const nextTraining = [...state.trainings].filter(t => t.date >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
+  const financeTotal = hasFinance ? state.financeAccounts.reduce((sum, a) => sum + (state.financeAccountBalances[a.id] ?? 0), 0) : 0;
   let countdownTxt = '—';
   if (days != null) { countdownTxt = days === 0 ? 'Oggi' : (days === 1 ? 'Domani' : (days > 1 ? `Tra ${days} giorni` : 'Giocata')); }
+  const firstName = (state.currentUser.display_name || '').trim().split(/\s+/)[0] || '';
+  const todayLabel = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
 
   c.innerHTML = `
-    <div class="hero-wrap">
-      <div class="glow-blob b1"></div><div class="glow-blob b2"></div>
-      <div class="hero-content">
-        <div class="hero-logo${state.teamProfile.logo_url ? ' has-logo' : ''}">${state.teamProfile.logo_url ? `<img src="${esc(state.teamProfile.logo_url)}">` : '🏀'}</div>
-        <div class="hero-team-name">${esc(state.teamProfile.name)}</div>
-        ${sectorName ? `<div class="hint" style="margin-top:2px;">${esc(sectorName)}</div>` : ''}
-        <div class="hero-pos-pill">${ourPos ? `🏆 ${ourPos}° in classifica` : (canEdit ? 'Imposta la classifica →' : 'Classifica non ancora impostata')}</div>
-      </div>
+    <div class="greeting-line">
+      <div class="hello">${greetingWord()}${firstName ? ', ' + esc(firstName) : ''}</div>
+      <div class="date">${todayLabel}</div>
     </div>
 
-    <div class="xl-card">
-      <div class="xl-card-label"><span>Prossima partita</span>${fromCalendar ? '<span class="hint" style="margin:0;">Dal calendario</span>' : (canEdit ? '<button class="icon-btn" id="editNextMatchBtn" style="color:var(--gold);">✎</button>' : '')}</div>
-      ${nextMatch ? `
-        <div class="match-row">
-          <div class="match-side">
-            <div class="match-avatar${state.teamProfile.logo_url ? ' has-logo' : ''}">${state.teamProfile.logo_url ? `<img src="${esc(state.teamProfile.logo_url)}">` : teamInitials(state.teamProfile.name)}</div>
-            <div class="match-team-nm">${esc(state.teamProfile.name)}</div>
-            <div class="match-pos-tag">${ourPos ? ourPos + '°' : '—'}</div>
+    <div class="home-grid">
+      <div class="home-main">
+        <div class="xl-card">
+          <div class="xl-card-label"><span>Prossima partita</span>${fromCalendar ? '<span class="hint" style="margin:0;">Dal calendario</span>' : (canEdit ? '<button class="icon-btn" id="editNextMatchBtn" style="color:var(--gold);">✎</button>' : '')}</div>
+          ${nextMatch ? `
+            <div class="match-row">
+              <div class="match-side">
+                <div class="match-avatar${state.teamProfile.logo_url ? ' has-logo' : ''}">${state.teamProfile.logo_url ? `<img src="${esc(state.teamProfile.logo_url)}">` : teamInitials(state.teamProfile.name)}</div>
+                <div class="match-team-nm">${esc(state.teamProfile.name)}</div>
+                <div class="match-pos-tag">${ourPos ? ourPos + '°' : '—'}</div>
+              </div>
+              <div class="match-mid">
+                <div class="match-time">${nextMatch.time || '—'}</div>
+                <div class="match-meta">${nextMatch.date ? new Date(nextMatch.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }) : 'Data da definire'}${nextMatch.location ? '<br>' + esc(nextMatch.location) : ''}</div>
+                <div class="match-countdown">${nextMatch.home ? '🏠 Casa' : '🚌 Trasferta'} · ${countdownTxt}</div>
+              </div>
+              <div class="match-side">
+                <div class="match-avatar">${teamInitials(nextMatch.opponent)}</div>
+                <div class="match-team-nm">${esc(nextMatch.opponent)}</div>
+                <div class="match-pos-tag">${oppPos ? oppPos + '°' : '—'}</div>
+              </div>
+            </div>
+          ` : `<div class="hint" style="text-align:center;padding:14px 0;">${fromCalendar ? 'Nessuna partita in programma nel calendario.' : `Nessuna prossima partita impostata.${canEdit ? '<br><button class="btn btn-secondary" id="setNextMatchBtn" style="margin-top:10px;">+ Imposta</button>' : ''}`}</div>`}
+        </div>
+
+        <div class="xl-card">
+          <div class="xl-card-label"><span>Miglior giocatore ultima partita</span></div>
+          ${mvp ? `
+            <div class="mvp-card">
+              <div class="mvp-avatar">#${esc(mvp.number)}</div>
+              <div class="mvp-info">
+                <div class="nm">${esc(mvp.name)}</div>
+                <div class="line">${mvp.pts} pt · ${mvp.stats.orb + mvp.stats.drb} reb · ${mvp.stats.ast} ast vs ${esc(lastGame.oppName)}</div>
+              </div>
+              <div class="mvp-index"><div class="val">${mvp.ind}</div><div class="lbl">Valutazione</div></div>
+            </div>
+          ` : `<div class="hint">Disponibile dopo la prima partita registrata.</div>`}
+        </div>
+
+        <div class="stat-row">
+          <div class="mini-card">
+            <div class="lbl">Andamento stagione</div>
+            <div class="val">${state.history.length ? `${record.w}V - ${record.l}S` : '—'}</div>
+            <div class="sub">${state.history.length ? streak : 'Nessuna partita giocata'}</div>
           </div>
-          <div class="match-mid">
-            <div class="match-time">${nextMatch.time || '—'}</div>
-            <div class="match-meta">${nextMatch.date ? new Date(nextMatch.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }) : 'Data da definire'}${nextMatch.location ? '<br>' + esc(nextMatch.location) : ''}</div>
-            <div class="match-countdown">${nextMatch.home ? '🏠 Casa' : '🚌 Trasferta'} · ${countdownTxt}</div>
+          <div class="mini-card">
+            <div class="lbl">Media punti</div>
+            <div class="val">${ppg != null ? ppg.toFixed(1) : '—'}</div>
+            <div class="sub">${state.history.length ? `su ${state.history.length} partite` : 'Nessun dato'}</div>
           </div>
-          <div class="match-side">
-            <div class="match-avatar">${teamInitials(nextMatch.opponent)}</div>
-            <div class="match-team-nm">${esc(nextMatch.opponent)}</div>
-            <div class="match-pos-tag">${oppPos ? oppPos + '°' : '—'}</div>
+          <div class="mini-card">
+            <div class="lbl">Miglior marcatore</div>
+            <div class="val small">${seasonScorer ? `#${esc(seasonScorer.number)} ${esc(seasonScorer.name)}` : '—'}</div>
+            <div class="sub">${seasonScorer ? `${(seasonScorer.pts / seasonScorer.games).toFixed(1)} pt/partita` : 'Nessun dato'}</div>
           </div>
         </div>
-      ` : `<div class="hint" style="text-align:center;padding:14px 0;">${fromCalendar ? 'Nessuna partita in programma nel calendario.' : `Nessuna prossima partita impostata.${canEdit ? '<br><button class="btn btn-secondary" id="setNextMatchBtn" style="margin-top:10px;">+ Imposta</button>' : ''}`}</div>`}
-    </div>
 
-    <div class="xl-card">
-      <div class="xl-card-label"><span>Miglior giocatore ultima partita</span></div>
-      ${mvp ? `
-        <div class="mvp-card">
-          <div class="mvp-avatar">#${esc(mvp.number)}</div>
-          <div class="mvp-info">
-            <div class="nm">${esc(mvp.name)}</div>
-            <div class="line">${mvp.pts} pt · ${mvp.stats.orb + mvp.stats.drb} reb · ${mvp.stats.ast} ast vs ${esc(lastGame.oppName)}</div>
+        ${canEdit ? `
+        <div class="section-label" style="margin-top:6px;">Amministrazione</div>
+        <div class="stat-row">
+          <div class="mini-card">
+            <div class="lbl">Certificati da approvare</div>
+            <div class="val small" style="color:${state.pendingDocsCount > 0 ? 'var(--amber)' : 'var(--text)'};">${state.pendingDocsCount}</div>
+            <div class="sub">${state.pendingDocsCount > 0 ? 'In Anagrafica' : 'Tutto in regola'}</div>
           </div>
-          <div class="mvp-index"><div class="val">${mvp.ind}</div><div class="lbl">Valutazione</div></div>
-        </div>
-      ` : `<div class="hint">Disponibile dopo la prima partita registrata.</div>`}
-    </div>
+          ${hasFinance ? `
+          <div class="mini-card" id="homeFinanceCard" style="cursor:pointer;">
+            <div class="lbl">Finanza · saldo conti</div>
+            <div class="val small">${fmtMoney(financeTotal)}</div>
+            <div class="sub">${state.financeAccounts.length} cont${state.financeAccounts.length === 1 ? 'o' : 'i'}</div>
+          </div>` : ''}
+        </div>` : ''}
+      </div>
 
-    <div class="mini-grid">
-      <div class="mini-card">
-        <div class="lbl">Andamento stagione</div>
-        <div class="val">${state.history.length ? `${record.w}V - ${record.l}S` : '—'}</div>
-        <div class="sub">${state.history.length ? streak : 'Nessuna partita giocata'}</div>
+      <div class="home-side">
+        <div class="mini-card">
+          <div class="lbl">Prossimo allenamento</div>
+          <div class="val small">${nextTraining ? new Date(nextTraining.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }) : '—'}</div>
+          <div class="sub">${nextTraining ? esc(nextTraining.title) + (nextTraining.location ? ' · ' + esc(nextTraining.location) : '') : 'Nessuno in programma'}</div>
+        </div>
+        <div class="mini-card" id="homeStandingsCard" style="${canEdit && !ourPos ? 'cursor:pointer;' : ''}">
+          <div class="lbl">Posizione in classifica</div>
+          <div class="val small">${ourPos ? `${ourPos}°` : (canEdit ? 'Imposta →' : '—')}</div>
+          <div class="sub">${ourPos ? esc(state.teamProfile.name) : 'Classifica non ancora impostata'}</div>
+        </div>
       </div>
-      <div class="mini-card">
-        <div class="lbl">Media punti</div>
-        <div class="val">${ppg != null ? ppg.toFixed(1) : '—'}</div>
-        <div class="sub">${state.history.length ? `su ${state.history.length} partite` : 'Nessun dato'}</div>
-      </div>
-      <div class="mini-card">
-        <div class="lbl">Miglior marcatore</div>
-        <div class="val small">${seasonScorer ? `#${esc(seasonScorer.number)} ${esc(seasonScorer.name)}` : '—'}</div>
-        <div class="sub">${seasonScorer ? `${(seasonScorer.pts / seasonScorer.games).toFixed(1)} pt/partita` : 'Nessun dato'}</div>
-      </div>
-      <div class="mini-card">
-        <div class="lbl">Prossima partita</div>
-        <div class="val small">${countdownTxt}</div>
-        <div class="sub">${nextMatch ? 'vs ' + esc(nextMatch.opponent) : 'Da impostare'}</div>
-      </div>
-      <div class="mini-card">
-        <div class="lbl">Prossimo allenamento</div>
-        <div class="val small">${nextTraining ? new Date(nextTraining.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }) : '—'}</div>
-        <div class="sub">${nextTraining ? esc(nextTraining.title) + (nextTraining.location ? ' · ' + esc(nextTraining.location) : '') : 'Nessuno in programma'}</div>
-      </div>
-      ${canEdit ? `
-      <div class="mini-card">
-        <div class="lbl">Certificati da approvare</div>
-        <div class="val small" style="color:${state.pendingDocsCount > 0 ? 'var(--amber)' : 'var(--text)'};">${state.pendingDocsCount}</div>
-        <div class="sub">${state.pendingDocsCount > 0 ? 'In Anagrafica' : 'Tutto in regola'}</div>
-      </div>` : ''}
     </div>
   `;
 
   const editBtn = document.getElementById('editNextMatchBtn') || document.getElementById('setNextMatchBtn');
   if (editBtn) editBtn.onclick = openNextMatchModal;
-  const heroPill = c.querySelector('.hero-pos-pill');
-  if (heroPill && canEdit && !ourPos) heroPill.onclick = async () => {
+  const standingsCard = document.getElementById('homeStandingsCard');
+  if (standingsCard && canEdit && !ourPos) standingsCard.onclick = async () => {
     state.currentTab = 'classifica';
+    const { renderApp } = await import('../layout.js');
+    renderApp();
+  };
+  const financeCard = document.getElementById('homeFinanceCard');
+  if (financeCard) financeCard.onclick = async () => {
+    state.currentTab = 'finanza';
     const { renderApp } = await import('../layout.js');
     renderApp();
   };

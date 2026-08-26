@@ -5,6 +5,7 @@ import { formModal, toast } from './modal.js';
 import { changePassword } from '../auth.js';
 import { goLogout, switchSector, unseenNotificationsCount } from '../router.js';
 import { updateProfile } from '../api/profiles.js';
+import { applyTheme, getStoredThemeMode, setTheme } from '../utils/theme.js';
 
 import { renderHomeTab } from './screens/home.js';
 import { renderRosaTab } from './screens/rosa.js';
@@ -82,11 +83,11 @@ export function renderApp() {
           </div>
         </div>
       </div>
-      <div class="tabbar" id="tabbarMobile"></div>
       <div class="shell-body">
         <div class="sidebar" id="sidebarNav"></div>
         <div class="tab-content screen" id="tabContent"></div>
       </div>
+      <div class="bottom-nav-float" id="bottomNavFloat"></div>
     </div>
   `;
 
@@ -103,7 +104,6 @@ export function renderApp() {
 
   const groupLabels = { settore: 'Settore', societa: 'Società' };
   const sidebar = document.getElementById('sidebarNav');
-  const mobileBar = document.getElementById('tabbarMobile');
   let lastGroup = null;
   visibleTabs.forEach(t => {
     if (t.group !== lastGroup) {
@@ -119,13 +119,9 @@ export function renderApp() {
       (t.id === 'anagrafica' && state.pendingDocsCount > 0 && state.currentUser.role !== 'famiglia' ? `<span class="badge-count">${state.pendingDocsCount}</span>` : '');
     row.onclick = () => { state.currentTab = t.id; renderApp(); };
     sidebar.appendChild(row);
-
-    const mb = document.createElement('button');
-    mb.textContent = t.label;
-    mb.className = state.currentTab === t.id ? 'active' : '';
-    mb.onclick = () => { state.currentTab = t.id; renderApp(); };
-    mobileBar.appendChild(mb);
   });
+
+  renderBottomNav(visibleTabs, groupLabels);
 
   document.getElementById('notifBell').onclick = (e) => {
     e.stopPropagation();
@@ -168,8 +164,22 @@ export function renderApp() {
     if (existing) { existing.remove(); return; }
     const menu = document.createElement('div');
     menu.className = 'user-menu'; menu.id = 'userMenuDrop';
-    menu.innerHTML = `<button id="umChangePass">Cambia password</button><button id="umLogout">Esci</button>`;
+    const themeLabels = { dark: 'Scuro', light: 'Chiaro', system: 'Sistema' };
+    const currentMode = getStoredThemeMode();
+    menu.innerHTML = `
+      <div class="theme-switch" id="themeSwitch">
+        ${['dark', 'light', 'system'].map(m => `<button data-mode="${m}" class="${m === currentMode ? 'active' : ''}">${themeLabels[m]}</button>`).join('')}
+      </div>
+      <button id="umChangePass">Cambia password</button><button id="umLogout">Esci</button>`;
     document.body.appendChild(menu);
+    menu.querySelectorAll('#themeSwitch button').forEach(b => {
+      b.onclick = (ev) => {
+        ev.stopPropagation();
+        setTheme(b.dataset.mode);
+        applyTheme(state.teamProfile);
+        menu.querySelectorAll('#themeSwitch button').forEach(o => o.classList.toggle('active', o === b));
+      };
+    });
     document.getElementById('umChangePass').onclick = () => { menu.remove(); openChangePasswordModal(); };
     document.getElementById('umLogout').onclick = async () => {
       menu.remove();
@@ -184,6 +194,54 @@ export function renderApp() {
   };
 
   renderTabContent();
+}
+
+function renderBottomNav(visibleTabs, groupLabels) {
+  const nav = document.getElementById('bottomNavFloat');
+  if (!nav) return;
+  const primaryTabs = visibleTabs.filter(t => t.primary).slice(0, 4);
+  const otherTabs = visibleTabs.filter(t => !primaryTabs.includes(t));
+  nav.innerHTML = '';
+  primaryTabs.forEach(t => {
+    const b = document.createElement('button');
+    b.className = 'bn-item' + (state.currentTab === t.id ? ' active' : '');
+    b.innerHTML = navIcon(t.id) + `<span>${esc(t.label)}</span>`;
+    b.onclick = () => { state.currentTab = t.id; renderApp(); };
+    nav.appendChild(b);
+  });
+  if (otherTabs.length > 0) {
+    const b = document.createElement('button');
+    const otherActive = otherTabs.some(t => t.id === state.currentTab);
+    b.className = 'bn-item' + (otherActive ? ' active' : '');
+    b.innerHTML = `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="4.5" cy="10" r="1.3" fill="currentColor" stroke="none"/><circle cx="10" cy="10" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="10" r="1.3" fill="currentColor" stroke="none"/></svg><span>Altro</span>`;
+    b.onclick = () => openMoreSheet(otherTabs, groupLabels);
+    nav.appendChild(b);
+  }
+}
+
+function openMoreSheet(otherTabs, groupLabels) {
+  const existing = document.getElementById('moreSheetOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.className = 'bottom-sheet-overlay'; overlay.id = 'moreSheetOverlay';
+  const sheet = document.createElement('div');
+  sheet.className = 'bottom-sheet';
+  let lastGroup = null;
+  let rowsHtml = '';
+  otherTabs.forEach(t => {
+    if (t.group !== lastGroup) {
+      rowsHtml += `<div class="nav-group-label">${groupLabels[t.group] || ''}</div>`;
+      lastGroup = t.group;
+    }
+    rowsHtml += `<div class="nav-row${state.currentTab === t.id ? ' active' : ''}" data-tab="${t.id}">${navIcon(t.id)}<span>${esc(t.label)}</span>${t.id === 'anagrafica' && state.pendingDocsCount > 0 && state.currentUser.role !== 'famiglia' ? `<span class="badge-count">${state.pendingDocsCount}</span>` : ''}</div>`;
+  });
+  sheet.innerHTML = `<div class="bottom-sheet-handle"></div>${rowsHtml}`;
+  overlay.appendChild(sheet);
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  sheet.querySelectorAll('.nav-row').forEach(row => {
+    row.onclick = () => { state.currentTab = row.dataset.tab; overlay.remove(); renderApp(); };
+  });
+  document.body.appendChild(overlay);
 }
 
 function openChangePasswordModal() {
