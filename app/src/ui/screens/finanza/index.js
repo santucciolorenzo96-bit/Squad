@@ -6,8 +6,13 @@ import { renderCategoriesSection } from './categories.js';
 import { renderCostCentersSection } from './costCenters.js';
 import { renderSuppliersSection } from './suppliers.js';
 import { renderSponsorsSection } from './sponsors.js';
+import { renderIncomeSection, renderExpenseSection } from './entries.js';
+import { renderDeadlinesSection } from './deadlines.js';
 
 const SECTIONS = [
+  { id: 'entrate', label: 'Entrate', render: renderIncomeSection },
+  { id: 'uscite', label: 'Uscite', render: renderExpenseSection },
+  { id: 'scadenze', label: 'Scadenze', render: renderDeadlinesSection },
   { id: 'conti', label: 'Conti', render: renderAccountsSection },
   { id: 'categorie', label: 'Categorie', render: renderCategoriesSection },
   { id: 'centri', label: 'Centri di costo', render: renderCostCentersSection },

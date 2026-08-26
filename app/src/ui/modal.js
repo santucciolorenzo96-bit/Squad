@@ -21,9 +21,9 @@ export function confirmModal(title, body, onConfirm, confirmLabel) {
   document.getElementById('modalConfirm').onclick = () => { root.innerHTML = ''; onConfirm(); };
 }
 
-export function formModal(title, fieldsHtml, onSubmit) {
+export function formModal(title, fieldsHtml, onSubmit, opts) {
   const root = document.getElementById('modalRoot');
-  root.innerHTML = `<div class="modal-overlay" id="modalOverlay"><div class="modal-box">
+  root.innerHTML = `<div class="modal-overlay" id="modalOverlay"><div class="modal-box${opts && opts.wide ? ' wide' : ''}">
     <h3>${esc(title)}</h3>
     <div id="modalFields">${fieldsHtml}</div>
     <div class="error-msg" id="modalError"></div>

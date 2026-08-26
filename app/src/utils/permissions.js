@@ -13,6 +13,17 @@ export const DOC_TYPES = [
   { key: 'tesseramento_fip', label: 'Tesseramento FIP' }
 ];
 
+export const FINANCE_DOC_TYPES = [
+  { key: 'fattura', label: 'Fattura' },
+  { key: 'ricevuta', label: 'Ricevuta' },
+  { key: 'nota_spese', label: 'Nota spese' },
+  { key: 'ricevuta_pagamento', label: 'Ricevuta di pagamento' },
+  { key: 'documento_acquisto', label: 'Documento di acquisto' },
+  { key: 'contratto', label: 'Contratto' },
+  { key: 'documento_sponsor', label: 'Documento sponsor' },
+  { key: 'altro', label: 'Altro' }
+];
+
 export const TABS = [
   { id: 'home', label: 'Home', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti', 'famiglia'] },
   { id: 'rosa', label: 'Rosa', group: 'settore', roles: ['admin', 'allenatore', 'famiglia'] },
