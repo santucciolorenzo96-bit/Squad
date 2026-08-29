@@ -24,6 +24,20 @@ export async function fetchDeadlines(teamId) {
     .filter(e => e._status && !['pagato', 'incassato', 'annullato'].includes(e._status.status));
 }
 
+export async function fetchEntriesForPlayers(playerIds) {
+  if (!playerIds || playerIds.length === 0) return [];
+  const { data, error } = await supabase.from('finance_entries')
+    .select('*, finance_categories(name)')
+    .in('player_id', playerIds).eq('kind', 'income').is('cancelled_at', null)
+    .order('due_date');
+  if (error) throw error;
+  if (data.length === 0) return [];
+  const statusMap = await fetchStatusMap(data.map(e => e.id));
+  return data
+    .map(e => ({ ...e, _status: statusMap[e.id] }))
+    .filter(e => e._status && !['incassato', 'annullato'].includes(e._status.status));
+}
+
 async function fetchStatusMap(ids) {
   const { data, error } = await supabase.from('finance_entries_status').select('*').in('entry_id', ids);
   if (error) throw error;

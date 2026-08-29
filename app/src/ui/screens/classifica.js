@@ -2,6 +2,7 @@ import { state } from '../../state.js';
 import { esc } from '../../utils/format.js';
 import { formModal, confirmModal, toast } from '../modal.js';
 import { upsertStanding, removeStanding } from '../../api/standings.js';
+import { openBoxScoreModal } from './partita/boxscore.js';
 
 export function renderClassificaTab(c) {
   const canEdit = state.currentUser.role === 'admin' || state.currentUser.role === 'allenatore';
@@ -9,7 +10,25 @@ export function renderClassificaTab(c) {
     ${canEdit ? `<div class="card"><button class="btn btn-secondary" id="addStandingBtn" style="width:100%;">+ Aggiungi squadra</button></div>` : ''}
     <div id="standingsHolder"></div>
     ${state.standings.length === 0 ? `<div class="placeholder-card">Nessuna classifica inserita.${canEdit ? ' Aggiungila manualmente qui, oppure attendi il caricamento automatico dal calendario (Fase 3).' : ''}</div>` : ''}
+    <div class="section-label" style="margin-top:22px;">Storico partite</div>
+    <div id="histList"></div>
   `;
+  drawHistory();
+
+  function drawHistory() {
+    const holder = document.getElementById('histList');
+    if (state.history.length === 0) { holder.innerHTML = '<div class="placeholder-card">Nessuna partita in archivio.</div>'; return; }
+    holder.innerHTML = '';
+    [...state.history].reverse().forEach(g => {
+      const row = document.createElement('div');
+      row.className = 'history-row';
+      const win = g.teamScore > g.oppScore;
+      row.innerHTML = `<div class="top"><span>${esc(state.teamProfile.name)} vs ${esc(g.oppName)}</span><span class="history-score" style="color:${win ? 'var(--green)' : 'var(--red)'}">${g.teamScore}–${g.oppScore}</span></div>
+        <div class="date">${new Date(g.date).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}</div>`;
+      row.onclick = () => openBoxScoreModal(g);
+      holder.appendChild(row);
+    });
+  }
   function draw() {
     const holder = document.getElementById('standingsHolder');
     if (!holder) return;

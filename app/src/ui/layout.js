@@ -1,24 +1,22 @@
 import { state } from '../state.js';
-import { ROLES, ROLE_CLASS, TABS, canSeeTab } from '../utils/permissions.js';
+import { TABS, canSeeTab } from '../utils/permissions.js';
 import { esc } from '../utils/format.js';
-import { formModal, toast } from './modal.js';
-import { changePassword } from '../auth.js';
-import { goLogout, switchSector, unseenNotificationsCount } from '../router.js';
+import { switchSector, unseenNotificationsCount } from '../router.js';
 import { updateProfile } from '../api/profiles.js';
-import { applyTheme, getStoredThemeMode, setTheme } from '../utils/theme.js';
+import { userInitials } from '../utils/theme.js';
 
 import { renderHomeTab } from './screens/home.js';
 import { renderRosaTab } from './screens/rosa.js';
 import { renderAnagraficaTab } from './screens/anagrafica.js';
 import { renderPartitaTab } from './screens/partita/setup.js';
 import { renderAllenamentiTab } from './screens/allenamenti.js';
-import { renderStoricoTab } from './screens/storico.js';
 import { renderStatisticheTab } from './screens/statistiche.js';
 import { renderClassificaTab } from './screens/classifica.js';
 import { renderCalendarioTab } from './screens/calendario.js';
 import { renderUtentiTab } from './screens/utenti.js';
 import { renderSquadraTab } from './screens/squadra.js';
 import { renderFinanzaTab } from './screens/finanza/index.js';
+import { renderProfiloTab } from './screens/profilo.js';
 
 const NAV_ICONS = {
   home: '<path d="M3 9.5 10 3l7 6.5"/><path d="M5 8.5V17h10V8.5"/>',
@@ -27,7 +25,6 @@ const NAV_ICONS = {
   partita: '<circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="1.6" fill="currentColor" stroke="none"/>',
   allenamenti: '<rect x="2.5" y="4" width="15" height="13" rx="2"/><path d="M2.5 8h15M6.5 2.5v3M13.5 2.5v3"/>',
   classifica: '<path d="M10 2.5 12 7l5 .7-3.6 3.4.9 4.9L10 13.6 5.7 16l.9-4.9L3 7.7 8 7z" stroke-linejoin="round"/>',
-  storico: '<circle cx="9.5" cy="10" r="7"/><path d="M9.5 6v4l3 2"/><path d="M3 4l1.5 2M17.3 5l-1.8 1.6"/>',
   statistiche: '<path d="M3 17V3M3 17h14"/><rect x="5.5" y="11" width="2.6" height="6"/><rect x="9.7" y="7" width="2.6" height="10"/><rect x="13.9" y="9.5" width="2.6" height="7.5"/>',
   calendario: '<rect x="2.5" y="4" width="15" height="13" rx="2"/><path d="M2.5 8h15M6.5 2.5v3M13.5 2.5v3"/><path d="M6 12h2M9 12h2M12 12h2"/>',
   utenti: '<circle cx="7" cy="6.5" r="2.5"/><path d="M2.5 16c0-3 2-5 4.5-5s4.5 2 4.5 5"/><circle cx="15" cy="7.5" r="1.6"/><path d="M15 5.3v.6M15 9v.6M16.9 6.4l-.5.3M13.6 8.3l-.5.3M13.1 6.4l.5.3M16.4 8.3l.5.3"/>',
@@ -59,7 +56,7 @@ function accessibleSectorList() {
 }
 
 export function renderApp() {
-  if (!TABS.find(t => t.id === state.currentTab && canSeeTab(t, state.currentUser))) state.currentTab = 'home';
+  if (state.currentTab !== 'profilo' && !TABS.find(t => t.id === state.currentTab && canSeeTab(t, state.currentUser))) state.currentTab = 'home';
   const root = document.getElementById('root');
   const mySectors = accessibleSectorList();
   const visibleTabs = TABS.filter(t => canSeeTab(t, state.currentUser));
@@ -77,10 +74,11 @@ export function renderApp() {
             <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8a5 5 0 0 1 10 0c0 4 1.5 5 1.5 5h-13S5 12 5 8Z"/><path d="M8 15.5a2 2 0 0 0 4 0"/></svg>
             ${unseenNotificationsCount() > 0 ? `<span class="badge-count bell-badge">${unseenNotificationsCount()}</span>` : ''}
           </button>
-          <div class="user-pill" id="userPill">
-            <span>${esc(state.currentUser.display_name)}</span>
-            <span class="role-badge ${ROLE_CLASS[state.currentUser.role]}">${ROLES[state.currentUser.role]}</span>
-          </div>
+          <button class="user-avatar-btn" id="userAvatarBtn" aria-label="Profilo e impostazioni">
+            <span class="gear-base"></span>
+            ${Array.from({ length: 8 }, (_, i) => `<span class="gear-tooth" style="transform:rotate(${i * 45}deg);"></span>`).join('')}
+            <span class="user-avatar-circle">${esc(userInitials(state.currentUser.display_name))}</span>
+          </button>
         </div>
       </div>
       <div class="shell-body">
@@ -158,39 +156,10 @@ export function renderApp() {
     }
   };
 
-  document.getElementById('userPill').onclick = (e) => {
+  document.getElementById('userAvatarBtn').onclick = (e) => {
     e.stopPropagation();
-    const existing = document.getElementById('userMenuDrop');
-    if (existing) { existing.remove(); return; }
-    const menu = document.createElement('div');
-    menu.className = 'user-menu'; menu.id = 'userMenuDrop';
-    const themeLabels = { dark: 'Scuro', light: 'Chiaro', system: 'Sistema' };
-    const currentMode = getStoredThemeMode();
-    menu.innerHTML = `
-      <div class="theme-switch" id="themeSwitch">
-        ${['dark', 'light', 'system'].map(m => `<button data-mode="${m}" class="${m === currentMode ? 'active' : ''}">${themeLabels[m]}</button>`).join('')}
-      </div>
-      <button id="umChangePass">Cambia password</button><button id="umLogout">Esci</button>`;
-    document.body.appendChild(menu);
-    menu.querySelectorAll('#themeSwitch button').forEach(b => {
-      b.onclick = (ev) => {
-        ev.stopPropagation();
-        setTheme(b.dataset.mode);
-        applyTheme(state.teamProfile);
-        menu.querySelectorAll('#themeSwitch button').forEach(o => o.classList.toggle('active', o === b));
-      };
-    });
-    document.getElementById('umChangePass').onclick = () => { menu.remove(); openChangePasswordModal(); };
-    document.getElementById('umLogout').onclick = async () => {
-      menu.remove();
-      await goLogout();
-    };
-    setTimeout(() => {
-      document.addEventListener('click', function h() {
-        const m = document.getElementById('userMenuDrop'); if (m) m.remove();
-        document.removeEventListener('click', h);
-      }, 0);
-    }, 0);
+    state.currentTab = 'profilo';
+    renderApp();
   };
 
   renderTabContent();
@@ -244,28 +213,10 @@ function openMoreSheet(otherTabs, groupLabels) {
   document.body.appendChild(overlay);
 }
 
-function openChangePasswordModal() {
-  formModal('Cambia password', `
-    <div class="field"><label>Password attuale</label><input type="password" id="cpOld"></div>
-    <div class="field"><label>Nuova password</label><input type="password" id="cpNew"></div>
-    <div class="field"><label>Conferma nuova password</label><input type="password" id="cpNew2"></div>
-  `, async () => {
-    const oldP = document.getElementById('cpOld').value;
-    const n1 = document.getElementById('cpNew').value;
-    const n2 = document.getElementById('cpNew2').value;
-    if (n1.length < 6) return 'La nuova password deve avere almeno 6 caratteri.';
-    if (n1 !== n2) return 'Le nuove password non coincidono.';
-    try {
-      await changePassword(state.currentUser.email, oldP, n1);
-      toast('Password aggiornata');
-    } catch (e) {
-      return e.message || 'Impossibile aggiornare la password.';
-    }
-  });
-}
-
 function renderTabContent() {
   const c = document.getElementById('tabContent');
+  c.classList.remove('tab-anim'); void c.offsetWidth; c.classList.add('tab-anim');
+  if (state.currentTab === 'profilo') return renderProfiloTab(c);
   if (!state.activeSectorId && !['utenti', 'squadra', 'finanza'].includes(state.currentTab)) {
     const isFamiglia = state.currentUser.role === 'famiglia';
     c.innerHTML = `<div class="placeholder-card">
@@ -280,7 +231,6 @@ function renderTabContent() {
   if (state.currentTab === 'anagrafica') return renderAnagraficaTab(c);
   if (state.currentTab === 'partita') return renderPartitaTab(c);
   if (state.currentTab === 'allenamenti') return renderAllenamentiTab(c);
-  if (state.currentTab === 'storico') return renderStoricoTab(c);
   if (state.currentTab === 'statistiche') return renderStatisticheTab(c);
   if (state.currentTab === 'classifica') return renderClassificaTab(c);
   if (state.currentTab === 'calendario') return renderCalendarioTab(c);

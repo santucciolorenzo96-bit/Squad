@@ -1,7 +1,7 @@
 import { state, resetState } from './state.js';
 import { fetchMyProfile, fetchTeamStaff } from './api/profiles.js';
 import { fetchTeam } from './api/teams.js';
-import { fetchRosterBySector, fetchPendingDocuments } from './api/roster.js';
+import { fetchRosterBySector, fetchPendingDocuments, fetchExpiringDocuments } from './api/roster.js';
 import { fetchHistory, fetchLiveGame } from './api/games.js';
 import { fetchNextMatch } from './api/nextMatch.js';
 import { fetchStandings } from './api/standings.js';
@@ -38,6 +38,8 @@ export async function loadTeamWideData() {
   if (state.currentUser.role !== 'famiglia') {
     try { state.pendingDocsCount = (await fetchPendingDocuments(teamId)).length; }
     catch (e) { state.pendingDocsCount = 0; }
+    try { state.expiringDocsCount = (await fetchExpiringDocuments(teamId)).length; }
+    catch (e) { state.expiringDocsCount = 0; }
   }
 
   try { state.notifications = await fetchNotifications(teamId); }

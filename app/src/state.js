@@ -17,6 +17,7 @@ export const state = {
   calendar: [],
   notifications: [],
   pendingDocsCount: 0,
+  expiringDocsCount: 0,
   financeSubTab: 'conti',
   financeFiscalYears: [],
   financeCategories: [],

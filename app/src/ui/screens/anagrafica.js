@@ -1,10 +1,10 @@
 import { state } from '../../state.js';
 import { esc } from '../../utils/format.js';
-import { toast, confirmModal } from '../modal.js';
+import { toast, confirmModal, formModal } from '../modal.js';
 import { DOC_TYPES, canReviewDocuments, isFamiglia } from '../../utils/permissions.js';
 import {
   fetchPlayer, updatePlayer, fetchPlayerDocuments, uploadPlayerDocument,
-  getDocumentSignedUrl, reviewDocument, fetchPendingDocuments,
+  getDocumentSignedUrl, reviewDocument, fetchPendingDocuments, fetchExpiringDocuments,
   uploadPlayerPhoto, getPlayerPhotoSignedUrl, fetchPlayerPhotoUrls
 } from '../../api/roster.js';
 import { resizeImageFile } from '../../utils/image.js';
@@ -34,9 +34,14 @@ function renderFamiglia(c) {
 /* ======================= STAFF: lista rosa + dettaglio ======================= */
 async function renderStaffList(c) {
   c.innerHTML = `
-    ${state.pendingDocsCount > 0 ? `<button class="btn btn-secondary" id="pendingBtn" style="width:100%;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:8px;">
-      <span class="status-badge pending">${state.pendingDocsCount} da approvare</span>
-    </button>` : ''}
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      ${state.pendingDocsCount > 0 ? `<button class="btn btn-secondary" id="pendingBtn" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;">
+        <span class="status-badge pending">${state.pendingDocsCount} da approvare</span>
+      </button>` : ''}
+      ${state.expiringDocsCount > 0 ? `<button class="btn btn-secondary" id="expiringBtn" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;">
+        <span class="status-badge pending">${state.expiringDocsCount} in scadenza</span>
+      </button>` : ''}
+    </div>
     <div class="section-label">Anagrafica (${state.roster.length})</div>
     <div id="anagraficaList"></div>
   `;
@@ -54,6 +59,44 @@ async function renderStaffList(c) {
   wireAvatarClicks(holder, photoUrls);
   const pendingBtn = document.getElementById('pendingBtn');
   if (pendingBtn) pendingBtn.onclick = () => renderPendingQueue(c);
+  const expiringBtn = document.getElementById('expiringBtn');
+  if (expiringBtn) expiringBtn.onclick = () => renderExpiringQueue(c);
+}
+
+async function renderExpiringQueue(c) {
+  c.innerHTML = `<div class="section-label">Documenti in scadenza</div><div id="expiringList" class="hint">Caricamento…</div>`;
+  const docs = await fetchExpiringDocuments(state.teamProfile.id);
+  const holder = document.getElementById('expiringList');
+  if (docs.length === 0) { holder.innerHTML = '<div class="placeholder-card">Nessun documento in scadenza.</div>'; return; }
+  holder.innerHTML = '';
+  const today = new Date().toISOString().slice(0, 10);
+  docs.forEach(d => {
+    const label = (DOC_TYPES.find(t => t.key === d.doc_type) || {}).label || d.doc_type;
+    const expired = d.expires_at < today;
+    const row = document.createElement('div');
+    row.className = 'card';
+    row.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:700;">${esc(d.players.name)} <span class="hint" style="display:inline;">#${esc(d.players.number)}</span></div>
+          <div class="hint">${esc(label)} · ${expired ? 'scaduto il' : 'valido fino al'} ${new Date(d.expires_at).toLocaleDateString('it-IT')}</div>
+        </div>
+        <span class="status-badge ${expired ? 'rejected' : 'pending'}">${expired ? 'Scaduto' : 'In scadenza'}</span>
+      </div>
+      <button class="btn btn-secondary" data-view="${d.file_path}" style="width:100%;margin-top:10px;">Visualizza</button>
+    `;
+    holder.appendChild(row);
+  });
+  holder.querySelectorAll('[data-view]').forEach(btn => btn.onclick = async () => {
+    const url = await getDocumentSignedUrl(btn.getAttribute('data-view'));
+    window.open(url, '_blank');
+  });
+  const backRow = document.createElement('button');
+  backRow.className = 'btn btn-ghost';
+  backRow.textContent = '← Torna alla rosa';
+  backRow.style.cssText = 'width:100%;margin-top:14px;';
+  backRow.onclick = () => renderStaffList(c);
+  holder.parentElement.appendChild(backRow);
 }
 
 async function renderPendingQueue(c) {
@@ -246,12 +289,26 @@ async function renderPlayerDetail(c, playerId, { readOnlyIdentity }) {
       if (!file) return;
       if (file.size > 10 * 1024 * 1024) { toast('File troppo grande (max 10MB)'); return; }
       const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
-      try {
-        await uploadPlayerDocument(state.teamProfile.id, playerId, dt.key, file, ext, state.currentUser.id);
-        toast('Documento caricato, in attesa di verifica');
-        renderPlayerDetail(c, playerId, { readOnlyIdentity });
-      } catch (e) {
-        toast(e.message || 'Errore nel caricamento');
+      const doUpload = async (expiresAt) => {
+        try {
+          await uploadPlayerDocument(state.teamProfile.id, playerId, dt.key, file, ext, state.currentUser.id, expiresAt);
+          toast('Documento caricato, in attesa di verifica');
+          renderPlayerDetail(c, playerId, { readOnlyIdentity });
+        } catch (e) {
+          toast(e.message || 'Errore nel caricamento');
+        }
+      };
+      if (dt.key === 'certificato_medico') {
+        formModal('Scadenza certificato', `
+          <div class="field"><label>Valido fino al</label><input type="date" id="fCertExpiry"></div>
+          <div class="hint">Il sistema avviserà quando si avvicina la scadenza.</div>
+        `, async () => {
+          const expiresAt = document.getElementById('fCertExpiry').value;
+          if (!expiresAt) return 'Inserisci la data di scadenza.';
+          await doUpload(expiresAt);
+        });
+      } else {
+        await doUpload(null);
       }
     };
     const viewBtn = card.querySelector('[data-view]');

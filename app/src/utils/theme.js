@@ -49,6 +49,10 @@ export function teamInitials(name) {
   return (name || '').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
 }
 
+export function userInitials(name) {
+  return teamInitials(name);
+}
+
 // ======================= Tema chiaro/scuro/sistema =======================
 
 export function getStoredThemeMode() {

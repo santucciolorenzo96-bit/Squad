@@ -73,14 +73,14 @@ export async function fetchPlayerDocuments(playerId) {
   return data;
 }
 
-export async function uploadPlayerDocument(teamId, playerId, docType, blob, extension, uploadedBy) {
+export async function uploadPlayerDocument(teamId, playerId, docType, blob, extension, uploadedBy, expiresAt) {
   const path = `${teamId}/${playerId}/${docType}_${Date.now()}.${extension}`;
   const { error: upErr } = await supabase.storage.from('player-documents').upload(path, blob, { upsert: false });
   if (upErr) throw upErr;
   const { data, error } = await supabase.from('player_documents').insert({
     team_id: teamId, player_id: playerId, doc_type: docType,
     file_path: path, file_name: path.split('/').pop(),
-    status: 'in_review', uploaded_by: uploadedBy
+    status: 'in_review', uploaded_by: uploadedBy, expires_at: expiresAt || null
   }).select().single();
   if (error) throw error;
   return data;
@@ -106,6 +106,19 @@ export async function fetchPendingDocuments(teamId) {
   const { data, error } = await supabase.from('player_documents')
     .select('*, players(name, number)').eq('team_id', teamId).eq('status', 'in_review')
     .order('uploaded_at');
+  if (error) throw error;
+  return data;
+}
+
+// Documenti con scadenza entro `days` giorni (comprende quelli già scaduti):
+// usato per l'avviso di rinnovo del certificato medico.
+export async function fetchExpiringDocuments(teamId, days = 30) {
+  const limit = new Date();
+  limit.setDate(limit.getDate() + days);
+  const { data, error } = await supabase.from('player_documents')
+    .select('*, players(name, number)').eq('team_id', teamId)
+    .not('expires_at', 'is', null).lte('expires_at', limit.toISOString().slice(0, 10))
+    .order('expires_at');
   if (error) throw error;
   return data;
 }
