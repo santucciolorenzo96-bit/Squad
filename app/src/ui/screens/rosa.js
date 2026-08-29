@@ -1,6 +1,6 @@
 import { state } from '../../state.js';
 import { esc } from '../../utils/format.js';
-import { confirmModal, toast } from '../modal.js';
+import { confirmModal, toast, withButtonLoading } from '../modal.js';
 import { addPlayer, removePlayerFromSector, fetchPlayerPhotoUrls } from '../../api/roster.js';
 import { canEditRoster } from '../../utils/permissions.js';
 import { avatarHtml, wireAvatarClicks } from '../playerAvatar.js';
@@ -204,7 +204,7 @@ export async function renderRosaTab(c) {
   }
   drawList();
   if (!canEdit) return;
-  document.getElementById('rAdd').onclick = async () => {
+  document.getElementById('rAdd').onclick = (e) => withButtonLoading(e.currentTarget, async () => {
     const numIn = document.getElementById('rNum'), nameIn = document.getElementById('rName');
     const num = numIn.value.trim(), name = nameIn.value.trim();
     if (!name) { toast('Inserisci il nome del giocatore'); return; }
@@ -213,6 +213,6 @@ export async function renderRosaTab(c) {
     numIn.value = ''; nameIn.value = ''; numIn.focus();
     drawList();
     if (document.getElementById('courtHalf')) drawCourt();
-  };
+  });
   document.getElementById('rName').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('rAdd').click(); });
 }

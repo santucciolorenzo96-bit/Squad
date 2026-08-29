@@ -1,8 +1,8 @@
 import { state } from '../../state.js';
 import { esc } from '../../utils/format.js';
 import { ROLES, ROLE_CLASS, isFamiglia, DOC_TYPES } from '../../utils/permissions.js';
-import { applyTheme, getStoredThemeMode, setTheme, userInitials } from '../../utils/theme.js';
-import { formModal, toast } from '../modal.js';
+import { getStoredThemeMode, setTheme, userInitials } from '../../utils/theme.js';
+import { formModal, toast, withButtonLoading } from '../modal.js';
 import { changePassword } from '../../auth.js';
 import { goLogout } from '../../router.js';
 import { updateProfile } from '../../api/profiles.js';
@@ -71,12 +71,11 @@ export async function renderProfiloTab(c) {
   document.querySelectorAll('#themeSwitch button').forEach(b => {
     b.onclick = () => {
       setTheme(b.dataset.mode);
-      applyTheme(state.teamProfile);
       document.querySelectorAll('#themeSwitch button').forEach(o => o.classList.toggle('active', o === b));
     };
   });
 
-  document.getElementById('pSave').onclick = async () => {
+  document.getElementById('pSave').onclick = (e) => withButtonLoading(e.currentTarget, async () => {
     const errEl = document.getElementById('pError');
     const display_name = document.getElementById('pName').value.trim();
     if (!display_name) { errEl.textContent = 'Il nome non può essere vuoto.'; return; }
@@ -90,7 +89,7 @@ export async function renderProfiloTab(c) {
     } catch (e) {
       errEl.textContent = e.message || 'Errore nel salvataggio.';
     }
-  };
+  });
 
   document.getElementById('pChangePass').onclick = openChangePasswordModal;
   document.getElementById('pLogout').onclick = () => goLogout();

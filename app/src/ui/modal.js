@@ -12,13 +12,34 @@ export function confirmModal(title, body, onConfirm, confirmLabel) {
   const root = document.getElementById('modalRoot');
   root.innerHTML = `<div class="modal-overlay" id="modalOverlay"><div class="modal-box">
     <h3>${esc(title)}</h3><p>${esc(body)}</p>
+    <div class="error-msg" id="modalError"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="modalCancel">Annulla</button>
       <button class="btn btn-primary" id="modalConfirm" style="width:auto;">${esc(confirmLabel || 'Conferma')}</button>
     </div></div></div>`;
-  document.getElementById('modalCancel').onclick = () => { root.innerHTML = ''; };
-  document.getElementById('modalOverlay').onclick = (e) => { if (e.target.id === 'modalOverlay') root.innerHTML = ''; };
-  document.getElementById('modalConfirm').onclick = () => { root.innerHTML = ''; onConfirm(); };
+  const cancelBtn = document.getElementById('modalCancel');
+  const confirmBtn = document.getElementById('modalConfirm');
+  const errEl = document.getElementById('modalError');
+  let busy = false;
+  cancelBtn.onclick = () => { if (!busy) root.innerHTML = ''; };
+  document.getElementById('modalOverlay').onclick = (e) => { if (!busy && e.target.id === 'modalOverlay') root.innerHTML = ''; };
+  confirmBtn.onclick = async () => {
+    if (busy) return;
+    busy = true;
+    const original = confirmBtn.textContent;
+    confirmBtn.disabled = true; cancelBtn.disabled = true;
+    confirmBtn.classList.add('btn-loading');
+    try {
+      await onConfirm();
+      root.innerHTML = '';
+    } catch (e) {
+      errEl.textContent = e.message || 'Si è verificato un errore imprevisto.';
+      busy = false;
+      confirmBtn.disabled = false; cancelBtn.disabled = false;
+      confirmBtn.classList.remove('btn-loading');
+      confirmBtn.textContent = original;
+    }
+  };
 }
 
 export function formModal(title, fieldsHtml, onSubmit, opts) {
@@ -31,11 +52,49 @@ export function formModal(title, fieldsHtml, onSubmit, opts) {
       <button class="btn btn-ghost" id="modalCancel">Annulla</button>
       <button class="btn btn-primary" id="modalConfirm" style="width:auto;">Salva</button>
     </div></div></div>`;
-  document.getElementById('modalCancel').onclick = () => { root.innerHTML = ''; };
-  document.getElementById('modalOverlay').onclick = (e) => { if (e.target.id === 'modalOverlay') root.innerHTML = ''; };
-  document.getElementById('modalConfirm').onclick = async () => {
-    const err = await onSubmit();
-    if (err) { document.getElementById('modalError').textContent = err; }
-    else { root.innerHTML = ''; }
+  const cancelBtn = document.getElementById('modalCancel');
+  const confirmBtn = document.getElementById('modalConfirm');
+  const errEl = document.getElementById('modalError');
+  let busy = false;
+  cancelBtn.onclick = () => { if (!busy) root.innerHTML = ''; };
+  document.getElementById('modalOverlay').onclick = (e) => { if (!busy && e.target.id === 'modalOverlay') root.innerHTML = ''; };
+  confirmBtn.onclick = async () => {
+    if (busy) return;
+    busy = true;
+    const original = confirmBtn.textContent;
+    confirmBtn.disabled = true; cancelBtn.disabled = true;
+    confirmBtn.classList.add('btn-loading');
+    try {
+      const err = await onSubmit();
+      if (err) {
+        errEl.textContent = err;
+        busy = false;
+        confirmBtn.disabled = false; cancelBtn.disabled = false;
+        confirmBtn.classList.remove('btn-loading');
+        confirmBtn.textContent = original;
+      } else {
+        root.innerHTML = '';
+      }
+    } catch (e) {
+      errEl.textContent = e.message || 'Si è verificato un errore imprevisto.';
+      busy = false;
+      confirmBtn.disabled = false; cancelBtn.disabled = false;
+      confirmBtn.classList.remove('btn-loading');
+      confirmBtn.textContent = original;
+    }
   };
+}
+
+// Disabilita/attenua un pulsante primario fuori da una modale durante un'azione
+// asincrona (es. "Salva modifiche"), per evitare doppi invii da doppio tocco.
+export async function withButtonLoading(button, fn) {
+  if (button.disabled) return;
+  button.disabled = true;
+  button.classList.add('btn-loading');
+  try {
+    await fn();
+  } finally {
+    button.disabled = false;
+    button.classList.remove('btn-loading');
+  }
 }

@@ -17,7 +17,6 @@ import { fetchCostCenters } from './api/financeCostCenters.js';
 import { fetchAccounts, fetchAccountBalances } from './api/financeAccounts.js';
 import { fetchSuppliers } from './api/financeSuppliers.js';
 import { fetchSponsors } from './api/financeSponsors.js';
-import { applyTheme } from './utils/theme.js';
 
 const LAST_SECTOR_KEY = 'bbapp_active_sector';
 
@@ -33,7 +32,6 @@ export async function loadTeamWideData() {
   state.sectors = sectors;
   state.staff = staff;
   state.staffSectors = staffSectors;
-  applyTheme(team);
 
   if (state.currentUser.role !== 'famiglia') {
     try { state.pendingDocsCount = (await fetchPendingDocuments(teamId)).length; }

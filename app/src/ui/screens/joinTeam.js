@@ -6,7 +6,7 @@ export function renderJoinTeam() {
   const root = document.getElementById('root');
   root.innerHTML = `
   <div class="center-screen"><div style="max-width:380px;width:100%;">
-    <div class="brand-header"><span style="font-size:30px;">🏀</span><div class="brand-name">Team Manager</div></div>
+    <div class="brand-header"><img class="brand-logo" src="/logo-default.svg"><div class="brand-name">SQUAD</div></div>
     <div class="card">
       <h2>Entra in una squadra esistente</h2>
       <div class="field">

@@ -2,7 +2,7 @@ export function renderLanding() {
   const root = document.getElementById('root');
   root.innerHTML = `
   <div class="center-screen"><div style="max-width:360px;width:100%;">
-    <div class="brand-header"><span style="font-size:30px;">🏀</span><div class="brand-name">Team Manager</div></div>
+    <div class="brand-header"><img class="brand-logo" src="/logo-default.svg"><div class="brand-name">SQUAD</div></div>
     <div class="card">
       <h2>Bentornato</h2>
       <button class="btn btn-primary" id="goLogin" style="margin-bottom:10px;">Accedi</button>

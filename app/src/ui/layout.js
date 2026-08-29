@@ -65,7 +65,7 @@ export function renderApp() {
     <div class="app-shell">
       <div class="header-bar">
         <div class="left">
-          ${state.teamProfile.logo_url ? `<img class="team-logo" src="${esc(state.teamProfile.logo_url)}">` : '<span style="font-size:20px;">🏀</span>'}
+          <img class="team-logo" src="${state.teamProfile.logo_url ? esc(state.teamProfile.logo_url) : '/logo-default.svg'}">
           <div class="team-name">${esc(state.teamProfile.name)}</div>
         </div>
         ${mySectors.length > 1 ? `<div class="sector-switcher" id="sectorSwitcher"></div>` : (mySectors.length === 1 ? `<div class="hint" style="margin:0;">${esc(mySectors[0].name)}</div>` : '')}

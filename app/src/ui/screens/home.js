@@ -58,7 +58,7 @@ export function renderHomeTab(c) {
           ${nextMatch ? `
             <div class="match-row">
               <div class="match-side">
-                <div class="match-avatar${state.teamProfile.logo_url ? ' has-logo' : ''}">${state.teamProfile.logo_url ? `<img src="${esc(state.teamProfile.logo_url)}">` : teamInitials(state.teamProfile.name)}</div>
+                <div class="match-avatar has-logo"><img src="${state.teamProfile.logo_url ? esc(state.teamProfile.logo_url) : '/logo-default.svg'}"></div>
                 <div class="match-team-nm">${esc(state.teamProfile.name)}</div>
                 <div class="match-pos-tag">${ourPos ? ourPos + '°' : '—'}</div>
               </div>

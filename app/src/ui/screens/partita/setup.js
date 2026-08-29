@@ -2,7 +2,7 @@ import { state } from '../../../state.js';
 import { esc } from '../../../utils/format.js';
 import { clamp } from '../../../utils/format.js';
 import { newPlayerStats } from '../../../utils/stats.js';
-import { toast } from '../../modal.js';
+import { toast, withButtonLoading } from '../../modal.js';
 import { startGame } from '../../../api/games.js';
 import { fetchPlayerPhotoUrls } from '../../../api/roster.js';
 import { avatarHtml, wireAvatarClicks } from '../../playerAvatar.js';
@@ -56,7 +56,7 @@ async function renderMatchSetup(c) {
   });
   wireAvatarClicks(holder, photoUrls);
 
-  document.getElementById('mStart').onclick = async () => {
+  document.getElementById('mStart').onclick = (e) => withButtonLoading(e.currentTarget, async () => {
     const errEl = document.getElementById('mError');
     const oppName = document.getElementById('mOpp').value.trim() || 'Avversari';
     const qLen = clamp(parseInt(document.getElementById('mQlen').value) || 10, 1, 60) * 60;
@@ -73,5 +73,5 @@ async function renderMatchSetup(c) {
     state.liveGame = await startGame(state.teamProfile.id, state.activeSectorId, draftGame, state.currentUser.id);
     const { renderApp } = await import('../../layout.js');
     renderApp();
-  };
+  });
 }
