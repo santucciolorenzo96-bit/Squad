@@ -15,7 +15,7 @@ export function renderUtentiTab(c) {
     <div class="section-label">Staff (${state.staff.length})</div>
     <div id="userList"></div>
     <div class="section-label" style="margin-top:24px;">Account famiglia</div>
-    <div id="familyList" class="hint">Caricamento…</div>
+    <div id="familyList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
   `;
   function sectorNames(profileId) {
     const ids = state.staffSectors[profileId] || [];

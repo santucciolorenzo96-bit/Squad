@@ -31,7 +31,7 @@ export function renderAccountsSection(c, canManage) {
           <div style="font-weight:600;font-size:14px;">${esc(a.name)} ${!a.active ? '<span class="hint">(inattivo)</span>' : ''}</div>
           <div class="hint">${TYPE_LABELS[a.type] || a.type}${a.iban ? ' · ' + esc(a.iban) : ''}</div>
         </div>
-        <div style="font-family:var(--font-display);font-weight:800;font-size:16px;color:${balance < 0 ? 'var(--red)' : 'var(--gold)'};">${fmtMoney(balance)}</div>
+        <div style="font-family:var(--font-display);font-weight:700;font-size:16px;color:${balance < 0 ? 'var(--red)' : 'var(--gold)'};">${fmtMoney(balance)}</div>
         ${canManage ? `<button class="icon-btn" data-edit="${a.id}">✎</button><button class="icon-btn danger" data-rm="${a.id}">✕</button>` : ''}
       `;
       holder.appendChild(row);

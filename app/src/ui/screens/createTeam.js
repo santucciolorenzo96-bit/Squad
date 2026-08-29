@@ -6,7 +6,7 @@ export function renderCreateTeam() {
   const root = document.getElementById('root');
   root.innerHTML = `
   <div class="center-screen"><div style="max-width:420px;width:100%;">
-    <div class="brand-header"><img class="brand-logo" src="/logo-default.svg"><div class="brand-name">SQUAD</div></div>
+    <div class="brand-header"><img class="brand-logo" src="/logo-default.svg" alt="SQUAD"><div class="brand-name">SQUAD</div><div class="brand-tagline">Gestionale per società sportive</div></div>
     <div class="card">
       <h2>Passo 1 · Dati della squadra</h2>
       <div class="field"><label>Nome squadra *</label><input type="text" id="wTeamName" placeholder="Es. Basket Catania"></div>
@@ -14,7 +14,7 @@ export function renderCreateTeam() {
         <div class="field"><label>Città</label><input type="text" id="wCity" placeholder="Es. Catania"></div>
         <div class="field"><label>Categoria</label><input type="text" id="wCategory" placeholder="Es. Serie D"></div>
       </div>
-      <div class="hint">Potrai caricare il logo e personalizzare i colori dopo, dalla sezione Squadra.</div>
+      <div class="hint">Potrai caricare il logo della società dopo, dalla sezione Squadra.</div>
     </div>
     <div class="card">
       <h2>Passo 2 · Il tuo account (amministratore)</h2>

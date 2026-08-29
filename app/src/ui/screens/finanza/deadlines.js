@@ -16,7 +16,7 @@ function bucketFor(dueDate) {
 }
 
 export async function renderDeadlinesSection(c, canManage) {
-  c.innerHTML = '<div class="hint">Caricamento…</div>';
+  c.innerHTML = '<div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div>';
   const deadlines = await fetchDeadlines(state.teamProfile.id);
 
   c.innerHTML = `
@@ -52,7 +52,7 @@ export async function renderDeadlinesSection(c, canManage) {
             <div class="hint">${e.finance_categories ? esc(e.finance_categories.name) : '—'} · scad. ${e.due_date}</div>
           </div>
           <div style="text-align:right;flex-shrink:0;">
-            <div style="font-family:var(--font-display);font-weight:800;font-size:15px;">${fmtMoney(e._status ? e._status.residual_amount : e.planned_amount)}</div>
+            <div style="font-family:var(--font-display);font-weight:700;font-size:15px;">${fmtMoney(e._status ? e._status.residual_amount : e.planned_amount)}</div>
             <span class="status-badge ${bucket.cls}">${bucket.label}</span>
           </div>
         </div>

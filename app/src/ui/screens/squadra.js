@@ -4,6 +4,7 @@ import { toast, confirmModal, formModal, withButtonLoading } from '../modal.js';
 import { updateTeam, uploadTeamLogo, regenerateInviteCode } from '../../api/teams.js';
 import { createSector, renameSector, removeSector } from '../../api/sectors.js';
 import { resizeImageFile } from '../../utils/image.js';
+import { teamInitials } from '../../utils/theme.js';
 
 export function renderSquadraTab(c) {
   c.innerHTML = `
@@ -11,7 +12,7 @@ export function renderSquadraTab(c) {
     <div class="card">
       <h2>Profilo squadra</h2>
       <div class="logo-upload">
-        <div class="logo-preview" id="sqLogoPreview"><img src="${state.teamProfile.logo_url ? esc(state.teamProfile.logo_url) : '/logo-default.svg'}"></div>
+        <div class="logo-preview" id="sqLogoPreview">${state.teamProfile.logo_url ? `<img src="${esc(state.teamProfile.logo_url)}">` : esc(teamInitials(state.teamProfile.name))}</div>
         <div><input type="file" id="sqLogoInput" accept="image/*" class="hidden"><button class="file-btn" id="sqLogoBtn">Cambia logo</button></div>
       </div>
       <div class="field"><label>Nome squadra</label><input type="text" id="sqName" value="${esc(state.teamProfile.name)}"></div>

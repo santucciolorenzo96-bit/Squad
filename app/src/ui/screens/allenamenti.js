@@ -178,7 +178,7 @@ export function renderAllenamentiTab(c) {
     modalRoot.innerHTML = `<div class="modal-overlay" id="attOverlay"><div class="modal-box wide">
       <h3>Presenze</h3>
       <p>${esc(training.title)} · ${new Date(training.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-      <div id="attList" class="hint">Caricamento…</div>
+      <div id="attList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
       <div class="modal-actions"><button class="btn btn-secondary" id="attClose" style="width:100%;">Chiudi</button></div>
     </div></div>`;
     document.getElementById('attOverlay').onclick = (e) => { if (e.target.id === 'attOverlay') modalRoot.innerHTML = ''; };

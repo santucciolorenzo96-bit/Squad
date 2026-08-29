@@ -150,7 +150,7 @@ export async function renderRosaTab(c) {
       <div class="player-spotlight-overlay" id="spotlightOverlay">
         <div class="player-spotlight-card">
           <div class="spotlight-avatar">${url ? `<img src="${esc(url)}">` : esc(initials(p.name))}</div>
-          <div style="font-family:var(--font-display);font-weight:800;font-size:19px;margin-top:12px;">${esc(p.name)}</div>
+          <div style="font-family:var(--font-display);font-weight:700;font-size:19px;margin-top:12px;">${esc(p.name)}</div>
           <div class="hint">#${esc(p.number)}${p.role_position ? ' · ' + esc(p.role_position) : ''}${p.height_cm ? ' · ' + p.height_cm + ' cm' : ''}</div>
           ${s ? `
           <div class="stat-row" style="margin-top:18px;">

@@ -22,7 +22,7 @@ export function renderIncomeSection(c, canManage) { renderEntriesSection(c, canM
 export function renderExpenseSection(c, canManage) { renderEntriesSection(c, canManage, 'expense'); }
 
 async function renderEntriesSection(c, canManage, kind) {
-  c.innerHTML = '<div class="hint">Caricamento…</div>';
+  c.innerHTML = '<div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div>';
   const entries = await fetchEntries(state.teamProfile.id, kind);
   drawList(c, canManage, kind, entries);
 }
@@ -53,7 +53,7 @@ function drawList(c, canManage, kind, entries) {
           <div class="hint">${e.finance_categories ? esc(e.finance_categories.name) : '—'} · ${e.accrual_date}${e.due_date ? ' · scad. ' + e.due_date : ''}</div>
         </div>
         <div style="text-align:right;flex-shrink:0;">
-          <div style="font-family:var(--font-display);font-weight:800;font-size:15px;">${fmtMoney(e.planned_amount)}</div>
+          <div style="font-family:var(--font-display);font-weight:700;font-size:15px;">${fmtMoney(e.planned_amount)}</div>
           <span class="status-badge ${STATUS_CLASS[st.status] || 'pending'}">${STATUS_LABELS[st.status] || st.status || ''}</span>
         </div>
       </div>
@@ -66,7 +66,7 @@ function drawList(c, canManage, kind, entries) {
 }
 
 async function openDetail(c, canManage, kind, entryId) {
-  c.innerHTML = '<div class="hint">Caricamento…</div>';
+  c.innerHTML = '<div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div>';
   const { entry, allocations, payments, documents, status } = await fetchEntryDetail(entryId);
   const back = () => renderEntriesSection(c, canManage, kind);
 
@@ -75,7 +75,7 @@ async function openDetail(c, canManage, kind, entryId) {
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
         <div>
-          <div style="font-family:var(--font-display);font-weight:800;font-size:17px;">${esc(entry.description)}</div>
+          <div style="font-family:var(--font-display);font-weight:700;font-size:17px;">${esc(entry.description)}</div>
           <div class="hint">${entry.finance_categories ? esc(entry.finance_categories.name) : '—'} · competenza ${entry.accrual_date}${entry.due_date ? ' · scadenza ' + entry.due_date : ''}</div>
           ${entry.party_name ? `<div class="hint">Controparte: ${esc(entry.party_name)}</div>` : ''}
           ${entry.notes ? `<div class="hint">${esc(entry.notes)}</div>` : ''}

@@ -8,9 +8,30 @@ import {
 } from '../../utils/stats.js';
 import { formModal } from '../modal.js';
 import { saveNextMatch, clearNextMatch } from '../../api/nextMatch.js';
+import { openMatchDetail } from '../matchDetail.js';
+import { animateCount } from '../../utils/anim.js';
 
 function fmtMoney(n) {
   return (n ?? 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+}
+
+// Rende un pannello navigabile: click, tastiera (Invio/Spazio) e semantica
+// da pulsante, così non resta un <div> raggiungibile solo col mouse.
+function makePanelLink(el, onActivate) {
+  if (!el) return;
+  el.classList.add('panel-link');
+  el.setAttribute('role', 'button');
+  el.setAttribute('tabindex', '0');
+  el.onclick = onActivate;
+  el.onkeydown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onActivate(); }
+  };
+}
+
+async function goToTab(tab) {
+  state.currentTab = tab;
+  const { renderApp } = await import('../layout.js');
+  renderApp();
 }
 
 function greetingWord() {
@@ -53,12 +74,12 @@ export function renderHomeTab(c) {
 
     <div class="home-grid">
       <div class="home-main">
-        <div class="xl-card">
+        <div class="xl-card" id="homeNextMatchCard">
           <div class="xl-card-label"><span>Prossima partita</span>${fromCalendar ? '<span class="hint" style="margin:0;">Dal calendario</span>' : (canEdit ? '<button class="icon-btn" id="editNextMatchBtn" style="color:var(--gold);">✎</button>' : '')}</div>
           ${nextMatch ? `
             <div class="match-row">
               <div class="match-side">
-                <div class="match-avatar has-logo"><img src="${state.teamProfile.logo_url ? esc(state.teamProfile.logo_url) : '/logo-default.svg'}"></div>
+                <div class="match-avatar${state.teamProfile.logo_url ? ' has-logo' : ''}">${state.teamProfile.logo_url ? `<img src="${esc(state.teamProfile.logo_url)}">` : esc(teamInitials(state.teamProfile.name))}</div>
                 <div class="match-team-nm">${esc(state.teamProfile.name)}</div>
                 <div class="match-pos-tag">${ourPos ? ourPos + '°' : '—'}</div>
               </div>
@@ -76,7 +97,7 @@ export function renderHomeTab(c) {
           ` : `<div class="hint" style="text-align:center;padding:14px 0;">${fromCalendar ? 'Nessuna partita in programma nel calendario.' : `Nessuna prossima partita impostata.${canEdit ? '<br><button class="btn btn-secondary" id="setNextMatchBtn" style="margin-top:10px;">+ Imposta</button>' : ''}`}</div>`}
         </div>
 
-        <div class="xl-card">
+        <div class="xl-card" id="homeMvpCard">
           <div class="xl-card-label"><span>Miglior giocatore ultima partita</span></div>
           ${mvp ? `
             <div class="mvp-card">
@@ -91,17 +112,17 @@ export function renderHomeTab(c) {
         </div>
 
         <div class="stat-row">
-          <div class="mini-card">
+          <div class="mini-card" id="homeRecordCard">
             <div class="lbl">Andamento stagione</div>
             <div class="val">${state.history.length ? `${record.w}V - ${record.l}S` : '—'}</div>
             <div class="sub">${state.history.length ? streak : 'Nessuna partita giocata'}</div>
           </div>
-          <div class="mini-card">
+          <div class="mini-card" id="homePpgCard">
             <div class="lbl">Media punti</div>
-            <div class="val">${ppg != null ? ppg.toFixed(1) : '—'}</div>
+            <div class="val" data-count="${ppg != null ? ppg.toFixed(1) : ''}">${ppg != null ? ppg.toFixed(1) : '—'}</div>
             <div class="sub">${state.history.length ? `su ${state.history.length} partite` : 'Nessun dato'}</div>
           </div>
-          <div class="mini-card">
+          <div class="mini-card" id="homeScorerCard">
             <div class="lbl">Miglior marcatore</div>
             <div class="val small">${seasonScorer ? `#${esc(seasonScorer.number)} ${esc(seasonScorer.name)}` : '—'}</div>
             <div class="sub">${seasonScorer ? `${(seasonScorer.pts / seasonScorer.games).toFixed(1)} pt/partita` : 'Nessun dato'}</div>
@@ -111,13 +132,13 @@ export function renderHomeTab(c) {
         ${canEdit ? `
         <div class="section-label" style="margin-top:6px;">Amministrazione</div>
         <div class="stat-row">
-          <div class="mini-card">
+          <div class="mini-card" id="homeDocsCard">
             <div class="lbl">Certificati da approvare</div>
             <div class="val small" style="color:${state.pendingDocsCount > 0 ? 'var(--amber)' : 'var(--text)'};">${state.pendingDocsCount}</div>
             <div class="sub">${state.pendingDocsCount > 0 ? 'In Anagrafica' : 'Tutto in regola'}</div>
           </div>
           ${hasFinance ? `
-          <div class="mini-card" id="homeFinanceCard" style="cursor:pointer;">
+          <div class="mini-card" id="homeFinanceCard">
             <div class="lbl">Finanza · saldo conti</div>
             <div class="val small">${fmtMoney(financeTotal)}</div>
             <div class="sub">${state.financeAccounts.length} cont${state.financeAccounts.length === 1 ? 'o' : 'i'}</div>
@@ -126,13 +147,13 @@ export function renderHomeTab(c) {
       </div>
 
       <div class="home-side">
-        <div class="mini-card">
+        <div class="mini-card" id="homeTrainingCard">
           <div class="lbl">Prossimo allenamento</div>
           <div class="val small">${nextTraining ? new Date(nextTraining.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }) : '—'}</div>
           <div class="sub">${nextTraining ? (nextTraining.start_time ? nextTraining.start_time + (nextTraining.end_time ? '–' + nextTraining.end_time : '') + ' · ' : '') + esc(nextTraining.title) : 'Nessuno in programma'}</div>
           ${nextTraining && nextTraining.location ? `<div class="sub" style="font-size:12.5px;font-weight:600;color:var(--text);margin-top:3px;">📍 ${esc(nextTraining.location)}</div>` : ''}
         </div>
-        <div class="mini-card" id="homeStandingsCard" style="${canEdit && !ourPos ? 'cursor:pointer;' : ''}">
+        <div class="mini-card" id="homeStandingsCard">
           <div class="lbl">Posizione in classifica</div>
           <div class="val small">${ourPos ? `${ourPos}°` : (canEdit ? 'Imposta →' : '—')}</div>
           <div class="sub">${ourPos ? esc(state.teamProfile.name) : 'Classifica non ancora impostata'}</div>
@@ -142,19 +163,28 @@ export function renderHomeTab(c) {
   `;
 
   const editBtn = document.getElementById('editNextMatchBtn') || document.getElementById('setNextMatchBtn');
-  if (editBtn) editBtn.onclick = openNextMatchModal;
-  const standingsCard = document.getElementById('homeStandingsCard');
-  if (standingsCard && canEdit && !ourPos) standingsCard.onclick = async () => {
-    state.currentTab = 'classifica';
-    const { renderApp } = await import('../layout.js');
-    renderApp();
-  };
-  const financeCard = document.getElementById('homeFinanceCard');
-  if (financeCard) financeCard.onclick = async () => {
-    state.currentTab = 'finanza';
-    const { renderApp } = await import('../layout.js');
-    renderApp();
-  };
+  if (editBtn) editBtn.onclick = (e) => { e.stopPropagation(); openNextMatchModal(); };
+
+  // Ogni pannello porta a un approfondimento coerente con ciò che mostra.
+  if (nextMatch) makePanelLink(document.getElementById('homeNextMatchCard'), () => openMatchDetail(nextMatch));
+  if (mvp) makePanelLink(document.getElementById('homeMvpCard'), () => goToTab('statistiche'));
+  if (state.history.length) {
+    makePanelLink(document.getElementById('homeRecordCard'), () => goToTab('classifica'));
+    makePanelLink(document.getElementById('homePpgCard'), () => goToTab('statistiche'));
+  }
+  if (seasonScorer) makePanelLink(document.getElementById('homeScorerCard'), () => goToTab('statistiche'));
+  makePanelLink(document.getElementById('homeTrainingCard'), () => goToTab('allenamenti'));
+  makePanelLink(document.getElementById('homeStandingsCard'), () => goToTab('classifica'));
+  if (canEdit) makePanelLink(document.getElementById('homeDocsCard'), () => goToTab('anagrafica'));
+  if (hasFinance) makePanelLink(document.getElementById('homeFinanceCard'), () => goToTab('finanza'));
+
+  // I numeri salgono fino al valore invece di comparire di colpo.
+  const ppgEl = c.querySelector('#homePpgCard .val[data-count]');
+  if (ppgEl && ppgEl.dataset.count) animateCount(ppgEl, parseFloat(ppgEl.dataset.count), { format: v => v.toFixed(1) });
+  if (hasFinance) {
+    const finEl = c.querySelector('#homeFinanceCard .val');
+    if (finEl) animateCount(finEl, financeTotal, { format: v => fmtMoney(v) });
+  }
 }
 
 function openNextMatchModal() {

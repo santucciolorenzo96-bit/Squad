@@ -10,6 +10,7 @@ import { renderRosaTab } from './screens/rosa.js';
 import { renderAnagraficaTab } from './screens/anagrafica.js';
 import { renderPartitaTab } from './screens/partita/setup.js';
 import { renderAllenamentiTab } from './screens/allenamenti.js';
+import { renderPresenzeTab } from './screens/presenze.js';
 import { renderStatisticheTab } from './screens/statistiche.js';
 import { renderClassificaTab } from './screens/classifica.js';
 import { renderCalendarioTab } from './screens/calendario.js';
@@ -24,6 +25,7 @@ const NAV_ICONS = {
   anagrafica: '<rect x="2.5" y="4" width="15" height="12" rx="2"/><circle cx="7.5" cy="9" r="1.7"/><path d="M4.5 13.5c.4-1.6 1.6-2.5 3-2.5s2.6.9 3 2.5"/><path d="M12.5 8.5h3M12.5 11h3"/>',
   partita: '<circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="1.6" fill="currentColor" stroke="none"/>',
   allenamenti: '<rect x="2.5" y="4" width="15" height="13" rx="2"/><path d="M2.5 8h15M6.5 2.5v3M13.5 2.5v3"/>',
+  presenze: '<path d="M3 16.5c0-2.6 1.8-4.3 4-4.3s4 1.7 4 4.3"/><circle cx="7" cy="7" r="2.7"/><path d="M12.5 10.2l1.7 1.8 3.3-3.6"/>',
   classifica: '<path d="M10 2.5 12 7l5 .7-3.6 3.4.9 4.9L10 13.6 5.7 16l.9-4.9L3 7.7 8 7z" stroke-linejoin="round"/>',
   statistiche: '<path d="M3 17V3M3 17h14"/><rect x="5.5" y="11" width="2.6" height="6"/><rect x="9.7" y="7" width="2.6" height="10"/><rect x="13.9" y="9.5" width="2.6" height="7.5"/>',
   calendario: '<rect x="2.5" y="4" width="15" height="13" rx="2"/><path d="M2.5 8h15M6.5 2.5v3M13.5 2.5v3"/><path d="M6 12h2M9 12h2M12 12h2"/>',
@@ -65,10 +67,12 @@ export function renderApp() {
     <div class="app-shell">
       <div class="header-bar">
         <div class="left">
-          <img class="team-logo" src="${state.teamProfile.logo_url ? esc(state.teamProfile.logo_url) : '/logo-default.svg'}">
+          <img class="app-logo" src="/logo-default.svg" alt="SQUAD">
           <div class="team-name">${esc(state.teamProfile.name)}</div>
         </div>
-        ${mySectors.length > 1 ? `<div class="sector-switcher" id="sectorSwitcher"></div>` : (mySectors.length === 1 ? `<div class="hint" style="margin:0;">${esc(mySectors[0].name)}</div>` : '')}
+        <div class="header-mid">
+          ${mySectors.length > 1 ? `<div class="sector-switcher" id="sectorSwitcher"></div>` : (mySectors.length === 1 ? `<div class="hint" style="margin:0;">${esc(mySectors[0].name)}</div>` : '')}
+        </div>
         <div class="header-right">
           <button class="bell-btn" id="notifBell">
             <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8a5 5 0 0 1 10 0c0 4 1.5 5 1.5 5h-13S5 12 5 8Z"/><path d="M8 15.5a2 2 0 0 0 4 0"/></svg>
@@ -231,6 +235,7 @@ function renderTabContent() {
   if (state.currentTab === 'anagrafica') return renderAnagraficaTab(c);
   if (state.currentTab === 'partita') return renderPartitaTab(c);
   if (state.currentTab === 'allenamenti') return renderAllenamentiTab(c);
+  if (state.currentTab === 'presenze') return renderPresenzeTab(c);
   if (state.currentTab === 'statistiche') return renderStatisticheTab(c);
   if (state.currentTab === 'classifica') return renderClassificaTab(c);
   if (state.currentTab === 'calendario') return renderCalendarioTab(c);

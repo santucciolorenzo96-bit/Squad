@@ -64,7 +64,7 @@ async function renderStaffList(c) {
 }
 
 async function renderExpiringQueue(c) {
-  c.innerHTML = `<div class="section-label">Documenti in scadenza</div><div id="expiringList" class="hint">Caricamento…</div>`;
+  c.innerHTML = `<div class="section-label">Documenti in scadenza</div><div id="expiringList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>`;
   const docs = await fetchExpiringDocuments(state.teamProfile.id);
   const holder = document.getElementById('expiringList');
   if (docs.length === 0) { holder.innerHTML = '<div class="placeholder-card">Nessun documento in scadenza.</div>'; return; }
@@ -100,7 +100,7 @@ async function renderExpiringQueue(c) {
 }
 
 async function renderPendingQueue(c) {
-  c.innerHTML = `<div class="section-label">Documenti da approvare</div><div id="pendingList" class="hint">Caricamento…</div>`;
+  c.innerHTML = `<div class="section-label">Documenti da approvare</div><div id="pendingList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>`;
   const docs = await fetchPendingDocuments(state.teamProfile.id);
   const holder = document.getElementById('pendingList');
   if (docs.length === 0) { holder.innerHTML = '<div class="placeholder-card">Nessun documento da approvare.</div>'; return; }
@@ -163,7 +163,7 @@ async function renderPlayerDetail(c, playerId, { readOnlyIdentity }) {
     <div class="card" style="text-align:center;">
       <div class="player-avatar${photoUrl ? ' clickable' : ''}" id="playerAvatar">${photoUrl ? `<img src="${esc(photoUrl)}" style="object-position:${player.photo_focal_x ?? 50}% ${player.photo_focal_y ?? 50}%;">` : esc((player.name || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase())}</div>
       ${canEditFields ? `<input type="file" id="fPhotoInput" accept="image/*" class="hidden"><div style="display:flex;gap:8px;justify-content:center;margin-bottom:10px;"><button class="file-btn" id="fPhotoBtn">${photoUrl ? 'Cambia foto' : 'Carica foto'}</button>${photoUrl ? '<button class="file-btn" id="fPhotoReframe">Inquadra</button>' : ''}</div>` : ''}
-      <div style="font-family:var(--font-display);font-weight:800;font-size:18px;">${esc(player.name)}</div>
+      <div style="font-family:var(--font-display);font-weight:700;font-size:18px;">${esc(player.name)}</div>
       <div class="hint">#${esc(player.number)}${player.role_position ? ' · ' + esc(player.role_position) : ''}${player.height_cm ? ' · ' + player.height_cm + ' cm' : ''}</div>
     </div>
 

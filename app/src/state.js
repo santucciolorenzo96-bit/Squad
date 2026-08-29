@@ -18,6 +18,7 @@ export const state = {
   notifications: [],
   pendingDocsCount: 0,
   expiringDocsCount: 0,
+  presenzePeriod: 'month',
   financeSubTab: 'conti',
   financeFiscalYears: [],
   financeCategories: [],

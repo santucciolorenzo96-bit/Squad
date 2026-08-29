@@ -28,7 +28,7 @@ export async function renderProfiloTab(c) {
         ${Array.from({ length: 8 }, (_, i) => `<span class="gear-tooth" style="width:7px;height:10px;margin:-30px 0 0 -3.5px;transform-origin:3.5px 30px;transform:rotate(${i * 45}deg);"></span>`).join('')}
         <span class="user-avatar-circle" style="width:46px;height:46px;font-size:17px;">${esc(userInitials(u.display_name))}</span>
       </div>
-      <div style="font-family:var(--font-display);font-weight:800;font-size:18px;">${esc(u.display_name)}</div>
+      <div style="font-family:var(--font-display);font-weight:700;font-size:18px;">${esc(u.display_name)}</div>
       <span class="role-badge ${ROLE_CLASS[u.role]}" style="margin-top:4px;display:inline-block;">${ROLES[u.role]}</span>
     </div>
 
@@ -50,9 +50,9 @@ export async function renderProfiloTab(c) {
 
     ${isFamiglia(u) ? `
     <div class="section-label">Quote da versare</div>
-    <div id="famEntries" class="hint">Caricamento…</div>
+    <div id="famEntries"><div class="skeleton skeleton-row"></div></div>
     <div class="section-label">Documenti in scadenza</div>
-    <div id="famDocs" class="hint">Caricamento…</div>
+    <div id="famDocs"><div class="skeleton skeleton-row"></div></div>
     ` : ''}
 
     <div class="card">
@@ -117,7 +117,7 @@ async function loadFamilyEntries() {
             <div class="hint">${e.due_date ? 'Scadenza ' + new Date(e.due_date).toLocaleDateString('it-IT') : 'Nessuna scadenza'}</div>
           </div>
           <div style="text-align:right;">
-            <div style="font-weight:800;">${fmtMoney(e._status.residual_amount)}</div>
+            <div style="font-weight:700;">${fmtMoney(e._status.residual_amount)}</div>
             <span class="status-badge pending">${e._status.status.replace(/_/g, ' ')}</span>
           </div>
         </div>`;

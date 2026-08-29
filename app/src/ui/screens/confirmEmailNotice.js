@@ -4,7 +4,7 @@ export function renderConfirmEmailNotice(email) {
   const root = document.getElementById('root');
   root.innerHTML = `
   <div class="center-screen"><div style="max-width:380px;width:100%;">
-    <div class="brand-header"><img class="brand-logo" src="/logo-default.svg"><div class="brand-name">SQUAD</div></div>
+    <div class="brand-header"><img class="brand-logo" src="/logo-default.svg" alt="SQUAD"><div class="brand-name">SQUAD</div><div class="brand-tagline">Gestionale per società sportive</div></div>
     <div class="card">
       <h2>Conferma la tua email</h2>
       <p style="font-size:13px;color:var(--dim);line-height:1.5;">
