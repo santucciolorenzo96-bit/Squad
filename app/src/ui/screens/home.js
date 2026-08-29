@@ -128,8 +128,9 @@ export function renderHomeTab(c) {
       <div class="home-side">
         <div class="mini-card">
           <div class="lbl">Prossimo allenamento</div>
-          <div class="val small">${nextTraining ? new Date(nextTraining.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }) : '—'}</div>
-          <div class="sub">${nextTraining ? esc(nextTraining.title) + (nextTraining.location ? ' · ' + esc(nextTraining.location) : '') : 'Nessuno in programma'}</div>
+          <div class="val small">${nextTraining ? new Date(nextTraining.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }) : '—'}</div>
+          <div class="sub">${nextTraining ? (nextTraining.start_time ? nextTraining.start_time + (nextTraining.end_time ? '–' + nextTraining.end_time : '') + ' · ' : '') + esc(nextTraining.title) : 'Nessuno in programma'}</div>
+          ${nextTraining && nextTraining.location ? `<div class="sub" style="font-size:12.5px;font-weight:600;color:var(--text);margin-top:3px;">📍 ${esc(nextTraining.location)}</div>` : ''}
         </div>
         <div class="mini-card" id="homeStandingsCard" style="${canEdit && !ourPos ? 'cursor:pointer;' : ''}">
           <div class="lbl">Posizione in classifica</div>

@@ -123,7 +123,8 @@ export function renderAllenamentiTab(c) {
         </div>
         <div style="flex:1;min-width:0;">
           <div style="font-weight:600;font-size:14px;">${esc(t.title)}</div>
-          <div class="hint">${t.start_time || ''}${t.end_time ? '–' + t.end_time : ''}${t.location ? ' · ' + esc(t.location) : ''}${t.recurrence_id ? ' · <span title="Generato dal programma fisso">🔁</span>' : ''}</div>
+          <div class="hint">${t.start_time || ''}${t.end_time ? '–' + t.end_time : ''}${t.recurrence_id ? ' · <span title="Generato dal programma fisso">🔁</span>' : ''}</div>
+          ${t.location ? `<div style="font-size:12.5px;font-weight:600;color:var(--text);margin-top:2px;">📍 ${esc(t.location)}</div>` : ''}
         </div>
         ${canEdit ? `<button class="icon-btn" data-att="${t.id}" title="Presenze">👥</button><button class="icon-btn" data-edit="${t.id}">✎</button><button class="icon-btn danger" data-rm="${t.id}">✕</button>` : ''}
       `;
