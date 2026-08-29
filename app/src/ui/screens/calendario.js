@@ -3,6 +3,7 @@ import { esc } from '../../utils/format.js';
 import { formModal, confirmModal, toast } from '../modal.js';
 import { canEditHome } from '../../utils/permissions.js';
 import { bulkInsertMatches, updateCalendarMatch, removeCalendarMatch } from '../../api/calendar.js';
+import { venueIcon, ballIcon } from '../icons.js';
 
 function emptyRow() {
   return { giornata: null, date: '', time: '', opponent: '', home: true, location: '', include: true };
@@ -52,10 +53,10 @@ export function renderCalendarioTab(c) {
         row.style.gap = '14px';
         row.innerHTML = `
           <div style="width:44px;height:44px;border-radius:11px;background:var(--tint);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-mono);flex-shrink:0;">
-            ${m.giornata ? `<span style="font-size:9px;color:var(--dim);">GG</span><span style="font-size:15px;font-weight:700;">${m.giornata}</span>` : '<span style="font-size:16px;">🏀</span>'}
+            ${m.giornata ? `<span style="font-size:9px;color:var(--dim);">GG</span><span style="font-size:15px;font-weight:700;">${m.giornata}</span>` : ballIcon(18)}
           </div>
           <div style="flex:1;min-width:0;">
-            <div style="font-weight:600;font-size:14px;">${m.home === false ? '🚌' : '🏠'} vs ${esc(m.opponent)}</div>
+            <div style="font-weight:600;font-size:14px;">${venueIcon(m.home !== false)} vs ${esc(m.opponent)}</div>
             <div class="hint">${fmtDate(m.date)}${m.time ? ' · ' + esc(m.time) : ''}${m.location ? ' · ' + esc(m.location) : ''}</div>
           </div>
           ${m.played

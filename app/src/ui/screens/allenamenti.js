@@ -9,6 +9,7 @@ import { fetchAttendance, setAttendance } from '../../api/attendance.js';
 import { fetchPlayerPhotoUrls } from '../../api/roster.js';
 import { avatarHtml, wireAvatarClicks } from '../playerAvatar.js';
 import { canEditHome } from '../../utils/permissions.js';
+import { pinIcon, repeatIcon, peopleIcon } from '../icons.js';
 
 export function renderAllenamentiTab(c) {
   const canEdit = canEditHome(state.currentUser);
@@ -123,10 +124,10 @@ export function renderAllenamentiTab(c) {
         </div>
         <div style="flex:1;min-width:0;">
           <div style="font-weight:600;font-size:14px;">${esc(t.title)}</div>
-          <div class="hint">${t.start_time || ''}${t.end_time ? '–' + t.end_time : ''}${t.recurrence_id ? ' · <span title="Generato dal programma fisso">🔁</span>' : ''}</div>
-          ${t.location ? `<div style="font-size:12.5px;font-weight:600;color:var(--text);margin-top:2px;">📍 ${esc(t.location)}</div>` : ''}
+          <div class="hint">${t.start_time || ''}${t.end_time ? '–' + t.end_time : ''}${t.recurrence_id ? ` · <span title="Generato dal programma fisso">${repeatIcon()}</span>` : ''}</div>
+          ${t.location ? `<div style="font-size:12.5px;font-weight:600;color:var(--text);margin-top:2px;">${pinIcon()} ${esc(t.location)}</div>` : ''}
         </div>
-        ${canEdit ? `<button class="icon-btn" data-att="${t.id}" title="Presenze">👥</button><button class="icon-btn" data-edit="${t.id}">✎</button><button class="icon-btn danger" data-rm="${t.id}">✕</button>` : ''}
+        ${canEdit ? `<button class="icon-btn" data-att="${t.id}" title="Presenze">${peopleIcon(17)}</button><button class="icon-btn" data-edit="${t.id}">✎</button><button class="icon-btn danger" data-rm="${t.id}">✕</button>` : ''}
       `;
       holder.appendChild(row);
     });

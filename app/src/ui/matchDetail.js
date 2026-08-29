@@ -3,6 +3,7 @@ import { esc } from '../utils/format.js';
 import { teamInitials } from '../utils/theme.js';
 import { standingsPosition, daysUntil } from '../utils/stats.js';
 import { openBoxScoreModal } from './screens/partita/boxscore.js';
+import { venueIcon, venueLabel } from './icons.js';
 
 function fmtLongDate(d) {
   if (!d) return 'Data da definire';
@@ -82,7 +83,7 @@ export function openMatchDetail(match) {
 
         <div class="md-when">
           <div class="md-when-date">${fmtLongDate(match.date)}${match.time ? ' · ' + esc(match.time) : ''}</div>
-          <div class="hint" style="margin-top:2px;">${match.home === false ? '🚌 Trasferta' : '🏠 Casa'}${match.location ? ' · ' + esc(match.location) : ''}${match.giornata ? ' · Giornata ' + esc(String(match.giornata)) : ''}</div>
+          <div class="hint" style="margin-top:4px;">${venueLabel(match.home !== false)}${match.location ? ' · ' + esc(match.location) : ''}${match.giornata ? ' · Giornata ' + esc(String(match.giornata)) : ''}</div>
         </div>
 
         ${usRow || oppRow ? `
@@ -136,7 +137,7 @@ export function openMatchDetail(match) {
     upcoming.forEach(m => {
       const row = document.createElement('div');
       row.className = 'list-row';
-      row.innerHTML = `<div class="main"><div class="nm">${m.home === false ? '🚌' : '🏠'} ${esc(m.opponent)}</div><div class="sub">${fmtShortDate(m.date)}${m.time ? ' · ' + esc(m.time) : ''}${m.location ? ' · ' + esc(m.location) : ''}</div></div>`;
+      row.innerHTML = `<div class="main"><div class="nm">${venueIcon(m.home !== false)} ${esc(m.opponent)}</div><div class="sub">${fmtShortDate(m.date)}${m.time ? ' · ' + esc(m.time) : ''}${m.location ? ' · ' + esc(m.location) : ''}</div></div>`;
       nextHolder.appendChild(row);
     });
   }

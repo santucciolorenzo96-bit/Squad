@@ -9,6 +9,7 @@ import {
 import { formModal } from '../modal.js';
 import { saveNextMatch, clearNextMatch } from '../../api/nextMatch.js';
 import { openMatchDetail } from '../matchDetail.js';
+import { venueLabel, pinIcon } from '../icons.js';
 import { animateCount } from '../../utils/anim.js';
 
 function fmtMoney(n) {
@@ -86,7 +87,7 @@ export function renderHomeTab(c) {
               <div class="match-mid">
                 <div class="match-time">${nextMatch.time || '—'}</div>
                 <div class="match-meta">${nextMatch.date ? new Date(nextMatch.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }) : 'Data da definire'}${nextMatch.location ? '<br>' + esc(nextMatch.location) : ''}</div>
-                <div class="match-countdown">${nextMatch.home ? '🏠 Casa' : '🚌 Trasferta'} · ${countdownTxt}</div>
+                <div class="match-countdown">${venueLabel(nextMatch.home !== false)} · ${countdownTxt}</div>
               </div>
               <div class="match-side">
                 <div class="match-avatar">${teamInitials(nextMatch.opponent)}</div>
@@ -151,7 +152,7 @@ export function renderHomeTab(c) {
           <div class="lbl">Prossimo allenamento</div>
           <div class="val small">${nextTraining ? new Date(nextTraining.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }) : '—'}</div>
           <div class="sub">${nextTraining ? (nextTraining.start_time ? nextTraining.start_time + (nextTraining.end_time ? '–' + nextTraining.end_time : '') + ' · ' : '') + esc(nextTraining.title) : 'Nessuno in programma'}</div>
-          ${nextTraining && nextTraining.location ? `<div class="sub" style="font-size:12.5px;font-weight:600;color:var(--text);margin-top:3px;">📍 ${esc(nextTraining.location)}</div>` : ''}
+          ${nextTraining && nextTraining.location ? `<div class="sub" style="font-size:12.5px;font-weight:600;color:var(--text);margin-top:3px;">${pinIcon()} ${esc(nextTraining.location)}</div>` : ''}
         </div>
         <div class="mini-card" id="homeStandingsCard">
           <div class="lbl">Posizione in classifica</div>

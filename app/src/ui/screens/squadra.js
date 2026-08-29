@@ -12,7 +12,7 @@ export function renderSquadraTab(c) {
     <div class="card">
       <h2>Profilo squadra</h2>
       <div class="logo-upload">
-        <div class="logo-preview" id="sqLogoPreview">${state.teamProfile.logo_url ? `<img src="${esc(state.teamProfile.logo_url)}">` : esc(teamInitials(state.teamProfile.name))}</div>
+        <div class="logo-preview${state.teamProfile.logo_url ? ' has-logo' : ''}" id="sqLogoPreview">${state.teamProfile.logo_url ? `<img src="${esc(state.teamProfile.logo_url)}">` : esc(teamInitials(state.teamProfile.name))}</div>
         <div><input type="file" id="sqLogoInput" accept="image/*" class="hidden"><button class="file-btn" id="sqLogoBtn">Cambia logo</button></div>
       </div>
       <div class="field"><label>Nome squadra</label><input type="text" id="sqName" value="${esc(state.teamProfile.name)}"></div>
@@ -41,7 +41,9 @@ export function renderSquadraTab(c) {
   document.getElementById('sqLogoInput').onchange = async (e) => {
     const f = e.target.files[0]; if (!f) return;
     pendingLogoBlob = await resizeImageFile(f, 240);
-    document.getElementById('sqLogoPreview').innerHTML = `<img src="${URL.createObjectURL(pendingLogoBlob)}">`;
+    const prev = document.getElementById('sqLogoPreview');
+    prev.classList.add('has-logo');
+    prev.innerHTML = `<img src="${URL.createObjectURL(pendingLogoBlob)}">`;
   };
   document.getElementById('sqSave').onclick = (e) => withButtonLoading(e.currentTarget, async () => {
     const errEl = document.getElementById('sqError');

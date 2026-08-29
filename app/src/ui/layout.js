@@ -4,6 +4,7 @@ import { esc } from '../utils/format.js';
 import { switchSector, unseenNotificationsCount } from '../router.js';
 import { updateProfile } from '../api/profiles.js';
 import { userInitials } from '../utils/theme.js';
+import { navIcon } from './icons.js';
 
 import { renderHomeTab } from './screens/home.js';
 import { renderRosaTab } from './screens/rosa.js';
@@ -18,25 +19,6 @@ import { renderUtentiTab } from './screens/utenti.js';
 import { renderSquadraTab } from './screens/squadra.js';
 import { renderFinanzaTab } from './screens/finanza/index.js';
 import { renderProfiloTab } from './screens/profilo.js';
-
-const NAV_ICONS = {
-  home: '<path d="M3 9.5 10 3l7 6.5"/><path d="M5 8.5V17h10V8.5"/>',
-  rosa: '<circle cx="7" cy="6.5" r="2.5"/><path d="M2.5 16c0-3 2-5 4.5-5s4.5 2 4.5 5"/><circle cx="14.5" cy="7" r="2"/><path d="M13 11.2c2 .2 3.5 2 3.5 4.8"/>',
-  anagrafica: '<rect x="2.5" y="4" width="15" height="12" rx="2"/><circle cx="7.5" cy="9" r="1.7"/><path d="M4.5 13.5c.4-1.6 1.6-2.5 3-2.5s2.6.9 3 2.5"/><path d="M12.5 8.5h3M12.5 11h3"/>',
-  partita: '<circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="1.6" fill="currentColor" stroke="none"/>',
-  allenamenti: '<rect x="2.5" y="4" width="15" height="13" rx="2"/><path d="M2.5 8h15M6.5 2.5v3M13.5 2.5v3"/>',
-  presenze: '<path d="M3 16.5c0-2.6 1.8-4.3 4-4.3s4 1.7 4 4.3"/><circle cx="7" cy="7" r="2.7"/><path d="M12.5 10.2l1.7 1.8 3.3-3.6"/>',
-  classifica: '<path d="M10 2.5 12 7l5 .7-3.6 3.4.9 4.9L10 13.6 5.7 16l.9-4.9L3 7.7 8 7z" stroke-linejoin="round"/>',
-  statistiche: '<path d="M3 17V3M3 17h14"/><rect x="5.5" y="11" width="2.6" height="6"/><rect x="9.7" y="7" width="2.6" height="10"/><rect x="13.9" y="9.5" width="2.6" height="7.5"/>',
-  calendario: '<rect x="2.5" y="4" width="15" height="13" rx="2"/><path d="M2.5 8h15M6.5 2.5v3M13.5 2.5v3"/><path d="M6 12h2M9 12h2M12 12h2"/>',
-  utenti: '<circle cx="7" cy="6.5" r="2.5"/><path d="M2.5 16c0-3 2-5 4.5-5s4.5 2 4.5 5"/><circle cx="15" cy="7.5" r="1.6"/><path d="M15 5.3v.6M15 9v.6M16.9 6.4l-.5.3M13.6 8.3l-.5.3M13.1 6.4l.5.3M16.4 8.3l.5.3"/>',
-  squadra: '<path d="M10 2.5 16 5v5c0 4-2.6 6.6-6 7.5-3.4-.9-6-3.5-6-7.5V5z" stroke-linejoin="round"/>',
-  finanza: '<circle cx="10" cy="10" r="7.2"/><path d="M10 6.2v7.6M12.3 7.8c0-1-1-1.6-2.3-1.6-1.5 0-2.5.7-2.5 1.7 0 2.6 4.8 1.3 4.8 3.9 0 1-1 1.7-2.5 1.7-1.3 0-2.3-.6-2.3-1.6"/>'
-};
-
-function navIcon(id) {
-  return `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${NAV_ICONS[id] || ''}</svg>`;
-}
 
 function formatRelativeTime(iso) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -75,7 +57,7 @@ export function renderApp() {
         </div>
         <div class="header-right">
           <button class="bell-btn" id="notifBell">
-            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8a5 5 0 0 1 10 0c0 4 1.5 5 1.5 5h-13S5 12 5 8Z"/><path d="M8 15.5a2 2 0 0 0 4 0"/></svg>
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.2 8.4a4.8 4.8 0 0 1 9.6 0c0 3.8 1.4 4.8 1.4 4.8H3.8s1.4-1 1.4-4.8Z"/><path d="M8.1 15.6a1.9 1.9 0 0 0 3.8 0"/><circle cx="10" cy="3.4" r="1.4" fill="currentColor" stroke="none"/></svg>
             ${unseenNotificationsCount() > 0 ? `<span class="badge-count bell-badge">${unseenNotificationsCount()}</span>` : ''}
           </button>
           <button class="user-avatar-btn" id="userAvatarBtn" aria-label="Profilo e impostazioni">
