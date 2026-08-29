@@ -20,6 +20,7 @@ async function renderMatchSetup(c) {
   }
   let starters = {};
   c.innerHTML = `
+    <div class="settings-col">
     <div class="card">
       <h2>Nuova partita</h2>
       <div class="field"><label>Avversario</label><input type="text" id="mOpp" placeholder="Nome squadra avversaria"></div>
@@ -34,6 +35,7 @@ async function renderMatchSetup(c) {
       <div class="error-msg" id="mError"></div>
     </div>
     <button class="btn btn-primary" id="mStart">Inizia partita</button>
+    </div>
   `;
   const holder = document.getElementById('starterList');
   const photoUrls = await fetchPlayerPhotoUrls(state.roster).catch(() => ({}));

@@ -19,6 +19,7 @@ export async function renderProfiloTab(c) {
   const currentMode = getStoredThemeMode();
 
   c.innerHTML = `
+    <div class="settings-col">
     <button class="btn btn-ghost" id="profBack" style="margin-bottom:14px;">← Torna</button>
 
     <div class="card" style="text-align:center;">
@@ -57,6 +58,7 @@ export async function renderProfiloTab(c) {
     <div class="card">
       <button class="btn btn-secondary" id="pChangePass" style="width:100%;margin-bottom:8px;">Cambia password</button>
       <button class="btn btn-danger" id="pLogout" style="width:100%;">Esci</button>
+    </div>
     </div>
   `;
 

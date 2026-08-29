@@ -50,6 +50,7 @@ export async function renderRosaTab(c) {
   const season = computeSeasonStats(state.history);
 
   c.innerHTML = `
+    <div class="settings-col">
     ${state.roster.length === 0 ? '<div class="placeholder-card">Nessun giocatore in rosa.</div>' : `
     <div class="court-half" id="courtHalf"></div>
     <div class="section-label">Panchina</div>
@@ -70,6 +71,7 @@ export async function renderRosaTab(c) {
     <div class="section-label" id="rosaCountLabel">Rosa (${state.roster.length})</div>
     <div id="rosterList"></div>
     <div id="rosaHint">${canEdit && state.roster.length < 5 ? `<div class="hint">Servono almeno 5 giocatori in rosa per poter avviare una partita.</div>` : ''}</div>
+    </div>
   `;
 
   function playerToken(p, style) {

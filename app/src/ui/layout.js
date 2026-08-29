@@ -83,7 +83,7 @@ export function renderApp() {
       </div>
       <div class="shell-body">
         <div class="sidebar" id="sidebarNav"></div>
-        <div class="tab-content screen" id="tabContent"></div>
+        <div class="tab-content" id="tabContent"></div>
       </div>
       <div class="bottom-nav-float" id="bottomNavFloat"></div>
     </div>

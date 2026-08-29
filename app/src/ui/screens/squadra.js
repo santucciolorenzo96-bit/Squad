@@ -8,6 +8,7 @@ import { applyTheme } from '../../utils/theme.js';
 
 export function renderSquadraTab(c) {
   c.innerHTML = `
+    <div class="settings-col">
     <div class="card">
       <h2>Profilo squadra</h2>
       <div class="logo-upload">
@@ -40,6 +41,7 @@ export function renderSquadraTab(c) {
       <h2>Settori</h2>
       <div id="sectorList"></div>
       <button class="btn btn-secondary" id="addSectorBtn" style="width:100%;margin-top:10px;">+ Nuovo settore</button>
+    </div>
     </div>
   `;
   let pendingLogoBlob = null;

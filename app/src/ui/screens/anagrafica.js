@@ -158,6 +158,7 @@ async function renderPlayerDetail(c, playerId, { readOnlyIdentity }) {
   const photoUrl = player.photo_path ? await getPlayerPhotoSignedUrl(player.photo_path) : null;
 
   c.innerHTML = `
+    <div class="settings-col">
     ${!readOnlyIdentity ? `<button class="btn btn-ghost" id="backBtn" style="margin-bottom:14px;">← Torna alla rosa</button>` : ''}
     <div class="card" style="text-align:center;">
       <div class="player-avatar${photoUrl ? ' clickable' : ''}" id="playerAvatar">${photoUrl ? `<img src="${esc(photoUrl)}" style="object-position:${player.photo_focal_x ?? 50}% ${player.photo_focal_y ?? 50}%;">` : esc((player.name || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase())}</div>
@@ -186,6 +187,7 @@ async function renderPlayerDetail(c, playerId, { readOnlyIdentity }) {
 
     <div class="section-label">Documenti</div>
     <div id="docList"></div>
+    </div>
   `;
 
   if (!readOnlyIdentity) {
