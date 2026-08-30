@@ -1,4 +1,6 @@
-export const ROLES = { admin: 'Amministratore', allenatore: 'Allenatore', segnapunti: 'Segnapunti', famiglia: 'Famiglia' };
+// Il valore 'famiglia' resta invariato nel database (vincolo di check, funzioni
+// RLS e righe esistenti lo usano): qui cambia solo come lo si chiama a schermo.
+export const ROLES = { admin: 'Amministratore', allenatore: 'Allenatore', segnapunti: 'Segnapunti', famiglia: 'Giocatore / Genitore' };
 export const ROLE_CLASS = { admin: 'role-admin', allenatore: 'role-allenatore', segnapunti: 'role-segnapunti', famiglia: 'role-famiglia' };
 
 export const TOV_TYPES = [
@@ -28,7 +30,8 @@ export const TABS = [
   { id: 'home', label: 'Home', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti', 'famiglia'], primary: true },
   { id: 'rosa', label: 'Rosa', group: 'settore', roles: ['admin', 'allenatore', 'famiglia'] },
   { id: 'anagrafica', label: 'Anagrafica', group: 'settore', roles: ['admin', 'allenatore', 'famiglia'] },
-  { id: 'partita', label: 'Partita', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti'], primary: true },
+  // alsoIf: visibile anche a chi ha quel permesso, oltre ai ruoli elencati
+  { id: 'partita', label: 'Partita', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti'], alsoIf: 'can_score_matches', primary: true },
   { id: 'allenamenti', label: 'Allenamenti', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti', 'famiglia'], primary: true },
   { id: 'presenze', label: 'Presenze', group: 'settore', roles: ['admin', 'allenatore'] },
   { id: 'classifica', label: 'Classifica', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti', 'famiglia'] },
@@ -42,6 +45,7 @@ export const TABS = [
 export function canSeeTab(tab, user) {
   if (!user) return false;
   if (tab.financeGated) return !!user.finance_role;
+  if (tab.alsoIf && user[tab.alsoIf]) return true;
   return tab.roles.includes(user.role);
 }
 

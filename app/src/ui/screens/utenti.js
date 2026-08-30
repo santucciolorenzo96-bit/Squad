@@ -14,7 +14,7 @@ export function renderUtentiTab(c) {
     </div>
     <div class="section-label">Staff (${state.staff.length})</div>
     <div id="userList"></div>
-    <div class="section-label" style="margin-top:24px;">Account famiglia</div>
+    <div class="section-label" style="margin-top:24px;">Giocatori e genitori</div>
     <div id="familyList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
   `;
   function sectorNames(profileId) {
@@ -114,10 +114,10 @@ export function renderUtentiTab(c) {
     } catch (e) {
       // Senza questo la sezione restava sullo scheletro di caricamento per
       // sempre, senza dire nulla: un errore va mostrato, non ingoiato.
-      holder.innerHTML = `<div class="placeholder-card">Impossibile caricare gli account famiglia.<br><span class="hint">${esc(e.message || 'Errore imprevisto')}</span></div>`;
+      holder.innerHTML = `<div class="placeholder-card">Impossibile caricare gli account giocatore/genitore.<br><span class="hint">${esc(e.message || 'Errore imprevisto')}</span></div>`;
       return;
     }
-    if (families.length === 0) { holder.innerHTML = '<div class="placeholder-card">Nessun account famiglia registrato.</div>'; return; }
+    if (families.length === 0) { holder.innerHTML = '<div class="placeholder-card">Nessun account giocatore o genitore registrato.</div>'; return; }
     holder.innerHTML = '';
     families.forEach(f => {
       const row = document.createElement('div');
@@ -137,8 +137,12 @@ export function renderUtentiTab(c) {
           <button class="btn btn-secondary" data-link="${f.id}" style="flex-shrink:0;">Collega giocatore</button>
         </div>
         <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;cursor:pointer;">
-          <input type="checkbox" data-updoc="${f.id}" ${f.can_upload_documents ? 'checked' : ''} style="width:auto;">
+          <input type="checkbox" data-perm="can_upload_documents" data-profile="${f.id}" ${f.can_upload_documents ? 'checked' : ''} style="width:auto;">
           Può caricare i documenti (es. certificato medico)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" data-perm="can_score_matches" data-profile="${f.id}" ${f.can_score_matches ? 'checked' : ''} style="width:auto;">
+          Può tenere il tabellino della partita
         </label>
       `;
       holder.appendChild(row);
@@ -160,11 +164,16 @@ export function renderUtentiTab(c) {
         'Scollega'
       );
     });
-    holder.querySelectorAll('[data-updoc]').forEach(cb => cb.onchange = async () => {
-      const id = cb.getAttribute('data-updoc');
+    const PERM_LABELS = {
+      can_upload_documents: 'Caricamento documenti',
+      can_score_matches: 'Tabellino partita'
+    };
+    holder.querySelectorAll('[data-perm]').forEach(cb => cb.onchange = async () => {
+      const perm = cb.getAttribute('data-perm');
+      const id = cb.getAttribute('data-profile');
       try {
-        await updateProfile(id, { can_upload_documents: cb.checked });
-        toast(cb.checked ? 'Caricamento documenti abilitato' : 'Caricamento documenti disabilitato');
+        await updateProfile(id, { [perm]: cb.checked });
+        toast(`${PERM_LABELS[perm]}: ${cb.checked ? 'abilitato' : 'disabilitato'}`);
       } catch (e) {
         cb.checked = !cb.checked;
         toast(e.message || 'Impossibile aggiornare il permesso');
