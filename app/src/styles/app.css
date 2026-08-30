@@ -185,10 +185,10 @@ button:focus:not(:focus-visible){outline:none;}
 .photo-crop-frame:active{cursor:grabbing;}
 .photo-crop-frame img{width:100%;height:100%;object-fit:cover;user-select:none;-webkit-user-drag:none;pointer-events:none;}
 
-.logo-upload{display:flex;align-items:center;gap:14px;margin-bottom:14px;}
-.logo-preview{width:64px;height:64px;border-radius:12px;background:var(--tint);border:1px solid var(--glass-border);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:22px;color:var(--dim);overflow:hidden;}
+.logo-upload{display:flex;align-items:center;gap:16px;margin-bottom:16px;}
+.logo-preview{width:92px;height:92px;flex-shrink:0;border-radius:14px;background:var(--tint);border:1px solid var(--glass-border);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:28px;color:var(--dim);overflow:hidden;}
 /* i loghi sono PNG con trasparenza: niente riquadro dietro, solo il simbolo */
-.logo-preview.has-logo{background:none;border:none;border-radius:0;}
+.logo-preview.has-logo{background:none;border:none;border-radius:0;overflow:visible;}
 .logo-preview img{width:100%;height:100%;object-fit:contain;}
 .file-btn{background:var(--tint);border:1px solid var(--glass-border);color:var(--text);padding:9px 14px;border-radius:8px;font-size:13px;transition:transform .15s ease;}
 .file-btn:hover{transform:translateY(-2px);}
@@ -365,15 +365,17 @@ button:focus:not(:focus-visible){outline:none;}
    loghi e dati sono deliberatamente più grandi del resto */
 .match-row{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;gap:10px;padding:6px 0 4px;}
 .match-side{flex:1;text-align:center;min-width:0;}
-.match-avatar{width:76px;height:76px;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:24px;margin:0 auto 10px;overflow:hidden;}
-.match-avatar:not(.has-logo){border-radius:20px;background:var(--tint);border:1px solid var(--glass-border);}
+.match-avatar{width:104px;height:104px;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:30px;margin:0 auto 12px;}
+/* il riquadro esiste solo come segnaposto per le iniziali: con un logo
+   caricato si vede solo il marchio, sfruttando la trasparenza del PNG */
+.match-avatar:not(.has-logo){border-radius:24px;background:var(--tint);border:1px solid var(--glass-border);overflow:hidden;}
 .match-avatar img{width:100%;height:100%;object-fit:contain;}
 .match-team-nm{font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .match-pos-tag{font-size:11.5px;color:var(--dim);margin-top:4px;}
 .match-mid{text-align:center;padding:0 10px;flex-shrink:0;}
 .match-time{font-family:var(--font-display);font-weight:700;font-size:30px;letter-spacing:-0.01em;}
 @media (max-width:480px){
-  .match-avatar{width:60px;height:60px;font-size:19px;}
+  .match-avatar{width:78px;height:78px;font-size:22px;}
   .match-time{font-size:24px;}
   .match-team-nm{font-size:13px;}
 }
@@ -395,8 +397,8 @@ button:focus:not(:focus-visible){outline:none;}
 /* Dettaglio partita (modale dalla Home) */
 .md-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:14px;}
 .md-team{flex:1;text-align:center;min-width:0;}
-.md-badge{width:78px;height:78px;margin:0 auto 10px;border-radius:20px;background:var(--tint);border:1px solid var(--glass-border);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:24px;overflow:hidden;}
-.md-badge.has-logo{background:none;border:none;border-radius:0;}
+.md-badge{width:96px;height:96px;margin:0 auto 10px;border-radius:22px;background:var(--tint);border:1px solid var(--glass-border);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:28px;overflow:hidden;}
+.md-badge.has-logo{background:none;border:none;border-radius:0;overflow:visible;}
 .md-badge img{width:100%;height:100%;object-fit:contain;}
 .md-team-nm{font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .md-team-pos{font-size:11.5px;color:var(--dim);margin-top:3px;}

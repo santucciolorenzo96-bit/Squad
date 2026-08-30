@@ -13,9 +13,13 @@ export async function updateTeam(teamId, patch) {
 }
 
 export async function uploadTeamLogo(teamId, blob) {
-  const path = `${teamId}/logo_${Date.now()}.jpg`;
+  // I loghi si salvano nel formato del blob prodotto in fase di elaborazione:
+  // forzare JPEG qui azzererebbe la trasparenza appena preservata.
+  const type = blob.type || 'image/png';
+  const ext = type === 'image/png' ? 'png' : 'jpg';
+  const path = `${teamId}/logo_${Date.now()}.${ext}`;
   const { error: upErr } = await supabase.storage.from('team-logos').upload(path, blob, {
-    contentType: 'image/jpeg',
+    contentType: type,
     upsert: true
   });
   if (upErr) throw upErr;

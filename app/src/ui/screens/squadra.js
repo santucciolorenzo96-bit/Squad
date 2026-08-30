@@ -3,7 +3,7 @@ import { esc } from '../../utils/format.js';
 import { toast, confirmModal, formModal, withButtonLoading } from '../modal.js';
 import { updateTeam, uploadTeamLogo, regenerateInviteCode } from '../../api/teams.js';
 import { createSector, renameSector, removeSector } from '../../api/sectors.js';
-import { resizeImageFile } from '../../utils/image.js';
+import { resizeImageFile, resizeLogoWithTransparency, imageHasAlpha } from '../../utils/image.js';
 import { teamInitials } from '../../utils/theme.js';
 
 export function renderSquadraTab(c) {
@@ -13,7 +13,17 @@ export function renderSquadraTab(c) {
       <h2>Profilo squadra</h2>
       <div class="logo-upload">
         <div class="logo-preview${state.teamProfile.logo_url ? ' has-logo' : ''}" id="sqLogoPreview">${state.teamProfile.logo_url ? `<img src="${esc(state.teamProfile.logo_url)}">` : esc(teamInitials(state.teamProfile.name))}</div>
-        <div><input type="file" id="sqLogoInput" accept="image/*" class="hidden"><button class="file-btn" id="sqLogoBtn">Cambia logo</button></div>
+        <div style="flex:1;min-width:0;">
+          <input type="file" id="sqLogoInput" accept="image/*" class="hidden">
+          <button class="file-btn" id="sqLogoBtn">Cambia logo</button>
+          <div id="sqLogoTools" class="hidden" style="margin-top:10px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+              <input type="checkbox" id="sqLogoTransparent" style="width:auto;">
+              Rendi trasparente lo sfondo
+            </label>
+            <div class="hint" id="sqLogoHint" style="margin-top:4px;"></div>
+          </div>
+        </div>
       </div>
       <div class="field"><label>Nome squadra</label><input type="text" id="sqName" value="${esc(state.teamProfile.name)}"></div>
       <div class="row2">
@@ -37,14 +47,47 @@ export function renderSquadraTab(c) {
     </div>
   `;
   let pendingLogoBlob = null;
+  let pendingLogoFile = null;
+  const tools = document.getElementById('sqLogoTools');
+  const cbTransparent = document.getElementById('sqLogoTransparent');
+  const logoHint = document.getElementById('sqLogoHint');
+
+  function showPreview(blob) {
+    const prev = document.getElementById('sqLogoPreview');
+    prev.classList.add('has-logo');
+    prev.innerHTML = `<img src="${URL.createObjectURL(blob)}">`;
+  }
+
+  // Il logo viene salvato in PNG: il JPEG non ha canale alfa e appiattirebbe
+  // la trasparenza su un fondo pieno, disegnando di fatto un riquadro.
+  async function buildLogo() {
+    if (!pendingLogoFile) return;
+    logoHint.textContent = 'Elaborazione…';
+    try {
+      pendingLogoBlob = cbTransparent.checked
+        ? await resizeLogoWithTransparency(pendingLogoFile, 512)
+        : await resizeImageFile(pendingLogoFile, 512, { format: 'png' });
+      showPreview(pendingLogoBlob);
+      logoHint.textContent = cbTransparent.checked
+        ? 'Sfondo rimosso a partire dai bordi. Se il risultato non convince, togli la spunta.'
+        : '';
+    } catch (err) {
+      logoHint.textContent = 'Impossibile elaborare l\'immagine.';
+    }
+  }
+
   document.getElementById('sqLogoBtn').onclick = () => document.getElementById('sqLogoInput').click();
   document.getElementById('sqLogoInput').onchange = async (e) => {
     const f = e.target.files[0]; if (!f) return;
-    pendingLogoBlob = await resizeImageFile(f, 240);
-    const prev = document.getElementById('sqLogoPreview');
-    prev.classList.add('has-logo');
-    prev.innerHTML = `<img src="${URL.createObjectURL(pendingLogoBlob)}">`;
+    pendingLogoFile = f;
+    tools.classList.remove('hidden');
+    const alreadyTransparent = await imageHasAlpha(f).catch(() => false);
+    cbTransparent.checked = false;
+    cbTransparent.disabled = alreadyTransparent;
+    await buildLogo();
+    if (alreadyTransparent) logoHint.textContent = 'Il file ha già uno sfondo trasparente.';
   };
+  cbTransparent.onchange = buildLogo;
   document.getElementById('sqSave').onclick = (e) => withButtonLoading(e.currentTarget, async () => {
     const errEl = document.getElementById('sqError');
     try {
