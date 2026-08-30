@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-17 3 184 184" role="img" aria-label="SQUAD icon">
+
+<g fill="none" stroke="#0A1020" stroke-width="17" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M119 31 H78 C67 31 58 34 49 41 L31 54 C25 58 25 66 31 70 L67 91"/>
+  <path d="M67 91 L119 121 C126 125 126 134 119 139 L94 153 C86 157 77 159 67 159 H34"/>
+</g>
+<circle cx="120" cy="31" r="14" fill="#0A1020"/>
+<circle cx="67" cy="91" r="15" fill="#0A1020"/>
+<circle cx="32" cy="159" r="14" fill="#0A1020"/>
+<circle cx="120" cy="31" r="5.2" fill="#FFFFFF"/>
+<circle cx="67" cy="91" r="5.4" fill="#FFFFFF"/>
+<circle cx="32" cy="159" r="5.2" fill="#FFFFFF"/>
+</svg>

@@ -6,7 +6,7 @@ export function renderCreateTeam() {
   const root = document.getElementById('root');
   root.innerHTML = `
   <div class="center-screen"><div style="max-width:420px;width:100%;">
-    <div class="brand-header"><img class="brand-logo" src="/logo-default.svg" alt="SQUAD"><div class="brand-name">SQUAD</div></div>
+    <div class="brand-header"><img class="brand-logo" src="/brand/squad-symbol-primary.svg" alt="SQUAD"><div class="brand-name">SQUAD</div></div>
     <div class="card">
       <h2>Passo 1 · Dati della squadra</h2>
       <div class="field"><label>Nome squadra *</label><input type="text" id="wTeamName" placeholder="Es. Basket Catania"></div>
