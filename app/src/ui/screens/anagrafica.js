@@ -1,9 +1,9 @@
 import { state } from '../../state.js';
 import { esc } from '../../utils/format.js';
-import { toast, confirmModal, formModal } from '../modal.js';
+import { toast, confirmModal, formModal, withButtonLoading } from '../modal.js';
 import { DOC_TYPES, canReviewDocuments, isFamiglia } from '../../utils/permissions.js';
 import {
-  fetchPlayer, updatePlayer, fetchPlayerDocuments, uploadPlayerDocument,
+  fetchPlayer, updatePlayer, updateLinkedPlayerDetails, fetchPlayerDocuments, uploadPlayerDocument,
   getDocumentSignedUrl, reviewDocument, fetchPendingDocuments, fetchExpiringDocuments,
   uploadPlayerPhoto, getPlayerPhotoSignedUrl, fetchPlayerPhotoUrls
 } from '../../api/roster.js';
@@ -154,7 +154,14 @@ async function renderPlayerDetail(c, playerId, { readOnlyIdentity }) {
   const player = await fetchPlayer(playerId);
   const docs = await fetchPlayerDocuments(playerId);
   const canReview = canReviewDocuments(state.currentUser);
-  const canEditFields = !readOnlyIdentity;
+  // Lo staff modifica tutto; l'account collegato completa i propri dati
+  // anagrafici, ma non numero di maglia, ruolo o data di ingresso in rosa.
+  const isFamilyView = !!readOnlyIdentity;
+  const canEditFields = !isFamilyView;
+  const canEditOwn = canEditFields || isFamilyView;
+  const canUploadDocs = canEditFields || !!state.currentUser.can_upload_documents;
+  const own = canEditOwn ? '' : 'disabled';
+  const staffOnly = canEditFields ? '' : 'disabled';
   const photoUrl = player.photo_path ? await getPlayerPhotoSignedUrl(player.photo_path) : null;
 
   c.innerHTML = `
@@ -170,22 +177,25 @@ async function renderPlayerDetail(c, playerId, { readOnlyIdentity }) {
     <div class="card">
       <h2>Dati anagrafici</h2>
       <div class="row2">
-        <div class="field"><label>Data di nascita</label><input type="date" id="fBirth" value="${player.birth_date || ''}" ${canEditFields ? '' : 'disabled'}></div>
-        <div class="field"><label>Codice fiscale</label><input type="text" id="fFiscal" value="${esc(player.fiscal_code || '')}" ${canEditFields ? '' : 'disabled'}></div>
+        <div class="field"><label>Data di nascita</label><input type="date" id="fBirth" value="${player.birth_date || ''}" ${own}></div>
+        <div class="field"><label>Codice fiscale</label><input type="text" id="fFiscal" value="${esc(player.fiscal_code || '')}" ${own}></div>
       </div>
       <div class="row2">
-        <div class="field"><label>Ruolo in campo</label><input type="text" id="fRole" value="${esc(player.role_position || '')}" placeholder="Es. Guardia" ${canEditFields ? '' : 'disabled'}></div>
-        <div class="field"><label>Altezza (cm)</label><input type="number" id="fHeight" min="100" max="250" value="${player.height_cm ?? ''}" ${canEditFields ? '' : 'disabled'}></div>
+        <div class="field"><label>Ruolo in campo</label><input type="text" id="fRole" value="${esc(player.role_position || '')}" placeholder="Es. Guardia" ${staffOnly}></div>
+        <div class="field"><label>Altezza (cm)</label><input type="number" id="fHeight" min="100" max="250" value="${player.height_cm ?? ''}" ${own}></div>
       </div>
       <div class="row2">
-        <div class="field"><label>In rosa dal</label><input type="date" id="fJoined" value="${player.joined_at || ''}" ${canEditFields ? '' : 'disabled'}></div>
-        <div class="field"><label>Telefono genitore/tutore</label><input type="tel" id="fPhone" value="${esc(player.guardian_phone || '')}" ${canEditFields ? '' : 'disabled'}></div>
+        <div class="field"><label>In rosa dal</label><input type="date" id="fJoined" value="${player.joined_at || ''}" ${staffOnly}></div>
+        <div class="field"><label>Telefono genitore/tutore</label><input type="tel" id="fPhone" value="${esc(player.guardian_phone || '')}" ${own}></div>
       </div>
-      <div class="field"><label>Email</label><input type="email" id="fEmail" value="${esc(player.email || '')}" ${canEditFields ? '' : 'disabled'}></div>
-      ${canEditFields ? `<div class="error-msg" id="fError"></div><button class="btn btn-primary" id="fSave">Salva dati</button>` : `<div class="hint">Per modificare questi dati contatta lo staff della squadra.</div>`}
+      <div class="field"><label>Email</label><input type="email" id="fEmail" value="${esc(player.email || '')}" ${own}></div>
+      <div class="error-msg" id="fError"></div>
+      <button class="btn btn-primary" id="fSave">Salva dati</button>
+      ${isFamilyView ? '<div class="hint">Ruolo in campo e data di ingresso in rosa li imposta lo staff.</div>' : ''}
     </div>
 
     <div class="section-label">Documenti</div>
+    ${!canUploadDocs ? '<div class="hint" style="margin-bottom:8px;">Il caricamento dei documenti non è abilitato sul tuo account: puoi consultare quelli già presenti. Per caricarli chiedi a un amministratore di abilitarti.</div>' : ''}
     <div id="docList"></div>
     </div>
   `;
@@ -224,23 +234,31 @@ async function renderPlayerDetail(c, playerId, { readOnlyIdentity }) {
     });
   };
   const saveBtn = document.getElementById('fSave');
-  if (saveBtn) saveBtn.onclick = async () => {
+  if (saveBtn) saveBtn.onclick = (ev) => withButtonLoading(ev.currentTarget, async () => {
     const errEl = document.getElementById('fError');
+    const common = {
+      birth_date: document.getElementById('fBirth').value || null,
+      fiscal_code: document.getElementById('fFiscal').value.trim() || null,
+      height_cm: document.getElementById('fHeight').value ? parseInt(document.getElementById('fHeight').value, 10) : null,
+      guardian_phone: document.getElementById('fPhone').value.trim() || null,
+      email: document.getElementById('fEmail').value.trim() || null
+    };
     try {
-      await updatePlayer(playerId, {
-        birth_date: document.getElementById('fBirth').value || null,
-        fiscal_code: document.getElementById('fFiscal').value.trim() || null,
-        role_position: document.getElementById('fRole').value.trim() || null,
-        height_cm: document.getElementById('fHeight').value ? parseInt(document.getElementById('fHeight').value, 10) : null,
-        joined_at: document.getElementById('fJoined').value || null,
-        guardian_phone: document.getElementById('fPhone').value.trim() || null,
-        email: document.getElementById('fEmail').value.trim() || null
-      });
+      if (isFamilyView) {
+        await updateLinkedPlayerDetails(playerId, common);
+      } else {
+        await updatePlayer(playerId, {
+          ...common,
+          role_position: document.getElementById('fRole').value.trim() || null,
+          joined_at: document.getElementById('fJoined').value || null
+        });
+      }
+      errEl.textContent = '';
       toast('Dati salvati');
     } catch (e) {
       errEl.textContent = e.message || 'Errore nel salvataggio.';
     }
-  };
+  });
 
   const docHolder = document.getElementById('docList');
   DOC_TYPES.forEach(dt => {
@@ -264,7 +282,7 @@ async function renderPlayerDetail(c, playerId, { readOnlyIdentity }) {
         </div>
         <div style="display:flex;gap:8px;margin-top:10px;">
           <button class="btn btn-secondary" data-view="${existing.file_path}" style="flex:1;">Visualizza</button>
-          <button class="btn btn-ghost" data-replace="${dt.key}" style="flex:1;">Sostituisci</button>
+          ${canUploadDocs ? `<button class="btn btn-ghost" data-replace="${dt.key}" style="flex:1;">Sostituisci</button>` : ''}
           ${canReview && existing.status === 'in_review' ? `<button class="btn btn-primary" data-approve="${existing.id}" style="flex:1;">✓ Conferma</button><button class="btn btn-danger" data-reject="${existing.id}" style="flex:1;">✗ Rifiuta</button>` : ''}
         </div>
         <input type="file" data-file-for="${dt.key}" class="hidden" accept=".pdf,image/*">
@@ -272,10 +290,10 @@ async function renderPlayerDetail(c, playerId, { readOnlyIdentity }) {
     } else {
       card.innerHTML = `
         <div class="lbl" style="margin-bottom:10px;">${esc(dt.label)}</div>
-        <div class="dropzone" data-dropzone="${dt.key}">
+        <div class="dropzone" ${canUploadDocs ? `data-dropzone="${dt.key}"` : 'style="opacity:.6;"'}>
           <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="var(--dim)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13V4M6.5 7.5 10 4l3.5 3.5"/><path d="M4 14v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2"/></svg>
-          <div style="font-size:13px;font-weight:600;">Tocca per caricare il file</div>
-          <div class="hint">PDF o immagine, max 10MB</div>
+          <div style="font-size:13px;font-weight:600;">${canUploadDocs ? 'Tocca per caricare il file' : 'Caricamento non abilitato'}</div>
+          <div class="hint">${canUploadDocs ? 'PDF o immagine, max 10MB' : 'Lo staff può caricarlo per te'}</div>
           <span class="status-badge missing" style="margin-top:4px;">Da caricare</span>
         </div>
         <input type="file" data-file-for="${dt.key}" class="hidden" accept=".pdf,image/*">

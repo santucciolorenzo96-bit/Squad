@@ -21,7 +21,8 @@ export async function unlinkProfileFromPlayer(profileId, playerId) {
 export async function fetchFamilyLinksForTeam(teamId) {
   // profili famiglia del team + i loro giocatori collegati (per la schermata Utenti)
   const { data: profiles, error } = await supabase.from('profiles')
-    .select('id, display_name, active').eq('team_id', teamId).eq('role', 'famiglia').eq('active', true);
+    .select('id, display_name, active, can_upload_documents')
+    .eq('team_id', teamId).eq('role', 'famiglia').eq('active', true);
   if (error) throw error;
   const { data: links, error: linkErr } = await supabase.from('profile_players').select('profile_id, players(id, name, number)');
   if (linkErr) throw linkErr;

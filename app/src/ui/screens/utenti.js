@@ -115,17 +115,31 @@ export function renderUtentiTab(c) {
       const row = document.createElement('div');
       row.className = 'card';
       row.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          <div style="min-width:0;">
             <div style="font-weight:700;">${esc(f.display_name)}</div>
             <div class="hint">${f.linkedPlayers.length ? f.linkedPlayers.map(p => `#${p.number} ${esc(p.name)}`).join(', ') : 'Non ancora collegato a nessun giocatore'}</div>
           </div>
-          <button class="btn btn-secondary" data-link="${f.id}">Collega giocatore</button>
+          <button class="btn btn-secondary" data-link="${f.id}" style="flex-shrink:0;">Collega giocatore</button>
         </div>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" data-updoc="${f.id}" ${f.can_upload_documents ? 'checked' : ''} style="width:auto;">
+          Può caricare i documenti (es. certificato medico)
+        </label>
       `;
       holder.appendChild(row);
     });
     holder.querySelectorAll('[data-link]').forEach(btn => btn.onclick = () => openLinkModal(btn.getAttribute('data-link')));
+    holder.querySelectorAll('[data-updoc]').forEach(cb => cb.onchange = async () => {
+      const id = cb.getAttribute('data-updoc');
+      try {
+        await updateProfile(id, { can_upload_documents: cb.checked });
+        toast(cb.checked ? 'Caricamento documenti abilitato' : 'Caricamento documenti disabilitato');
+      } catch (e) {
+        cb.checked = !cb.checked;
+        toast(e.message || 'Impossibile aggiornare il permesso');
+      }
+    });
   }
 
   function openLinkModal(profileId) {

@@ -39,6 +39,22 @@ export async function updatePlayer(id, fields) {
   return data;
 }
 
+// Percorso per gli account famiglia: RLS non filtra per colonna, quindi il
+// giocatore collegato si aggiorna tramite una funzione che scrive i soli campi
+// anagrafici (niente numero di maglia, nome o squadra).
+export async function updateLinkedPlayerDetails(id, fields) {
+  const { data, error } = await supabase.rpc('update_linked_player_details', {
+    p_player_id: id,
+    p_birth_date: fields.birth_date,
+    p_fiscal_code: fields.fiscal_code,
+    p_guardian_phone: fields.guardian_phone,
+    p_email: fields.email,
+    p_height_cm: fields.height_cm
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function uploadPlayerPhoto(teamId, playerId, blob) {
   const path = `${teamId}/${playerId}/photo_${Date.now()}.jpg`;
   const { error: upErr } = await supabase.storage.from('player-photos').upload(path, blob, { contentType: 'image/jpeg', upsert: false });

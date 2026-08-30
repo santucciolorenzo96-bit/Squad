@@ -108,14 +108,16 @@ export async function renderRosaTab(c) {
     return `
       <div class="court-token" data-token="${p.id}" style="${style || ''}">
         <div class="court-token-top">
+          <div class="court-token-stats">
+            ${avg
+              ? `<span><i>PT</i><b>${avg.pts}</b></span><span><i>AS</i><b>${avg.ast}</b></span><span><i>RB</i><b>${avg.reb}</b></span>`
+              : `<span><i>PT</i><b>—</b></span><span><i>AS</i><b>—</b></span><span><i>RB</i><b>—</b></span>`}
+          </div>
           <div class="court-token-avatar">${url ? `<img src="${esc(url)}">` : esc(initials(p.name))}</div>
           <button class="court-token-swap${armed ? ' armed' : ''}" data-swap="${p.id}" title="Sostituisci" aria-label="Sostituisci ${esc(p.name)}">⇄</button>
         </div>
         <div class="court-token-name">${esc(p.name)}</div>
         <div class="court-token-num">#${esc(p.number)}</div>
-        ${avg
-          ? `<div class="court-token-stats"><span><b>${avg.pts}</b>PT</span><span><b>${avg.ast}</b>AS</span><span><b>${avg.reb}</b>RB</span></div>`
-          : '<div class="court-token-stats empty">nessuna media</div>'}
       </div>`;
   }
 
