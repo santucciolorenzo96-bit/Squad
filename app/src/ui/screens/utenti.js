@@ -126,7 +126,13 @@ export function renderUtentiTab(c) {
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
           <div style="min-width:0;">
             <div style="font-weight:700;">${esc(f.display_name)}</div>
-            <div class="hint">${f.linkedPlayers.length ? f.linkedPlayers.map(p => `#${p.number} ${esc(p.name)}`).join(', ') : 'Non ancora collegato a nessun giocatore'}</div>
+            ${f.linkedPlayers.length
+              ? `<div class="linked-chips">${f.linkedPlayers.map(p => `
+                  <span class="linked-chip">#${esc(p.number)} ${esc(p.name)}
+                    <button data-unlink-profile="${f.id}" data-unlink-player="${p.id}"
+                            title="Scollega" aria-label="Scollega ${esc(p.name)} da ${esc(f.display_name)}">✕</button>
+                  </span>`).join('')}</div>`
+              : '<div class="hint">Non ancora collegato a nessun giocatore</div>'}
           </div>
           <button class="btn btn-secondary" data-link="${f.id}" style="flex-shrink:0;">Collega giocatore</button>
         </div>
@@ -138,6 +144,22 @@ export function renderUtentiTab(c) {
       holder.appendChild(row);
     });
     holder.querySelectorAll('[data-link]').forEach(btn => btn.onclick = () => openLinkModal(btn.getAttribute('data-link')));
+    holder.querySelectorAll('[data-unlink-player]').forEach(btn => btn.onclick = () => {
+      const profileId = btn.getAttribute('data-unlink-profile');
+      const playerId = btn.getAttribute('data-unlink-player');
+      const family = families.find(x => x.id === profileId);
+      const player = (family ? family.linkedPlayers : []).find(p => p.id === playerId);
+      confirmModal(
+        'Scollegare il giocatore?',
+        `${family ? family.display_name : "L'account"} non vedrà più i dati di ${player ? player.name : 'questo giocatore'}. Il giocatore resta in anagrafica e il collegamento si può rifare.`,
+        async () => {
+          await unlinkProfileFromPlayer(profileId, playerId);
+          toast('Collegamento rimosso');
+          drawFamily();
+        },
+        'Scollega'
+      );
+    });
     holder.querySelectorAll('[data-updoc]').forEach(cb => cb.onchange = async () => {
       const id = cb.getAttribute('data-updoc');
       try {

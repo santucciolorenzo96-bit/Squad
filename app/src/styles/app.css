@@ -439,6 +439,12 @@ button:focus:not(:focus-visible){outline:none;}
 
 .player-add-row{display:grid;grid-template-columns:70px 1fr auto;gap:8px;margin-bottom:8px;}
 
+/* Giocatori collegati a un account famiglia, ciascuno scollegabile */
+.linked-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+.linked-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 10px;border-radius:999px;background:var(--tint);border:1px solid var(--glass-border);font-size:12px;font-weight:600;}
+.linked-chip button{display:flex;align-items:center;justify-content:center;width:18px;height:18px;border:none;border-radius:50%;background:none;color:var(--dim);font-size:11px;line-height:1;transition:background .2s ease,color .2s ease;}
+.linked-chip button:hover{background:var(--red-dim);color:var(--red);}
+
 /* Rosa: mezzo campo, titolari/panchinari, tocca-per-scambiare */
 .court-half{position:relative;aspect-ratio:150/140;max-width:480px;margin:0 auto;border-radius:20px;background:linear-gradient(170deg,var(--panel2),var(--panel));border:1px solid var(--glass-border);overflow:hidden;}
 /* le linee restano volutamente sbiadite: il campo è contesto, i giocatori il contenuto */
