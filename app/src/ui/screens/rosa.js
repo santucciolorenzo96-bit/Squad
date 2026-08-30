@@ -6,19 +6,45 @@ import { canEditRoster } from '../../utils/permissions.js';
 import { avatarHtml, wireAvatarClicks } from '../playerAvatar.js';
 import { computeSeasonStats } from '../../utils/stats.js';
 
-// Posizioni fisse dei 5 slot sul mezzo campo (playmaker in basso al centro,
-// guardie/ali a metà campo, ala grande e centro vicino al canestro) — non
-// dipendono dal ruolo testuale del giocatore, spesso libero/mancante.
+// Posizioni fisse dei 5 slot sul mezzo campo: il canestro è in alto, quindi
+// playmaker arretrato in basso, ali a metà, lunghi vicino all'area. Non
+// dipendono dal ruolo testuale del giocatore, spesso libero o mancante.
 const SLOTS = [
-  { top: '88%', left: '50%' },
-  { top: '62%', left: '18%' },
-  { top: '62%', left: '82%' },
-  { top: '28%', left: '30%' },
-  { top: '28%', left: '70%' }
+  { top: '84%', left: '50%' },
+  { top: '58%', left: '16%' },
+  { top: '58%', left: '84%' },
+  { top: '30%', left: '27%' },
+  { top: '30%', left: '73%' }
 ];
+
+// Mezzo campo FIBA in scala (15m × 14m → viewBox 150×140, canestro in alto).
+// Volutamente sbiadito: deve leggersi come contesto, non competere coi giocatori.
+const COURT_SVG = `
+<svg class="court-lines" viewBox="0 0 150 140" preserveAspectRatio="none" fill="none"
+     stroke="currentColor" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="0.6" y="0.6" width="148.8" height="138.8" rx="1"/>
+  <rect x="50.5" y="0.6" width="49" height="57.4"/>
+  <circle cx="75" cy="58" r="18"/>
+  <path d="M9 0.6V29.9"/><path d="M141 0.6V29.9"/>
+  <path d="M9 29.9A67.5 67.5 0 0 0 141 29.9"/>
+  <path d="M62.5 15.75A12.5 12.5 0 0 0 87.5 15.75"/>
+  <path d="M66 12h18"/><path d="M75 12v1.5"/>
+  <circle cx="75" cy="15.75" r="2.25"/>
+  <path d="M57 139.4A18 18 0 0 1 93 139.4"/>
+</svg>`;
 
 function initials(name) {
   return (name || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+}
+
+function avgLine(seasonRow) {
+  if (!seasonRow || !seasonRow.games) return null;
+  const g = seasonRow.games;
+  return {
+    pts: (seasonRow.pts / g).toFixed(1),
+    ast: (seasonRow.ast / g).toFixed(1),
+    reb: (seasonRow.reb / g).toFixed(1)
+  };
 }
 
 // Formazione di default: titolari/panchinari dell'ultima partita giocata,
@@ -78,15 +104,18 @@ export async function renderRosaTab(c) {
     const url = photoUrls[p.id];
     const onCourt = courtIds.includes(p.id);
     const armed = onCourt ? state.selectedCourtId === p.id : state.pendingBenchId === p.id;
+    const avg = avgLine(season.find(x => x.name === p.name));
     return `
       <div class="court-token" data-token="${p.id}" style="${style || ''}">
-        <div class="court-token-avatar">
-          ${url ? `<img src="${esc(url)}">` : esc(initials(p.name))}
-          <span class="court-token-num">#${esc(p.number)}</span>
-          <button class="court-token-swap${armed ? ' armed' : ''}" data-swap="${p.id}" title="Sostituisci">⇄</button>
+        <div class="court-token-top">
+          <div class="court-token-avatar">${url ? `<img src="${esc(url)}">` : esc(initials(p.name))}</div>
+          <button class="court-token-swap${armed ? ' armed' : ''}" data-swap="${p.id}" title="Sostituisci" aria-label="Sostituisci ${esc(p.name)}">⇄</button>
         </div>
         <div class="court-token-name">${esc(p.name)}</div>
-        <div class="court-token-role">${esc(p.role_position || '—')}</div>
+        <div class="court-token-num">#${esc(p.number)}</div>
+        ${avg
+          ? `<div class="court-token-stats"><span><b>${avg.pts}</b>PT</span><span><b>${avg.ast}</b>AS</span><span><b>${avg.reb}</b>RB</span></div>`
+          : '<div class="court-token-stats empty">nessuna media</div>'}
       </div>`;
   }
 
@@ -97,7 +126,7 @@ export async function renderRosaTab(c) {
     const courtPlayers = courtIds.map(id => state.roster.find(p => p.id === id)).filter(Boolean);
     const benchPlayers = state.roster.filter(p => !courtIds.includes(p.id));
 
-    courtEl.innerHTML = '<div class="court-hoop"></div>' + courtPlayers.map((p, i) => playerToken(p, `top:${SLOTS[i].top};left:${SLOTS[i].left};`)).join('');
+    courtEl.innerHTML = COURT_SVG + courtPlayers.map((p, i) => playerToken(p, `top:${SLOTS[i].top};left:${SLOTS[i].left};`)).join('');
     benchEl.innerHTML = benchPlayers.length
       ? benchPlayers.map(p => playerToken(p)).join('')
       : '<div class="hint" style="padding:8px 4px;">Nessun giocatore in panchina.</div>';

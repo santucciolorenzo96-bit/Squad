@@ -53,7 +53,15 @@ export function renderApp() {
           <div class="team-name">${esc(state.teamProfile.name)}</div>
         </div>
         <div class="header-mid">
-          ${mySectors.length > 1 ? `<div class="sector-switcher" id="sectorSwitcher"></div>` : (mySectors.length === 1 ? `<div class="hint" style="margin:0;">${esc(mySectors[0].name)}</div>` : '')}
+          ${mySectors.length > 1 ? `
+            <div class="sector-switcher" id="sectorSwitcher"></div>
+            <div class="sector-picker" id="sectorPicker">
+              <button class="sector-current" id="sectorCurrentBtn" aria-haspopup="listbox" aria-expanded="false">
+                <span>${esc((mySectors.find(s => s.id === state.activeSectorId) || mySectors[0]).name)}</span>
+                <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l5 5 5-5"/></svg>
+              </button>
+            </div>
+          ` : (mySectors.length === 1 ? `<div class="hint" style="margin:0;">${esc(mySectors[0].name)}</div>` : '')}
         </div>
         <div class="header-right">
           <button class="bell-btn" id="notifBell">
@@ -84,6 +92,39 @@ export function renderApp() {
       b.onclick = () => { if (state.activeSectorId !== s.id) switchSector(s.id); };
       sw.appendChild(b);
     });
+
+    // Su mobile lo stesso elenco si apre in verticale sotto il selettore.
+    const picker = document.getElementById('sectorPicker');
+    const currentBtn = document.getElementById('sectorCurrentBtn');
+    const closeMenu = () => {
+      const m = document.getElementById('sectorMenu');
+      if (m) m.remove();
+      picker.classList.remove('open');
+      currentBtn.setAttribute('aria-expanded', 'false');
+    };
+    currentBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (document.getElementById('sectorMenu')) { closeMenu(); return; }
+      const menu = document.createElement('div');
+      menu.className = 'sector-menu'; menu.id = 'sectorMenu'; menu.setAttribute('role', 'listbox');
+      mySectors.forEach(s => {
+        const b = document.createElement('button');
+        b.className = state.activeSectorId === s.id ? 'active' : '';
+        b.setAttribute('role', 'option');
+        b.textContent = s.name;
+        b.onclick = () => { closeMenu(); if (state.activeSectorId !== s.id) switchSector(s.id); };
+        menu.appendChild(b);
+      });
+      picker.appendChild(menu);
+      picker.classList.add('open');
+      currentBtn.setAttribute('aria-expanded', 'true');
+      setTimeout(() => {
+        document.addEventListener('click', function h() {
+          closeMenu();
+          document.removeEventListener('click', h);
+        }, 0);
+      }, 0);
+    };
   }
 
   const groupLabels = { settore: 'Settore', societa: 'Società' };
