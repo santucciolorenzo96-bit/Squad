@@ -108,7 +108,15 @@ export function renderUtentiTab(c) {
   drawFamily();
   async function drawFamily() {
     const holder = document.getElementById('familyList');
-    const families = await fetchFamilyLinksForTeam(state.teamProfile.id);
+    let families;
+    try {
+      families = await fetchFamilyLinksForTeam(state.teamProfile.id);
+    } catch (e) {
+      // Senza questo la sezione restava sullo scheletro di caricamento per
+      // sempre, senza dire nulla: un errore va mostrato, non ingoiato.
+      holder.innerHTML = `<div class="placeholder-card">Impossibile caricare gli account famiglia.<br><span class="hint">${esc(e.message || 'Errore imprevisto')}</span></div>`;
+      return;
+    }
     if (families.length === 0) { holder.innerHTML = '<div class="placeholder-card">Nessun account famiglia registrato.</div>'; return; }
     holder.innerHTML = '';
     families.forEach(f => {

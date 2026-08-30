@@ -5,7 +5,7 @@ import { getStoredThemeMode, setTheme, userInitials } from '../../utils/theme.js
 import { formModal, toast, withButtonLoading } from '../modal.js';
 import { changePassword } from '../../auth.js';
 import { goLogout } from '../../router.js';
-import { updateProfile } from '../../api/profiles.js';
+import { updateMyProfile } from '../../api/profiles.js';
 import { fetchEntriesForPlayers } from '../../api/financeEntries.js';
 import { fetchPlayerDocuments } from '../../api/roster.js';
 
@@ -80,7 +80,7 @@ export async function renderProfiloTab(c) {
     const display_name = document.getElementById('pName').value.trim();
     if (!display_name) { errEl.textContent = 'Il nome non può essere vuoto.'; return; }
     try {
-      await updateProfile(u.id, { display_name, phone: document.getElementById('pPhone').value.trim() || null });
+      await updateMyProfile({ display_name, phone: document.getElementById('pPhone').value.trim() || null });
       u.display_name = display_name;
       u.phone = document.getElementById('pPhone').value.trim() || null;
       toast('Profilo aggiornato');

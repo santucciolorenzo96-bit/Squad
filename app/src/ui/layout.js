@@ -2,7 +2,7 @@ import { state } from '../state.js';
 import { TABS, canSeeTab } from '../utils/permissions.js';
 import { esc } from '../utils/format.js';
 import { switchSector, unseenNotificationsCount } from '../router.js';
-import { updateProfile } from '../api/profiles.js';
+import { markNotificationsSeen } from '../api/profiles.js';
 import { userInitials } from '../utils/theme.js';
 import { navIcon } from './icons.js';
 
@@ -177,7 +177,7 @@ export function renderApp() {
     if (unseenNotificationsCount() > 0) {
       const seenAt = new Date().toISOString();
       state.currentUser.notifications_seen_at = seenAt;
-      updateProfile(state.currentUser.id, { notifications_seen_at: seenAt }).catch(() => {});
+      markNotificationsSeen().catch(() => {});
       const badge = document.querySelector('#notifBell .bell-badge');
       if (badge) badge.remove();
     }
