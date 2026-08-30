@@ -49,7 +49,7 @@ export function renderApp() {
     <div class="app-shell">
       <div class="header-bar">
         <div class="left">
-          <img class="app-logo" src="/brand/squad-symbol-primary.svg" alt="SQUAD">
+          <img class="app-logo" src="/brand/squad-symbol-3d.png" alt="SQUAD">
           <div class="team-name">${esc(state.teamProfile.name)}</div>
         </div>
         <div class="header-mid">

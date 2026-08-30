@@ -194,12 +194,19 @@ button:focus:not(:focus-visible){outline:none;}
 .file-btn:hover{transform:translateY(-2px);}
 
 .brand-header{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;margin-bottom:30px;position:relative;z-index:1;}
-/* niente ombre o bagliori sul marchio: lo vieta esplicitamente IMPLEMENTATION.md */
-.brand-logo{width:124px;height:124px;object-fit:contain;animation:brandIn .7s cubic-bezier(.2,.8,.3,1) both;}
+/* niente ombre o bagliori aggiunti: il volume fa già parte dell'asset */
+.brand-logo{width:auto;height:132px;object-fit:contain;animation:brandIn .7s cubic-bezier(.2,.8,.3,1) both;}
+/* il wordmark è l'originale della brand sheet: bianco su scuro, inchiostro su chiaro */
+.brand-wordmark{width:min(230px,62vw);height:auto;object-fit:contain;animation:brandIn .7s cubic-bezier(.2,.8,.3,1) .08s both;
+  content:url('/brand/squad-wordmark.png');}
+:root[data-theme="light"] .brand-wordmark{content:url('/brand/squad-wordmark-dark.png');}
+@media (prefers-color-scheme:light){
+  :root:not([data-theme]) .brand-wordmark{content:url('/brand/squad-wordmark-dark.png');}
+}
 .brand-name{font-family:var(--font-brand);font-size:38px;font-weight:700;line-height:1;text-transform:uppercase;letter-spacing:0.2em;text-indent:0.2em;animation:brandIn .7s cubic-bezier(.2,.8,.3,1) .08s both;}
 @keyframes brandIn{ from{opacity:0;transform:translateY(12px) scale(.96);} to{opacity:1;transform:translateY(0) scale(1);} }
 @media (max-width:480px){
-  .brand-logo{width:98px;height:98px;}
+  .brand-logo{height:104px;}
   .brand-name{font-size:30px;}
 }
 @media (prefers-reduced-motion:reduce){
