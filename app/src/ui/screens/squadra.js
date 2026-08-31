@@ -34,6 +34,27 @@ export function renderSquadraTab(c) {
       <button class="btn btn-primary" id="sqSave">Salva modifiche</button>
     </div>
     <div class="card">
+      <h2>Dati fiscali</h2>
+      <div class="hint" style="margin-top:0;">Compaiono sui documenti amministrativi generati in Documenti: dichiarazione delle quote e modulo d'iscrizione.</div>
+      <div class="row2" style="margin-top:12px;">
+        <div class="field"><label>Codice fiscale</label><input type="text" id="sqFiscal" value="${esc(state.teamProfile.fiscal_code || '')}"></div>
+        <div class="field"><label>Partita IVA</label><input type="text" id="sqVat" value="${esc(state.teamProfile.vat_number || '')}"></div>
+      </div>
+      <div class="field"><label>Sede legale</label><input type="text" id="sqAddress" placeholder="Via e numero" value="${esc(state.teamProfile.address || '')}"></div>
+      <div class="row2">
+        <div class="field"><label>CAP</label><input type="text" id="sqZip" value="${esc(state.teamProfile.zip || '')}"></div>
+        <div class="field"><label>Provincia</label><input type="text" id="sqProvince" value="${esc(state.teamProfile.province || '')}"></div>
+      </div>
+      <div class="field"><label>Legale rappresentante</label><input type="text" id="sqLegalRep" value="${esc(state.teamProfile.legal_rep || '')}"></div>
+      <div class="field"><label>N. registro attività sportive</label><input type="text" id="sqRegistry" value="${esc(state.teamProfile.registry_number || '')}"></div>
+      <div class="row2">
+        <div class="field"><label>Email di contatto</label><input type="email" id="sqEmail" value="${esc(state.teamProfile.contact_email || '')}"></div>
+        <div class="field"><label>Telefono</label><input type="tel" id="sqPhone" value="${esc(state.teamProfile.contact_phone || '')}"></div>
+      </div>
+      <div class="error-msg" id="sqFiscalError"></div>
+      <button class="btn btn-primary" id="sqSaveFiscal">Salva dati fiscali</button>
+    </div>
+    <div class="card">
       <h2>Codice invito</h2>
       <div class="hint">Condividi questo codice con staff e genitori/giocatori: potranno registrarsi da "Entra in una squadra esistente" scegliendo il proprio ruolo.</div>
       <div style="font-family:var(--font-mono);font-size:24px;letter-spacing:0.1em;color:var(--gold);margin:12px 0;text-align:center;">${esc(state.teamProfile.invite_code)}</div>
@@ -108,6 +129,23 @@ export function renderSquadraTab(c) {
       errEl.textContent = e.message || 'Errore nel salvataggio.';
     }
   });
+  document.getElementById('sqSaveFiscal').onclick = (e) => withButtonLoading(e.currentTarget, async () => {
+    const errEl = document.getElementById('sqFiscalError');
+    const val = id => document.getElementById(id).value.trim() || null;
+    try {
+      const updated = await updateTeam(state.teamProfile.id, {
+        fiscal_code: val('sqFiscal'), vat_number: val('sqVat'), address: val('sqAddress'),
+        zip: val('sqZip'), province: val('sqProvince'), legal_rep: val('sqLegalRep'),
+        registry_number: val('sqRegistry'), contact_email: val('sqEmail'), contact_phone: val('sqPhone')
+      });
+      state.teamProfile = updated;
+      errEl.textContent = '';
+      toast('Dati fiscali salvati');
+    } catch (err) {
+      errEl.textContent = err.message || 'Errore nel salvataggio.';
+    }
+  });
+
   document.getElementById('sqRegenCode').onclick = () => {
     confirmModal('Rigenerare il codice invito?', 'Il codice attuale smetterà di funzionare per i nuovi accessi.', async () => {
       const newCode = await regenerateInviteCode();

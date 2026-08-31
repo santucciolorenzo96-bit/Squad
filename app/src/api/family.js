@@ -18,6 +18,15 @@ export async function unlinkProfileFromPlayer(profileId, playerId) {
   if (error) throw error;
 }
 
+// Account (genitore/atleta) collegati a un giocatore: serve alla scheda atleta
+// per sapere chi versa le quote e chi vede i suoi dati.
+export async function fetchLinkedProfilesForPlayer(playerId) {
+  const { data, error } = await supabase.from('profile_players')
+    .select('profiles(id, display_name, role)').eq('player_id', playerId);
+  if (error) throw error;
+  return data.map(r => r.profiles).filter(Boolean);
+}
+
 export async function fetchFamilyLinksForTeam(teamId) {
   // profili famiglia del team + i loro giocatori collegati (per la schermata Utenti)
   const { data: profiles, error } = await supabase.from('profiles')

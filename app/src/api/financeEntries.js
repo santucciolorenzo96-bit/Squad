@@ -38,6 +38,21 @@ export async function fetchEntriesForPlayers(playerIds) {
     .filter(e => e._status && !['incassato', 'annullato'].includes(e._status.status));
 }
 
+// Quote effettivamente incassate da un atleta in un anno solare: è quanto serve
+// alla dichiarazione per la detrazione, che certifica il pagato, non il dovuto.
+export async function fetchPlayerPaymentsForYear(playerId, year) {
+  const { data, error } = await supabase.from('finance_payments')
+    .select('id, amount, paid_at, method, finance_entries!inner(id, description, player_id, kind)')
+    .eq('finance_entries.player_id', playerId)
+    .eq('finance_entries.kind', 'income')
+    .is('cancelled_at', null)
+    .gte('paid_at', `${year}-01-01`)
+    .lte('paid_at', `${year}-12-31`)
+    .order('paid_at');
+  if (error) throw error;
+  return data;
+}
+
 async function fetchStatusMap(ids) {
   const { data, error } = await supabase.from('finance_entries_status').select('*').in('entry_id', ids);
   if (error) throw error;

@@ -19,6 +19,7 @@ import { renderUtentiTab } from './screens/utenti.js';
 import { renderSquadraTab } from './screens/squadra.js';
 import { renderFinanzaTab } from './screens/finanza/index.js';
 import { renderProfiloTab } from './screens/profilo.js';
+import { renderDocumentiTab } from './screens/documenti.js';
 
 function formatRelativeTime(iso) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -262,6 +263,7 @@ function renderTabContent() {
   if (state.currentTab === 'statistiche') return renderStatisticheTab(c);
   if (state.currentTab === 'classifica') return renderClassificaTab(c);
   if (state.currentTab === 'calendario') return renderCalendarioTab(c);
+  if (state.currentTab === 'documenti') return renderDocumentiTab(c);
   if (state.currentTab === 'utenti') return renderUtentiTab(c);
   if (state.currentTab === 'squadra') return renderSquadraTab(c);
   if (state.currentTab === 'finanza') return renderFinanzaTab(c);
