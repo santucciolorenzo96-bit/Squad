@@ -1,7 +1,7 @@
 import { state } from '../../state.js';
 import { esc } from '../../utils/format.js';
 import { ROLES, ROLE_CLASS, isFinanceAdmin } from '../../utils/permissions.js';
-import { confirmModal, formModal, toast } from '../modal.js';
+import { confirmModal, formModal, toast, showLoadError } from '../modal.js';
 import { updateProfile, deactivateProfile } from '../../api/profiles.js';
 import { assignStaffToSector, removeStaffFromSector, fetchStaffSectors } from '../../api/sectors.js';
 import { fetchFamilyLinksForTeam, linkProfileToPlayer, unlinkProfileFromPlayer } from '../../api/family.js';
@@ -112,9 +112,7 @@ export function renderUtentiTab(c) {
     try {
       families = await fetchFamilyLinksForTeam(state.teamProfile.id);
     } catch (e) {
-      // Senza questo la sezione restava sullo scheletro di caricamento per
-      // sempre, senza dire nulla: un errore va mostrato, non ingoiato.
-      holder.innerHTML = `<div class="placeholder-card">Impossibile caricare gli account giocatore/genitore.<br><span class="hint">${esc(e.message || 'Errore imprevisto')}</span></div>`;
+      showLoadError(holder, e, 'gli account giocatore/genitore');
       return;
     }
     if (families.length === 0) { holder.innerHTML = '<div class="placeholder-card">Nessun account giocatore o genitore registrato.</div>'; return; }

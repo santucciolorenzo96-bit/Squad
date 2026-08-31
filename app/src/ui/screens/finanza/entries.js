@@ -1,6 +1,6 @@
 import { state } from '../../../state.js';
 import { esc } from '../../../utils/format.js';
-import { formModal, confirmModal, toast } from '../../modal.js';
+import { formModal, confirmModal, toast, showLoadError } from '../../modal.js';
 import { fetchEntries, fetchEntryDetail, createEntry, updateEntry, cancelEntry } from '../../../api/financeEntries.js';
 import { createPayment } from '../../../api/financePayments.js';
 import { uploadFinanceDocument, getFinanceDocumentSignedUrl, removeFinanceDocument } from '../../../api/financeDocuments.js';
@@ -23,7 +23,13 @@ export function renderExpenseSection(c, canManage) { renderEntriesSection(c, can
 
 async function renderEntriesSection(c, canManage, kind) {
   c.innerHTML = '<div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div>';
-  const entries = await fetchEntries(state.teamProfile.id, kind);
+  let entries;
+  try {
+    entries = await fetchEntries(state.teamProfile.id, kind);
+  } catch (e) {
+    showLoadError(c, e, kind === 'income' ? 'le entrate' : 'le uscite');
+    return;
+  }
   drawList(c, canManage, kind, entries);
 }
 
@@ -67,7 +73,14 @@ function drawList(c, canManage, kind, entries) {
 
 async function openDetail(c, canManage, kind, entryId) {
   c.innerHTML = '<div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div>';
-  const { entry, allocations, payments, documents, status } = await fetchEntryDetail(entryId);
+  let detail;
+  try {
+    detail = await fetchEntryDetail(entryId);
+  } catch (e) {
+    showLoadError(c, e, 'il movimento');
+    return;
+  }
+  const { entry, allocations, payments, documents, status } = detail;
   const back = () => renderEntriesSection(c, canManage, kind);
 
   c.innerHTML = `

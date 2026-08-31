@@ -8,6 +8,14 @@ export function toast(msg) {
   toast._t = setTimeout(() => t.classList.remove('show'), 1700);
 }
 
+// Un caricamento fallito deve dirlo. Senza, la schermata resta sullo scheletro
+// di caricamento all'infinito e il motivo sparisce nella console.
+export function showLoadError(el, err, what = 'i dati') {
+  if (!el) return;
+  el.innerHTML = `<div class="placeholder-card">Impossibile caricare ${esc(what)}.<br>
+    <span class="hint">${esc((err && err.message) || 'Errore imprevisto')}</span></div>`;
+}
+
 export function confirmModal(title, body, onConfirm, confirmLabel) {
   const root = document.getElementById('modalRoot');
   root.innerHTML = `<div class="modal-overlay" id="modalOverlay"><div class="modal-box">

@@ -1,6 +1,7 @@
 import { state } from '../../../state.js';
 import { esc } from '../../../utils/format.js';
 import { fetchDeadlines } from '../../../api/financeEntries.js';
+import { showLoadError } from '../../modal.js';
 
 function fmtMoney(n) { return (n ?? 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' }); }
 
@@ -17,7 +18,13 @@ function bucketFor(dueDate) {
 
 export async function renderDeadlinesSection(c, canManage) {
   c.innerHTML = '<div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div>';
-  const deadlines = await fetchDeadlines(state.teamProfile.id);
+  let deadlines;
+  try {
+    deadlines = await fetchDeadlines(state.teamProfile.id);
+  } catch (e) {
+    showLoadError(c, e, 'le scadenze');
+    return;
+  }
 
   c.innerHTML = `
     <div class="field"><label>Filtra per tipo</label>
