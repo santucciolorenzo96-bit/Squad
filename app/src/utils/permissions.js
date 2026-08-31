@@ -24,8 +24,14 @@ export const ROSTER_ROLES = ['admin', 'presidente', 'allenatore'];
 export const LINKED_ROLES = ['genitore', 'atleta'];
 // Ruoli assegnabili in autonomia al momento della registrazione
 export const SELF_SIGNUP_ROLES = ['segnapunti', 'genitore', 'atleta'];
-// Ruoli che un amministratore può attribuire dalla schermata Utenti
-export const STAFF_ASSIGNABLE_ROLES = ['admin', 'presidente', 'staff', 'allenatore', 'segnapunti'];
+// Ruoli che un amministratore può attribuire dalla schermata Utenti: tutti,
+// inclusi Genitore e Atleta, altrimenti un account finito nel ruolo sbagliato
+// non sarebbe più correggibile dall'interfaccia.
+export const ASSIGNABLE_ROLES = ['admin', 'presidente', 'staff', 'allenatore', 'segnapunti', 'genitore', 'atleta'];
+
+export function roleLabel(role) {
+  return ROLES[role] || (role ? `Ruolo sconosciuto (${role})` : 'Ruolo non impostato');
+}
 
 export const TOV_TYPES = [
   { key: 'generica', label: 'Generica' },

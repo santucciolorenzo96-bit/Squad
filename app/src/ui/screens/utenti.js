@@ -1,6 +1,6 @@
 import { state } from '../../state.js';
 import { esc } from '../../utils/format.js';
-import { ROLES, ROLE_CLASS, isFinanceAdmin, isAdmin, ADMIN_ROLES, STAFF_ASSIGNABLE_ROLES } from '../../utils/permissions.js';
+import { ROLES, ROLE_CLASS, isFinanceAdmin, isAdmin, ADMIN_ROLES, ASSIGNABLE_ROLES, LINKED_ROLES, roleLabel } from '../../utils/permissions.js';
 import { confirmModal, formModal, toast, showLoadError } from '../modal.js';
 import { updateProfile, deactivateProfile } from '../../api/profiles.js';
 import { assignStaffToSector, removeStaffFromSector, fetchStaffSectors } from '../../api/sectors.js';
@@ -30,7 +30,7 @@ export function renderUtentiTab(c) {
       row.className = 'list-row';
       const isSelf = u.id === state.currentUser.id;
       row.innerHTML = `<div class="main"><div class="nm">${esc(u.display_name)} ${isSelf ? '<span class="hint">(tu)</span>' : ''}</div><div class="sub">${isAdmin(u) ? 'Tutti i settori' : esc(sectorNames(u.id))}</div></div>
-        <span class="role-badge ${ROLE_CLASS[u.role]}">${ROLES[u.role]}</span>
+        <span class="role-badge ${ROLE_CLASS[u.role] || ''}">${esc(roleLabel(u.role))}</span>
         <button class="icon-btn" data-edit="${u.id}">✎</button>
         ${!isSelf ? `<button class="icon-btn danger" data-rm="${u.id}">✕</button>` : ''}`;
       holder.appendChild(row);
@@ -59,7 +59,11 @@ export function renderUtentiTab(c) {
       <div class="field"><label>Nome e cognome</label><input type="text" id="uName" value="${esc(existing.display_name)}"></div>
       <div class="field"><label>Ruolo</label>
         <select id="uRole">
-          ${STAFF_ASSIGNABLE_ROLES.map(r => `<option value="${r}" ${existing.role === r ? 'selected' : ''}>${ROLES[r]}</option>`).join('')}
+          ${/* se il ruolo attuale non è tra quelli previsti lo si mostra comunque,
+               altrimenti salvando si assegnerebbe in silenzio il primo dell'elenco */
+            ASSIGNABLE_ROLES.includes(existing.role) ? '' :
+            `<option value="${esc(existing.role || '')}" selected>${esc(roleLabel(existing.role))}</option>`}
+          ${ASSIGNABLE_ROLES.map(r => `<option value="${r}" ${existing.role === r ? 'selected' : ''}>${ROLES[r]}</option>`).join('')}
         </select>
       </div>
       <div class="field" id="sectorCheckWrap">
@@ -98,6 +102,11 @@ export function renderUtentiTab(c) {
       for (const id of toRemove) await removeStaffFromSector(existing.id, id);
       state.staffSectors = await fetchStaffSectors(state.teamProfile.id);
 
+      // Spostato tra gli utenti base: esce dall'elenco staff e compare sotto
+      if (LINKED_ROLES.includes(role)) {
+        state.staff = state.staff.filter(x => x.id !== existing.id);
+        drawFamily();
+      }
       drawUsers();
       toast('Utente salvato');
     });
@@ -122,7 +131,7 @@ export function renderUtentiTab(c) {
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
           <div style="min-width:0;">
             <div style="font-weight:700;">${esc(f.display_name)}
-              <span class="role-badge ${ROLE_CLASS[f.role] || ''}" style="margin-left:6px;">${ROLES[f.role] || f.role}</span>
+              <span class="role-badge ${ROLE_CLASS[f.role] || ''}" style="margin-left:6px;">${esc(roleLabel(f.role))}</span>
             </div>
             ${f.linkedPlayers.length
               ? `<div class="linked-chips">${f.linkedPlayers.map(p => `
@@ -133,6 +142,12 @@ export function renderUtentiTab(c) {
               : '<div class="hint">Non ancora collegato a nessun giocatore</div>'}
           </div>
           <button class="btn btn-secondary" data-link="${f.id}" style="flex-shrink:0;">Collega giocatore</button>
+        </div>
+        <div class="field" style="margin:12px 0 0;">
+          <label>Ruolo</label>
+          <select data-role-for="${f.id}">
+            ${LINKED_ROLES.map(r => `<option value="${r}" ${f.role === r ? 'selected' : ''}>${ROLES[r]}</option>`).join('')}
+          </select>
         </div>
         <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;cursor:pointer;">
           <input type="checkbox" data-perm="can_upload_documents" data-profile="${f.id}" ${f.can_upload_documents ? 'checked' : ''} style="width:auto;">
@@ -166,6 +181,19 @@ export function renderUtentiTab(c) {
       can_upload_documents: 'Caricamento documenti',
       can_score_matches: 'Tabellino partita'
     };
+    holder.querySelectorAll('[data-role-for]').forEach(sel => {
+      const previous = sel.value;
+      sel.onchange = async () => {
+        try {
+          await updateProfile(sel.getAttribute('data-role-for'), { role: sel.value });
+          toast(`Ruolo aggiornato: ${ROLES[sel.value]}`);
+          drawFamily();
+        } catch (e) {
+          sel.value = previous;
+          toast(e.message || 'Impossibile aggiornare il ruolo');
+        }
+      };
+    });
     holder.querySelectorAll('[data-perm]').forEach(cb => cb.onchange = async () => {
       const perm = cb.getAttribute('data-perm');
       const id = cb.getAttribute('data-profile');
