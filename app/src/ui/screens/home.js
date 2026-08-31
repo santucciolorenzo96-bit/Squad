@@ -6,7 +6,9 @@ import {
   standingsPosition, computeRecord, computeStreak, computeTeamPPG,
   computeSeasonStats, computeLastGameMVP, daysUntil
 } from '../../utils/stats.js';
-import { formModal } from '../modal.js';
+import { formModal, showLoadError } from '../modal.js';
+import { fetchTrainingsForDate } from '../../api/trainings.js';
+import { fetchAttendanceForTrainings } from '../../api/attendance.js';
 import { saveNextMatch, clearNextMatch } from '../../api/nextMatch.js';
 import { openMatchDetail } from '../matchDetail.js';
 import { venueLabel, pinIcon } from '../icons.js';
@@ -72,6 +74,11 @@ export function renderHomeTab(c) {
       <div class="hello">${greetingWord()}${firstName ? ', ' + esc(firstName) : ''}</div>
       <div class="date">${todayLabel}</div>
     </div>
+
+    ${canEdit ? `
+    <div class="section-label">Oggi · allenamenti di tutte le categorie</div>
+    <div id="todayPanel" class="card"><div class="skeleton skeleton-row" style="margin:0;"></div></div>
+    ` : ''}
 
     <div class="home-grid">
       <div class="home-main">
@@ -179,6 +186,8 @@ export function renderHomeTab(c) {
   if (canEdit) makePanelLink(document.getElementById('homeDocsCard'), () => goToTab('anagrafica'));
   if (hasFinance) makePanelLink(document.getElementById('homeFinanceCard'), () => goToTab('finanza'));
 
+  if (canEdit) loadTodayPanel(today);
+
   // I numeri salgono fino al valore invece di comparire di colpo.
   const ppgEl = c.querySelector('#homePpgCard .val[data-count]');
   if (ppgEl && ppgEl.dataset.count) animateCount(ppgEl, parseFloat(ppgEl.dataset.count), { format: v => v.toFixed(1) });
@@ -186,6 +195,52 @@ export function renderHomeTab(c) {
     const finEl = c.querySelector('#homeFinanceCard .val');
     if (finEl) animateCount(finEl, financeTotal, { format: v => fmtMoney(v) });
   }
+}
+
+// Pannello "Oggi": la giornata di tutta la società, non del solo settore
+// attivo. Caricato all'apertura della Home, non al boot, per non rallentarlo.
+async function loadTodayPanel(today) {
+  const holder = document.getElementById('todayPanel');
+  if (!holder) return;
+  let trainings, attendance;
+  try {
+    trainings = await fetchTrainingsForDate(state.teamProfile.id, today);
+    attendance = await fetchAttendanceForTrainings(trainings.map(t => t.id));
+  } catch (e) {
+    showLoadError(holder, e, 'gli allenamenti di oggi');
+    return;
+  }
+  if (trainings.length === 0) {
+    holder.innerHTML = '<div class="hint" style="margin:0;">Nessun allenamento in programma oggi.</div>';
+    return;
+  }
+
+  const counts = {};
+  attendance.forEach(a => {
+    if (!counts[a.training_id]) counts[a.training_id] = { present: 0, absent: 0, excused: 0 };
+    if (a.status === 'present') counts[a.training_id].present++;
+    else if (a.status === 'absent') counts[a.training_id].absent++;
+    else if (a.status === 'excused') counts[a.training_id].excused++;
+  });
+
+  holder.innerHTML = trainings.map(t => {
+    const c = counts[t.id] || { present: 0, absent: 0, excused: 0 };
+    const rilevato = c.present + c.absent + c.excused > 0;
+    return `
+      <div class="today-row">
+        <div class="today-time">${t.start_time ? esc(t.start_time) : '—'}${t.end_time ? `<span>${esc(t.end_time)}</span>` : ''}</div>
+        <div class="today-main">
+          <div class="today-sector">${esc((t.sectors && t.sectors.name) || 'Settore')}</div>
+          <div class="today-meta">${esc(t.title)}${t.location ? ' · ' + esc(t.location) : ''}</div>
+        </div>
+        <div class="today-att">
+          ${rilevato
+            ? `<span class="att-pill present" title="Presenti">${c.present}</span>
+               <span class="att-pill absent" title="Assenti">${c.absent + c.excused}</span>`
+            : '<span class="hint" style="margin:0;">da rilevare</span>'}
+        </div>
+      </div>`;
+  }).join('');
 }
 
 function openNextMatchModal() {

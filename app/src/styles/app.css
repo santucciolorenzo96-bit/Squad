@@ -384,6 +384,25 @@ button:focus:not(:focus-visible){outline:none;}
 .match-countdown{display:inline-flex;align-items:center;gap:5px;margin-top:10px;background:var(--orange-dim);color:var(--orange);font-size:11.5px;font-weight:700;padding:5px 12px;border-radius:999px;white-space:nowrap;}
 .venue-ico{flex-shrink:0;vertical-align:-2px;}
 
+/* Home, pannello "Oggi": la giornata di tutte le categorie */
+.today-row{display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid var(--glass-border);}
+.today-row:first-child{padding-top:0;}
+.today-row:last-child{border-bottom:none;padding-bottom:0;}
+.today-time{width:52px;flex-shrink:0;font-family:var(--font-mono);font-size:14px;font-weight:700;line-height:1.2;}
+.today-time span{display:block;font-size:11px;font-weight:400;color:var(--dim);}
+.today-main{flex:1;min-width:0;}
+.today-sector{font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.today-meta{font-size:12px;color:var(--dim);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.today-att{display:flex;gap:6px;flex-shrink:0;}
+.att-pill{min-width:30px;text-align:center;padding:4px 9px;border-radius:999px;font-family:var(--font-mono);font-size:13px;font-weight:700;}
+.att-pill.present{background:var(--green-dim);color:var(--green);}
+.att-pill.absent{background:var(--red-dim);color:var(--red);}
+@media (max-width:480px){
+  .today-row{gap:10px;}
+  .today-time{width:46px;font-size:13px;}
+  .today-sector{font-size:13px;}
+}
+
 /* Presenze: andamento settimanale/mensile a barre (nessuna libreria) */
 .presenze-periods{gap:4px;}
 .trend-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--glass-border);}
