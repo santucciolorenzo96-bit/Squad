@@ -1,5 +1,5 @@
 import { state } from '../state.js';
-import { TABS, canSeeTab } from '../utils/permissions.js';
+import { TABS, canSeeTab, isAdmin, isLinkedUser } from '../utils/permissions.js';
 import { esc } from '../utils/format.js';
 import { switchSector, unseenNotificationsCount } from '../router.js';
 import { markNotificationsSeen } from '../api/profiles.js';
@@ -33,8 +33,8 @@ function formatRelativeTime(iso) {
 }
 
 function accessibleSectorList() {
-  if (state.currentUser.role === 'admin') return state.sectors;
-  if (state.currentUser.role === 'famiglia') return state.sectors.filter(s => state.familySectorIds.includes(s.id));
+  if (isAdmin(state.currentUser)) return state.sectors;
+  if (isLinkedUser(state.currentUser)) return state.sectors.filter(s => state.familySectorIds.includes(s.id));
   const ids = state.staffSectors[state.currentUser.id] || [];
   return state.sectors.filter(s => ids.includes(s.id));
 }
@@ -141,7 +141,7 @@ export function renderApp() {
     const row = document.createElement('div');
     row.className = 'nav-row' + (state.currentTab === t.id ? ' active' : '');
     row.innerHTML = navIcon(t.id) + `<span>${t.label}</span>` +
-      (t.id === 'anagrafica' && state.pendingDocsCount > 0 && state.currentUser.role !== 'famiglia' ? `<span class="badge-count">${state.pendingDocsCount}</span>` : '');
+      (t.id === 'anagrafica' && state.pendingDocsCount > 0 && !isLinkedUser(state.currentUser) ? `<span class="badge-count">${state.pendingDocsCount}</span>` : '');
     row.onclick = () => { state.currentTab = t.id; renderApp(); };
     sidebar.appendChild(row);
   });
@@ -229,7 +229,7 @@ function openMoreSheet(otherTabs, groupLabels) {
       rowsHtml += `<div class="nav-group-label">${groupLabels[t.group] || ''}</div>`;
       lastGroup = t.group;
     }
-    rowsHtml += `<div class="nav-row${state.currentTab === t.id ? ' active' : ''}" data-tab="${t.id}">${navIcon(t.id)}<span>${esc(t.label)}</span>${t.id === 'anagrafica' && state.pendingDocsCount > 0 && state.currentUser.role !== 'famiglia' ? `<span class="badge-count">${state.pendingDocsCount}</span>` : ''}</div>`;
+    rowsHtml += `<div class="nav-row${state.currentTab === t.id ? ' active' : ''}" data-tab="${t.id}">${navIcon(t.id)}<span>${esc(t.label)}</span>${t.id === 'anagrafica' && state.pendingDocsCount > 0 && !isLinkedUser(state.currentUser) ? `<span class="badge-count">${state.pendingDocsCount}</span>` : ''}</div>`;
   });
   sheet.innerHTML = `<div class="bottom-sheet-handle"></div>${rowsHtml}`;
   overlay.appendChild(sheet);
@@ -245,7 +245,7 @@ function renderTabContent() {
   c.classList.remove('tab-anim'); void c.offsetWidth; c.classList.add('tab-anim');
   if (state.currentTab === 'profilo') return renderProfiloTab(c);
   if (!state.activeSectorId && !['utenti', 'squadra', 'finanza'].includes(state.currentTab)) {
-    const isFamiglia = state.currentUser.role === 'famiglia';
+    const isFamiglia = isLinkedUser(state.currentUser);
     c.innerHTML = `<div class="placeholder-card">
       ${isFamiglia
         ? 'Il tuo account non è ancora collegato a nessun giocatore. Chiedi a un amministratore della società di collegarlo dalla sezione Anagrafica o Utenti.'

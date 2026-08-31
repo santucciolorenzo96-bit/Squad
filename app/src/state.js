@@ -5,8 +5,8 @@ export const state = {
   staffSectors: {},    // { [profileId]: sectorId[] }
   sectors: [],
   activeSectorId: null,
-  linkedPlayers: [],   // per profilo 'famiglia': i giocatori a cui è collegato
-  familySectorIds: [], // per profilo 'famiglia': unione dei settori dei giocatori collegati
+  linkedPlayers: [],   // per Genitore/Atleta: i giocatori a cui è collegato
+  familySectorIds: [], // per Genitore/Atleta: unione dei settori dei giocatori collegati
   roster: [],
   history: [],
   liveGame: null,

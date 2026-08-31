@@ -27,7 +27,7 @@ export async function runPendingAction(action) {
     if (error) throw error;
   } else if (action.type === 'join_team') {
     const { error } = await supabase.rpc('join_team', {
-      p_invite_code: action.inviteCode, p_display_name: action.displayName, p_role: action.role || 'segnapunti'
+      p_invite_code: action.inviteCode, p_display_name: action.displayName, p_role: action.role || 'genitore'
     });
     if (error) throw error;
   }
@@ -55,7 +55,7 @@ export async function createTeamAndAdmin({ email, password, teamName, city, cate
 export async function joinTeamByCode({ email, password, inviteCode, displayName, role }) {
   const { data, error: signUpErr } = await supabase.auth.signUp({ email, password });
   if (signUpErr) throw signUpErr;
-  const action = { type: 'join_team', inviteCode, displayName, role: role || 'segnapunti' };
+  const action = { type: 'join_team', inviteCode, displayName, role: role || 'genitore' };
   if (!data.session) { savePendingAction(action); return { needsEmailConfirmation: true }; }
   await runPendingAction(action);
   return { needsEmailConfirmation: false };

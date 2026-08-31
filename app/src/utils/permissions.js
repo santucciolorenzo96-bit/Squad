@@ -1,7 +1,31 @@
-// Il valore 'famiglia' resta invariato nel database (vincolo di check, funzioni
-// RLS e righe esistenti lo usano): qui cambia solo come lo si chiama a schermo.
-export const ROLES = { admin: 'Amministratore', allenatore: 'Allenatore', segnapunti: 'Segnapunti', famiglia: 'Giocatore / Genitore' };
-export const ROLE_CLASS = { admin: 'role-admin', allenatore: 'role-allenatore', segnapunti: 'role-segnapunti', famiglia: 'role-famiglia' };
+export const ROLES = {
+  admin: 'Admin',
+  presidente: 'Presidente',
+  staff: 'Staff',
+  allenatore: 'Allenatore',
+  segnapunti: 'Segnapunti',
+  genitore: 'Genitore',
+  atleta: 'Atleta'
+};
+export const ROLE_CLASS = {
+  admin: 'role-admin', presidente: 'role-admin', staff: 'role-staff',
+  allenatore: 'role-allenatore', segnapunti: 'role-segnapunti',
+  genitore: 'role-famiglia', atleta: 'role-famiglia'
+};
+
+// Ruoli con pieni poteri sulla società
+export const ADMIN_ROLES = ['admin', 'presidente'];
+// Chi ha responsabilità gestionali sui propri settori (lo staff dirigenziale
+// gestisce anagrafica, documenti, presenze, allenamenti e calendario)
+export const MANAGER_ROLES = ['admin', 'presidente', 'allenatore', 'staff'];
+// Chi compone la rosa: è una scelta tecnica, lo staff non la tocca
+export const ROSTER_ROLES = ['admin', 'presidente', 'allenatore'];
+// Utenti base, collegati a un giocatore: stessi permessi, etichette diverse
+export const LINKED_ROLES = ['genitore', 'atleta'];
+// Ruoli assegnabili in autonomia al momento della registrazione
+export const SELF_SIGNUP_ROLES = ['segnapunti', 'genitore', 'atleta'];
+// Ruoli che un amministratore può attribuire dalla schermata Utenti
+export const STAFF_ASSIGNABLE_ROLES = ['admin', 'presidente', 'staff', 'allenatore', 'segnapunti'];
 
 export const TOV_TYPES = [
   { key: 'generica', label: 'Generica' },
@@ -27,18 +51,18 @@ export const FINANCE_DOC_TYPES = [
 ];
 
 export const TABS = [
-  { id: 'home', label: 'Home', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti', 'famiglia'], primary: true },
-  { id: 'rosa', label: 'Rosa', group: 'settore', roles: ['admin', 'allenatore', 'famiglia'] },
-  { id: 'anagrafica', label: 'Anagrafica', group: 'settore', roles: ['admin', 'allenatore', 'famiglia'] },
+  { id: 'home', label: 'Home', group: 'settore', roles: [...MANAGER_ROLES, 'segnapunti', ...LINKED_ROLES], primary: true },
+  { id: 'rosa', label: 'Rosa', group: 'settore', roles: [...ROSTER_ROLES, ...LINKED_ROLES] },
+  { id: 'anagrafica', label: 'Anagrafica', group: 'settore', roles: [...MANAGER_ROLES, ...LINKED_ROLES] },
   // alsoIf: visibile anche a chi ha quel permesso, oltre ai ruoli elencati
-  { id: 'partita', label: 'Partita', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti'], alsoIf: 'can_score_matches', primary: true },
-  { id: 'allenamenti', label: 'Allenamenti', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti', 'famiglia'], primary: true },
-  { id: 'presenze', label: 'Presenze', group: 'settore', roles: ['admin', 'allenatore'] },
-  { id: 'classifica', label: 'Classifica', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti', 'famiglia'] },
-  { id: 'statistiche', label: 'Statistiche', group: 'settore', roles: ['admin', 'allenatore', 'segnapunti'] },
-  { id: 'calendario', label: 'Calendario', group: 'settore', roles: ['admin', 'allenatore', 'famiglia'], primary: true },
-  { id: 'utenti', label: 'Utenti', group: 'societa', roles: ['admin'] },
-  { id: 'squadra', label: 'Squadra', group: 'societa', roles: ['admin'] },
+  { id: 'partita', label: 'Partita', group: 'settore', roles: [...ROSTER_ROLES, 'segnapunti'], alsoIf: 'can_score_matches', primary: true },
+  { id: 'allenamenti', label: 'Allenamenti', group: 'settore', roles: [...MANAGER_ROLES, 'segnapunti', ...LINKED_ROLES], primary: true },
+  { id: 'presenze', label: 'Presenze', group: 'settore', roles: MANAGER_ROLES },
+  { id: 'classifica', label: 'Classifica', group: 'settore', roles: [...MANAGER_ROLES, 'segnapunti', ...LINKED_ROLES] },
+  { id: 'statistiche', label: 'Statistiche', group: 'settore', roles: [...ROSTER_ROLES, 'segnapunti'] },
+  { id: 'calendario', label: 'Calendario', group: 'settore', roles: [...MANAGER_ROLES, ...LINKED_ROLES], primary: true },
+  { id: 'utenti', label: 'Utenti', group: 'societa', roles: ADMIN_ROLES },
+  { id: 'squadra', label: 'Squadra', group: 'societa', roles: ADMIN_ROLES },
   { id: 'finanza', label: 'Finanza', group: 'societa', financeGated: true }
 ];
 
@@ -57,18 +81,26 @@ export function isFinanceAdmin(user) {
   return !!user && user.finance_role === 'admin';
 }
 
-export function canEditHome(user) {
-  return !!user && (user.role === 'admin' || user.role === 'allenatore');
+export function isAdmin(user) {
+  return !!user && ADMIN_ROLES.includes(user.role);
 }
 
+// Prossima partita, allenamenti, classifica, calendario: gestione di settore
+export function canEditHome(user) {
+  return !!user && MANAGER_ROLES.includes(user.role);
+}
+
+// Comporre la rosa è una scelta tecnica: lo staff dirigenziale non la tocca
 export function canEditRoster(user) {
-  return !!user && (user.role === 'admin' || user.role === 'allenatore');
+  return !!user && ROSTER_ROLES.includes(user.role);
 }
 
 export function canReviewDocuments(user) {
-  return !!user && (user.role === 'admin' || user.role === 'allenatore');
+  return !!user && MANAGER_ROLES.includes(user.role);
 }
 
-export function isFamiglia(user) {
-  return !!user && user.role === 'famiglia';
+// Utente base collegato a un giocatore: Genitore e Atleta hanno gli stessi
+// permessi, cambia solo l'etichetta con cui si presentano
+export function isLinkedUser(user) {
+  return !!user && LINKED_ROLES.includes(user.role);
 }

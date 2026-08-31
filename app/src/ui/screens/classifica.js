@@ -2,10 +2,11 @@ import { state } from '../../state.js';
 import { esc } from '../../utils/format.js';
 import { formModal, confirmModal, toast } from '../modal.js';
 import { upsertStanding, removeStanding } from '../../api/standings.js';
+import { canEditHome } from '../../utils/permissions.js';
 import { openBoxScoreModal } from './partita/boxscore.js';
 
 export function renderClassificaTab(c) {
-  const canEdit = state.currentUser.role === 'admin' || state.currentUser.role === 'allenatore';
+  const canEdit = canEditHome(state.currentUser);
   c.innerHTML = `
     ${canEdit ? `<div class="card"><button class="btn btn-secondary" id="addStandingBtn" style="width:100%;">+ Aggiungi squadra</button></div>` : ''}
     <div id="standingsHolder"></div>

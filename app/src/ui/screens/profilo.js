@@ -1,6 +1,6 @@
 import { state } from '../../state.js';
 import { esc } from '../../utils/format.js';
-import { ROLES, ROLE_CLASS, isFamiglia, DOC_TYPES } from '../../utils/permissions.js';
+import { ROLES, ROLE_CLASS, isLinkedUser, DOC_TYPES } from '../../utils/permissions.js';
 import { getStoredThemeMode, setTheme, userInitials } from '../../utils/theme.js';
 import { formModal, toast, withButtonLoading } from '../modal.js';
 import { changePassword } from '../../auth.js';
@@ -48,7 +48,7 @@ export async function renderProfiloTab(c) {
       <button class="btn btn-primary" id="pSave">Salva profilo</button>
     </div>
 
-    ${isFamiglia(u) ? `
+    ${isLinkedUser(u) ? `
     <div class="section-label">Quote da versare</div>
     <div id="famEntries"><div class="skeleton skeleton-row"></div></div>
     <div class="section-label">Documenti in scadenza</div>
@@ -94,7 +94,7 @@ export async function renderProfiloTab(c) {
   document.getElementById('pChangePass').onclick = openChangePasswordModal;
   document.getElementById('pLogout').onclick = () => goLogout();
 
-  if (isFamiglia(u)) {
+  if (isLinkedUser(u)) {
     loadFamilyEntries();
     loadFamilyDocs();
   }

@@ -17,6 +17,7 @@ import { fetchCostCenters } from './api/financeCostCenters.js';
 import { fetchAccounts, fetchAccountBalances } from './api/financeAccounts.js';
 import { fetchSuppliers } from './api/financeSuppliers.js';
 import { fetchSponsors } from './api/financeSponsors.js';
+import { isAdmin, isLinkedUser } from './utils/permissions.js';
 
 const LAST_SECTOR_KEY = 'bbapp_active_sector';
 
@@ -33,7 +34,7 @@ export async function loadTeamWideData() {
   state.staff = staff;
   state.staffSectors = staffSectors;
 
-  if (state.currentUser.role !== 'famiglia') {
+  if (!isLinkedUser(state.currentUser)) {
     try { state.pendingDocsCount = (await fetchPendingDocuments(teamId)).length; }
     catch (e) { state.pendingDocsCount = 0; }
     try { state.expiringDocsCount = (await fetchExpiringDocuments(teamId)).length; }
@@ -91,8 +92,8 @@ export async function loadFamilyLinks() {
 }
 
 function accessibleSectorIds() {
-  if (state.currentUser.role === 'admin') return state.sectors.map(s => s.id);
-  if (state.currentUser.role === 'famiglia') return state.familySectorIds;
+  if (isAdmin(state.currentUser)) return state.sectors.map(s => s.id);
+  if (isLinkedUser(state.currentUser)) return state.familySectorIds;
   return state.staffSectors[state.currentUser.id] || [];
 }
 
@@ -160,7 +161,7 @@ export async function boot() {
   }
   state.currentUser = profile;
   await loadTeamWideData();
-  if (profile.role === 'famiglia') await loadFamilyLinks();
+  if (isLinkedUser(profile)) await loadFamilyLinks();
   state.activeSectorId = pickDefaultSectorId();
   await loadSectorData(state.activeSectorId);
   const { renderApp } = await import('./ui/layout.js');

@@ -1,7 +1,7 @@
 import { state } from '../../state.js';
 import { esc } from '../../utils/format.js';
 import { toast, confirmModal, formModal, withButtonLoading } from '../modal.js';
-import { DOC_TYPES, canReviewDocuments, isFamiglia } from '../../utils/permissions.js';
+import { DOC_TYPES, canReviewDocuments, isLinkedUser } from '../../utils/permissions.js';
 import {
   fetchPlayer, updatePlayer, updateLinkedPlayerDetails, fetchPlayerDocuments, uploadPlayerDocument,
   getDocumentSignedUrl, reviewDocument, fetchPendingDocuments, fetchExpiringDocuments,
@@ -12,7 +12,7 @@ import { avatarHtml, wireAvatarClicks, openPhotoViewModal } from '../playerAvata
 import { openPhotoPositionModal } from '../photoEditor.js';
 
 export function renderAnagraficaTab(c) {
-  if (isFamiglia(state.currentUser)) return renderFamiglia(c);
+  if (isLinkedUser(state.currentUser)) return renderFamiglia(c);
   return renderStaffList(c);
 }
 

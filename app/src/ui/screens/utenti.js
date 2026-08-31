@@ -1,6 +1,6 @@
 import { state } from '../../state.js';
 import { esc } from '../../utils/format.js';
-import { ROLES, ROLE_CLASS, isFinanceAdmin } from '../../utils/permissions.js';
+import { ROLES, ROLE_CLASS, isFinanceAdmin, isAdmin, ADMIN_ROLES, STAFF_ASSIGNABLE_ROLES } from '../../utils/permissions.js';
 import { confirmModal, formModal, toast, showLoadError } from '../modal.js';
 import { updateProfile, deactivateProfile } from '../../api/profiles.js';
 import { assignStaffToSector, removeStaffFromSector, fetchStaffSectors } from '../../api/sectors.js';
@@ -29,7 +29,7 @@ export function renderUtentiTab(c) {
       const row = document.createElement('div');
       row.className = 'list-row';
       const isSelf = u.id === state.currentUser.id;
-      row.innerHTML = `<div class="main"><div class="nm">${esc(u.display_name)} ${isSelf ? '<span class="hint">(tu)</span>' : ''}</div><div class="sub">${u.role === 'admin' ? 'Tutti i settori' : esc(sectorNames(u.id))}</div></div>
+      row.innerHTML = `<div class="main"><div class="nm">${esc(u.display_name)} ${isSelf ? '<span class="hint">(tu)</span>' : ''}</div><div class="sub">${isAdmin(u) ? 'Tutti i settori' : esc(sectorNames(u.id))}</div></div>
         <span class="role-badge ${ROLE_CLASS[u.role]}">${ROLES[u.role]}</span>
         <button class="icon-btn" data-edit="${u.id}">✎</button>
         ${!isSelf ? `<button class="icon-btn danger" data-rm="${u.id}">✕</button>` : ''}`;
@@ -41,8 +41,8 @@ export function renderUtentiTab(c) {
     holder.querySelectorAll('[data-rm]').forEach(btn => {
       btn.onclick = () => {
         const u = state.staff.find(x => x.id === btn.getAttribute('data-rm'));
-        const adminCount = state.staff.filter(x => x.role === 'admin').length;
-        if (u.role === 'admin' && adminCount <= 1) { toast('Deve rimanere almeno un amministratore'); return; }
+        const adminCount = state.staff.filter(x => ADMIN_ROLES.includes(x.role)).length;
+        if (ADMIN_ROLES.includes(u.role) && adminCount <= 1) { toast('Deve rimanere almeno un amministratore'); return; }
         confirmModal('Rimuovere utente?', `${u.display_name} non potrà più accedere.`, async () => {
           await deactivateProfile(u.id);
           state.staff = state.staff.filter(x => x.id !== u.id);
@@ -59,9 +59,7 @@ export function renderUtentiTab(c) {
       <div class="field"><label>Nome e cognome</label><input type="text" id="uName" value="${esc(existing.display_name)}"></div>
       <div class="field"><label>Ruolo</label>
         <select id="uRole">
-          <option value="admin" ${existing.role === 'admin' ? 'selected' : ''}>Amministratore</option>
-          <option value="allenatore" ${existing.role === 'allenatore' ? 'selected' : ''}>Allenatore</option>
-          <option value="segnapunti" ${existing.role === 'segnapunti' ? 'selected' : ''}>Segnapunti</option>
+          ${STAFF_ASSIGNABLE_ROLES.map(r => `<option value="${r}" ${existing.role === r ? 'selected' : ''}>${ROLES[r]}</option>`).join('')}
         </select>
       </div>
       <div class="field" id="sectorCheckWrap">
@@ -82,8 +80,8 @@ export function renderUtentiTab(c) {
       const displayName = document.getElementById('uName').value.trim();
       const role = document.getElementById('uRole').value;
       if (!displayName) return 'Inserisci il nome.';
-      if (existing.role === 'admin' && role !== 'admin') {
-        const adminCount = state.staff.filter(x => x.role === 'admin').length;
+      if (ADMIN_ROLES.includes(existing.role) && !ADMIN_ROLES.includes(role)) {
+        const adminCount = state.staff.filter(x => ADMIN_ROLES.includes(x.role)).length;
         if (adminCount <= 1) return 'Deve rimanere almeno un amministratore.';
       }
       const patch = { display_name: displayName, role };
@@ -123,7 +121,9 @@ export function renderUtentiTab(c) {
       row.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
           <div style="min-width:0;">
-            <div style="font-weight:700;">${esc(f.display_name)}</div>
+            <div style="font-weight:700;">${esc(f.display_name)}
+              <span class="role-badge ${ROLE_CLASS[f.role] || ''}" style="margin-left:6px;">${ROLES[f.role] || f.role}</span>
+            </div>
             ${f.linkedPlayers.length
               ? `<div class="linked-chips">${f.linkedPlayers.map(p => `
                   <span class="linked-chip">#${esc(p.number)} ${esc(p.name)}
