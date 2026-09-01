@@ -140,6 +140,11 @@ export function renderHomeTab(c) {
         ${canEdit ? `
         <div class="section-label" style="margin-top:6px;">Amministrazione</div>
         <div class="stat-row">
+          <div class="mini-card" id="homeSituazioneCard">
+            <div class="lbl">Situazione società</div>
+            <div class="val small">${state.expiringDocsCount > 0 ? state.expiringDocsCount + ' in scadenza' : 'Controlla'}</div>
+            <div class="sub">Certificati, scadenze e conferme</div>
+          </div>
           <div class="mini-card" id="homeDocsCard">
             <div class="lbl">Certificati da approvare</div>
             <div class="val small" style="color:${state.pendingDocsCount > 0 ? 'var(--amber)' : 'var(--text)'};">${state.pendingDocsCount}</div>
@@ -183,7 +188,10 @@ export function renderHomeTab(c) {
   if (seasonScorer) makePanelLink(document.getElementById('homeScorerCard'), () => goToTab('statistiche'));
   makePanelLink(document.getElementById('homeTrainingCard'), () => goToTab('allenamenti'));
   makePanelLink(document.getElementById('homeStandingsCard'), () => goToTab('classifica'));
-  if (canEdit) makePanelLink(document.getElementById('homeDocsCard'), () => goToTab('anagrafica'));
+  if (canEdit) {
+    makePanelLink(document.getElementById('homeSituazioneCard'), () => goToTab('situazione'));
+    makePanelLink(document.getElementById('homeDocsCard'), () => goToTab('anagrafica'));
+  }
   if (hasFinance) makePanelLink(document.getElementById('homeFinanceCard'), () => goToTab('finanza'));
 
   if (canEdit) loadTodayPanel(today);

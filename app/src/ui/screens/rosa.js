@@ -2,7 +2,7 @@ import { state } from '../../state.js';
 import { esc } from '../../utils/format.js';
 import { confirmModal, toast, withButtonLoading } from '../modal.js';
 import { addPlayer, removePlayerFromSector, fetchPlayerPhotoUrls } from '../../api/roster.js';
-import { canEditRoster } from '../../utils/permissions.js';
+import { canEditRoster, canEditHome, isLinkedUser } from '../../utils/permissions.js';
 import { avatarHtml, wireAvatarClicks } from '../playerAvatar.js';
 import { computeSeasonStats } from '../../utils/stats.js';
 
@@ -45,6 +45,13 @@ function avgLine(seasonRow) {
     ast: (seasonRow.ast / g).toFixed(1),
     reb: (seasonRow.reb / g).toFixed(1)
   };
+}
+
+// Lo staff vede la scheda evolutiva di tutta la rosa; un genitore o un atleta
+// solo quella dei giocatori a cui il suo account è collegato.
+function canSeeDevelopment(p) {
+  if (isLinkedUser(state.currentUser)) return state.linkedPlayers.some(lp => lp.id === p.id);
+  return canEditHome(state.currentUser);
 }
 
 // Formazione di default: titolari/panchinari dell'ultima partita giocata,
@@ -191,11 +198,17 @@ export async function renderRosaTab(c) {
           </div>
           <div class="hint" style="margin-top:10px;">${s.games} partite giocate in stagione</div>
           ` : `<div class="hint" style="margin-top:18px;">Nessuna statistica disponibile ancora.</div>`}
-          <button class="btn btn-secondary" id="spotlightClose" style="width:100%;margin-top:18px;">Chiudi</button>
+          ${canSeeDevelopment(p) ? `<button class="btn btn-primary" id="spotlightDev" style="width:100%;margin-top:18px;">Scheda evolutiva</button>` : ''}
+          <button class="btn btn-secondary" id="spotlightClose" style="width:100%;margin-top:${canSeeDevelopment(p) ? '8' : '18'}px;">Chiudi</button>
         </div>
       </div>`;
     document.getElementById('spotlightOverlay').onclick = (e) => { if (e.target.id === 'spotlightOverlay') root.innerHTML = ''; };
     document.getElementById('spotlightClose').onclick = () => { root.innerHTML = ''; };
+    const devBtn = document.getElementById('spotlightDev');
+    if (devBtn) devBtn.onclick = async () => {
+      const { openPlayerDevelopment } = await import('../playerDevelopment.js');
+      openPlayerDevelopment(p.id, { readOnly: isLinkedUser(state.currentUser) });
+    };
   }
 
   if (state.roster.length > 0) drawCourt();

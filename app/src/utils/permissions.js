@@ -68,6 +68,7 @@ export const TABS = [
   { id: 'classifica', label: 'Classifica', group: 'settore', roles: [...MANAGER_ROLES, 'segnapunti', ...LINKED_ROLES] },
   { id: 'statistiche', label: 'Statistiche', group: 'settore', roles: [...ROSTER_ROLES, 'segnapunti'] },
   { id: 'calendario', label: 'Calendario', group: 'settore', roles: [...MANAGER_ROLES, ...LINKED_ROLES], primary: true },
+  { id: 'situazione', label: 'Situazione', group: 'societa', roles: MANAGER_ROLES },
   { id: 'documenti', label: 'Documenti', group: 'societa', roles: MANAGER_ROLES },
   { id: 'utenti', label: 'Utenti', group: 'societa', roles: ADMIN_ROLES },
   { id: 'squadra', label: 'Squadra', group: 'societa', roles: ADMIN_ROLES },

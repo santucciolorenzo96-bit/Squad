@@ -53,6 +53,7 @@ export function resetState() {
   state.calendar = [];
   state.notifications = [];
   state.pendingDocsCount = 0;
+  state.expiringDocsCount = 0;
   state.financeSubTab = 'conti';
   state.financeFiscalYears = [];
   state.financeCategories = [];

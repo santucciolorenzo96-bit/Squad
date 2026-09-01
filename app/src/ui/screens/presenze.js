@@ -201,10 +201,17 @@ function openPlayerDetail(playerId, byPlayer, inPeriod, periodAtt) {
     <h3>${esc(row.player.name)}</h3>
     <p>#${esc(row.player.number)} · ${row.present} present${row.present === 1 ? 'e' : 'i'} su ${row.tracked} rilevazion${row.tracked === 1 ? 'e' : 'i'}</p>
     <div id="presDetailList"></div>
-    <div class="modal-actions"><button class="btn btn-secondary" id="presClose" style="width:100%;">Chiudi</button></div>
+    <div class="modal-actions" style="flex-direction:column;gap:8px;">
+      <button class="btn btn-primary" id="presDev" style="width:100%;">Scheda evolutiva</button>
+      <button class="btn btn-secondary" id="presClose" style="width:100%;">Chiudi</button>
+    </div>
   </div></div>`;
   document.getElementById('presOverlay').onclick = (e) => { if (e.target.id === 'presOverlay') root.innerHTML = ''; };
   document.getElementById('presClose').onclick = () => { root.innerHTML = ''; };
+  document.getElementById('presDev').onclick = async () => {
+    const { openPlayerDevelopment } = await import('../playerDevelopment.js');
+    openPlayerDevelopment(playerId, { player: row.player });
+  };
 
   const holder = document.getElementById('presDetailList');
   holder.innerHTML = sorted.map(t => {

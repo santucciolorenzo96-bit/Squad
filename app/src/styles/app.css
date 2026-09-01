@@ -620,3 +620,47 @@ table.boxscore tr:hover td{background:var(--tint-hover);}
 .local-mode-banner{background:var(--panel2);border:1px solid var(--orange-dim);color:var(--orange);font-size:11.5px;text-align:center;padding:7px;}
 
 @media (max-width:400px){ .sb-score{font-size:32px;} .stat-grid{grid-template-columns:1fr 1fr;} }
+
+/* Situazione: le anomalie della società, ordinate per gravità */
+.sit-hero{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;border-left:3px solid var(--amber);}
+.sit-hero.clear{border-left-color:var(--green);}
+.sit-hero-title{font-family:var(--font-display);font-weight:700;font-size:20px;line-height:1.2;}
+.sit-hero-sub{font-size:12.5px;color:var(--dim);margin-top:6px;max-width:46ch;line-height:1.5;}
+.sit-hero-counts{display:flex;gap:8px;flex-wrap:wrap;}
+.sit-badge{min-width:74px;padding:9px 12px;border-radius:12px;text-align:center;background:var(--tint);}
+.sit-badge b{display:block;font-family:var(--font-display);font-size:20px;line-height:1.1;}
+.sit-badge span{font-size:9.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--dim);}
+.sit-badge.critical{background:var(--red-dim);} .sit-badge.critical b{color:var(--red);}
+.sit-badge.warning{background:var(--amber-dim);} .sit-badge.warning b{color:var(--amber);}
+.sit-badge.info{background:var(--orange-dim);} .sit-badge.info b{color:var(--gold);}
+
+.sit-card{border-left:3px solid var(--sev);animation:fadeUp .45s ease both;}
+.sit-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+.sit-sev{font-size:9.5px;text-transform:uppercase;letter-spacing:0.08em;color:var(--sev);font-weight:700;}
+.sit-title{font-family:var(--font-display);font-weight:700;font-size:16px;margin-top:3px;}
+.sit-count{font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--sev);line-height:1;flex-shrink:0;}
+.sit-summary{font-size:12.5px;color:var(--dim);line-height:1.55;margin-top:8px;}
+.sit-items{margin-top:12px;}
+.sit-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--glass-border);}
+.sit-item:last-child{border-bottom:none;}
+.sit-item-main{min-width:0;}
+.sit-item-main .nm{font-size:13px;font-weight:600;}
+.sit-item-main .sub{font-size:11.5px;color:var(--dim);margin-top:2px;line-height:1.45;}
+.sit-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;}
+.sit-chip{display:inline-flex;align-items:center;gap:6px;background:var(--tint);border-radius:999px;padding:3px 10px;font-size:11px;}
+.sit-contact{font-family:var(--font-mono);font-size:11.5px;color:var(--orange);text-decoration:none;white-space:nowrap;flex-shrink:0;}
+.sit-contact:hover{text-decoration:underline;}
+.sit-more{width:100%;margin-top:8px;}
+.sit-action{width:100%;margin-top:10px;}
+@media (max-width:480px){
+  .sit-hero{flex-direction:column;align-items:flex-start;}
+  .sit-item{flex-direction:column;align-items:flex-start;gap:4px;}
+}
+
+/* Scheda evolutiva dell'atleta */
+.dev-head{display:flex;align-items:center;gap:14px;}
+.dev-avatar{width:52px;height:52px;flex-shrink:0;border-radius:50%;background:var(--tint);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:17px;}
+.dev-read{display:flex;flex-direction:column;gap:3px;padding:9px 0;border-bottom:1px solid var(--glass-border);}
+.dev-read:last-of-type{border-bottom:none;}
+.dev-read span{font-size:9.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--dim);}
+.dev-read b{font-size:13px;font-weight:600;line-height:1.5;}

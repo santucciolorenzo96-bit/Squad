@@ -21,6 +21,7 @@ import { renderFinanzaTab } from './screens/finanza/index.js';
 import { renderProfiloTab } from './screens/profilo.js';
 import { renderDocumentiTab } from './screens/documenti.js';
 import { renderComunicazioniTab } from './screens/comunicazioni.js';
+import { renderSituazioneTab } from './screens/situazione.js';
 
 function formatRelativeTime(iso) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -246,7 +247,7 @@ function renderTabContent() {
   const c = document.getElementById('tabContent');
   c.classList.remove('tab-anim'); void c.offsetWidth; c.classList.add('tab-anim');
   if (state.currentTab === 'profilo') return renderProfiloTab(c);
-  if (!state.activeSectorId && !['utenti', 'squadra', 'finanza'].includes(state.currentTab)) {
+  if (!state.activeSectorId && !['utenti', 'squadra', 'finanza', 'situazione'].includes(state.currentTab)) {
     const isFamiglia = isLinkedUser(state.currentUser);
     c.innerHTML = `<div class="placeholder-card">
       ${isFamiglia
@@ -265,6 +266,7 @@ function renderTabContent() {
   if (state.currentTab === 'statistiche') return renderStatisticheTab(c);
   if (state.currentTab === 'classifica') return renderClassificaTab(c);
   if (state.currentTab === 'calendario') return renderCalendarioTab(c);
+  if (state.currentTab === 'situazione') return renderSituazioneTab(c);
   if (state.currentTab === 'documenti') return renderDocumentiTab(c);
   if (state.currentTab === 'utenti') return renderUtentiTab(c);
   if (state.currentTab === 'squadra') return renderSquadraTab(c);
