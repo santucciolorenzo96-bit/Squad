@@ -384,6 +384,22 @@ button:focus:not(:focus-visible){outline:none;}
 .match-countdown{display:inline-flex;align-items:center;gap:5px;margin-top:10px;background:var(--orange-dim);color:var(--orange);font-size:11.5px;font-weight:700;padding:5px 12px;border-radius:999px;white-space:nowrap;}
 .venue-ico{flex-shrink:0;vertical-align:-2px;}
 
+/* Comunicazioni: la convocazione come flusso, non come messaggio */
+.comm-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+.comm-kind{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--dim);}
+.comm-title{font-family:var(--font-display);font-weight:700;font-size:16px;margin-top:3px;}
+.comm-tally{display:flex;align-items:center;gap:6px;margin-top:12px;flex-wrap:wrap;}
+.att-pill.pendingp{background:var(--tint);color:var(--dim);}
+.comm-bar{height:6px;border-radius:999px;background:var(--tint);overflow:hidden;margin-top:8px;}
+.comm-bar span{display:block;height:100%;border-radius:999px;background:var(--green);transition:width .5s cubic-bezier(.25,.8,.4,1);}
+.comm-detail{display:flex;flex-wrap:wrap;gap:16px;margin:10px 0 4px;}
+.comm-detail div{display:flex;flex-direction:column;}
+.comm-detail span{font-size:9.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--dim);}
+.comm-detail b{font-family:var(--font-mono);font-size:14px;}
+.comm-answer{display:flex;gap:8px;margin-top:12px;}
+.comm-answer .btn{flex:1;}
+@media (prefers-reduced-motion:reduce){ .comm-bar span{transition:none;} }
+
 /* Home, pannello "Oggi": la giornata di tutte le categorie */
 .today-row{display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid var(--glass-border);}
 .today-row:first-child{padding-top:0;}

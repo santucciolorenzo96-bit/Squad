@@ -20,6 +20,7 @@ import { renderSquadraTab } from './screens/squadra.js';
 import { renderFinanzaTab } from './screens/finanza/index.js';
 import { renderProfiloTab } from './screens/profilo.js';
 import { renderDocumentiTab } from './screens/documenti.js';
+import { renderComunicazioniTab } from './screens/comunicazioni.js';
 
 function formatRelativeTime(iso) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -260,6 +261,7 @@ function renderTabContent() {
   if (state.currentTab === 'partita') return renderPartitaTab(c);
   if (state.currentTab === 'allenamenti') return renderAllenamentiTab(c);
   if (state.currentTab === 'presenze') return renderPresenzeTab(c);
+  if (state.currentTab === 'comunicazioni') return renderComunicazioniTab(c);
   if (state.currentTab === 'statistiche') return renderStatisticheTab(c);
   if (state.currentTab === 'classifica') return renderClassificaTab(c);
   if (state.currentTab === 'calendario') return renderCalendarioTab(c);

@@ -64,6 +64,7 @@ export const TABS = [
   { id: 'partita', label: 'Partita', group: 'settore', roles: [...ROSTER_ROLES, 'segnapunti'], alsoIf: 'can_score_matches', primary: true },
   { id: 'allenamenti', label: 'Allenamenti', group: 'settore', roles: [...MANAGER_ROLES, 'segnapunti', ...LINKED_ROLES], primary: true },
   { id: 'presenze', label: 'Presenze', group: 'settore', roles: MANAGER_ROLES },
+  { id: 'comunicazioni', label: 'Comunicazioni', group: 'settore', roles: [...MANAGER_ROLES, ...LINKED_ROLES] },
   { id: 'classifica', label: 'Classifica', group: 'settore', roles: [...MANAGER_ROLES, 'segnapunti', ...LINKED_ROLES] },
   { id: 'statistiche', label: 'Statistiche', group: 'settore', roles: [...ROSTER_ROLES, 'segnapunti'] },
   { id: 'calendario', label: 'Calendario', group: 'settore', roles: [...MANAGER_ROLES, ...LINKED_ROLES], primary: true },
