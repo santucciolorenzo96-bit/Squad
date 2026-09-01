@@ -146,11 +146,29 @@ export async function boot() {
   let profile = await fetchMyProfile();
   if (!profile) {
     const { data: auth } = await (await import('./supabaseClient.js')).supabase.auth.getUser();
-    const { getPendingAction, runPendingAction } = await import('./auth.js');
+    const { getPendingAction, runPendingAction, clearPendingAction } = await import('./auth.js');
     const pending = getPendingAction();
+    let pendingError = null;
     if (auth.user && pending) {
-      await runPendingAction(pending);
-      profile = await fetchMyProfile();
+      // Se l'azione in sospeso fallisce (codice invito sbagliato, squadra
+      // cancellata) l'eccezione usciva da boot() e la pagina restava bianca:
+      // dopo aver confermato l'email non si vedeva più nulla.
+      try {
+        await runPendingAction(pending);
+        profile = await fetchMyProfile();
+      } catch (e) {
+        pendingError = e;
+        clearPendingAction();
+      }
+    }
+    // Autenticato ma senza squadra: succede quando il link di conferma viene
+    // aperto su un altro dispositivo (l'azione in sospeso sta nel localStorage
+    // di chi si è registrato). Dalla landing non se ne usciva più.
+    if (!profile && auth.user) {
+      resetState();
+      const { renderCompleteSignup } = await import('./ui/screens/completeSignup.js');
+      renderCompleteSignup(auth.user.email, pendingError);
+      return;
     }
   }
   if (!profile) {

@@ -27,8 +27,42 @@ export function renderLogin() {
       const { boot } = await import('../../router.js');
       await boot();
     } catch (e) {
-      errEl.textContent = 'Email o password errati.';
+      // Prima ogni errore diventava "email o password errati": chi non aveva
+      // ancora confermato l'indirizzo credeva che la registrazione fosse fallita
+      // e ricominciava da capo, invece di cercare la mail di conferma.
+      const msg = (e && e.message) || '';
+      if (/email not confirmed|not confirmed/i.test(msg)) {
+        errEl.innerHTML = 'Devi prima confermare la tua email: apri il link che ti abbiamo inviato.';
+        showResend(email);
+      } else if (/invalid login credentials/i.test(msg)) {
+        errEl.textContent = 'Email o password errati.';
+      } else {
+        errEl.textContent = msg || 'Accesso non riuscito.';
+      }
     }
+  }
+
+  // Il link di conferma scade e la prima email può non arrivare: senza un modo
+  // per rimandarla l'unica via era registrarsi di nuovo, che con un indirizzo
+  // già esistente non produce nessuna mail.
+  function showResend(email) {
+    if (document.getElementById('lResend')) return;
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-secondary';
+    btn.id = 'lResend';
+    btn.style.cssText = 'width:100%;margin-top:8px;';
+    btn.textContent = 'Invia di nuovo l\'email di conferma';
+    btn.onclick = async () => {
+      const { resendConfirmation } = await import('../../auth.js');
+      try {
+        await resendConfirmation(email);
+        toast('Email di conferma inviata di nuovo, controlla la posta');
+      } catch (err) {
+        document.getElementById('lError').textContent =
+          (err && err.message) || 'Non è stato possibile inviare di nuovo l\'email.';
+      }
+    };
+    document.getElementById('lError').after(btn);
   }
   document.getElementById('lSubmit').onclick = doLogin;
   document.getElementById('lPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
