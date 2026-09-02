@@ -1,8 +1,8 @@
 import { state } from '../../../state.js';
 import { esc, clamp } from '../../../utils/format.js';
 import { currentSport } from '../../../utils/sports/index.js';
-import { toast, withButtonLoading } from '../../modal.js';
-import { startGame } from '../../../api/games.js';
+import { toast, withButtonLoading, confirmModal } from '../../modal.js';
+import { startGame, fetchOpenGames, discardGame } from '../../../api/games.js';
 import { fetchPlayerPhotoUrls } from '../../../api/roster.js';
 import { avatarHtml, wireAvatarClicks } from '../../playerAvatar.js';
 import { renderLiveMatch } from './tracker.js';
@@ -32,6 +32,7 @@ async function renderMatchSetup(c) {
   const picked = state.pendingScoutMatch;
   c.innerHTML = `
     <div class="settings-col">
+    <div id="openGames"></div>
     <div id="scoutSuggest"></div>
     <div class="card">
       <h2>Nuova partita</h2>
@@ -61,6 +62,7 @@ async function renderMatchSetup(c) {
   const unpick = document.getElementById('mUnpick');
   if (unpick) unpick.onclick = () => { state.pendingScoutMatch = null; renderMatchSetup(c); };
   if (!picked) loadSuggestions(c);
+  loadOpenGames(c);
 
   const holder = document.getElementById('starterList');
   const photoUrls = await fetchPlayerPhotoUrls(state.roster).catch(() => ({}));
@@ -174,5 +176,45 @@ async function loadSuggestions(c) {
       }
       renderMatchSetup(c);
     };
+  });
+}
+
+// Una partita lasciata a metà in un'altra categoria non compare da nessuna
+// parte — l'app carica la partita dal vivo del solo settore attivo — ma occupa
+// comunque il posto: finchè resta aperta, quella categoria non ne può
+// cominciare un'altra. Va mostrata qui, dove il problema si manifesta.
+async function loadOpenGames(c) {
+  const holder = document.getElementById('openGames');
+  if (!holder) return;
+  let open = [];
+  try { open = await fetchOpenGames(state.teamProfile.id); }
+  catch (e) { return; }
+  const elsewhere = open.filter(g => g.sector_id !== state.activeSectorId);
+  if (!elsewhere.length || !document.getElementById('openGames')) return;
+
+  holder.innerHTML = elsewhere.map(g => `
+    <div class="open-game">
+      <div>
+        <b>Partita ancora aperta${g.sectors && g.sectors.name ? ' in ' + esc(g.sectors.name) : ''}</b>
+        <span>Contro ${esc(g.opp_name || 'Avversari')}, iniziata il ${new Date(g.started_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })}</span>
+      </div>
+      <button class="btn btn-secondary" data-resume="${g.sector_id}">Riprendi</button>
+      <button class="btn btn-ghost" data-discard="${g.id}">Scarta</button>
+    </div>`).join('');
+
+  holder.querySelectorAll('[data-resume]').forEach(btn => {
+    btn.onclick = async () => {
+      const { switchSector } = await import('../../../router.js');
+      await switchSector(btn.dataset.resume);
+    };
+  });
+  holder.querySelectorAll('[data-discard]').forEach(btn => {
+    btn.onclick = () => confirmModal('Scartare la partita aperta?',
+      'Il tabellino raccolto finora verrà eliminato e non finirà nello storico. Usalo solo se era una prova.',
+      async () => {
+        await discardGame(btn.dataset.discard);
+        toast('Partita scartata');
+        renderMatchSetup(c);
+      }, 'Scarta');
   });
 }

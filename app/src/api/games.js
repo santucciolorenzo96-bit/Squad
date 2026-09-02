@@ -100,3 +100,19 @@ export function subscribeLiveGame(sectorId, onChange) {
     .subscribe();
   return () => supabase.removeChannel(channel);
 }
+
+// Partite rimaste aperte in TUTTA la società, non nel solo settore attivo.
+// L'app carica la partita dal vivo per settore, quindi una lasciata a metà in
+// un'altra categoria resta invisibile pur bloccando le altre: va mostrata.
+export async function fetchOpenGames(teamId) {
+  const { data, error } = await supabase.from('games')
+    .select('id, sector_id, opp_name, started_at, sectors(name)')
+    .eq('team_id', teamId).eq('status', 'live');
+  if (error) throw error;
+  return data;
+}
+
+export async function discardGame(gameId) {
+  const { error } = await supabase.from('games').delete().eq('id', gameId);
+  if (error) throw error;
+}

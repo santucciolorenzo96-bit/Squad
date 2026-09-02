@@ -799,3 +799,12 @@ table.boxscore tr:hover td{background:var(--tint-hover);}
 .picked-match b{display:block;font-size:14px;}
 .picked-match span{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
 .picked-match .btn{width:auto;padding:5px 11px;font-size:11.5px;}
+
+/* Partita rimasta aperta in un'altra categoria: invisibile all'app, ma
+   sufficiente a impedirne l'avvio di una nuova. */
+.open-game{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;padding:12px 14px;
+  background:var(--amber-dim);border:1px solid var(--amber);border-radius:var(--radius-md);}
+.open-game > div{flex:1;min-width:150px;}
+.open-game b{display:block;font-size:13.5px;}
+.open-game span{display:block;font-size:11.5px;color:var(--dim);margin-top:2px;}
+.open-game .btn{width:auto;padding:6px 12px;font-size:12px;}
