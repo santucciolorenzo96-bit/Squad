@@ -94,6 +94,13 @@ export function renderCreateTeam() {
       const { boot } = await import('../../router.js');
       await boot();
     } catch (err) {
+      // Account creato ma società no: la sessione è aperta, il recupero
+      // completa senza dover ripartire dalla registrazione.
+      if (err.accountCreated) {
+        const { boot } = await import('../../router.js');
+        await boot();
+        return;
+      }
       btn.disabled = false; btn.textContent = 'Crea la società';
       errEl.textContent = err.message || 'Errore durante la creazione della società.';
     }

@@ -51,6 +51,14 @@ function isExistingUser(data) {
   return !!(data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0);
 }
 
+// Senza conferma email Supabase non finge più: risponde con un errore in
+// chiaro, ma in inglese. Diventa lo stesso messaggio dell'altro caso, perché
+// per chi si registra la situazione è identica.
+function isAlreadyRegisteredError(error) {
+  const msg = (error && error.message) || '';
+  return /already registered|already exists|user_already_exists/i.test(msg);
+}
+
 export class EmailAlreadyRegisteredError extends Error {
   constructor() {
     super('Questa email è già registrata. Accedi con la tua password: se non la ricordi usa "Password dimenticata?".');
@@ -63,9 +71,24 @@ async function signUpUser(email, password) {
     email, password,
     options: { emailRedirectTo: redirectTarget() }
   });
-  if (error) throw error;
+  if (error) throw isAlreadyRegisteredError(error) ? new EmailAlreadyRegisteredError() : error;
   if (isExistingUser(data)) throw new EmailAlreadyRegisteredError();
   return data;
+}
+
+// Con la conferma attiva l'iscrizione alla squadra è rimandata al primo
+// accesso; senza, parte subito dopo la registrazione. In quel secondo caso, se
+// fallisce — un codice invito sbagliato — l'account è già creato ma senza
+// squadra, e riprovare dalla stessa schermata darebbe "email già registrata":
+// un vicolo cieco. Marcare l'errore permette alle schermate di portare
+// l'utente al recupero, dove la sessione aperta basta a completare.
+async function runActionAfterSignup(action) {
+  try {
+    await runPendingAction(action);
+  } catch (e) {
+    e.accountCreated = true;
+    throw e;
+  }
 }
 
 // Rimanda il link di conferma: serve quando la prima email non arriva o scade.
@@ -90,7 +113,7 @@ export async function createTeamAndAdmin({ email, password, teamName, city, cate
   const data = await signUpUser(email, password);
   const action = { type: 'create_team', teamName, city, category, displayName, sport: sport || 'basket' };
   if (!data.session) { savePendingAction(action); return { needsEmailConfirmation: true }; }
-  await runPendingAction(action);
+  await runActionAfterSignup(action);
   return { needsEmailConfirmation: false };
 }
 
@@ -98,7 +121,7 @@ export async function joinTeamByCode({ email, password, inviteCode, displayName,
   const data = await signUpUser(email, password);
   const action = { type: 'join_team', inviteCode, displayName, role: role || 'genitore' };
   if (!data.session) { savePendingAction(action); return { needsEmailConfirmation: true }; }
-  await runPendingAction(action);
+  await runActionAfterSignup(action);
   return { needsEmailConfirmation: false };
 }
 

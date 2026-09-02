@@ -168,6 +168,13 @@ export function renderJoinTeam(prefill = {}) {
         const { boot } = await import('../../router.js');
         await boot();
       } catch (err) {
+        // L'account esiste già ma senza squadra: la sessione è aperta, quindi
+        // il recupero può completare l'iscrizione senza registrarsi di nuovo.
+        if (err.accountCreated) {
+          const { boot } = await import('../../router.js');
+          await boot();
+          return;
+        }
         btn.disabled = false; btn.textContent = 'Crea il mio account';
         errEl.textContent = err.message || 'Non è stato possibile completare la registrazione.';
       }
