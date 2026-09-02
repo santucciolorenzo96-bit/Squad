@@ -38,6 +38,17 @@ function toDbPatch(g) {
   return patch;
 }
 
+// Una colonna mancante significa quasi sempre una migrazione non ancora
+// eseguita. Il messaggio di Postgres è corretto ma criptico: qui diventa
+// un'istruzione, altrimenti l'unico sintomo è "non funziona".
+function describeWriteError(error) {
+  const msg = (error && error.message) || '';
+  if (/period_scores/.test(msg)) {
+    return new Error('Manca la colonna period_scores sulla tabella games: esegui la migrazione 017 su Supabase, poi riprova.');
+  }
+  return error;
+}
+
 export async function fetchLiveGame(sectorId) {
   const { data, error } = await supabase.from('games')
     .select('*').eq('sector_id', sectorId).eq('status', 'live').maybeSingle();
@@ -60,13 +71,13 @@ export async function startGame(teamId, sectorId, liveGame, startedByProfileId) 
     ...toDbPatch(liveGame),
     started_by: startedByProfileId
   }).select().single();
-  if (error) throw error;
+  if (error) throw describeWriteError(error);
   return fromDbGame(data);
 }
 
 export async function saveLiveGame(gameId, liveGame) {
   const { error } = await supabase.from('games').update(toDbPatch(liveGame)).eq('id', gameId);
-  if (error) throw error;
+  if (error) throw describeWriteError(error);
 }
 
 export async function endGame(gameId, liveGame) {
@@ -75,7 +86,7 @@ export async function endGame(gameId, liveGame) {
     status: 'finished',
     ended_at: new Date().toISOString()
   }).eq('id', gameId);
-  if (error) throw error;
+  if (error) throw describeWriteError(error);
 }
 
 export function subscribeLiveGame(sectorId, onChange) {

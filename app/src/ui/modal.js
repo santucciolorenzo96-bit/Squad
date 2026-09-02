@@ -101,6 +101,13 @@ export async function withButtonLoading(button, fn) {
   button.classList.add('btn-loading');
   try {
     await fn();
+  } catch (e) {
+    // Senza questo catch l'errore diventava una promise rifiutata e basta: il
+    // pulsante tornava cliccabile e non succedeva nulla, senza spiegazioni.
+    // Chi chiama con un try/catch proprio non viene toccato — lì l'eccezione
+    // non arriva mai fin qui.
+    console.error(e);
+    toast(e && e.message ? e.message : 'Operazione non riuscita.');
   } finally {
     button.disabled = false;
     button.classList.remove('btn-loading');

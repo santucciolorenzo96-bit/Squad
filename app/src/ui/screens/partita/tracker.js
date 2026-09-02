@@ -47,7 +47,23 @@ function startClockInterval() {
   }, 1000);
 }
 
-function persistLiveGame() { apiSaveLiveGame(state.liveGame.id, state.liveGame); }
+// Il salvataggio gira a ogni azione senza bloccare l'interfaccia, ma se
+// fallisce va detto: durante una partita si continuerebbe a segnare per un'ora
+// credendo che tutto stia andando in archivio. Si avvisa una volta sola, non a
+// ogni tocco, e si torna a tacere appena il salvataggio riprende.
+let saveFailed = false;
+function persistLiveGame() {
+  const g = state.liveGame;
+  if (!g) return;
+  apiSaveLiveGame(g.id, g).then(() => {
+    if (saveFailed) { saveFailed = false; toast('Salvataggio ripristinato'); }
+  }).catch((e) => {
+    console.error(e);
+    if (saveFailed) return;
+    saveFailed = true;
+    toast(e && e.message ? e.message : 'Le azioni non si stanno salvando: controlla la connessione.');
+  });
+}
 
 // Il punteggio mostrato non è mai "quello che ho digitato": si ricava sempre
 // dai dati, così un annullamento non lascia mai due numeri incoerenti.
