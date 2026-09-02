@@ -4,47 +4,20 @@ import { confirmModal, toast, withButtonLoading } from '../modal.js';
 import { addPlayer, removePlayerFromSector, fetchPlayerPhotoUrls } from '../../api/roster.js';
 import { canEditRoster, canEditHome, isLinkedUser } from '../../utils/permissions.js';
 import { avatarHtml, wireAvatarClicks } from '../playerAvatar.js';
-import { computeSeasonStats } from '../../utils/stats.js';
-
-// Posizioni fisse dei 5 slot sul mezzo campo: il canestro è in alto, quindi
-// playmaker arretrato in basso, ali a metà, lunghi vicino all'area. Non
-// dipendono dal ruolo testuale del giocatore, spesso libero o mancante.
-const SLOTS = [
-  { top: '84%', left: '50%' },
-  { top: '58%', left: '16%' },
-  { top: '58%', left: '84%' },
-  { top: '30%', left: '27%' },
-  { top: '30%', left: '73%' }
-];
-
-// Mezzo campo FIBA in scala (15m × 14m → viewBox 150×140, canestro in alto).
-// Volutamente sbiadito: deve leggersi come contesto, non competere coi giocatori.
-const COURT_SVG = `
-<svg class="court-lines" viewBox="0 0 150 140" preserveAspectRatio="none" fill="none"
-     stroke="currentColor" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round">
-  <rect x="0.6" y="0.6" width="148.8" height="138.8" rx="1"/>
-  <rect x="50.5" y="0.6" width="49" height="57.4"/>
-  <circle cx="75" cy="58" r="18"/>
-  <path d="M9 0.6V29.9"/><path d="M141 0.6V29.9"/>
-  <path d="M9 29.9A67.5 67.5 0 0 0 141 29.9"/>
-  <path d="M62.5 15.75A12.5 12.5 0 0 0 87.5 15.75"/>
-  <path d="M66 12h18"/><path d="M75 12v1.5"/>
-  <circle cx="75" cy="15.75" r="2.25"/>
-  <path d="M57 139.4A18 18 0 0 1 93 139.4"/>
-</svg>`;
+import { computeSeasonStats, findSeasonRow } from '../../utils/stats.js';
+import { currentSport } from '../../utils/sports/index.js';
 
 function initials(name) {
   return (name || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 }
 
-function avgLine(seasonRow) {
+// Le tre medie mostrate sul campo: quali siano lo decide lo sport.
+function avgLine(seasonRow, sport) {
   if (!seasonRow || !seasonRow.games) return null;
-  const g = seasonRow.games;
-  return {
-    pts: (seasonRow.pts / g).toFixed(1),
-    ast: (seasonRow.ast / g).toFixed(1),
-    reb: (seasonRow.reb / g).toFixed(1)
-  };
+  return sport.headline.map(h => ({
+    short: h.short,
+    value: ((seasonRow[h.key] || 0) / seasonRow.games).toFixed(1)
+  }));
 }
 
 // Lo staff vede la scheda evolutiva di tutta la rosa; un genitore o un atleta
@@ -56,8 +29,8 @@ function canSeeDevelopment(p) {
 
 // Formazione di default: titolari/panchinari dell'ultima partita giocata,
 // mappati sulla rosa attuale per id (o per numero se l'id non è più presente).
-// Fallback: primi 5 della rosa se non c'è ancora nessuna partita in storico.
-function computeDefaultCourtIds() {
+// Fallback: i primi della rosa se non c'è ancora nessuna partita in storico.
+function computeDefaultCourtIds(onField) {
   const last = state.history[state.history.length - 1];
   const ids = [];
   if (last) {
@@ -68,25 +41,27 @@ function computeDefaultCourtIds() {
     });
   }
   for (const p of state.roster) {
-    if (ids.length >= 5) break;
+    if (ids.length >= onField) break;
     if (!ids.includes(p.id)) ids.push(p.id);
   }
-  return ids.slice(0, 5);
+  return ids.slice(0, onField);
 }
 
 export async function renderRosaTab(c) {
   const canEdit = canEditRoster(state.currentUser);
   state.selectedCourtId = null;
   state.pendingBenchId = null;
-  let courtIds = computeDefaultCourtIds();
+  const sport = currentSport();
+  const onField = sport.match.minOnField;
+  let courtIds = computeDefaultCourtIds(onField);
   const photoUrls = await fetchPlayerPhotoUrls(state.roster).catch(() => ({}));
-  const season = computeSeasonStats(state.history);
+  const season = computeSeasonStats(state.history, sport);
 
   c.innerHTML = `
     <div class="settings-col">
     ${state.roster.length === 0 ? '<div class="placeholder-card">Nessun giocatore in rosa.</div>' : `
     <div class="court-half" id="courtHalf"></div>
-    <div class="section-label">Panchina</div>
+    <div class="section-label">${sport.field.benchLabel}</div>
     <div class="bench-row-scroll" id="benchRow"></div>
     <div class="hint" style="text-align:center;margin-top:6px;">Tocca ⇄ su un giocatore per prepararlo alla sostituzione, poi tocca ⇄ sull'altro per scambiarli. Tocca un giocatore per vedere le sue statistiche.</div>
     `}
@@ -103,7 +78,7 @@ export async function renderRosaTab(c) {
     </div>` : ''}
     <div class="section-label" id="rosaCountLabel">Rosa (${state.roster.length})</div>
     <div id="rosterList"></div>
-    <div id="rosaHint">${canEdit && state.roster.length < 5 ? `<div class="hint">Servono almeno 5 giocatori in rosa per poter avviare una partita.</div>` : ''}</div>
+    <div id="rosaHint">${canEdit && state.roster.length < onField ? `<div class="hint">Servono almeno ${onField} giocatori in rosa per comporre la formazione.</div>` : ''}</div>
     </div>
   `;
 
@@ -111,14 +86,13 @@ export async function renderRosaTab(c) {
     const url = photoUrls[p.id];
     const onCourt = courtIds.includes(p.id);
     const armed = onCourt ? state.selectedCourtId === p.id : state.pendingBenchId === p.id;
-    const avg = avgLine(season.find(x => x.name === p.name));
+    const avg = avgLine(findSeasonRow(season, p), sport);
     return `
       <div class="court-token" data-token="${p.id}" style="${style || ''}">
         <div class="court-token-top">
           <div class="court-token-stats">
-            ${avg
-              ? `<span><i>PT</i><b>${avg.pts}</b></span><span><i>AS</i><b>${avg.ast}</b></span><span><i>RB</i><b>${avg.reb}</b></span>`
-              : `<span><i>PT</i><b>—</b></span><span><i>AS</i><b>—</b></span><span><i>RB</i><b>—</b></span>`}
+            ${(avg || sport.headline.map(h => ({ short: h.short, value: '—' })))
+              .map(a => `<span><i>${a.short}</i><b>${a.value}</b></span>`).join('')}
           </div>
           <div class="court-token-avatar">${url ? `<img src="${esc(url)}">` : esc(initials(p.name))}</div>
           <button class="court-token-swap${armed ? ' armed' : ''}" data-swap="${p.id}" title="Sostituisci" aria-label="Sostituisci ${esc(p.name)}">⇄</button>
@@ -135,7 +109,9 @@ export async function renderRosaTab(c) {
     const courtPlayers = courtIds.map(id => state.roster.find(p => p.id === id)).filter(Boolean);
     const benchPlayers = state.roster.filter(p => !courtIds.includes(p.id));
 
-    courtEl.innerHTML = COURT_SVG + courtPlayers.map((p, i) => playerToken(p, `top:${SLOTS[i].top};left:${SLOTS[i].left};`)).join('');
+    courtEl.innerHTML = sport.field.svg + courtPlayers
+      .map((p, i) => playerToken(p, sport.field.slots[i] ? `top:${sport.field.slots[i].top};left:${sport.field.slots[i].left};` : ''))
+      .join('');
     benchEl.innerHTML = benchPlayers.length
       ? benchPlayers.map(p => playerToken(p)).join('')
       : '<div class="hint" style="padding:8px 4px;">Nessun giocatore in panchina.</div>';
@@ -181,7 +157,7 @@ export async function renderRosaTab(c) {
   function openSpotlight(playerId) {
     const p = state.roster.find(x => x.id === playerId);
     if (!p) return;
-    const s = season.find(x => x.name === p.name);
+    const s = findSeasonRow(season, p);
     const url = photoUrls[p.id];
     const root = document.getElementById('modalRoot');
     root.innerHTML = `
@@ -192,9 +168,7 @@ export async function renderRosaTab(c) {
           <div class="hint">#${esc(p.number)}${p.role_position ? ' · ' + esc(p.role_position) : ''}${p.height_cm ? ' · ' + p.height_cm + ' cm' : ''}</div>
           ${s ? `
           <div class="stat-row" style="margin-top:18px;">
-            <div class="mini-card"><div class="lbl">PPG</div><div class="val">${(s.pts / s.games).toFixed(1)}</div></div>
-            <div class="mini-card"><div class="lbl">RPG</div><div class="val">${(s.reb / s.games).toFixed(1)}</div></div>
-            <div class="mini-card"><div class="lbl">APG</div><div class="val">${(s.ast / s.games).toFixed(1)}</div></div>
+            ${sport.headline.map(h => `<div class="mini-card"><div class="lbl">${h.label}</div><div class="val">${((s[h.key] || 0) / s.games).toFixed(1)}</div></div>`).join('')}
           </div>
           <div class="hint" style="margin-top:10px;">${s.games} partite giocate in stagione</div>
           ` : `<div class="hint" style="margin-top:18px;">Nessuna statistica disponibile ancora.</div>`}
@@ -216,7 +190,7 @@ export async function renderRosaTab(c) {
   function drawList() {
     document.getElementById('rosaCountLabel').textContent = `Rosa (${state.roster.length})`;
     const hintEl = document.getElementById('rosaHint');
-    if (hintEl) hintEl.innerHTML = canEdit && state.roster.length < 5 ? `<div class="hint">Servono almeno 5 giocatori in rosa per poter avviare una partita.</div>` : '';
+    if (hintEl) hintEl.innerHTML = canEdit && state.roster.length < onField ? `<div class="hint">Servono almeno ${onField} giocatori in rosa per comporre la formazione.</div>` : '';
     const holder = document.getElementById('rosterList');
     holder.innerHTML = '';
     if (state.roster.length === 0) { holder.innerHTML = '<div class="placeholder-card">Nessun giocatore in rosa.</div>'; return; }
@@ -237,7 +211,7 @@ export async function renderRosaTab(c) {
           state.roster = state.roster.filter(x => x.id !== id);
           courtIds = courtIds.filter(x => x !== id);
           for (const p of state.roster) {
-            if (courtIds.length >= 5) break;
+            if (courtIds.length >= onField) break;
             if (!courtIds.includes(p.id)) courtIds.push(p.id);
           }
           drawList();

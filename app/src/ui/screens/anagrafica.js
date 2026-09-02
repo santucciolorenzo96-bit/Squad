@@ -10,6 +10,7 @@ import {
 import { resizeImageFile } from '../../utils/image.js';
 import { avatarHtml, wireAvatarClicks, openPhotoViewModal } from '../playerAvatar.js';
 import { openPhotoPositionModal } from '../photoEditor.js';
+import { currentSport } from '../../utils/sports/index.js';
 
 export function renderAnagraficaTab(c) {
   if (isLinkedUser(state.currentUser)) return renderFamiglia(c);
@@ -181,7 +182,10 @@ async function renderPlayerDetail(c, playerId, { readOnlyIdentity }) {
         <div class="field"><label>Codice fiscale</label><input type="text" id="fFiscal" value="${esc(player.fiscal_code || '')}" ${own}></div>
       </div>
       <div class="row2">
-        <div class="field"><label>Ruolo in campo</label><input type="text" id="fRole" value="${esc(player.role_position || '')}" placeholder="Es. Guardia" ${staffOnly}></div>
+        <div class="field"><label>Ruolo in campo</label>
+          <input type="text" id="fRole" list="rolePositions" value="${esc(player.role_position || '')}" placeholder="${esc(currentSport().positionPlaceholder)}" ${staffOnly}>
+          <datalist id="rolePositions">${currentSport().positions.map(r => `<option value="${esc(r)}">`).join('')}</datalist>
+        </div>
         <div class="field"><label>Altezza (cm)</label><input type="number" id="fHeight" min="100" max="250" value="${player.height_cm ?? ''}" ${own}></div>
       </div>
       <div class="row2">

@@ -4,6 +4,7 @@ import { teamInitials } from '../utils/theme.js';
 import { standingsPosition, daysUntil } from '../utils/stats.js';
 import { openBoxScoreModal } from './screens/partita/boxscore.js';
 import { venueIcon, venueLabel } from './icons.js';
+import { currentSport } from '../utils/sports/index.js';
 
 function fmtLongDate(d) {
   if (!d) return 'Data da definire';
@@ -38,6 +39,7 @@ function teamBadge(name, { own }) {
 }
 
 export function openMatchDetail(match) {
+  const st = currentSport().standings;
   const root = document.getElementById('modalRoot');
   const usName = state.teamProfile.name;
   const oppName = match.opponent;
@@ -92,6 +94,7 @@ export function openMatchDetail(match) {
           ${compareRow('Punti', usRow ? `<b>${usRow.points}</b>` : '—', oppRow ? `<b>${oppRow.points}</b>` : '—')}
           ${compareRow('Giocate', usRow ? usRow.played : '—', oppRow ? oppRow.played : '—')}
           ${compareRow('Vittorie', usRow ? usRow.wins : '—', oppRow ? oppRow.wins : '—')}
+          ${st.hasDraws ? compareRow('Pareggi', usRow ? (usRow.draws || 0) : '—', oppRow ? (oppRow.draws || 0) : '—') : ''}
           ${compareRow('Sconfitte', usRow ? usRow.losses : '—', oppRow ? oppRow.losses : '—')}
         </table>
         ` : '<div class="hint">Classifica non ancora inserita: nessun confronto disponibile.</div>'}

@@ -7,8 +7,22 @@ import { startGame } from '../../../api/games.js';
 import { fetchPlayerPhotoUrls } from '../../../api/roster.js';
 import { avatarHtml, wireAvatarClicks } from '../../playerAvatar.js';
 import { renderLiveMatch } from './tracker.js';
+import { currentSport } from '../../../utils/sports/index.js';
 
 export function renderPartitaTab(c) {
+  // Il cronometro dal vivo è costruito sulla pallacanestro: periodi, falli di
+  // squadra, quintetto. Negli altri sport la partita si registra a fine gara,
+  // che è anche come lavorano davvero le società dilettantistiche.
+  const sport = currentSport();
+  if (!sport.match.liveTracker) {
+    c.innerHTML = `<div class="placeholder-card">
+      <span class="tag">${esc(sport.label)}</span>
+      Il tabellino dal vivo non è ancora disponibile per questo sport.<br><br>
+      Le partite si registrano a fine gara dal <b>Calendario</b>: segna il risultato
+      e la partita entra in archivio, in classifica e nelle statistiche.
+    </div>`;
+    return;
+  }
   if (state.liveGame) { renderLiveMatch(c); }
   else { renderMatchSetup(c); }
 }

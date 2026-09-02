@@ -664,3 +664,56 @@ table.boxscore tr:hover td{background:var(--tint-hover);}
 .dev-read:last-of-type{border-bottom:none;}
 .dev-read span{font-size:9.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--dim);}
 .dev-read b{font-size:13px;font-weight:600;line-height:1.5;}
+
+/* Ingresso: landing, iscrizione con codice, scelta dello sport.
+   Sono le schermate che un genitore vede una volta sola, quasi sempre da
+   telefono: bersagli grandi, una domanda alla volta, nessun gergo. */
+.entry-sep{display:flex;align-items:center;gap:12px;margin:16px 2px 12px;color:var(--dim);font-size:11px;}
+.entry-sep::before,.entry-sep::after{content:'';flex:1;height:1px;background:var(--glass-border);}
+
+.entry-card{display:flex;align-items:center;gap:13px;width:100%;text-align:left;margin-bottom:10px;padding:15px;
+  background:var(--glass-subtle-bg);backdrop-filter:var(--glass-subtle-blur);-webkit-backdrop-filter:var(--glass-subtle-blur);
+  border:1px solid var(--glass-subtle-border);border-radius:var(--radius-md);color:var(--text);cursor:pointer;
+  font-family:inherit;transition:transform .18s ease,border-color .18s ease;}
+.entry-card:hover{transform:translateY(-2px);border-color:rgba(25,227,209,0.32);}
+.entry-card:active{transform:translateY(0) scale(.99);}
+.entry-ico{width:42px;height:42px;flex-shrink:0;border-radius:13px;background:var(--tint);color:var(--orange);
+  display:flex;align-items:center;justify-content:center;}
+.entry-txt{flex:1;min-width:0;}
+.entry-txt b{display:block;font-family:var(--font-display);font-size:15px;font-weight:700;}
+.entry-txt span{display:block;font-size:12px;color:var(--dim);line-height:1.45;margin-top:3px;}
+.entry-arrow{color:var(--dim);font-size:20px;flex-shrink:0;}
+
+.wizard-steps{display:flex;gap:8px;margin-bottom:14px;}
+.wizard-steps span{flex:1;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--dim);
+  padding-top:8px;border-top:2px solid var(--glass-border);transition:color .25s ease,border-color .25s ease;}
+.wizard-steps span.on{color:var(--orange);border-top-color:var(--orange);}
+
+/* Il codice invito si legge da un foglio o da un messaggio: caratteri larghi
+   e spaziati, così si controlla a colpo d'occhio di averlo copiato bene. */
+.code-input{text-align:center;text-transform:uppercase;font-family:var(--font-mono);
+  font-size:26px;font-weight:700;letter-spacing:0.28em;padding:16px 10px !important;}
+
+.team-confirm{display:flex;align-items:center;gap:12px;border-left:3px solid var(--green);}
+.team-confirm-badge{width:44px;height:44px;flex-shrink:0;border-radius:50%;background:var(--tint);
+  display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:15px;}
+.team-confirm > div{flex:1;min-width:0;}
+.team-confirm b{display:block;font-family:var(--font-display);font-size:15.5px;}
+.team-confirm span{display:block;font-size:11.5px;color:var(--dim);margin-top:2px;}
+.team-confirm .btn{width:auto;padding:6px 12px;font-size:11.5px;flex-shrink:0;}
+
+.choice-list{display:flex;flex-direction:column;gap:8px;}
+.choice{width:100%;text-align:left;padding:13px 14px;background:var(--glass-subtle-bg);
+  border:1.5px solid var(--glass-subtle-border);border-radius:14px;color:var(--text);cursor:pointer;
+  font-family:inherit;transition:border-color .18s ease,background .18s ease;}
+.choice:hover{border-color:rgba(25,227,209,0.3);}
+.choice.on{border-color:var(--orange);background:var(--orange-dim);}
+.choice b{display:block;font-size:14px;font-weight:700;}
+.choice span{display:block;font-size:11.5px;color:var(--dim);line-height:1.45;margin-top:3px;}
+
+/* Una password sola con "mostra": digitarla due volte su un telefono produce
+   più errori di quanti ne eviti, e c'è comunque il recupero via email. */
+.pass-wrap{position:relative;}
+.pass-wrap input{padding-right:82px !important;}
+.pass-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;
+  color:var(--orange);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;padding:6px 8px;}

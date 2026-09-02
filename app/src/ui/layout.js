@@ -5,6 +5,7 @@ import { switchSector, unseenNotificationsCount } from '../router.js';
 import { markNotificationsSeen } from '../api/profiles.js';
 import { userInitials } from '../utils/theme.js';
 import { navIcon } from './icons.js';
+import { currentSport } from '../utils/sports/index.js';
 
 import { renderHomeTab } from './screens/home.js';
 import { renderRosaTab } from './screens/rosa.js';
@@ -43,10 +44,13 @@ function accessibleSectorList() {
 }
 
 export function renderApp() {
-  if (state.currentTab !== 'profilo' && !TABS.find(t => t.id === state.currentTab && canSeeTab(t, state.currentUser))) state.currentTab = 'home';
   const root = document.getElementById('root');
   const mySectors = accessibleSectorList();
-  const visibleTabs = TABS.filter(t => canSeeTab(t, state.currentUser));
+  const sport = currentSport();
+  // Senza tabellino dal vivo la scheda Partita non ha nulla da mostrare.
+  const visibleTabs = TABS.filter(t => canSeeTab(t, state.currentUser))
+    .filter(t => t.id !== 'partita' || sport.match.liveTracker);
+  if (state.currentTab !== 'profilo' && !visibleTabs.some(t => t.id === state.currentTab)) state.currentTab = 'home';
 
   root.innerHTML = `
     <div class="app-shell">

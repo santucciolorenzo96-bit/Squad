@@ -32,3 +32,14 @@ export async function regenerateInviteCode() {
   if (error) throw error;
   return data;
 }
+
+// Anteprima pubblica dal codice invito: serve prima ancora di registrarsi, per
+// mostrare a chi si iscrive in che società sta entrando. Restituisce null se il
+// codice non esiste — un errore qui non deve bloccare la registrazione.
+export async function fetchTeamByInviteCode(code) {
+  const clean = (code || '').trim();
+  if (!clean) return null;
+  const { data, error } = await supabase.rpc('team_by_invite_code', { p_invite_code: clean });
+  if (error) throw error;
+  return (data && data.length) ? data[0] : null;
+}

@@ -1,33 +1,62 @@
+import { BASKET } from './sports/basket.js';
+
+// Questo modulo non sa più cos'è la pallacanestro: riceve il descrittore dello
+// sport e itera le voci che dichiara. Il basket resta il default di ogni
+// funzione, così il codice che non passa lo sport continua a funzionare.
+
 export function newPlayerStats() {
-  return {
-    fgm2: 0, fga2: 0, fgm3: 0, fga3: 0, ftm: 0, fta: 0, orb: 0, drb: 0, ast: 0, stl: 0,
-    tov: 0, tovTypes: { generica: 0, palleggio: 0, passaggio: 0, passi: 0 },
-    blk: 0, blkAgainst: 0, pf: 0, pfDrawn: 0, plusMinus: 0, seconds: 0
-  };
+  return BASKET.newStats();
 }
 
 export function playerPts(p) {
-  return p.stats.fgm2 * 2 + p.stats.fgm3 * 3 + p.stats.ftm;
+  return BASKET.score(p.stats || {});
 }
 
-export function playerPtsOf(p) {
-  return p.pts != null ? p.pts : playerPts(p);
+// Il punteggio salvato nel tabellino vince sempre su quello ricalcolato: negli
+// sport a inserimento manuale è l'unico dato che esiste.
+export function playerPtsOf(p, sport = BASKET) {
+  if (p.pts != null) return p.pts;
+  return sport.score(p.stats || {});
 }
 
-export function computeSeasonStats(history) {
+// Chiave di aggregazione stagionale. Prima era il nome: due omonimi si
+// fondevano e chi cambiava nome perdeva lo storico. L'id del giocatore è nei
+// tabellini fin dall'inizio; il nome resta solo come rete di sicurezza per
+// eventuali partite salvate senza.
+function seasonKey(p) {
+  return p.id ? 'id:' + p.id : 'nm:' + (p.name || '?');
+}
+
+export function computeSeasonStats(history, sport = BASKET) {
+  const keys = Object.keys(sport.aggregate);
   const totals = {};
   history.forEach(g => {
     (g.players || []).forEach(p => {
-      if (!totals[p.name]) {
-        totals[p.name] = { name: p.name, number: p.number, games: 0, pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0, seconds: 0 };
+      const k = seasonKey(p);
+      if (!totals[k]) {
+        const row = { id: p.id || null, name: p.name, number: p.number, games: 0 };
+        keys.forEach(key => { row[key] = 0; });
+        totals[k] = row;
       }
-      const t = totals[p.name]; const s = p.stats || {};
-      t.games += 1; t.pts += playerPtsOf(p);
-      t.reb += (s.orb || 0) + (s.drb || 0); t.ast += s.ast || 0; t.stl += s.stl || 0;
-      t.blk += s.blk || 0; t.tov += s.tov || 0; t.seconds += s.seconds || 0;
+      const t = totals[k];
+      t.games += 1;
+      // Nome e numero seguono l'ultima partita: se un giocatore cambia numero
+      // a stagione in corso, in tabella si legge quello attuale.
+      t.name = p.name || t.name;
+      t.number = p.number != null ? p.number : t.number;
+      keys.forEach(key => { t[key] += sport.aggregate[key](p) || 0; });
     });
   });
   return Object.values(totals);
+}
+
+// Trova la riga stagionale di un giocatore della rosa: per id, con ricaduta sul
+// nome per i tabellini più vecchi.
+export function findSeasonRow(season, player) {
+  if (!player) return null;
+  return season.find(r => r.id && r.id === player.id)
+    || season.find(r => !r.id && r.name === player.name)
+    || null;
 }
 
 export function standingsPosition(standings, teamName) {
@@ -37,18 +66,25 @@ export function standingsPosition(standings, teamName) {
   return idx >= 0 ? idx + 1 : null;
 }
 
+// Il pareggio esiste solo in alcuni sport, ma contarlo non fa danno altrove:
+// una partita di basket non finisce mai in parità.
 export function computeRecord(history) {
-  let w = 0, l = 0;
-  history.forEach(g => { if (g.teamScore > g.oppScore) w++; else if (g.teamScore < g.oppScore) l++; });
-  return { w, l };
+  let w = 0, d = 0, l = 0;
+  history.forEach(g => {
+    if (g.teamScore > g.oppScore) w++;
+    else if (g.teamScore < g.oppScore) l++;
+    else d++;
+  });
+  return { w, d, l };
 }
 
 export function computeStreak(history) {
   let streak = 0, type = null;
   for (let i = history.length - 1; i >= 0; i--) {
-    const win = history[i].teamScore > history[i].oppScore;
-    if (type === null) { type = win ? 'V' : 'S'; streak = 1; }
-    else if ((win && type === 'V') || (!win && type === 'S')) { streak++; }
+    const g = history[i];
+    const outcome = g.teamScore > g.oppScore ? 'V' : (g.teamScore < g.oppScore ? 'S' : 'N');
+    if (type === null) { type = outcome; streak = 1; }
+    else if (outcome === type) { streak++; }
     else break;
   }
   return streak ? `${streak}${type} di fila` : 'Nessuna partita';
@@ -59,18 +95,22 @@ export function computeTeamPPG(history) {
   return history.reduce((a, g) => a + g.teamScore, 0) / history.length;
 }
 
+// Valutazione cestistica: resta esportata con il vecchio nome perché il
+// tracker dal vivo la usa direttamente.
 export function computeGameIndex(p) {
-  const s = p.stats;
-  const missed = (s.fga2 - s.fgm2) + (s.fga3 - s.fgm3) + (s.fta - s.ftm);
-  return (playerPtsOf(p)) + (s.orb + s.drb) + s.ast + s.stl + s.blk + s.pfDrawn - missed - s.tov - s.pf - s.blkAgainst;
+  return BASKET.rating(p);
 }
 
-export function computeLastGameMVP(g) {
+export function playerRating(p, sport = BASKET) {
+  return sport.rating(p);
+}
+
+export function computeLastGameMVP(g, sport = BASKET) {
   if (!g) return null;
-  let best = null, bestVal = -9999;
-  g.players.forEach(p => {
-    const ind = computeGameIndex(p);
-    if (ind > bestVal) { bestVal = ind; best = { ...p, pts: playerPtsOf(p), ind }; }
+  let best = null, bestVal = -Infinity;
+  (g.players || []).forEach(p => {
+    const ind = sport.rating(p);
+    if (ind > bestVal) { bestVal = ind; best = { ...p, pts: playerPtsOf(p, sport), ind }; }
   });
   return best;
 }

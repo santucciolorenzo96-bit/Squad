@@ -1,6 +1,7 @@
 import { state } from '../../../state.js';
 import { esc, fmtMin } from '../../../utils/format.js';
 import { playerPtsOf } from '../../../utils/stats.js';
+import { currentSport } from '../../../utils/sports/index.js';
 
 function buildBoxScoreRows(playersArr) {
   return [...playersArr].sort((a, b) => (b.onCourt ? 1 : 0) - (a.onCourt ? 1 : 0) || (playerPtsOf(b) - playerPtsOf(a)));
@@ -8,6 +9,9 @@ function buildBoxScoreRows(playersArr) {
 
 export function openBoxScoreModal(game) {
   const root = document.getElementById('modalRoot');
+  // Il tabellino dettagliato esiste solo per la pallacanestro: gli altri sport
+  // salvano statistiche di forma diversa e verrebbero letti come colonne vuote.
+  if (currentSport().key !== 'basket') return openSimpleBoxScore(game);
   const headers = ['#', 'Giocatore', 'MIN', 'PT', '2PT', '3PT', 'TL', 'RIM', 'AST', 'PR', 'PP', 'ST', 'SS', 'FC', 'FS', '+/-'];
   let rowsHtml = '';
   const sorted = buildBoxScoreRows(game.players);
@@ -28,6 +32,26 @@ export function openBoxScoreModal(game) {
   document.getElementById('modalCloseBtn').onclick = () => { root.innerHTML = ''; };
   document.getElementById('modalOverlay').onclick = (e) => { if (e.target.id === 'modalOverlay') root.innerHTML = ''; };
   document.getElementById('csvExportBtn').onclick = () => exportCsv(game);
+}
+
+// Tabellino generico: punteggio e le voci in evidenza dello sport.
+function openSimpleBoxScore(game) {
+  const sport = currentSport();
+  const root = document.getElementById('modalRoot');
+  const rows = [...(game.players || [])]
+    .sort((a, b) => playerPtsOf(b, sport) - playerPtsOf(a, sport))
+    .map(p => `<tr><td>${esc(p.number)}</td><td class="name-cell">${esc(p.name)}</td>`
+      + sport.headline.map(h => `<td>${sport.aggregate[h.key](p) || 0}</td>`).join('')
+      + `</tr>`).join('');
+  root.innerHTML = `<div class="modal-overlay" id="modalOverlay"><div class="modal-box" style="max-width:96vw;width:520px;">
+    <h3>${esc(state.teamProfile.name)} ${game.teamScore} — ${game.oppScore} ${esc(game.oppName || 'Avversari')}</h3>
+    ${rows
+      ? `<div class="boxscore-wrap"><table class="boxscore"><thead><tr><th>#</th><th>Giocatore</th>${sport.headline.map(h => `<th>${h.short}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`
+      : '<div class="hint">Nessuna statistica per giocatore registrata per questa partita.</div>'}
+    <div class="modal-actions"><button class="btn btn-primary" id="modalCloseBtn" style="width:100%;">Chiudi</button></div>
+  </div></div>`;
+  document.getElementById('modalCloseBtn').onclick = () => { root.innerHTML = ''; };
+  document.getElementById('modalOverlay').onclick = (e) => { if (e.target.id === 'modalOverlay') root.innerHTML = ''; };
 }
 
 function exportCsv(game) {

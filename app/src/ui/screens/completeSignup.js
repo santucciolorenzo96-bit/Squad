@@ -1,5 +1,6 @@
 import { supabase } from '../../supabaseClient.js';
 import { esc } from '../../utils/format.js';
+import { SPORT_LIST } from '../../utils/sports/index.js';
 
 // Schermata di recupero: l'utente è autenticato ma non appartiene a nessuna
 // squadra. Capita ogni volta che il link di conferma viene aperto su un
@@ -51,6 +52,11 @@ export function renderCompleteSignup(email, pendingError) {
       </div>
 
       <div id="csCreate" style="display:none;">
+        <div class="field"><label>Che sport fate?</label>
+          <div class="choice-list" id="csSports">
+            ${SPORT_LIST.map(sp => `<button type="button" class="choice${sp.key === 'basket' ? ' on' : ''}" data-sport="${sp.key}"><b>${esc(sp.label)}</b><span>${esc(sp.description)}</span></button>`).join('')}
+          </div>
+        </div>
         <div class="field"><label>Nome della società</label><input type="text" id="csTeam"></div>
         <div class="row2">
           <div class="field"><label>Città</label><input type="text" id="csCity"></div>
@@ -67,6 +73,14 @@ export function renderCompleteSignup(email, pendingError) {
 
   let mode = 'join';
   let chosenRole = 'atleta';
+  let sport = 'basket';
+
+  document.querySelectorAll('[data-sport]').forEach(b => {
+    b.onclick = () => {
+      sport = b.dataset.sport;
+      document.querySelectorAll('[data-sport]').forEach(x => x.classList.toggle('on', x === b));
+    };
+  });
 
   const modeBtns = Array.from(document.querySelectorAll('[data-mode]'));
   function selectMode(next) {
@@ -110,7 +124,7 @@ export function renderCompleteSignup(email, pendingError) {
           p_name: teamName,
           p_city: document.getElementById('csCity').value.trim(),
           p_category: document.getElementById('csCat').value.trim(),
-          p_display_name: displayName
+          p_display_name: displayName, p_sport: sport
         });
         if (error) throw error;
       }

@@ -1,7 +1,8 @@
 import { state } from '../state.js';
 import { esc } from '../utils/format.js';
 import { toast, withButtonLoading } from './modal.js';
-import { computeGameIndex, playerPtsOf } from '../utils/stats.js';
+import { playerRating, playerPtsOf } from '../utils/stats.js';
+import { currentSport } from '../utils/sports/index.js';
 import { canEditHome } from '../utils/permissions.js';
 import { fetchAttendanceForTrainings } from '../api/attendance.js';
 import { fetchDevelopment, saveDevelopment } from '../api/development.js';
@@ -32,28 +33,36 @@ function pctColor(pct) {
   return 'var(--red)';
 }
 
-// Le partite del giocatore in questo settore, dalla più recente. I tabellini
-// sono salvati per nome: è la stessa chiave usata dalle statistiche stagionali.
-function playerGames(playerName) {
+// Le partite del giocatore in questo settore, dalla più recente. Il tabellino
+// si aggancia per id, con ricaduta sul nome per le partite più vecchie.
+function playerGames(player, sport) {
   return state.history
     .map(g => {
-      const row = (g.players || []).find(p => p.name === playerName);
+      const row = (g.players || []).find(p => (p.id && p.id === player.id) || p.name === player.name);
       if (!row) return null;
-      return {
+      const line = {
         date: g.date,
         opponent: g.oppName,
         won: g.teamScore > g.oppScore,
-        index: computeGameIndex(row),
-        pts: playerPtsOf(row),
-        reb: (row.stats.orb || 0) + (row.stats.drb || 0),
-        ast: row.stats.ast || 0,
-        stl: row.stats.stl || 0,
-        tov: row.stats.tov || 0,
-        seconds: row.stats.seconds || 0
+        drawn: g.teamScore === g.oppScore,
+        index: Math.round(sport.rating(row) * 10) / 10,
+        pts: playerPtsOf(row, sport),
+        seconds: (row.stats || {}).seconds || 0
       };
+      // Le voci in evidenza dello sport, per la riga sotto ogni partita.
+      sport.headline.forEach(h => { line[h.key] = sport.aggregate[h.key](row) || 0; });
+      return line;
     })
     .filter(Boolean)
     .reverse();
+}
+
+// Il numero grande della terza scheda: i minuti dove si giocano a tempo,
+// altrimenti la media della statistica principale dello sport.
+function headlineValue(games, sport, avgMin) {
+  if (sport.showMinutes) return avgMin != null ? Math.round(avgMin / 60) + "'" : '—';
+  if (games.length === 0) return '—';
+  return avg(games, sport.headline[0].key).toFixed(1);
 }
 
 function avg(rows, key) {
@@ -90,6 +99,7 @@ export function openPlayerDevelopment(playerId, opts = {}) {
 }
 
 async function loadBody(p, canEdit) {
+  const sport = currentSport();
   const today = todayISO();
   const done = state.trainings.filter(t => t.date && t.date <= today);
 
@@ -113,7 +123,7 @@ async function loadBody(p, canEdit) {
   const absent = mine.filter(a => a.status === 'absent').length;
   const attPct = mine.length ? Math.round((present / mine.length) * 100) : null;
 
-  const games = playerGames(p.name);
+  const games = playerGames(p, sport);
   const recent = games.slice(0, RECENT_GAMES);
   const avgIndex = avg(games, 'index');
   const avgMin = avg(games, 'seconds');
@@ -130,8 +140,8 @@ async function loadBody(p, canEdit) {
     trendTxt = Math.abs(delta) < 0.8
       ? 'Rendimento stabile rispetto alle partite precedenti.'
       : (delta > 0
-        ? `In crescita: +${delta.toFixed(1)} di valutazione sulle ultime ${half} partite.`
-        : `In calo: ${delta.toFixed(1)} di valutazione sulle ultime ${half} partite.`);
+        ? `In crescita: +${delta.toFixed(1)} sulle ultime ${half} partite.`
+        : `In calo: ${delta.toFixed(1)} sulle ultime ${half} partite.`);
   }
 
   body.innerHTML = `
@@ -142,14 +152,16 @@ async function loadBody(p, canEdit) {
         <div class="sub">${mine.length ? `${present} presenze · ${absent} assenze · ${excused} giustificate` : 'Nessuna rilevazione'}</div>
       </div>
       <div class="mini-card">
-        <div class="lbl">Valutazione media</div>
+        <div class="lbl">${sport.ratingLabel} media</div>
         <div class="val">${avgIndex != null ? avgIndex.toFixed(1) : '—'}</div>
         <div class="sub">${games.length ? `su ${games.length} partite giocate` : 'Nessuna partita giocata'}</div>
       </div>
       <div class="mini-card">
-        <div class="lbl">Minuti medi</div>
-        <div class="val">${avgMin != null ? Math.round(avgMin / 60) + "'" : '—'}</div>
-        <div class="sub">${games.length ? `${avg(games, 'pts').toFixed(1)} pt · ${avg(games, 'reb').toFixed(1)} rmb · ${avg(games, 'ast').toFixed(1)} ast` : 'Nessun dato'}</div>
+        <div class="lbl">${sport.showMinutes ? 'Minuti medi' : 'Media ' + sport.headline[0].label.toLowerCase()}</div>
+        <div class="val">${headlineValue(games, sport, avgMin)}</div>
+        <div class="sub">${games.length
+          ? sport.headline.map(h => `${avg(games, h.key).toFixed(1)} ${h.short.toLowerCase()}`).join(' · ')
+          : 'Nessun dato'}</div>
       </div>
     </div>
 
@@ -158,7 +170,7 @@ async function loadBody(p, canEdit) {
       <div class="hint" style="margin:0 0 10px;">${esc(trendTxt)}</div>
       ${recent.map(g => `
         <div class="trend-row">
-          <div class="trend-lbl">${esc(g.opponent)}<span class="hint" style="display:block;margin:0;">${g.date ? new Date(g.date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) : ''} · ${g.pts} pt${g.won ? ' · V' : ' · S'}</span></div>
+          <div class="trend-lbl">${esc(g.opponent)}<span class="hint" style="display:block;margin:0;">${g.date ? new Date(g.date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) : ''} · ${g.pts} ${sport.headline[0].short.toLowerCase()}${g.drawn ? ' · N' : (g.won ? ' · V' : ' · S')}</span></div>
           <div class="trend-bar"><span style="width:${Math.round((Math.max(0, g.index) / maxIndex) * 100)}%;background:${g.index >= 0 ? 'var(--orange)' : 'var(--red)'};"></span></div>
           <div class="trend-val">${g.index}</div>
         </div>`).join('')}

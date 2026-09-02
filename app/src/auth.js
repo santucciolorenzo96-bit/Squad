@@ -23,7 +23,7 @@ export async function runPendingAction(action) {
   if (action.type === 'create_team') {
     const { error } = await supabase.rpc('create_team', {
       p_name: action.teamName, p_city: action.city, p_category: action.category,
-      p_display_name: action.displayName
+      p_display_name: action.displayName, p_sport: action.sport || 'basket'
     });
     if (error) throw error;
   } else if (action.type === 'join_team') {
@@ -86,9 +86,9 @@ export async function logout() {
   await supabase.auth.signOut();
 }
 
-export async function createTeamAndAdmin({ email, password, teamName, city, category, displayName }) {
+export async function createTeamAndAdmin({ email, password, teamName, city, category, displayName, sport }) {
   const data = await signUpUser(email, password);
-  const action = { type: 'create_team', teamName, city, category, displayName };
+  const action = { type: 'create_team', teamName, city, category, displayName, sport: sport || 'basket' };
   if (!data.session) { savePendingAction(action); return { needsEmailConfirmation: true }; }
   await runPendingAction(action);
   return { needsEmailConfirmation: false };

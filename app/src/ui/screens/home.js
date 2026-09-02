@@ -13,6 +13,7 @@ import { saveNextMatch, clearNextMatch } from '../../api/nextMatch.js';
 import { openMatchDetail } from '../matchDetail.js';
 import { venueLabel, pinIcon } from '../icons.js';
 import { animateCount } from '../../utils/anim.js';
+import { currentSport } from '../../utils/sports/index.js';
 
 function fmtMoney(n) {
   return (n ?? 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
@@ -37,6 +38,14 @@ async function goToTab(tab) {
   renderApp();
 }
 
+// La riga sotto il nome del migliore in campo: quali statistiche mostrare
+// lo decide lo sport, non questa schermata.
+function mvpLine(mvp, sport) {
+  const season = { games: 1 };
+  sport.headline.forEach(h => { season[h.key] = sport.aggregate[h.key](mvp) || 0; });
+  return sport.headline.map(h => `${season[h.key]} ${h.short.toLowerCase()}`).join(' · ');
+}
+
 function greetingWord() {
   const h = new Date().getHours();
   if (h < 6) return 'Buonanotte';
@@ -51,8 +60,10 @@ export function renderHomeTab(c) {
   const record = computeRecord(state.history);
   const streak = computeStreak(state.history);
   const ppg = computeTeamPPG(state.history);
-  const seasonScorer = [...computeSeasonStats(state.history)].sort((a, b) => b.pts - a.pts)[0] || null;
-  const mvp = computeLastGameMVP(lastGame);
+  const sport = currentSport();
+  const topKey = sport.seasonColumns[0].key;
+  const seasonScorer = [...computeSeasonStats(state.history, sport)].sort((a, b) => (b[topKey] || 0) - (a[topKey] || 0))[0] || null;
+  const mvp = computeLastGameMVP(lastGame, sport);
   const fromCalendar = state.calendar.length > 0;
   const nextMatch = fromCalendar
     ? [...state.calendar].filter(m => !m.played).sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'))[0] || null
@@ -112,9 +123,9 @@ export function renderHomeTab(c) {
               <div class="mvp-avatar">#${esc(mvp.number)}</div>
               <div class="mvp-info">
                 <div class="nm">${esc(mvp.name)}</div>
-                <div class="line">${mvp.pts} pt · ${mvp.stats.orb + mvp.stats.drb} reb · ${mvp.stats.ast} ast vs ${esc(lastGame.oppName)}</div>
+                <div class="line">${mvpLine(mvp, sport)} vs ${esc(lastGame.oppName)}</div>
               </div>
-              <div class="mvp-index"><div class="val">${mvp.ind}</div><div class="lbl">Valutazione</div></div>
+              <div class="mvp-index"><div class="val">${Math.round(mvp.ind * 10) / 10}</div><div class="lbl">${sport.ratingLabel}</div></div>
             </div>
           ` : `<div class="hint">Disponibile dopo la prima partita registrata.</div>`}
         </div>
@@ -122,18 +133,18 @@ export function renderHomeTab(c) {
         <div class="stat-row">
           <div class="mini-card" id="homeRecordCard">
             <div class="lbl">Andamento stagione</div>
-            <div class="val">${state.history.length ? `${record.w}V - ${record.l}S` : '—'}</div>
+            <div class="val">${state.history.length ? (sport.standings.hasDraws ? `${record.w}V - ${record.d}N - ${record.l}P` : `${record.w}V - ${record.l}S`) : '—'}</div>
             <div class="sub">${state.history.length ? streak : 'Nessuna partita giocata'}</div>
           </div>
           <div class="mini-card" id="homePpgCard">
-            <div class="lbl">Media punti</div>
+            <div class="lbl">Media ${sport.match.scoreLabel.toLowerCase()}</div>
             <div class="val" data-count="${ppg != null ? ppg.toFixed(1) : ''}">${ppg != null ? ppg.toFixed(1) : '—'}</div>
             <div class="sub">${state.history.length ? `su ${state.history.length} partite` : 'Nessun dato'}</div>
           </div>
           <div class="mini-card" id="homeScorerCard">
-            <div class="lbl">Miglior marcatore</div>
+            <div class="lbl">Miglior ${sport.seasonColumns[0].label.toLowerCase()}</div>
             <div class="val small">${seasonScorer ? `#${esc(seasonScorer.number)} ${esc(seasonScorer.name)}` : '—'}</div>
-            <div class="sub">${seasonScorer ? `${(seasonScorer.pts / seasonScorer.games).toFixed(1)} pt/partita` : 'Nessun dato'}</div>
+            <div class="sub">${seasonScorer ? `${((seasonScorer[topKey] || 0) / seasonScorer.games).toFixed(1)} ${sport.seasonColumns[0].short}/partita` : 'Nessun dato'}</div>
           </div>
         </div>
 
