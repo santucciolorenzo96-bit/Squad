@@ -1,0 +1,23 @@
+-- ============================================================================
+-- Team Manager Basket — migrazione 017
+-- Scout: il punteggio periodo per periodo
+-- ============================================================================
+-- Esegui UNA VOLTA nel SQL Editor Supabase, dopo la migrazione 016.
+--
+-- Il punteggio avversario si inserisce a fine periodo (quarto nel basket, set
+-- nella pallavolo, tempo nel calcio) invece che colpo su colpo: seguire i
+-- canestri altrui mentre si segue la propria squadra è la prima causa di
+-- tabellini sbagliati.
+--
+-- Serve quindi un posto dove tenere il parziale di ogni periodo. È un array
+-- di oggetti { us, them }, uno per periodo, nell'ordine in cui si giocano:
+--
+--   [{"us": 18, "them": 21}, {"us": 24, "them": 17}]
+--
+-- Nella pallavolo da qui si ricavano i set vinti (il punteggio mostrato in
+-- classifica e nello storico); negli altri sport i punti/gol degli avversari.
+-- Le partite già in archivio restano con l'array vuoto: i loro punteggi
+-- complessivi sono già salvati in team_score e opp_score e non cambiano.
+-- ============================================================================
+
+alter table games add column period_scores jsonb not null default '[]'::jsonb;

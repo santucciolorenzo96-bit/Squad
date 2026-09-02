@@ -94,6 +94,62 @@ export const BASKET = {
   score,
   newStats,
 
+  // ------------------------------------------------------------------ SCOUT
+  // Il basket e' l'unico dei tre in cui si segna un evento ogni pochi secondi:
+  // qui conta il numero di tocchi. Due soli - giocatore, poi azione - con i
+  // comandi che si aprono sotto il pollice invece che in fondo alla pagina.
+  scout: {
+    period: {
+      label: 'Periodo', short: 'P', count: 4, minutes: 10,
+      hasClock: true, direction: 'down',
+      allowExtra: true, extraLabel: 'Supplementare', extraMinutes: 5
+    },
+    ourScore: 'fromActions',
+    opponentScore: 'perPeriod',
+    scoreDisplay: 'sum',
+    trackSeconds: true,
+    teamFouls: true,
+    teamFoulBonus: 5,
+    periodPrompt: 'Quanti punti ha segnato l\u2019avversario in questo periodo?',
+    groups: [
+      { label: 'Tiro da 2', layout: 'pair', actions: [
+        { act: 'fg2_made', label: '\u2713 Canestro', tone: 'made', apply: { fgm2: 1, fga2: 1 }, score: 2 },
+        { act: 'fg2_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga2: 1 } }
+      ]},
+      { label: 'Tiro da 3', layout: 'pair', actions: [
+        { act: 'fg3_made', label: '\u2713 Canestro', tone: 'made', apply: { fgm3: 1, fga3: 1 }, score: 3 },
+        { act: 'fg3_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga3: 1 } }
+      ]},
+      { label: 'Tiro libero', layout: 'pair', actions: [
+        { act: 'ft_made', label: '\u2713 Segnato', tone: 'made', apply: { ftm: 1, fta: 1 }, score: 1 },
+        { act: 'ft_miss', label: '\u2717 Sbagliato', tone: 'miss', apply: { fta: 1 } }
+      ]},
+      { label: 'Rimbalzo', layout: 'pair', actions: [
+        { act: 'orb', label: 'Offensivo', tone: 'neutral', apply: { orb: 1 } },
+        { act: 'drb', label: 'Difensivo', tone: 'neutral', apply: { drb: 1 } }
+      ]},
+      { label: 'Playmaking e difesa', actions: [
+        { act: 'ast', label: 'Assist', tone: 'neutral', apply: { ast: 1 } },
+        { act: 'stl', label: 'Palla rubata', tone: 'neutral', apply: { stl: 1 } },
+        { act: 'blk', label: 'Stoppata', tone: 'neutral', apply: { blk: 1 } }
+      ]},
+      { label: 'Palla persa', actions: [
+        { act: 'tov_generica', label: 'Generica', tone: 'warn', apply: { tov: 1 }, nested: { tovTypes: 'generica' } },
+        { act: 'tov_palleggio', label: 'Palleggio', tone: 'warn', apply: { tov: 1 }, nested: { tovTypes: 'palleggio' } },
+        { act: 'tov_passaggio', label: 'Passaggio', tone: 'warn', apply: { tov: 1 }, nested: { tovTypes: 'passaggio' } },
+        { act: 'tov_passi', label: 'Passi/Sup.', tone: 'warn', apply: { tov: 1 }, nested: { tovTypes: 'passi' } }
+      ]},
+      { label: 'Falli e stoppate subite', actions: [
+        { act: 'pf', label: 'Fallo commesso', tone: 'warn', apply: { pf: 1 }, teamFoul: true },
+        { act: 'pfDrawn', label: 'Fallo subito', tone: 'neutral', apply: { pfDrawn: 1 } },
+        { act: 'blkAgainst', label: 'Stoppata subita', tone: 'warn', apply: { blkAgainst: 1 } }
+      ]}
+    ],
+    // Il riquadro del giocatore in campo mostra questa voce: e' quella che il
+    // segnapunti controlla di continuo per accorgersi di aver sbagliato persona.
+    tileStat: { key: 'pts', short: 'PT' }
+  },
+
   match: {
     liveTracker: true,
     periodLabel: 'Periodo',

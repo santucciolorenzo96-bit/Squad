@@ -80,8 +80,42 @@ export const PALLAVOLO = {
   score: (s) => (s.points || 0),
   newStats,
 
+  // ------------------------------------------------------------------ SCOUT
+  // La pallavolo non ha cronometro, e il punteggio del set non si ricava dai
+  // soli punti dei nostri: dentro ci sono gli errori avversari, che non si
+  // assegnano a nessuno. Quindi a fine set si scrivono i due punteggi.
+  scout: {
+    period: {
+      label: 'Set', short: 'S', count: 5, minutes: null,
+      hasClock: false, direction: null,
+      allowExtra: false
+    },
+    ourScore: 'perPeriod',
+    opponentScore: 'perPeriod',
+    scoreDisplay: 'setsWon',
+    trackSeconds: false,
+    teamFouls: false,
+    periodPrompt: 'Come \u00e8 finito questo set?',
+    groups: [
+      { label: 'Punto fatto', actions: [
+        { act: 'kill', label: 'Attacco vincente', tone: 'made', apply: { points: 1, kills: 1 } },
+        { act: 'block', label: 'Muro punto', tone: 'made', apply: { points: 1, blocks: 1 } },
+        { act: 'ace', label: 'Ace', tone: 'made', apply: { points: 1, aces: 1 } }
+      ]},
+      { label: 'Errore', actions: [
+        { act: 'attack_err', label: 'In attacco', tone: 'warn', apply: { attackErrors: 1 } },
+        { act: 'serve_err', label: 'Al servizio', tone: 'warn', apply: { serveErrors: 1 } },
+        { act: 'recept_err', label: 'In ricezione', tone: 'warn', apply: { receptionErrors: 1 } }
+      ]},
+      { label: 'Difesa', actions: [
+        { act: 'dig', label: 'Difesa', tone: 'neutral', apply: { digs: 1 } }
+      ]}
+    ],
+    tileStat: { key: 'points', short: 'PT' }
+  },
+
   match: {
-    liveTracker: false,
+    liveTracker: true,
     periodLabel: 'Set',
     defaultPeriods: 5,
     defaultPeriodMinutes: null,

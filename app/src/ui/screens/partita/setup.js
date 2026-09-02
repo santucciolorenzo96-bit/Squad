@@ -1,58 +1,64 @@
 import { state } from '../../../state.js';
-import { esc } from '../../../utils/format.js';
-import { clamp } from '../../../utils/format.js';
-import { newPlayerStats } from '../../../utils/stats.js';
+import { esc, clamp } from '../../../utils/format.js';
+import { currentSport } from '../../../utils/sports/index.js';
 import { toast, withButtonLoading } from '../../modal.js';
 import { startGame } from '../../../api/games.js';
 import { fetchPlayerPhotoUrls } from '../../../api/roster.js';
 import { avatarHtml, wireAvatarClicks } from '../../playerAvatar.js';
 import { renderLiveMatch } from './tracker.js';
-import { currentSport } from '../../../utils/sports/index.js';
 
 export function renderPartitaTab(c) {
-  // Il cronometro dal vivo è costruito sulla pallacanestro: periodi, falli di
-  // squadra, quintetto. Negli altri sport la partita si registra a fine gara,
-  // che è anche come lavorano davvero le società dilettantistiche.
-  const sport = currentSport();
-  if (!sport.match.liveTracker) {
-    c.innerHTML = `<div class="placeholder-card">
-      <span class="tag">${esc(sport.label)}</span>
-      Il tabellino dal vivo non è ancora disponibile per questo sport.<br><br>
-      Le partite si registrano a fine gara dal <b>Calendario</b>: segna il risultato
-      e la partita entra in archivio, in classifica e nelle statistiche.
-    </div>`;
-    return;
-  }
   if (state.liveGame) { renderLiveMatch(c); }
   else { renderMatchSetup(c); }
 }
 
 async function renderMatchSetup(c) {
-  if (state.roster.length < 5) {
-    c.innerHTML = `<div class="placeholder-card">Servono almeno 5 giocatori in rosa per avviare una partita.<br><br>Vai nella sezione <b>Rosa</b> per aggiungerli.</div>`;
+  const sport = currentSport();
+  const conf = sport.scout;
+  const onField = sport.match.minOnField;
+  const startersLabel = sport.field.onFieldLabel.toLowerCase();
+
+  if (state.roster.length < onField) {
+    c.innerHTML = `<div class="placeholder-card">
+      Servono almeno ${onField} giocatori in rosa per avviare una partita di ${esc(sport.label.toLowerCase())}.<br><br>
+      Vai nella sezione <b>Rosa</b> per aggiungerli.
+    </div>`;
     return;
   }
+
   let starters = {};
   c.innerHTML = `
     <div class="settings-col">
     <div class="card">
       <h2>Nuova partita</h2>
       <div class="field"><label>Avversario</label><input type="text" id="mOpp" placeholder="Nome squadra avversaria"></div>
-      <div class="row2">
-        <div class="field"><label>Durata periodo (min)</label><input type="number" id="mQlen" value="10" min="1" max="60"></div>
-        <div class="field"><label>Numero periodi</label><input type="number" id="mNq" value="4" min="1" max="8"></div>
+      <div class="${conf.period.hasClock ? 'row2' : ''}">
+        <div class="field"><label>Numero ${conf.period.label.toLowerCase()}</label>
+          <input type="number" id="mNq" value="${conf.period.count}" min="1" max="9"></div>
+        ${conf.period.hasClock ? `<div class="field"><label>Durata (min)</label>
+          <input type="number" id="mQlen" value="${conf.period.minutes}" min="1" max="60"></div>` : ''}
       </div>
+      ${conf.period.hasClock ? '' : `<div class="hint">Nella pallavolo non c'è cronometro: si passa al set successivo quando lo chiudi tu.</div>`}
     </div>
     <div class="card">
-      <h2>Quintetto titolare (scegli 5)</h2>
+      <h2>Chi parte in campo (scegli ${onField})</h2>
+      <div class="hint" style="margin-top:0;">Sono i giocatori a cui potrai assegnare le azioni fin dal primo minuto. I cambi si fanno durante la partita.</div>
       <div id="starterList"></div>
       <div class="error-msg" id="mError"></div>
     </div>
     <button class="btn btn-primary" id="mStart">Inizia partita</button>
     </div>
   `;
+
   const holder = document.getElementById('starterList');
   const photoUrls = await fetchPlayerPhotoUrls(state.roster).catch(() => ({}));
+  const countLabel = () => {
+    const n = Object.keys(starters).length;
+    document.getElementById('mStart').textContent = n === onField
+      ? 'Inizia partita'
+      : `Inizia partita (${n}/${onField})`;
+  };
+
   state.roster.forEach(p => {
     const row = document.createElement('div');
     row.className = 'list-row';
@@ -61,27 +67,46 @@ async function renderMatchSetup(c) {
     row.onclick = () => {
       const count = Object.keys(starters).length;
       if (starters[p.id]) { delete starters[p.id]; }
-      else { if (count >= 5) { toast('Hai già selezionato 5 titolari'); return; } starters[p.id] = true; }
-      document.getElementById('tag_' + p.id).textContent = starters[p.id] ? 'Titolare' : 'Panchina';
-      document.getElementById('tag_' + p.id).className = 'role-badge ' + (starters[p.id] ? 'role-admin' : '');
-      if (!starters[p.id]) document.getElementById('tag_' + p.id).style.cssText = 'background:var(--panel2);color:var(--dim);';
+      else {
+        if (count >= onField) { toast(`Hai già scelto ${onField} giocatori`); return; }
+        starters[p.id] = true;
+      }
+      const tag = document.getElementById('tag_' + p.id);
+      tag.textContent = starters[p.id] ? 'In campo' : 'Panchina';
+      tag.className = 'role-badge ' + (starters[p.id] ? 'role-admin' : '');
+      if (!starters[p.id]) tag.style.cssText = 'background:var(--panel2);color:var(--dim);';
+      else tag.style.cssText = '';
+      countLabel();
     };
     holder.appendChild(row);
   });
   wireAvatarClicks(holder, photoUrls);
+  countLabel();
 
   document.getElementById('mStart').onclick = (e) => withButtonLoading(e.currentTarget, async () => {
     const errEl = document.getElementById('mError');
     const oppName = document.getElementById('mOpp').value.trim() || 'Avversari';
-    const qLen = clamp(parseInt(document.getElementById('mQlen').value) || 10, 1, 60) * 60;
-    const numQ = clamp(parseInt(document.getElementById('mNq').value) || 4, 1, 8);
+    const lenEl = document.getElementById('mQlen');
+    const qLen = conf.period.hasClock
+      ? clamp(parseInt(lenEl.value) || conf.period.minutes, 1, 60) * 60
+      : 0;
+    const numQ = clamp(parseInt(document.getElementById('mNq').value) || conf.period.count, 1, 9);
     const starterIds = Object.keys(starters);
-    if (starterIds.length !== 5) { errEl.textContent = 'Seleziona esattamente 5 titolari (attualmente ' + starterIds.length + ').'; return; }
+    if (starterIds.length !== onField) {
+      errEl.textContent = `Scegli esattamente ${onField} giocatori per il ${startersLabel} (adesso ne hai ${starterIds.length}).`;
+      return;
+    }
 
-    const players = state.roster.map(p => ({ id: p.id, number: p.number, name: p.name, onCourt: !!starters[p.id], stats: newPlayerStats() }));
+    const players = state.roster.map(p => ({
+      id: p.id, number: p.number, name: p.name,
+      onCourt: !!starters[p.id], stats: sport.newStats()
+    }));
     const draftGame = {
-      oppName, quarterLength: qLen, numQuarters: numQ, quarter: 1, clock: qLen, clockRunning: false,
-      teamScore: 0, oppScore: 0, players, quarterFouls: { 1: 0 }
+      oppName, quarterLength: qLen, numQuarters: numQ, quarter: 1,
+      clock: conf.period.direction === 'up' ? 0 : qLen, clockRunning: false,
+      teamScore: 0, oppScore: 0, players,
+      quarterFouls: conf.teamFouls ? { 1: 0 } : {},
+      periodScores: []
     };
     state.undoStack = []; state.selectedCourtId = null; state.pendingBenchId = null;
     state.liveGame = await startGame(state.teamProfile.id, state.activeSectorId, draftGame, state.currentUser.id);

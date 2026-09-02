@@ -86,8 +86,43 @@ export const CALCIO = {
   score: (s) => (s.goals || 0),
   newStats,
 
+  // ------------------------------------------------------------------ SCOUT
+  // Nel calcio gli eventi da segnare sono pochi e distanti fra loro: non serve
+  // velocita', serve che a fine primo tempo si ricordi cosa e' successo. Undici
+  // in campo, quindi i riquadri vanno a griglia e non in fila.
+  scout: {
+    period: {
+      label: 'Tempo', short: 'T', count: 2, minutes: 45,
+      hasClock: true, direction: 'up',
+      allowExtra: true, extraLabel: 'Supplementare', extraMinutes: 15
+    },
+    ourScore: 'fromActions',
+    opponentScore: 'perPeriod',
+    scoreDisplay: 'sum',
+    trackSeconds: true,
+    teamFouls: false,
+    periodPrompt: 'Quanti gol ha segnato l\u2019avversario in questo tempo?',
+    groups: [
+      { label: 'Attacco', actions: [
+        { act: 'goal', label: 'Gol', tone: 'made', apply: { goals: 1, shots: 1, shotsOnTarget: 1 }, score: 1 },
+        { act: 'assist', label: 'Assist', tone: 'neutral', apply: { assists: 1 } },
+        { act: 'shot_on', label: 'Tiro in porta', tone: 'neutral', apply: { shots: 1, shotsOnTarget: 1 } },
+        { act: 'shot_off', label: 'Tiro fuori', tone: 'miss', apply: { shots: 1 } }
+      ]},
+      { label: 'Portiere', layout: 'pair', actions: [
+        { act: 'save', label: 'Parata', tone: 'made', apply: { saves: 1 } },
+        { act: 'conceded', label: 'Gol subito', tone: 'warn', apply: { goalsAgainst: 1 } }
+      ]},
+      { label: 'Disciplina', layout: 'pair', actions: [
+        { act: 'yellow', label: 'Ammonizione', tone: 'warn', apply: { yellow: 1 } },
+        { act: 'red', label: 'Espulsione', tone: 'miss', apply: { red: 1 } }
+      ]}
+    ],
+    tileStat: { key: 'goals', short: 'GL' }
+  },
+
   match: {
-    liveTracker: false,
+    liveTracker: true,
     periodLabel: 'Tempo',
     defaultPeriods: 2,
     defaultPeriodMinutes: 45,

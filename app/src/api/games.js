@@ -14,6 +14,7 @@ function fromDbGame(row) {
     teamScore: row.team_score,
     oppScore: row.opp_score,
     quarterFouls: row.quarter_fouls || {},
+    periodScores: row.period_scores || [],
     players: row.players || [],
     startedBy: row.started_by,
     startedAt: row.started_at,
@@ -32,6 +33,7 @@ function toDbPatch(g) {
   if ('teamScore' in g) patch.team_score = g.teamScore;
   if ('oppScore' in g) patch.opp_score = g.oppScore;
   if ('quarterFouls' in g) patch.quarter_fouls = g.quarterFouls;
+  if ('periodScores' in g) patch.period_scores = g.periodScores;
   if ('players' in g) patch.players = g.players;
   return patch;
 }

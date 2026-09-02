@@ -7,6 +7,16 @@ function buildBoxScoreRows(playersArr) {
   return [...playersArr].sort((a, b) => (b.onCourt ? 1 : 0) - (a.onCourt ? 1 : 0) || (playerPtsOf(b) - playerPtsOf(a)));
 }
 
+// I parziali di periodo, comuni a tutti gli sport: dicono come si e' arrivati
+// al risultato, che dal solo totale non si legge.
+function periodStripHtml(game) {
+  const periods = game.periodScores || [];
+  if (!periods.length) return '';
+  const short = currentSport().scout.period.short;
+  return `<div class="period-strip" style="margin:0 0 12px;">` + periods.map((x, i) =>
+    `<div class="period-chip done"><i>${short}${i + 1}</i><b>${x ? x.us + '–' + x.them : '—'}</b></div>`).join('') + `</div>`;
+}
+
 export function openBoxScoreModal(game) {
   const root = document.getElementById('modalRoot');
   // Il tabellino dettagliato esiste solo per la pallacanestro: gli altri sport
@@ -26,6 +36,7 @@ export function openBoxScoreModal(game) {
   });
   root.innerHTML = `<div class="modal-overlay" id="modalOverlay"><div class="modal-box" style="max-width:96vw;width:700px;">
     <h3>${esc(state.teamProfile.name)} ${game.teamScore} — ${game.oppScore} ${esc(game.oppName || 'Avversari')}</h3>
+    ${periodStripHtml(game)}
     <div class="boxscore-wrap"><table class="boxscore"><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rowsHtml}</tbody></table></div>
     <div class="modal-actions"><button class="btn btn-secondary" id="csvExportBtn">⬇ CSV</button><button class="btn btn-primary" id="modalCloseBtn" style="width:auto;">Chiudi</button></div>
   </div></div>`;
@@ -34,24 +45,29 @@ export function openBoxScoreModal(game) {
   document.getElementById('csvExportBtn').onclick = () => exportCsv(game);
 }
 
-// Tabellino generico: punteggio e le voci in evidenza dello sport.
+// Tabellino degli sport senza colonne cestistiche: le voci le dichiara il
+// descrittore, così calcio e pallavolo mostrano quello che hanno davvero
+// registrato invece di venti colonne vuote.
 function openSimpleBoxScore(game) {
   const sport = currentSport();
-  const root = document.getElementById('modalRoot');
+  const cols = sport.seasonColumns;
+  const root = document.getElementById("modalRoot");
   const rows = [...(game.players || [])]
-    .sort((a, b) => playerPtsOf(b, sport) - playerPtsOf(a, sport))
-    .map(p => `<tr><td>${esc(p.number)}</td><td class="name-cell">${esc(p.name)}</td>`
-      + sport.headline.map(h => `<td>${sport.aggregate[h.key](p) || 0}</td>`).join('')
-      + `</tr>`).join('');
-  root.innerHTML = `<div class="modal-overlay" id="modalOverlay"><div class="modal-box" style="max-width:96vw;width:520px;">
-    <h3>${esc(state.teamProfile.name)} ${game.teamScore} — ${game.oppScore} ${esc(game.oppName || 'Avversari')}</h3>
+    .sort((a, b) => (b.onCourt ? 1 : 0) - (a.onCourt ? 1 : 0) || (playerPtsOf(b, sport) - playerPtsOf(a, sport)))
+    .map(p => `<tr class="${p.onCourt ? "on-court" : ""}"><td>${esc(p.number)}</td><td class="name-cell">${esc(p.name)}</td>`
+      + cols.map(col => `<td>${(sport.aggregate[col.key] ? sport.aggregate[col.key](p) : 0) || 0}</td>`).join("")
+      + `</tr>`).join("");
+
+  root.innerHTML = `<div class="modal-overlay" id="modalOverlay"><div class="modal-box" style="max-width:96vw;width:640px;">
+    <h3>${esc(state.teamProfile.name)} ${game.teamScore} — ${game.oppScore} ${esc(game.oppName || "Avversari")}</h3>
+    ${periodStripHtml(game)}
     ${rows
-      ? `<div class="boxscore-wrap"><table class="boxscore"><thead><tr><th>#</th><th>Giocatore</th>${sport.headline.map(h => `<th>${h.short}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`
-      : '<div class="hint">Nessuna statistica per giocatore registrata per questa partita.</div>'}
+      ? `<div class="boxscore-wrap"><table class="boxscore"><thead><tr><th>#</th><th>Giocatore</th>${cols.map(col => `<th>${col.short}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`
+      : "<div class='hint'>Nessuna statistica per giocatore registrata per questa partita.</div>"}
     <div class="modal-actions"><button class="btn btn-primary" id="modalCloseBtn" style="width:100%;">Chiudi</button></div>
   </div></div>`;
-  document.getElementById('modalCloseBtn').onclick = () => { root.innerHTML = ''; };
-  document.getElementById('modalOverlay').onclick = (e) => { if (e.target.id === 'modalOverlay') root.innerHTML = ''; };
+  document.getElementById("modalCloseBtn").onclick = () => { root.innerHTML = ""; };
+  document.getElementById("modalOverlay").onclick = (e) => { if (e.target.id === "modalOverlay") root.innerHTML = ""; };
 }
 
 function exportCsv(game) {

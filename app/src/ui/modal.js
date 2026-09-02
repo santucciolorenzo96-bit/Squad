@@ -58,7 +58,7 @@ export function formModal(title, fieldsHtml, onSubmit, opts) {
     <div class="error-msg" id="modalError"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="modalCancel">Annulla</button>
-      <button class="btn btn-primary" id="modalConfirm" style="width:auto;">Salva</button>
+      <button class="btn btn-primary" id="modalConfirm" style="width:auto;">${esc((opts && opts.confirmLabel) || 'Salva')}</button>
     </div></div></div>`;
   const cancelBtn = document.getElementById('modalCancel');
   const confirmBtn = document.getElementById('modalConfirm');
