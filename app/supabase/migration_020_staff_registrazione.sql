@@ -21,6 +21,56 @@
 -- presidente e allenatore. Quelli continua a darli solo un amministratore.
 -- ============================================================================
 
+-- ----------------------------------------------------------------------------
+-- Dipendenze dalla migrazione 011, che risulta non essere mai passata
+-- ----------------------------------------------------------------------------
+-- L'errore "function is_admin() does not exist" dice questo: is_admin esiste
+-- solo nella 011. Ne discendono altre due cose, entrambe già attive adesso:
+--
+--   1. il vincolo sui ruoli è ancora quello della 002, che ammette solo
+--      admin, allenatore, segnapunti e famiglia. Registrarsi come Genitore o
+--      Atleta viene rifiutato dal database, e gli account che nell'elenco
+--      Utenti compaiono come "UNDEFINED" hanno role = 'famiglia', un valore
+--      che l'app non conosce più;
+--   2. is_team_manager() è quella della 010, che elenca solo admin e
+--      allenatore: uno staff non avrebbe alcun potere nemmeno con i settori
+--      assegnati, e il presidente nemmeno.
+--
+-- Le righe qui sotto sono copiate senza modifiche dalla 011 e sono tutte
+-- ripetibili, quindi questa migrazione funziona sia che la 011 sia passata sia
+-- che non lo sia. Resta comunque consigliato eseguire la 011 per intero: porta
+-- anche le policy su squadra, settori, rosa e loghi che qui non sono comprese.
+
+-- Il vincolo si allarga, si migrano le righe vecchie, poi si stringe.
+alter table profiles drop constraint if exists profiles_role_check;
+alter table profiles add constraint profiles_role_check
+  check (role in ('admin','presidente','staff','allenatore','segnapunti','famiglia','genitore','atleta'));
+
+update profiles set role = 'genitore' where role = 'famiglia';
+
+alter table profiles drop constraint profiles_role_check;
+alter table profiles add constraint profiles_role_check
+  check (role in ('admin','presidente','staff','allenatore','segnapunti','genitore','atleta'));
+
+create or replace function is_admin()
+returns boolean language sql stable security definer set search_path = public as $$
+  select my_role() in ('admin', 'presidente')
+$$;
+
+create or replace function is_team_manager()
+returns boolean language sql stable security definer set search_path = public as $$
+  select my_role() in ('admin', 'presidente', 'allenatore', 'staff')
+$$;
+
+create or replace function can_manage_sector(p_sector_id uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select is_team_manager() and has_sector_access(p_sector_id)
+$$;
+
+-- ----------------------------------------------------------------------------
+-- La registrazione accetta anche lo staff
+-- ----------------------------------------------------------------------------
+
 create or replace function join_team(
   p_invite_code text, p_display_name text, p_role text default 'genitore'
 ) returns uuid
@@ -52,9 +102,9 @@ begin
 end;
 $$;
 
--- ============================================================================
+-- ----------------------------------------------------------------------------
 -- Chiusura di una falla che l'auto-registrazione dello staff renderebbe reale
--- ============================================================================
+-- ----------------------------------------------------------------------------
 -- La policy di scrittura sulla classifica accettava `sector_id is null` per
 -- chiunque fosse team manager, senza controllo di settore: sono righe legacy,
 -- create prima che la classifica fosse divisa per categoria. Con lo staff che
