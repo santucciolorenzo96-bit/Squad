@@ -19,6 +19,8 @@ export const state = {
   pendingDocsCount: 0,
   expiringDocsCount: 0,
   presenzePeriod: 'month',
+  classificaSection: 'classifica',
+  pendingScoutMatch: null,  // partita di calendario scelta all'avvio dello scout
   financeSubTab: 'conti',
   financeFiscalYears: [],
   financeCategories: [],
@@ -55,6 +57,8 @@ export function resetState() {
   state.pendingDocsCount = 0;
   state.expiringDocsCount = 0;
   state.financeSubTab = 'conti';
+  state.classificaSection = 'classifica';
+  state.pendingScoutMatch = null;
   state.financeFiscalYears = [];
   state.financeCategories = [];
   state.financeCostCenters = [];

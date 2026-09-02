@@ -140,8 +140,9 @@ export const CALCIO = {
     winLabel: 'V', drawLabel: 'N', lossLabel: 'P',
     pointsHint: '3 punti a vittoria, 1 a pareggio, 0 a sconfitta.',
     extras: [
-      { key: 'gf', short: 'GF', label: 'Gol fatti' },
-      { key: 'gs', short: 'GS', label: 'Gol subiti' }
-    ]
+      { key: 'gf', short: 'GF', label: 'Gol fatti', role: 'scored' },
+      { key: 'gs', short: 'GS', label: 'Gol subiti', role: 'conceded' }
+    ],
+    pointsFor: (scored, conceded) => (scored > conceded ? 3 : (scored === conceded ? 1 : 0))
   }
 };

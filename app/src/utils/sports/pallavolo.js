@@ -128,8 +128,13 @@ export const PALLAVOLO = {
     winLabel: 'V', lossLabel: 'P',
     pointsHint: '3 punti se vinci 3-0 o 3-1, 2 se vinci 3-2, 1 se perdi 2-3.',
     extras: [
-      { key: 'sv', short: 'SV', label: 'Set vinti' },
-      { key: 'sp', short: 'SP', label: 'Set persi' }
-    ]
+      { key: 'sv', short: 'SV', label: 'Set vinti', role: 'scored' },
+      { key: 'sp', short: 'SP', label: 'Set persi', role: 'conceded' }
+    ],
+    // Nella pallavolo i punti dipendono da quanto e' stata combattuta: chi
+    // vince 3-2 ne prende due, chi perde 2-3 ne prende comunque uno.
+    pointsFor: (scored, conceded) => (scored > conceded
+      ? (conceded <= 1 ? 3 : 2)
+      : (scored === 2 ? 1 : 0))
   }
 };

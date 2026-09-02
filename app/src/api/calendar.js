@@ -37,3 +37,17 @@ export async function removeCalendarMatch(id) {
   const { error } = await supabase.from('calendar').delete().eq('id', id);
   if (error) throw error;
 }
+
+// Partite di TUTTA la società in una finestra di date, non del solo settore
+// attivo: quando si apre lo scout serve sapere cosa si gioca oggi nel club,
+// non nella categoria che si stava guardando. Le RLS filtrano già ai settori
+// accessibili a chi guarda.
+export async function fetchCalendarInRange(teamId, fromDate, toDate) {
+  const { data, error } = await supabase.from('calendar')
+    .select('*, sectors(name)')
+    .eq('team_id', teamId).eq('played', false)
+    .gte('date', fromDate).lte('date', toDate)
+    .order('date', { nullsFirst: false }).order('time', { nullsFirst: false });
+  if (error) throw error;
+  return data;
+}

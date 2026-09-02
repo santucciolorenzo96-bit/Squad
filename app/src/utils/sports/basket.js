@@ -169,7 +169,12 @@ export const BASKET = {
   standings: {
     hasDraws: false,
     winLabel: 'V', lossLabel: 'S',
-    pointsHint: 'In genere 2 punti a vittoria, 0 a sconfitta.',
-    extras: []
+    pointsHint: 'Due punti a vittoria, zero a sconfitta.',
+    extras: [
+      { key: 'pf', short: 'PF', label: 'Punti fatti', role: 'scored' },
+      { key: 'ps', short: 'PS', label: 'Punti subiti', role: 'conceded' }
+    ],
+    // Punti di classifica guadagnati da chi ha segnato  contro .
+    pointsFor: (scored, conceded) => (scored > conceded ? 2 : 0)
   }
 };

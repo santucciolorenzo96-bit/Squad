@@ -3,6 +3,8 @@ import { esc, fmtClock, fmtMin } from '../../../utils/format.js';
 import { currentSport } from '../../../utils/sports/index.js';
 import { confirmModal, formModal, toast } from '../../modal.js';
 import { saveLiveGame as apiSaveLiveGame, endGame as apiEndGame } from '../../../api/games.js';
+import { updateCalendarMatch } from '../../../api/calendar.js';
+import { upsertOurLeagueMatch } from '../../../api/leagueMatches.js';
 import { openBoxScoreModal } from './boxscore.js';
 
 // Scout dal vivo. Non conosce nessuno sport: legge da `sport.scout` quali
@@ -248,6 +250,7 @@ function onEndGame() {
     await apiEndGame(finished.id, finished);
     state.history.push({ ...finished, date: new Date().toISOString() });
     state.liveGame = null;
+    await closeTheLoop(finished);
     toast('Partita salvata nello storico');
     const { renderApp } = await import('../../layout.js');
     renderApp();
@@ -518,4 +521,29 @@ function applyStatAction(playerId, act) {
   updateScoreboardOnly();
   renderCourtAndBench();
   if (navigator.vibrate) navigator.vibrate(15);
+}
+
+// Una partita seguita con lo scout non deve restare "da giocare" nel calendario
+// né assente dalla classifica: sarebbero tre schermate che raccontano cose
+// diverse dello stesso evento. Se qualcosa qui fallisce la partita resta
+// comunque salvata nello storico — si avvisa e basta, non si annulla nulla.
+async function closeTheLoop(finished) {
+  if (!finished.calendarMatchId) return;
+  const match = state.calendar.find(m => m.id === finished.calendarMatchId);
+  if (!match) return;
+  try {
+    const updated = await updateCalendarMatch(match.id, {
+      played: true, team_score: finished.teamScore, opp_score: finished.oppScore
+    });
+    Object.assign(match, updated);
+    await upsertOurLeagueMatch(state.teamProfile.id, state.activeSectorId, {
+      giornata: match.giornata, date: match.date,
+      ourName: state.teamProfile.name, opponent: match.opponent,
+      isHome: match.home !== false,
+      ourScore: finished.teamScore, oppScore: finished.oppScore
+    });
+  } catch (e) {
+    console.error(e);
+    toast('Partita salvata, ma calendario e classifica non si sono aggiornati.');
+  }
 }
