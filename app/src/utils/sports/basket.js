@@ -80,7 +80,7 @@ export const BASKET = {
     { key: 'tov', short: 'PP', label: 'Palle perse' }
   ],
   seasonLegend: 'PG = partite giocate · PPG/RPG/APG = medie a partita · STP = stoppate fatte · PP = palle perse',
-  showMinutes: true,
+  showMinutes: false,
 
   ratingLabel: 'Valutazione',
   rating(p) {
@@ -95,19 +95,26 @@ export const BASKET = {
   newStats,
 
   // ------------------------------------------------------------------ SCOUT
-  // Il basket e' l'unico dei tre in cui si segna un evento ogni pochi secondi:
-  // qui conta il numero di tocchi. Due soli - giocatore, poi azione - con i
+  // Il basket è l'unico dei tre in cui si segna un evento ogni pochi secondi:
+  // qui conta il numero di tocchi. Due soli — giocatore, poi azione — con i
   // comandi che si aprono sotto il pollice invece che in fondo alla pagina.
+  //
+  // Niente cronometro, e quindi niente minuti giocati. Nel basket il tempo si
+  // ferma di continuo, ed è l'unica statistica che si corrompe da sola: scorre
+  // anche quando nessuno la guarda. Una pausa dimenticata durante due tiri
+  // liberi regala novanta secondi fantasma a cinque giocatori insieme, in
+  // silenzio. Ogni altro dato nasce da un tocco, quindi se manca è un buco che
+  // si vede. Riattivarlo un domani è una riga: hasClock e trackSeconds.
   scout: {
     period: {
-      label: 'Periodo', short: 'P', count: 4, minutes: 10,
-      hasClock: true, direction: 'down',
-      allowExtra: true, extraLabel: 'Supplementare', extraMinutes: 5
+      label: 'Periodo', short: 'P', count: 4, minutes: null,
+      hasClock: false, direction: null,
+      allowExtra: true, extraLabel: 'Supplementare'
     },
     ourScore: 'fromActions',
     opponentScore: 'perPeriod',
     scoreDisplay: 'sum',
-    trackSeconds: true,
+    trackSeconds: false,
     teamFouls: true,
     teamFoulBonus: 5,
     periodPrompt: 'Quanti punti ha segnato l\u2019avversario in questo periodo?',

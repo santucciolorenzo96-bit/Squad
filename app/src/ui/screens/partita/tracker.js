@@ -158,17 +158,26 @@ function askPeriodScore({ thenAdvance }) {
       - (g.periodScores || []).slice(0, idx).reduce((n, x) => n + ((x && x.us) || 0), 0)
     : (existing ? existing.us : 0);
 
+  // Il punteggio avversario lo copi dal tabellone, quindi è verità; il nostro
+  // è dedotto dalle azioni assegnate. Se ti sfugge un canestro il nostro resta
+  // sbagliato per sempre, e senza un momento di confronto non te ne accorgi
+  // mai. La chiusura del periodo è quel momento: stai già guardando il
+  // tabellone, quindi il nostro totale te lo metto accanto.
   formModal(`${conf.period.label} ${g.quarter}`, `
     <div class="hint" style="margin-top:0;">${esc(conf.periodPrompt)}</div>
     <div class="row2">
       <div class="field"><label>${esc(state.teamProfile.name)}</label>
         <input type="number" id="psUs" min="0" inputmode="numeric" value="${Math.max(0, ourNow)}" ${ourFromActions ? 'readonly' : ''}>
-        ${ourFromActions ? '<div class="hint" style="margin:4px 0 0;">Calcolato dalle azioni assegnate.</div>' : ''}
       </div>
       <div class="field"><label>${esc(g.oppName || 'Avversari')}</label>
         <input type="number" id="psThem" min="0" inputmode="numeric" value="${existing ? existing.them : 0}">
       </div>
     </div>
+    ${ourFromActions ? `<div class="score-check">
+      Il nostro punteggio arriva dalle azioni che hai assegnato.
+      <b>Guarda il tabellone: dice ${Math.max(0, ourNow)}?</b>
+      Se il numero è più alto ti è sfuggito un canestro da assegnare a qualcuno.
+    </div>` : ''}
   `, async () => {
     const us = Math.max(0, parseInt(document.getElementById('psUs').value) || 0);
     const them = Math.max(0, parseInt(document.getElementById('psThem').value) || 0);
@@ -176,7 +185,9 @@ function askPeriodScore({ thenAdvance }) {
     if (!g.periodScores) g.periodScores = [];
     while (g.periodScores.length <= idx) g.periodScores.push(null);
     g.periodScores[idx] = { us, them };
-    if (thenAdvance) advancePeriod();
+    // formModal svuota modalRoot dopo questo callback: avanzare subito
+    // cancellerebbe la conferma del supplementare appena aperta da advancePeriod.
+    if (thenAdvance) setTimeout(advancePeriod, 0);
     else { recomputeScores(); persistLiveGame(); updateScoreboardOnly(); renderCourtAndBench(); }
   }, { confirmLabel: thenAdvance ? 'Salva e vai avanti' : 'Salva' });
 }

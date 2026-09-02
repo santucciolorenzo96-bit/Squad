@@ -759,3 +759,10 @@ table.boxscore tr:hover td{background:var(--tint-hover);}
 
 /* Undici in campo non stanno in fila: la griglia va a capo. */
 .court-row.wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;overflow:visible;}
+
+/* Confronto col tabellone alla chiusura del periodo: il nostro punteggio è
+   dedotto dalle azioni, quello avversario copiato. Questo è l'unico momento
+   in cui un canestro non assegnato si può ancora recuperare. */
+.score-check{margin-top:10px;padding:11px 13px;border-radius:12px;background:var(--amber-dim);
+  font-size:12px;line-height:1.55;color:var(--text);}
+.score-check b{display:block;margin:3px 0;font-size:13px;}

@@ -88,18 +88,23 @@ export const CALCIO = {
 
   // ------------------------------------------------------------------ SCOUT
   // Nel calcio gli eventi da segnare sono pochi e distanti fra loro: non serve
-  // velocita', serve che a fine primo tempo si ricordi cosa e' successo. Undici
+  // velocità, serve che a fine primo tempo si ricordi cosa è successo. Undici
   // in campo, quindi i riquadri vanno a griglia e non in fila.
+  //
+  // Il cronometro qui sarebbe accurato — non si ferma mai — ma resta una cosa
+  // da ricordarsi di far partire, e dimenticarla produce un dato peggiore di
+  // non averlo. Se servono i minuti giocati per il minutaggio giovanile,
+  // bastano hasClock, direction 'up' e trackSeconds.
   scout: {
     period: {
-      label: 'Tempo', short: 'T', count: 2, minutes: 45,
-      hasClock: true, direction: 'up',
-      allowExtra: true, extraLabel: 'Supplementare', extraMinutes: 15
+      label: 'Tempo', short: 'T', count: 2, minutes: null,
+      hasClock: false, direction: null,
+      allowExtra: true, extraLabel: 'Supplementare'
     },
     ourScore: 'fromActions',
     opponentScore: 'perPeriod',
     scoreDisplay: 'sum',
-    trackSeconds: true,
+    trackSeconds: false,
     teamFouls: false,
     periodPrompt: 'Quanti gol ha segnato l\u2019avversario in questo tempo?',
     groups: [
