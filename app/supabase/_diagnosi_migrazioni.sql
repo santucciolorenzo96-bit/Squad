@@ -11,6 +11,12 @@
 --
 -- Eseguila nel SQL Editor di Supabase quando qualcosa non torna, o dopo aver
 -- applicato una serie di migrazioni per controllare di non averne persa una.
+--
+-- NOTA sulle funzioni: la presenza si verifica leggendo pg_proc, non con
+-- to_regproc(). to_regproc vuole il NOME della funzione, non la firma con le
+-- parentesi: to_regproc('is_admin()') restituisce NULL sempre, anche quando la
+-- funzione esiste, e la migrazione risulterebbe mancante per sbaglio. Era
+-- esattamente il difetto della prima versione di questo file.
 -- ============================================================================
 
 with atteso(ordine, migrazione, descrizione, presente) as (
@@ -33,17 +39,20 @@ with atteso(ordine, migrazione, descrizione, presente) as (
          exists (select 1 from information_schema.columns
                  where table_name = 'profiles' and column_name = 'can_upload_documents')),
     (9,  '009 profilo sicuro', 'Chiusura dell''escalation di privilegi sul profilo',
-         to_regproc('public.update_my_profile(text,text)') is not null),
+         exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                 where n.nspname = 'public' and p.proname = 'update_my_profile')),
     (10, '010 ruoli',          'Permessi di settore e permesso tabellino',
          exists (select 1 from information_schema.columns
                  where table_name = 'profiles' and column_name = 'can_score_matches')),
     (11, '011 nuovi ruoli',    'Sette ruoli: presidente, staff, genitore, atleta',
-         to_regproc('public.is_admin()') is not null),
+         exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                 where n.nspname = 'public' and p.proname = 'is_admin')),
     (12, '012 dati fiscali',   'Dati fiscali della società per la modulistica',
          exists (select 1 from information_schema.columns
                  where table_name = 'teams' and column_name = 'vat_number')),
     (13, '013 fix finanza',    'Fine della ricorsione infinita sulle entrate',
-         to_regproc('public.my_finance_role()') is not null),
+         exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                 where n.nspname = 'public' and p.proname = 'my_finance_role')),
     (14, '014 comunicazioni',  'Convocazioni con conferme tracciate',
          to_regclass('public.communications') is not null),
     (15, '015 scheda evolutiva','Obiettivo e nota dell''allenatore per atleta',
