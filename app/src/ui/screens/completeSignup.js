@@ -11,11 +11,12 @@ import { SPORT_LIST } from '../../utils/sports/index.js';
 // registrarsi di nuovo, che con l'email già esistente non manda nessuna mail.
 // Un vicolo cieco. Qui invece la sessione c'è già: bastano le RPC.
 
-const ROLE_HINTS = {
-  atleta: 'Un amministratore collegherà il tuo account alla tua scheda giocatore.',
-  genitore: 'Un amministratore collegherà il tuo account a tuo figlio.',
-  segnapunti: 'Potrai tenere il tabellino delle partite dei settori assegnati.'
-};
+const ROLES = [
+  { key: 'atleta', label: 'Sono un atleta', hint: 'Un amministratore collegherà il tuo account alla tua scheda giocatore.' },
+  { key: 'genitore', label: 'Sono un genitore', hint: 'Un amministratore collegherà il tuo account a tuo figlio.' },
+  { key: 'staff', label: 'Faccio parte dello staff', hint: 'Allenatore, dirigente o collaboratore: un amministratore ti assegnerà categorie e permessi.' },
+  { key: 'segnapunti', label: 'Faccio lo scout', hint: 'Seguirai le partite col tabellino dal vivo, nelle categorie assegnate.' }
+];
 
 export function renderCompleteSignup(email, pendingError) {
   const root = document.getElementById('root');
@@ -41,14 +42,11 @@ export function renderCompleteSignup(email, pendingError) {
       <div id="csJoin">
         <div class="field">
           <label>Chi sei?</label>
-          <div class="row3">
-            <button type="button" class="btn btn-secondary" data-role="atleta">Atleta</button>
-            <button type="button" class="btn btn-ghost" data-role="genitore">Genitore</button>
-            <button type="button" class="btn btn-ghost" data-role="segnapunti">Segnapunti</button>
+          <div class="choice-list">
+            ${ROLES.map(r => `<button type="button" class="choice${r.key === 'atleta' ? ' on' : ''}" data-role="${r.key}"><b>${r.label}</b><span>${r.hint}</span></button>`).join('')}
           </div>
         </div>
         <div class="field"><label>Codice invito</label><input type="text" id="csCode" placeholder="Es. A1B2C3" style="text-transform:uppercase;"></div>
-        <div class="hint" id="csRoleHint"></div>
       </div>
 
       <div id="csCreate" style="display:none;">
@@ -92,11 +90,9 @@ export function renderCompleteSignup(email, pendingError) {
   modeBtns.forEach(b => { b.onclick = () => selectMode(b.dataset.mode); });
 
   const roleBtns = Array.from(document.querySelectorAll('[data-role]'));
-  const hint = document.getElementById('csRoleHint');
   function selectRole(role) {
     chosenRole = role;
-    roleBtns.forEach(b => { b.className = b.dataset.role === role ? 'btn btn-secondary' : 'btn btn-ghost'; });
-    hint.textContent = ROLE_HINTS[role];
+    roleBtns.forEach(b => b.classList.toggle('on', b.dataset.role === role));
   }
   roleBtns.forEach(b => { b.onclick = () => selectRole(b.dataset.role); });
 

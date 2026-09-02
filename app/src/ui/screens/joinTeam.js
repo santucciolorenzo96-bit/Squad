@@ -15,7 +15,8 @@ import { renderConfirmEmailNotice } from './confirmEmailNotice.js';
 const ROLES = [
   { key: 'atleta', label: 'Sono un atleta', hint: 'La società collegherà il tuo account alla tua scheda: da lì completi i tuoi dati e carichi il certificato.' },
   { key: 'genitore', label: 'Sono un genitore', hint: 'La società collegherà il tuo account a tuo figlio: vedrai convocazioni, quote e documenti.' },
-  { key: 'segnapunti', label: 'Tengo il tabellino', hint: 'Potrai seguire le partite dei settori che ti verranno assegnati.' }
+  { key: 'staff', label: 'Faccio parte dello staff', hint: 'Allenatore, dirigente o collaboratore. Un amministratore ti assegnerà le categorie e i permessi che ti servono.' },
+  { key: 'segnapunti', label: 'Faccio lo scout', hint: 'Seguirai le partite col tabellino dal vivo, nelle categorie che ti verranno assegnate.' }
 ];
 
 export function renderJoinTeam(prefill = {}) {
