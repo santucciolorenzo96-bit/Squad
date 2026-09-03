@@ -27,6 +27,14 @@ export async function updateSeason(id, patch) {
   return data;
 }
 
+// Riaprire non ha bisogno di una funzione dedicata: la policy seasons_write_admin
+// permette gia' a un amministratore di aggiornare qualunque colonna. Non tocca
+// la stagione nuova ne' le rose che ci sono state create: rimette solo questa
+// in condizione di essere modificata.
+export async function reopenSeason(id) {
+  return updateSeason(id, { closed: false, closed_at: null, closed_by: null });
+}
+
 export async function removeSeason(id) {
   const { error } = await supabase.from('seasons').delete().eq('id', id);
   if (error) throw error;
@@ -70,4 +78,24 @@ export function daysTo(dateStr) {
 export function pickActiveSeason(seasons) {
   if (!seasons || seasons.length === 0) return null;
   return seasons.find(s => !s.closed) || seasons[0];
+}
+
+// La stagione che si sta consultando puo' essere diversa da quella in corso:
+// un amministratore che guarda l'anno scorso deve ritrovarla dopo un
+// ricaricamento, come gia' succede per il settore.
+const SEASON_KEY = 'bbapp_active_season';
+
+export function rememberSeason(id, seasons) {
+  const current = pickActiveSeason(seasons);
+  // Tornare sulla stagione in corso significa smettere di consultare il
+  // passato: la preferenza si cancella invece di fissarsi su quella corrente.
+  if (!id || (current && id === current.id)) localStorage.removeItem(SEASON_KEY);
+  else localStorage.setItem(SEASON_KEY, id);
+}
+
+export function storedSeasonId(seasons) {
+  const saved = localStorage.getItem(SEASON_KEY);
+  if (saved && seasons.some(s => s.id === saved)) return saved;
+  const current = pickActiveSeason(seasons);
+  return current ? current.id : null;
 }

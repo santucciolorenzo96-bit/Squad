@@ -1,5 +1,6 @@
 import { state } from '../../state.js';
-import { fetchSeasons, createSeason, updateSeason, removeSeason, daysTo, pickActiveSeason } from '../../api/seasons.js';
+import { fetchSeasons, createSeason, updateSeason, removeSeason, reopenSeason,
+  daysTo, rememberSeason, storedSeasonId } from '../../api/seasons.js';
 import { openSeasonClose } from '../seasonClose.js';
 import { isAdmin } from '../../utils/permissions.js';
 import { esc } from '../../utils/format.js';
@@ -254,8 +255,10 @@ function seasonRow(s, canEdit) {
       <div class="sub">${new Date(s.start_date).toLocaleDateString('it-IT')} – ${new Date(s.end_date).toLocaleDateString('it-IT')}</div>
       <div class="sr-chips">${chip('Iscrizione', enr)}${chip('Tesseramento', reg)}</div>
     </div>
+    ${state.activeSeasonId === s.id ? '<span class="status-badge ok">in uso</span>' : `<button class="btn btn-ghost" data-season-use="${s.id}" style="width:auto;padding:6px 10px;font-size:11.5px;">Consulta</button>`}
     ${canEdit ? `<button class="icon-btn" data-season-edit="${s.id}">&#9998;</button>` : ''}
     ${canEdit && !s.closed ? `<button class="btn btn-secondary" data-season-close="${s.id}" style="width:auto;padding:6px 10px;font-size:11.5px;">Chiudi</button>` : ''}
+    ${canEdit && s.closed ? `<button class="btn btn-secondary" data-season-reopen="${s.id}" style="width:auto;padding:6px 10px;font-size:11.5px;">Riapri</button>` : ''}
   </div>`;
 }
 
@@ -270,10 +273,10 @@ async function drawSeasons(c) {
     holder.innerHTML = state.seasons.map(s => seasonRow(s, canEdit)).join('');
   }
 
-  const reload = async () => {
+  const reload = async (seasonId) => {
     state.seasons = await fetchSeasons(state.teamProfile.id);
-    const active = pickActiveSeason(state.seasons);
-    state.activeSeasonId = active ? active.id : null;
+    if (seasonId !== undefined) rememberSeason(seasonId, state.seasons);
+    state.activeSeasonId = storedSeasonId(state.seasons);
     const { loadSectorData } = await import('../../router.js');
     await loadSectorData(state.activeSectorId);
     renderSquadraTab(c);
@@ -284,6 +287,15 @@ async function drawSeasons(c) {
   });
   holder.querySelectorAll('[data-season-close]').forEach(btn => {
     btn.onclick = () => openSeasonClose(state.seasons.find(x => x.id === btn.dataset.seasonClose), reload);
+  });
+  holder.querySelectorAll('[data-season-use]').forEach(btn => {
+    btn.onclick = () => reload(btn.dataset.seasonUse);
+  });
+  holder.querySelectorAll('[data-season-reopen]').forEach(btn => {
+    const s = state.seasons.find(x => x.id === btn.dataset.seasonReopen);
+    btn.onclick = () => confirmModal(`Riaprire la stagione ${s.name}?`,
+      'Torna modificabile. La stagione aperta dopo di lei e le rose che ci sono state create restano dove sono: se vuoi eliminarle, fallo a parte.',
+      async () => { await reopenSeason(s.id); toast('Stagione riaperta'); await reload(); }, 'Riapri');
   });
   const add = document.getElementById('addSeasonBtn');
   if (add) add.onclick = () => openSeasonModal(null, c, reload);

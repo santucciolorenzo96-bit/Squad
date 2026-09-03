@@ -82,6 +82,7 @@ export function renderApp() {
           </button>
         </div>
       </div>
+      ${seasonBanner()}
       <div class="shell-body">
         <div class="sidebar" id="sidebarNav"></div>
         <div class="tab-content" id="tabContent"></div>
@@ -196,7 +197,32 @@ export function renderApp() {
     renderApp();
   };
 
+  const backBtn = document.getElementById('seasonBackBtn');
+  if (backBtn) backBtn.onclick = async () => {
+    const { rememberSeason, storedSeasonId } = await import('../api/seasons.js');
+    rememberSeason(null, state.seasons);
+    state.activeSeasonId = storedSeasonId(state.seasons);
+    const { loadSectorData } = await import('../router.js');
+    await loadSectorData(state.activeSectorId);
+    renderApp();
+  };
+
   renderTabContent();
+}
+
+// Quando si sta guardando una stagione che non e' quella in corso, tutto
+// quello che si aggiunge finisce li' dentro: rose, allenamenti, risultati. Un
+// avviso fisso costa poco e evita di scoprirlo a settembre.
+function seasonBanner() {
+  if (!state.seasons || state.seasons.length === 0) return '';
+  const current = state.seasons.find(s => !s.closed) || state.seasons[0];
+  const viewing = state.seasons.find(s => s.id === state.activeSeasonId);
+  if (!viewing || !current || viewing.id === current.id) return '';
+  return `<div class="season-banner">
+    Stai consultando la stagione <b>${esc(viewing.name)}</b>${viewing.closed ? ' (chiusa)' : ''}.
+    Quello che aggiungi finisce in quella stagione.
+    <button id="seasonBackBtn">Torna a ${esc(current.name)}</button>
+  </div>`;
 }
 
 function renderBottomNav(visibleTabs, groupLabels) {

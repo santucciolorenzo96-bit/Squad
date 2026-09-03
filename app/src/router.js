@@ -6,7 +6,7 @@ import { fetchHistory, fetchLiveGame } from './api/games.js';
 import { fetchNextMatch } from './api/nextMatch.js';
 import { fetchStandings } from './api/standings.js';
 import { fetchSectors, fetchStaffSectors, fetchPlayerSectorIds } from './api/sectors.js';
-import { fetchSeasons, pickActiveSeason } from './api/seasons.js';
+import { fetchSeasons, storedSeasonId } from './api/seasons.js';
 import { fetchTrainings } from './api/trainings.js';
 import { fetchRecurrences } from './api/trainingRecurrences.js';
 import { fetchCalendar } from './api/calendar.js';
@@ -42,8 +42,7 @@ export async function loadTeamWideData() {
   // senza: le query cadono sul comportamento precedente invece di fallire.
   try {
     state.seasons = await fetchSeasons(teamId);
-    const active = pickActiveSeason(state.seasons);
-    state.activeSeasonId = active ? active.id : null;
+    state.activeSeasonId = storedSeasonId(state.seasons);
   } catch (e) {
     state.seasons = [];
     state.activeSeasonId = null;
