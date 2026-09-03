@@ -4,6 +4,8 @@
 // È volutamente deterministico e calcolato qui nel browser: un certificato
 // scaduto è scaduto, non "forse". Nessun servizio esterno, nessun costo.
 
+import { findAllConflicts } from './conflicts.js';
+
 export const SEVERITY_RANK = { critical: 0, warning: 1, info: 2 };
 export const SEVERITY_LABEL = { critical: 'Da risolvere', warning: 'Da seguire', info: 'Da sistemare' };
 
@@ -248,6 +250,28 @@ export function detectIssues(ctx) {
       action: { label: 'Apri Comunicazioni', tab: 'comunicazioni' }
     });
   }
+
+  // --- Palestra occupata da due categorie ---------------------------------
+  // Nessuna schermata poteva accorgersene: ognuna lavora sul settore attivo, e
+  // un conflitto per definizione sta fra settori diversi. Solo quelli futuri:
+  // su una sovrapposizione di ieri non c'e' piu' niente da decidere.
+  const futuri = trainings.filter(t => t.date >= today);
+  const scontri = findAllConflicts(futuri).map(([a, b]) => ({
+    label: ((a.sectors && a.sectors.name) || sectorName(a.sector_id))
+      + ' e ' + ((b.sectors && b.sectors.name) || sectorName(b.sector_id)),
+    sub: fmtDate(a.date) + ' · ' + (a.location || '')
+      + ' · ' + (a.start_time || '') + (a.end_time ? '-' + a.end_time : '')
+      + ' e ' + (b.start_time || '') + (b.end_time ? '-' + b.end_time : ''),
+    sort: a.date
+  }));
+  if (scontri.length) issues.push({
+    id: 'palestra_occupata', severity: 'warning',
+    title: 'Due categorie nello stesso posto',
+    summary: scontri.length + ' ' + plural(scontri.length, 'sovrapposizione', 'sovrapposizioni')
+      + ' di palestra fra categorie diverse: qualcuno rischia di restare fuori.',
+    items: scontri.sort((x, y) => x.sort.localeCompare(y.sort)),
+    action: { label: 'Apri Allenamenti', tab: 'allenamenti' }
+  });
 
   // --- Presenze non rilevate ---------------------------------------------
   const tracked = new Set(attendance.map(a => a.training_id));

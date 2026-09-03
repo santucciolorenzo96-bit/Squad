@@ -1,7 +1,9 @@
 import { state } from '../../state.js';
 import { esc } from '../../utils/format.js';
 import { formModal, confirmModal, toast } from '../modal.js';
-import { addTraining, updateTraining, removeTraining } from '../../api/trainings.js';
+import { addTraining, updateTraining, removeTraining,
+  fetchTrainingsForDate, fetchKnownLocations } from '../../api/trainings.js';
+import { findLocationConflicts } from '../../utils/conflicts.js';
 import {
   WEEKDAY_LABELS, createRecurrence, updateRecurrence, removeRecurrence, ensureOccurrencesGenerated
 } from '../../api/trainingRecurrences.js';
@@ -151,7 +153,11 @@ export function renderAllenamentiTab(c) {
         <div class="field"><label>Orario inizio</label><input type="text" id="tStart" placeholder="19:00" value="${existing ? esc(existing.start_time || '') : ''}"></div>
         <div class="field"><label>Orario fine</label><input type="text" id="tEnd" placeholder="20:30" value="${existing ? esc(existing.end_time || '') : ''}"></div>
       </div>
-      <div class="field"><label>Luogo</label><input type="text" id="tLoc" value="${existing ? esc(existing.location || '') : ''}"></div>
+      <div class="field"><label>Luogo</label>
+        <input type="text" id="tLoc" list="knownLocations" value="${existing ? esc(existing.location || '') : ''}" placeholder="Es. Palestra Comunale">
+        <datalist id="knownLocations"></datalist>
+      </div>
+      <div id="tConflict"></div>
     `, async () => {
       const title = document.getElementById('tTitle').value.trim() || 'Allenamento';
       const date = document.getElementById('tDate').value;
@@ -162,6 +168,16 @@ export function renderAllenamentiTab(c) {
         end_time: document.getElementById('tEnd').value.trim() || null,
         location: document.getElementById('tLoc').value.trim() || null
       };
+      // Due categorie nello stesso posto alla stessa ora e' un problema fisico:
+      // qualcuno resta fuori. Si avvisa e non si blocca — dividere una palestra
+      // in due meta' e' una cosa che le societa' fanno davvero, e non spetta
+      // all'app decidere che non si puo'.
+      const scontri = await conflittiPer({ ...data, id: existing ? existing.id : null });
+      if (scontri.length && !document.getElementById('tConflictAck')) {
+        mostraConflitto(scontri);
+        return 'Controlla la sovrapposizione qui sopra, poi salva di nuovo per confermare.';
+      }
+
       if (existing) {
         const updated = await updateTraining(existing.id, data);
         Object.assign(existing, updated);
@@ -172,6 +188,36 @@ export function renderAllenamentiTab(c) {
       drawTrainings();
       toast('Allenamento salvato');
     });
+
+    // I luoghi gia' usati, caricati senza far aspettare l'apertura della modale.
+    fetchKnownLocations(state.teamProfile.id).then(luoghi => {
+      const dl = document.getElementById('knownLocations');
+      if (dl) dl.innerHTML = luoghi.map(l => `<option value="${esc(l)}">`).join('');
+    }).catch(() => {});
+  }
+
+  // Gli allenamenti che occupano lo stesso posto nello stesso momento, su tutte
+  // le categorie della societa': quelli del settore attivo non basterebbero.
+  async function conflittiPer(training) {
+    if (!training.date || !training.location || !training.start_time) return [];
+    try {
+      const stessoGiorno = await fetchTrainingsForDate(state.teamProfile.id, training.date);
+      return findLocationConflicts(training, stessoGiorno);
+    } catch (e) {
+      return []; // un controllo che non parte non deve impedire di salvare
+    }
+  }
+
+  function mostraConflitto(scontri) {
+    const holder = document.getElementById('tConflict');
+    if (!holder) return;
+    holder.innerHTML = `<div class="conflict-warn" id="tConflictAck">
+      <b>Attenzione: la palestra risulta gia' occupata</b>
+      ${scontri.map(s => `<div>${esc((s.sectors && s.sectors.name) || 'Altra categoria')} ·
+        ${esc(s.start_time || '')}${s.end_time ? '–' + esc(s.end_time) : ''} ·
+        ${esc(s.title || 'Allenamento')}</div>`).join('')}
+      <span>Se la palestra si puo' dividere va bene lo stesso: salva di nuovo per confermare.</span>
+    </div>`;
   }
 
   async function openAttendancePanel(training) {

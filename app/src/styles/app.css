@@ -891,3 +891,13 @@ table.boxscore tr:hover td{background:var(--tint-hover);}
 .notif-personal{display:inline-block;font-size:9px;font-weight:700;letter-spacing:0.06em;
   text-transform:uppercase;color:var(--orange);background:var(--orange-dim);
   border-radius:999px;padding:2px 7px;margin-bottom:5px;}
+
+/* Palestra già occupata: avviso al salvataggio di un allenamento.
+   Non blocca — dividere una palestra in due metà è una cosa che le società
+   fanno davvero, e non spetta all'app decidere che non si può. */
+.conflict-warn{margin:10px 0 2px;padding:11px 13px;border-radius:12px;
+  background:var(--amber-dim);border-left:3px solid var(--amber);
+  font-size:12.5px;line-height:1.55;}
+.conflict-warn b{display:block;color:var(--amber);margin-bottom:5px;}
+.conflict-warn div{font-family:var(--font-mono);font-size:11.5px;margin-top:2px;}
+.conflict-warn span{display:block;margin-top:7px;color:var(--dim);font-size:11.5px;}

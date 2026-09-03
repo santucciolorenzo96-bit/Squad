@@ -15,6 +15,16 @@ const PREVIEW_ITEMS = 4;
 // non è più un promemoria utile, è archeologia.
 const TRAINING_WINDOW_DAYS = 21;
 
+// Le sovrapposizioni di palestra si cercano in avanti: su quelle passate non
+// c'e' piu' niente da decidere.
+const TRAINING_AHEAD_DAYS = 21;
+
+function daysAheadISO(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
 function daysAgoISO(days) {
   const d = new Date();
   d.setDate(d.getDate() - days);
@@ -99,7 +109,7 @@ export async function renderSituazioneTab(c) {
       fetchAllPlayers(teamId),
       fetchAllPlayerDocuments(teamId),
       fetchOpenCommunications(teamId),
-      fetchTrainingsInRange(teamId, daysAgoISO(TRAINING_WINDOW_DAYS), today)
+      fetchTrainingsInRange(teamId, daysAgoISO(TRAINING_WINDOW_DAYS), daysAheadISO(TRAINING_AHEAD_DAYS))
     ]);
     attendance = await fetchAttendanceForTrainings(trainings.map(t => t.id));
   } catch (e) {

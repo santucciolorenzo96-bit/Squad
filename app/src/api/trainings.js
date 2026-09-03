@@ -20,6 +20,22 @@ export async function fetchTrainingsForDate(teamId, date) {
   return data;
 }
 
+// I luoghi gia' usati dalla societa', per proporli invece di farli riscrivere:
+// e' il modo meno invadente di far convergere le grafie senza costringere
+// nessuno a gestire un elenco di impianti.
+export async function fetchKnownLocations(teamId) {
+  const { data, error } = await supabase.from('trainings')
+    .select('location').eq('team_id', teamId).not('location', 'is', null)
+    .order('date', { ascending: false }).limit(300);
+  if (error) throw error;
+  const visti = new Map();
+  data.forEach(r => {
+    const k = (r.location || '').trim().toLowerCase();
+    if (k && !visti.has(k)) visti.set(k, r.location.trim());
+  });
+  return [...visti.values()].sort((x, y) => x.localeCompare(y));
+}
+
 export async function addTraining(teamId, sectorId, training, seasonId) {
   const { data, error } = await supabase.from('trainings')
     .insert({ team_id: teamId, sector_id: sectorId, season_id: seasonId || null, ...training })
