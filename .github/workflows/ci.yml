@@ -1,0 +1,28 @@
+name: Verifica
+
+# Il progetto gira in locale su Node 14, che è a fine vita: qui si usa una
+# versione supportata, così la verifica automatica dice anche se il codice
+# regge su un runtime aggiornato. È il primo passo verso l'aggiornamento del
+# runtime locale, senza doverlo fare di corsa.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verifica:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Installa le dipendenze
+        run: npm install --no-audit --no-fund
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build

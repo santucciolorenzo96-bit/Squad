@@ -1,8 +1,10 @@
 import { joinTeamByCode } from '../../auth.js';
-import { esc } from '../../utils/format.js';
+import { esc, passwordProblem, PASSWORD_MIN } from '../../utils/format.js';
 import { fetchTeamByInviteCode } from '../../api/teams.js';
 import { getSport } from '../../utils/sports/index.js';
 import { renderConfirmEmailNotice } from './confirmEmailNotice.js';
+import { openPrivacyText } from '../privacy.js';
+import { acceptPrivacy } from '../../api/privacy.js';
 
 // Iscrizione con codice invito: è la strada che percorrono quasi tutti gli
 // utenti dell'app, quasi sempre da telefono e una volta sola.
@@ -123,10 +125,14 @@ export function renderJoinTeam(prefill = {}) {
         <div class="field">
           <label>Scegli una password</label>
           <div class="pass-wrap">
-            <input type="password" id="jPass" autocomplete="new-password" placeholder="Almeno 6 caratteri">
+            <input type="password" id="jPass" autocomplete="new-password" placeholder="Almeno ${PASSWORD_MIN} caratteri, con un numero">
             <button type="button" class="pass-toggle" id="jPassToggle">Mostra</button>
           </div>
         </div>
+        <label class="consent">
+          <input type="checkbox" id="jPrivacy">
+          <span>Ho letto l'<button type="button" class="linklike" id="jPrivacyLink">informativa sul trattamento dei dati</button> e acconsento. Se l'atleta è minorenne, dichiaro di essere chi ne esercita la responsabilità genitoriale.</span>
+        </label>
         <div class="error-msg" id="jError">${errorMsg ? esc(errorMsg) : ''}</div>
       </div>
       <button class="btn btn-primary" id="jSubmit">Crea il mio account</button>
@@ -143,6 +149,8 @@ export function renderJoinTeam(prefill = {}) {
       };
     });
 
+    document.getElementById('jPrivacyLink').onclick = () => openPrivacyText();
+
     const passEl = document.getElementById('jPass');
     document.getElementById('jPassToggle').onclick = (e) => {
       const showing = passEl.type === 'text';
@@ -158,13 +166,21 @@ export function renderJoinTeam(prefill = {}) {
 
       if (!displayName) { errEl.textContent = 'Scrivi il tuo nome e cognome.'; return; }
       if (!email) { errEl.textContent = 'Serve la tua email: è con quella che accedi.'; return; }
-      if (pass.length < 6) { errEl.textContent = 'La password deve avere almeno 6 caratteri.'; return; }
+      const pwErr = passwordProblem(pass);
+      if (pwErr) { errEl.textContent = pwErr; return; }
+      if (!document.getElementById('jPrivacy').checked) {
+        errEl.textContent = 'Per procedere serve il consenso al trattamento dei dati.';
+        return;
+      }
 
       const btn = e.currentTarget;
       btn.disabled = true; btn.textContent = 'Creo l\'account…';
       try {
         const result = await joinTeamByCode({ email, password: pass, inviteCode, displayName, role: chosenRole });
         if (result.needsEmailConfirmation) { renderConfirmEmailNotice(email); return; }
+        // Il consenso si registra subito dopo la creazione del profilo. Se
+        // fallisce non si blocca l'iscrizione: verrà richiesto all'apertura.
+        try { await acceptPrivacy(); } catch (err) { console.error(err); }
         const { boot } = await import('../../router.js');
         await boot();
       } catch (err) {

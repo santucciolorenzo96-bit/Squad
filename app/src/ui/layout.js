@@ -208,6 +208,12 @@ export function renderApp() {
   };
 
   renderTabContent();
+
+  // Gli account creati prima dell'informativa non hanno un consenso
+  // registrato: si chiede una volta, e non si insiste oltre.
+  import('./privacy.js').then(m => {
+    if (m.needsPrivacyConsent(state.currentUser)) m.openPrivacyConsent(() => renderApp());
+  }).catch(() => {});
 }
 
 // Quando si sta guardando una stagione che non e' quella in corso, tutto

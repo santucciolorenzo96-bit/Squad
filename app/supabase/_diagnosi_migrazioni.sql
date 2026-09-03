@@ -73,7 +73,10 @@ with atteso(ordine, migrazione, descrizione, presente) as (
                  where conname = 'profiles_role_check'
                    and pg_get_constraintdef(oid) like '%staff%')),
     (21, '021 stagioni',       'Stagioni sportive, playoff e scadenze di settembre',
-         to_regclass('public.seasons') is not null)
+         to_regclass('public.seasons') is not null),
+    (22, '022 privacy',         'Consenso registrato, cancellazione e accesso ai dati',
+         exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                 where n.nspname = 'public' and p.proname = 'erase_player'))
 )
 select
   migrazione,

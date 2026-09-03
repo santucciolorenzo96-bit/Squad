@@ -1,5 +1,5 @@
 import { state } from '../../state.js';
-import { esc } from '../../utils/format.js';
+import { esc, passwordProblem } from '../../utils/format.js';
 import { ROLES, ROLE_CLASS, isLinkedUser, DOC_TYPES } from '../../utils/permissions.js';
 import { getStoredThemeMode, setTheme, userInitials, applyTeamAccent } from '../../utils/theme.js';
 import { formModal, toast, withButtonLoading } from '../modal.js';
@@ -175,7 +175,8 @@ function openChangePasswordModal() {
     const oldP = document.getElementById('cpOld').value;
     const n1 = document.getElementById('cpNew').value;
     const n2 = document.getElementById('cpNew2').value;
-    if (n1.length < 6) return 'La nuova password deve avere almeno 6 caratteri.';
+    const pwErr = passwordProblem(n1, { field: 'La nuova password' });
+    if (pwErr) return pwErr;
     if (n1 !== n2) return 'Le nuove password non coincidono.';
     try {
       await changePassword(state.currentUser.email, oldP, n1);

@@ -7,6 +7,10 @@ import { fetchPlayerPaymentsForYear } from '../../api/financeEntries.js';
 import { fetchLinkedProfilesForPlayer } from '../../api/family.js';
 import { generateTaxDeclaration, generateEnrollmentForm } from '../documents.js';
 import { EXPORTS } from '../dataExport.js';
+import { fetchPlayerPersonalData, erasePlayer } from '../../api/privacy.js';
+import { downloadCsv, safeName } from '../../utils/csv.js';
+import { isAdmin } from '../../utils/permissions.js';
+import { confirmModal } from '../modal.js';
 
 function sectorName() {
   const s = state.sectors.find(x => x.id === state.activeSectorId);
@@ -106,7 +110,16 @@ async function renderPlayerDossier(holder, playerId, { hasFinance, years }) {
         <div class="hint">Certifica quanto effettivamente incassato nell'anno, per la detrazione in dichiarazione dei redditi.</div>
       ` : `<div class="hint">La dichiarazione delle quote richiede l'accesso alla sezione Finanza: chiedi a un amministratore di abilitartelo.</div>`}
     </div>
+
+    <div class="section-label">Dati personali</div>
+    <div class="card">
+      <div class="hint" style="margin-top:0;">Cosa l'app conserva su questa persona, e come cancellarlo. Servono a rispondere a una richiesta di accesso o di cancellazione entro i trenta giorni previsti.</div>
+      <button class="btn btn-secondary" id="gdprShow" style="width:100%;margin-bottom:8px;">Vedi tutto quello che conserviamo</button>
+      ${isAdmin(state.currentUser) ? '<button class="btn btn-ghost" id="gdprErase" style="width:100%;">Cancella i dati di questa persona</button>' : ''}
+    </div>
   `;
+
+  wirePersonalData(playerId, player);
 
   // Raccoglitore: un riquadro per tipo, con lo stato di quello caricato
   const docHolder = document.getElementById('dossierDocs');
@@ -171,4 +184,72 @@ function drawExports() {
       if (item) await item.run();
     });
   });
+}
+
+// Diritto di accesso e diritto alla cancellazione, art. 15 e 17.
+//
+// L'elenco arriva da una sola funzione lato database invece che da otto query
+// separate: e' il modo in cui non si dimentica una tabella. La cancellazione
+// anonimizza ovunque ed elimina i documenti sanitari, ma lascia i movimenti
+// contabili, che la legge obbliga a conservare dieci anni — privati del nome.
+function wirePersonalData(playerId, player) {
+  const show = document.getElementById('gdprShow');
+  if (show) show.onclick = (e) => withButtonLoading(e.currentTarget, async () => {
+    let data;
+    try { data = await fetchPlayerPersonalData(playerId); }
+    catch (err) { toast(err.message || 'Impossibile leggere i dati'); return; }
+    openPersonalData(player, data);
+  });
+
+  const erase = document.getElementById('gdprErase');
+  if (erase) erase.onclick = () => confirmModal(
+    `Cancellare i dati di ${player.name}?`,
+    'Nome, data di nascita, codice fiscale, contatti e fotografia vengono rimossi; i documenti caricati eliminati; le rose e le presenze scollegate. I movimenti contabili restano senza nome, perché la legge impone di conservarli dieci anni. Non è reversibile.',
+    async () => {
+      await erasePlayer(playerId, "richiesta dell'interessato");
+      toast('Dati cancellati');
+      const { loadSectorData } = await import('../../router.js');
+      await loadSectorData(state.activeSectorId);
+      const { renderApp } = await import('../layout.js');
+      renderApp();
+    }, 'Cancella definitivamente');
+}
+
+function openPersonalData(player, data) {
+  const root = document.getElementById('modalRoot');
+  const sezioni = [
+    ['Anagrafica', data.anagrafica],
+    ['Categorie', data.categorie],
+    ['Documenti', data.documenti],
+    ['Presenze', data.presenze],
+    ['Convocazioni', data.convocazioni],
+    ['Quote', data.quote],
+    ['Scheda tecnica', data.scheda_tecnica]
+  ];
+  const conta = (v) => Array.isArray(v) ? v.length : (v ? 1 : 0);
+
+  root.innerHTML = `<div class="modal-overlay" id="pdOverlay"><div class="modal-box wide">
+    <h3>Dati conservati su ${esc(player.name)}</h3>
+    <div class="hint" style="margin-top:0;">Tutto ciò che l'applicazione tiene su questa persona, tabella per tabella.</div>
+    ${sezioni.map(([nome, v]) => `
+      <div class="section-label">${esc(nome)} <span class="hint" style="margin:0;">${conta(v)} voc${conta(v) === 1 ? 'e' : 'i'}</span></div>
+      <div class="boxscore-wrap"><pre class="gdpr-dump">${esc(JSON.stringify(v ?? null, null, 2))}</pre></div>
+    `).join('')}
+    <div class="modal-actions" style="flex-direction:column;gap:8px;">
+      <button class="btn btn-secondary" id="pdCsv" style="width:100%;">Scarica in CSV</button>
+      <button class="btn btn-primary" id="pdClose" style="width:100%;">Chiudi</button>
+    </div>
+  </div></div>`;
+
+  document.getElementById('pdClose').onclick = () => { root.innerHTML = ''; };
+  document.getElementById('pdOverlay').onclick = (e) => { if (e.target.id === 'pdOverlay') root.innerHTML = ''; };
+  document.getElementById('pdCsv').onclick = () => {
+    const righe = [];
+    sezioni.forEach(([nome, v]) => {
+      if (Array.isArray(v)) v.forEach(x => righe.push([nome, JSON.stringify(x)]));
+      else if (v) Object.entries(v).forEach(([k, val]) => righe.push([nome, k + ': ' + val]));
+    });
+    downloadCsv(`dati_${safeName(player.name)}.csv`, ['Sezione', 'Dato'], righe);
+    toast('Dati scaricati');
+  };
 }

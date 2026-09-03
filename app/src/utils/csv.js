@@ -11,7 +11,9 @@ function cell(v) {
   if (v == null) return '';
   const s = String(v);
   // Il separatore dentro un valore romperebbe le colonne: diventa una virgola.
-  return s.replace(/[;\r\n]+/g, ', ').trim();
+  // Gli spazi attorno vengono assorbiti, altrimenti "Rossi; Mario" uscirebbe
+  // come "Rossi,  Mario" con due spazi.
+  return s.replace(/\s*[;\r\n]+\s*/g, ', ').trim();
 }
 
 export function toCsv(headers, rows) {
