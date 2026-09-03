@@ -6,6 +6,7 @@ import { fetchPlayer, fetchPlayerDocuments, getDocumentSignedUrl } from '../../a
 import { fetchPlayerPaymentsForYear } from '../../api/financeEntries.js';
 import { fetchLinkedProfilesForPlayer } from '../../api/family.js';
 import { generateTaxDeclaration, generateEnrollmentForm } from '../documents.js';
+import { EXPORTS } from '../dataExport.js';
 
 function sectorName() {
   const s = state.sectors.find(x => x.id === state.activeSectorId);
@@ -28,6 +29,12 @@ export function renderDocumentiTab(c) {
         </button>
       </div>
 
+      <div class="section-label">Esporta i dati</div>
+      <div class="card">
+        <div class="hint" style="margin-top:0;">In CSV, già pronti per Excel. Servono quando li chiede un commercialista, una federazione o un atleta — che ha diritto ad averli.</div>
+        <div id="exportList"></div>
+      </div>
+
       <div class="section-label">Scheda atleta</div>
       <div class="card">
         <div class="field" style="margin-bottom:0;">
@@ -43,6 +50,8 @@ export function renderDocumentiTab(c) {
       <div id="docDetail"></div>
     </div>
   `;
+
+  drawExports();
 
   document.getElementById('blankEnrollBtn').onclick = (e) => withButtonLoading(e.currentTarget, async () => {
     await generateEnrollmentForm({ team: state.teamProfile, player: null, sectorName: sectorName() });
@@ -143,5 +152,23 @@ async function renderPlayerDossier(holder, playerId, { hasFinance, years }) {
     } catch (err) {
       toast(err.message || 'Impossibile generare la dichiarazione');
     }
+  });
+}
+
+// Ogni export è un pulsante con la sua spiegazione: chi lo preme deve sapere
+// che cosa si troverà nel file prima di aprirlo.
+function drawExports() {
+  const holder = document.getElementById('exportList');
+  if (!holder) return;
+  holder.innerHTML = EXPORTS.map(x => `
+    <div class="list-row">
+      <div class="main"><div class="nm">${esc(x.label)}</div><div class="sub">${esc(x.hint)}</div></div>
+      <button class="btn btn-secondary" data-export="${x.key}" style="width:auto;padding:6px 12px;font-size:12px;">Scarica</button>
+    </div>`).join('');
+  holder.querySelectorAll('[data-export]').forEach(btn => {
+    btn.onclick = (e) => withButtonLoading(e.currentTarget, async () => {
+      const item = EXPORTS.find(x => x.key === btn.dataset.export);
+      if (item) await item.run();
+    });
   });
 }

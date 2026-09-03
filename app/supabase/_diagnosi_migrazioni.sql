@@ -71,7 +71,9 @@ with atteso(ordine, migrazione, descrizione, presente) as (
     (20, '020 staff',          'Registrazione dello staff col codice invito',
          exists (select 1 from pg_constraint
                  where conname = 'profiles_role_check'
-                   and pg_get_constraintdef(oid) like '%staff%'))
+                   and pg_get_constraintdef(oid) like '%staff%')),
+    (21, '021 stagioni',       'Stagioni sportive, playoff e scadenze di settembre',
+         to_regclass('public.seasons') is not null)
 )
 select
   migrazione,

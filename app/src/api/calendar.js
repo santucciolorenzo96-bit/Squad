@@ -1,19 +1,22 @@
 import { supabase } from '../supabaseClient.js';
 
-export async function fetchCalendar(sectorId) {
-  const { data, error } = await supabase.from('calendar').select('*').eq('sector_id', sectorId).order('date', { nullsFirst: false });
+export async function fetchCalendar(sectorId, seasonId) {
+  let q = supabase.from('calendar').select('*').eq('sector_id', sectorId);
+  if (seasonId) q = q.eq('season_id', seasonId);
+  const { data, error } = await q.order('date', { nullsFirst: false });
   if (error) throw error;
   return data;
 }
 
-export async function bulkInsertMatches(teamId, sectorId, rows) {
-  const existing = await fetchCalendar(sectorId);
+export async function bulkInsertMatches(teamId, sectorId, rows, seasonId) {
+  const existing = await fetchCalendar(sectorId, seasonId);
   const existingKeys = new Set(existing.map(m => `${m.date}|${(m.opponent || '').trim().toLowerCase()}`));
   const toInsert = rows
     .filter(r => !existingKeys.has(`${r.date}|${(r.opponent || '').trim().toLowerCase()}`))
     .map(r => ({
       team_id: teamId,
       sector_id: sectorId,
+      season_id: seasonId || null,
       giornata: r.giornata || null,
       opponent: r.opponent,
       date: r.date || null,

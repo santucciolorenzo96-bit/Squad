@@ -3,18 +3,21 @@ import { supabase } from '../supabaseClient.js';
 // Risultati del girone: tutte le partite del campionato, comprese le nostre.
 // È da qui che si calcola la classifica, invece di digitarla riga per riga.
 
-export async function fetchLeagueMatches(sectorId) {
-  const { data, error } = await supabase.from('league_matches')
-    .select('*').eq('sector_id', sectorId)
+export async function fetchLeagueMatches(sectorId, seasonId) {
+  let q = supabase.from('league_matches').select('*').eq('sector_id', sectorId);
+  if (seasonId) q = q.eq('season_id', seasonId);
+  const { data, error } = await q
     .order('giornata', { nullsFirst: false }).order('date', { nullsFirst: false });
   if (error) throw error;
   return data;
 }
 
-export async function saveLeagueMatch(teamId, sectorId, row) {
+export async function saveLeagueMatch(teamId, sectorId, row, seasonId) {
   const patch = {
     giornata: row.giornata ?? null,
     date: row.date || null,
+    phase: row.phase || 'regular',
+    round_label: row.round_label || null,
     home_team: row.home_team.trim(),
     away_team: row.away_team.trim(),
     home_score: row.home_score ?? null,
@@ -28,7 +31,8 @@ export async function saveLeagueMatch(teamId, sectorId, row) {
     return data;
   }
   const { data, error } = await supabase.from('league_matches')
-    .insert({ team_id: teamId, sector_id: sectorId, ...patch }).select().single();
+    .insert({ team_id: teamId, sector_id: sectorId, season_id: seasonId || null, ...patch })
+    .select().single();
   if (error) throw describeSaveError(error);
   return data;
 }
@@ -42,7 +46,7 @@ export async function removeLeagueMatch(id) {
 // se in quella giornata esiste già la riga di quell'accoppiamento la si
 // aggiorna, altrimenti la si crea. Così il risultato entra in classifica una
 // volta sola, da qualunque strada arrivi.
-export async function upsertOurLeagueMatch(teamId, sectorId, { giornata, date, ourName, opponent, isHome, ourScore, oppScore }) {
+export async function upsertOurLeagueMatch(teamId, sectorId, { giornata, date, ourName, opponent, isHome, ourScore, oppScore, seasonId, phase, roundLabel }) {
   const home_team = isHome ? ourName : opponent;
   const away_team = isHome ? opponent : ourName;
   const home_score = isHome ? ourScore : oppScore;
@@ -50,6 +54,7 @@ export async function upsertOurLeagueMatch(teamId, sectorId, { giornata, date, o
 
   let query = supabase.from('league_matches').select('id')
     .eq('sector_id', sectorId).eq('home_team', home_team).eq('away_team', away_team);
+  if (seasonId) query = query.eq('season_id', seasonId);
   query = giornata == null ? query.is('giornata', null) : query.eq('giornata', giornata);
   const { data: found, error: findErr } = await query.maybeSingle();
   if (findErr) throw findErr;
@@ -57,8 +62,9 @@ export async function upsertOurLeagueMatch(teamId, sectorId, { giornata, date, o
   return saveLeagueMatch(teamId, sectorId, {
     id: found ? found.id : null,
     giornata: giornata ?? null, date: date || null,
+    phase: phase || 'regular', round_label: roundLabel || null,
     home_team, away_team, home_score, away_score
-  });
+  }, seasonId);
 }
 
 function describeSaveError(error) {

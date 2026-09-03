@@ -1,7 +1,7 @@
 import { state } from '../../state.js';
 import { esc } from '../../utils/format.js';
 import { ROLES, ROLE_CLASS, isLinkedUser, DOC_TYPES } from '../../utils/permissions.js';
-import { getStoredThemeMode, setTheme, userInitials } from '../../utils/theme.js';
+import { getStoredThemeMode, setTheme, userInitials, applyTeamAccent } from '../../utils/theme.js';
 import { formModal, toast, withButtonLoading } from '../modal.js';
 import { changePassword } from '../../auth.js';
 import { goLogout } from '../../router.js';
@@ -15,7 +15,7 @@ function fmtMoney(n) {
 
 export async function renderProfiloTab(c) {
   const u = state.currentUser;
-  const themeLabels = { dark: 'Scuro', light: 'Chiaro', system: 'Sistema' };
+  const themeLabels = { light: 'Chiaro', dark: 'Scuro', squadra: 'Squadra' };
   const currentMode = getStoredThemeMode();
 
   c.innerHTML = `
@@ -35,7 +35,7 @@ export async function renderProfiloTab(c) {
     <div class="card">
       <h2>Aspetto</h2>
       <div class="theme-switch" id="themeSwitch">
-        ${['dark', 'light', 'system'].map(m => `<button data-mode="${m}" class="${m === currentMode ? 'active' : ''}">${themeLabels[m]}</button>`).join('')}
+        ${['light', 'dark', 'squadra'].map(m => `<button data-mode="${m}" class="${m === currentMode ? 'active' : ''}">${themeLabels[m]}</button>`).join('')}
       </div>
     </div>
 
@@ -71,6 +71,7 @@ export async function renderProfiloTab(c) {
   document.querySelectorAll('#themeSwitch button').forEach(b => {
     b.onclick = () => {
       setTheme(b.dataset.mode);
+      applyTeamAccent(state.teamProfile);
       document.querySelectorAll('#themeSwitch button').forEach(o => o.classList.toggle('active', o === b));
     };
   });

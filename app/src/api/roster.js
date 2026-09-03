@@ -1,24 +1,33 @@
 import { supabase } from '../supabaseClient.js';
 
-export async function fetchRosterBySector(sectorId) {
-  const { data, error } = await supabase.from('player_sectors')
-    .select('players(*)').eq('sector_id', sectorId);
+// La rosa è di una stagione: la stessa persona può essere nell'Under 15
+// quest'anno e nell'Under 17 il prossimo, e le due rose restano distinte.
+export async function fetchRosterBySector(sectorId, seasonId) {
+  let q = supabase.from('player_sectors').select('players(*)').eq('sector_id', sectorId);
+  q = seasonId ? q.eq('season_id', seasonId) : q.is('season_id', null);
+  const { data, error } = await q;
   if (error) throw error;
-  return data.map(row => row.players).sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
+  return data.map(row => row.players).filter(Boolean)
+    .sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
 }
 
-export async function addPlayer(teamId, sectorId, number, name) {
+export async function addPlayer(teamId, sectorId, number, name, seasonId) {
   const { data: player, error } = await supabase.from('players')
     .insert({ team_id: teamId, number, name }).select().single();
   if (error) throw error;
-  const { error: linkErr } = await supabase.from('player_sectors').insert({ player_id: player.id, sector_id: sectorId });
+  const { error: linkErr } = await supabase.from('player_sectors')
+    .insert({ player_id: player.id, sector_id: sectorId, season_id: seasonId || null });
   if (linkErr) throw linkErr;
   return player;
 }
 
-export async function removePlayerFromSector(playerId, sectorId) {
-  const { error } = await supabase.from('player_sectors').delete()
+// Toglie il giocatore dalla rosa della stagione indicata, non dalla sua
+// storia: le stagioni precedenti restano intatte.
+export async function removePlayerFromSector(playerId, sectorId, seasonId) {
+  let q = supabase.from('player_sectors').delete()
     .eq('player_id', playerId).eq('sector_id', sectorId);
+  q = seasonId ? q.eq('season_id', seasonId) : q.is('season_id', null);
+  const { error } = await q;
   if (error) throw error;
 }
 

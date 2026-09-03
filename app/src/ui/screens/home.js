@@ -14,6 +14,7 @@ import { openMatchDetail } from '../matchDetail.js';
 import { venueLabel, pinIcon } from '../icons.js';
 import { animateCount } from '../../utils/anim.js';
 import { currentSport } from '../../utils/sports/index.js';
+import { daysTo } from '../../api/seasons.js';
 
 function fmtMoney(n) {
   return (n ?? 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
@@ -44,6 +45,36 @@ function mvpLine(mvp, sport) {
   const season = { games: 1 };
   sport.headline.forEach(h => { season[h.key] = sport.aggregate[h.key](mvp) || 0; });
   return sport.headline.map(h => `${season[h.key]} ${h.short.toLowerCase()}`).join(' · ');
+}
+
+// Le scadenze federali di settembre: iscrizione ai campionati e tesseramento.
+// Sono le due date che decidono se una società esiste in campionato, e si
+// perdono facilmente perché arrivano quando l'app viene aperta poco. Restano
+// in Home finché non passano, e diventano rosse quando mancano pochi giorni.
+function deadlineBanner() {
+  const season = state.seasons.find(s => s.id === state.activeSeasonId);
+  if (!season) return '';
+  const items = [
+    { label: 'Iscrizione ai campionati', date: season.enrollment_deadline },
+    { label: 'Tesseramento giocatori', date: season.registration_deadline }
+  ].map(x => ({ ...x, days: daysTo(x.date) })).filter(x => x.days != null);
+  if (items.length === 0) return '';
+
+  // Una scadenza passata da più di una settimana ha fatto il suo corso: se è
+  // andata male non serve un promemoria, serve un commercialista.
+  const live = items.filter(x => x.days >= -7);
+  if (live.length === 0) return '';
+
+  return `<div class="deadline-strip">` + live.map(x => {
+    const cls = x.days < 0 ? 'late' : (x.days <= 14 ? 'soon' : '');
+    const txt = x.days < 0 ? 'scaduta' : (x.days === 0 ? 'oggi' : (x.days === 1 ? 'domani' : x.days + ' giorni'));
+    return `<div class="deadline-item ${cls}">
+      <div class="dl-days">${x.days < 0 ? '!' : x.days}</div>
+      <div class="dl-main"><b>${esc(x.label)}</b>
+        <span>${txt} \u00b7 ${new Date(x.date + 'T00:00:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })}</span>
+      </div>
+    </div>`;
+  }).join('') + `</div>`;
 }
 
 function greetingWord() {
@@ -85,6 +116,8 @@ export function renderHomeTab(c) {
       <div class="hello">${greetingWord()}${firstName ? ', ' + esc(firstName) : ''}</div>
       <div class="date">${todayLabel}</div>
     </div>
+
+    ${canEdit ? deadlineBanner() : ''}
 
     ${canEdit ? `
     <div class="section-label">Oggi · allenamenti di tutte le categorie</div>

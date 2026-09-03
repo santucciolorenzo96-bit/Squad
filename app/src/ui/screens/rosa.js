@@ -207,7 +207,7 @@ export async function renderRosaTab(c) {
         const id = btn.getAttribute('data-rm');
         const pl = state.roster.find(x => x.id === id);
         confirmModal('Rimuovere giocatore dal settore?', `#${pl.number} ${pl.name} verrà rimosso dalla rosa di questo settore (resta nell'anagrafica e negli altri settori in cui è eventualmente rosterizzato).`, async () => {
-          await removePlayerFromSector(id, state.activeSectorId);
+          await removePlayerFromSector(id, state.activeSectorId, state.activeSeasonId);
           state.roster = state.roster.filter(x => x.id !== id);
           courtIds = courtIds.filter(x => x !== id);
           for (const p of state.roster) {
@@ -226,7 +226,7 @@ export async function renderRosaTab(c) {
     const numIn = document.getElementById('rNum'), nameIn = document.getElementById('rName');
     const num = numIn.value.trim(), name = nameIn.value.trim();
     if (!name) { toast('Inserisci il nome del giocatore'); return; }
-    const created = await addPlayer(state.teamProfile.id, state.activeSectorId, num || '-', name);
+    const created = await addPlayer(state.teamProfile.id, state.activeSectorId, num || '-', name, state.activeSeasonId);
     state.roster.push(created);
     numIn.value = ''; nameIn.value = ''; numIn.focus();
     drawList();

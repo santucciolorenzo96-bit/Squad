@@ -6,6 +6,7 @@ import { fetchHistory, fetchLiveGame } from './api/games.js';
 import { fetchNextMatch } from './api/nextMatch.js';
 import { fetchStandings } from './api/standings.js';
 import { fetchSectors, fetchStaffSectors, fetchPlayerSectorIds } from './api/sectors.js';
+import { fetchSeasons, pickActiveSeason } from './api/seasons.js';
 import { fetchTrainings } from './api/trainings.js';
 import { fetchRecurrences } from './api/trainingRecurrences.js';
 import { fetchCalendar } from './api/calendar.js';
@@ -30,9 +31,24 @@ export async function loadTeamWideData() {
     fetchStaffSectors(teamId)
   ]);
   state.teamProfile = team;
+  const { applyTeamAccent } = await import('./utils/theme.js');
+  applyTeamAccent(team);
   state.sectors = sectors;
   state.staff = staff;
   state.staffSectors = staffSectors;
+
+  // La stagione decide il perimetro di rose, partite, presenze e classifica.
+  // Se la tabella non c'è ancora (migrazione 021 non eseguita) si continua
+  // senza: le query cadono sul comportamento precedente invece di fallire.
+  try {
+    state.seasons = await fetchSeasons(teamId);
+    const active = pickActiveSeason(state.seasons);
+    state.activeSeasonId = active ? active.id : null;
+  } catch (e) {
+    state.seasons = [];
+    state.activeSeasonId = null;
+    console.error(e);
+  }
 
   if (!isLinkedUser(state.currentUser)) {
     try { state.pendingDocsCount = (await fetchPendingDocuments(teamId)).length; }
@@ -108,6 +124,7 @@ function pickDefaultSectorId() {
 }
 
 export async function loadSectorData(sectorId) {
+  const seasonId = state.activeSeasonId;
   if (!sectorId) {
     state.roster = []; state.history = []; state.liveGame = null;
     state.nextMatch = null; state.standings = []; state.trainings = []; state.calendar = [];
@@ -115,13 +132,13 @@ export async function loadSectorData(sectorId) {
     return;
   }
   const [roster, history, liveGame, nextMatch, standings, trainings, calendar, trainingRecurrences] = await Promise.all([
-    fetchRosterBySector(sectorId),
-    fetchHistory(sectorId),
+    fetchRosterBySector(sectorId, seasonId),
+    fetchHistory(sectorId, seasonId),
     fetchLiveGame(sectorId),
     fetchNextMatch(sectorId),
-    fetchStandings(sectorId),
-    fetchTrainings(sectorId),
-    fetchCalendar(sectorId),
+    fetchStandings(sectorId, seasonId),
+    fetchTrainings(sectorId, seasonId),
+    fetchCalendar(sectorId, seasonId),
     fetchRecurrences(sectorId)
   ]);
   state.roster = roster;

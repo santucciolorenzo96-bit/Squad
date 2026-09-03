@@ -170,7 +170,7 @@ export function renderCalendarioTab(c) {
       const rows = reviewRows.filter(r => r.include && r.opponent && r.opponent.trim() && r.date);
       if (rows.length === 0) { errEl.textContent = 'Seleziona almeno una riga valida con avversario e data.'; return; }
       try {
-        const inserted = await bulkInsertMatches(state.teamProfile.id, state.activeSectorId, rows);
+        const inserted = await bulkInsertMatches(state.teamProfile.id, state.activeSectorId, rows, state.activeSeasonId);
         state.calendar = state.calendar.concat(inserted);
         const skipped = rows.length - inserted.length;
         toast(`Salvate ${inserted.length} partite` + (skipped > 0 ? ` (${skipped} già presenti, saltate)` : ''));
@@ -231,7 +231,7 @@ export function renderCalendarioTab(c) {
         const updated = await updateCalendarMatch(existing.id, patch);
         Object.assign(existing, updated);
       } else {
-        const [inserted] = await bulkInsertMatches(state.teamProfile.id, state.activeSectorId, [{ ...patch, include: true }]);
+        const [inserted] = await bulkInsertMatches(state.teamProfile.id, state.activeSectorId, [{ ...patch, include: true }], state.activeSeasonId);
         if (inserted) state.calendar.push(inserted);
       }
       draw();

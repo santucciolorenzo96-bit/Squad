@@ -538,6 +538,8 @@ async function closeTheLoop(finished) {
     Object.assign(match, updated);
     await upsertOurLeagueMatch(state.teamProfile.id, state.activeSectorId, {
       giornata: match.giornata, date: match.date,
+      seasonId: state.activeSeasonId,
+      phase: match.phase || 'regular', roundLabel: match.round_label || null,
       ourName: state.teamProfile.name, opponent: match.opponent,
       isHome: match.home !== false,
       ourScore: finished.teamScore, oppScore: finished.oppScore

@@ -1,7 +1,9 @@
 import { supabase } from '../supabaseClient.js';
 
-export async function fetchTrainings(sectorId) {
-  const { data, error } = await supabase.from('trainings').select('*').eq('sector_id', sectorId).order('date');
+export async function fetchTrainings(sectorId, seasonId) {
+  let q = supabase.from('trainings').select('*').eq('sector_id', sectorId);
+  if (seasonId) q = q.eq('season_id', seasonId);
+  const { data, error } = await q.order('date');
   if (error) throw error;
   return data;
 }
@@ -18,9 +20,10 @@ export async function fetchTrainingsForDate(teamId, date) {
   return data;
 }
 
-export async function addTraining(teamId, sectorId, training) {
+export async function addTraining(teamId, sectorId, training, seasonId) {
   const { data, error } = await supabase.from('trainings')
-    .insert({ team_id: teamId, sector_id: sectorId, ...training }).select().single();
+    .insert({ team_id: teamId, sector_id: sectorId, season_id: seasonId || null, ...training })
+    .select().single();
   if (error) throw error;
   return data;
 }

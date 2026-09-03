@@ -58,9 +58,13 @@ export async function fetchLiveGame(sectorId) {
   return fromDbGame(data);
 }
 
-export async function fetchHistory(sectorId) {
-  const { data, error } = await supabase.from('games')
-    .select('*').eq('sector_id', sectorId).eq('status', 'finished').order('started_at');
+// Lo storico e' quello della stagione: senza il filtro, media punti, record e
+// miglior marcatore continuerebbero a sommarsi di anno in anno.
+export async function fetchHistory(sectorId, seasonId) {
+  let q = supabase.from('games')
+    .select('*').eq('sector_id', sectorId).eq('status', 'finished');
+  if (seasonId) q = q.eq('season_id', seasonId);
+  const { data, error } = await q.order('started_at');
   if (error) throw error;
   return data.map(fromDbGame);
 }

@@ -166,7 +166,7 @@ export function renderAllenamentiTab(c) {
         const updated = await updateTraining(existing.id, data);
         Object.assign(existing, updated);
       } else {
-        const created = await addTraining(state.teamProfile.id, state.activeSectorId, data);
+        const created = await addTraining(state.teamProfile.id, state.activeSectorId, data, state.activeSeasonId);
         state.trainings.push(created);
       }
       drawTrainings();

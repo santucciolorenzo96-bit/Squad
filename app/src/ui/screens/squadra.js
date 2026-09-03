@@ -1,4 +1,7 @@
 import { state } from '../../state.js';
+import { fetchSeasons, createSeason, updateSeason, removeSeason, daysTo, pickActiveSeason } from '../../api/seasons.js';
+import { openSeasonClose } from '../seasonClose.js';
+import { isAdmin } from '../../utils/permissions.js';
 import { esc } from '../../utils/format.js';
 import { toast, confirmModal, formModal, withButtonLoading } from '../modal.js';
 import { updateTeam, uploadTeamLogo, regenerateInviteCode } from '../../api/teams.js';
@@ -55,10 +58,25 @@ export function renderSquadraTab(c) {
       <button class="btn btn-primary" id="sqSaveFiscal">Salva dati fiscali</button>
     </div>
     <div class="card">
+      <h2>Colori della società</h2>
+      <div class="hint" style="margin-top:0;">Chi sceglie il tema <b>Squadra</b> dalle impostazioni vedrà SQUAD con questi accenti. Non cambia per nessuno finché non lo sceglie.</div>
+      <div class="row2">
+        <div class="field"><label>Colore principale</label><input type="color" id="sqPrimary" value="${esc(state.teamProfile.primary_color || '#19E3D1')}"></div>
+        <div class="field"><label>Colore secondario</label><input type="color" id="sqSecondary" value="${esc(state.teamProfile.secondary_color || '#11A8F4')}"></div>
+      </div>
+      <button class="btn btn-secondary" id="sqSaveColors" style="width:100%;">Salva colori</button>
+    </div>
+    <div class="card">
       <h2>Codice invito</h2>
       <div class="hint">Condividi questo codice con staff e genitori/giocatori: potranno registrarsi da "Entra in una squadra esistente" scegliendo il proprio ruolo.</div>
       <div style="font-family:var(--font-mono);font-size:24px;letter-spacing:0.1em;color:var(--gold);margin:12px 0;text-align:center;">${esc(state.teamProfile.invite_code)}</div>
       <button class="btn btn-secondary" id="sqRegenCode" style="width:100%;">Rigenera codice</button>
+    </div>
+    <div class="card">
+      <h2>Stagioni</h2>
+      <div class="hint" style="margin-top:0;">La stagione sportiva va da luglio a giugno, playoff compresi. Rose, partite, presenze e classifica appartengono a una stagione: chiudendola i numeri non si sommano a quelli dell'anno dopo.</div>
+      <div id="seasonList"></div>
+      <button class="btn btn-secondary" id="addSeasonBtn" style="width:100%;margin-top:10px;">+ Nuova stagione</button>
     </div>
     <div class="card">
       <h2>Settori</h2>
@@ -67,6 +85,20 @@ export function renderSquadraTab(c) {
     </div>
     </div>
   `;
+  drawSeasons(c);
+
+  document.getElementById('sqSaveColors').onclick = (e) => withButtonLoading(e.currentTarget, async () => {
+    const patch = {
+      primary_color: document.getElementById('sqPrimary').value,
+      secondary_color: document.getElementById('sqSecondary').value
+    };
+    const updated = await updateTeam(state.teamProfile.id, patch);
+    Object.assign(state.teamProfile, updated);
+    const { applyTeamAccent } = await import('../../utils/theme.js');
+    applyTeamAccent(state.teamProfile);
+    toast('Colori salvati');
+  });
+
   let pendingLogoBlob = null;
   let pendingLogoFile = null;
   const tools = document.getElementById('sqLogoTools');
@@ -205,4 +237,99 @@ function drawSectors() {
       toast('Settore eliminato');
     }, 'Elimina');
   });
+}
+
+// ---------------------------------------------------------------- STAGIONI
+// Le due scadenze di settembre — iscrizione ai campionati e tesseramento —
+// stanno qui perche' appartengono alla stagione, e da qui alimentano il conto
+// alla rovescia in Home. Restano vuote finche' non le si imposta.
+function seasonRow(s, canEdit) {
+  const enr = daysTo(s.enrollment_deadline);
+  const reg = daysTo(s.registration_deadline);
+  const chip = (label, d) => d == null ? '' :
+    `<span class="sr-chip${d < 0 ? ' late' : (d <= 14 ? ' soon' : '')}">${label}: ${d < 0 ? 'scaduta' : (d === 0 ? 'oggi' : d + 'g')}</span>`;
+  return `<div class="list-row">
+    <div class="main">
+      <div class="nm">${esc(s.name)}${s.closed ? ' <span class="status-badge pending">chiusa</span>' : ''}</div>
+      <div class="sub">${new Date(s.start_date).toLocaleDateString('it-IT')} – ${new Date(s.end_date).toLocaleDateString('it-IT')}</div>
+      <div class="sr-chips">${chip('Iscrizione', enr)}${chip('Tesseramento', reg)}</div>
+    </div>
+    ${canEdit ? `<button class="icon-btn" data-season-edit="${s.id}">&#9998;</button>` : ''}
+    ${canEdit && !s.closed ? `<button class="btn btn-secondary" data-season-close="${s.id}" style="width:auto;padding:6px 10px;font-size:11.5px;">Chiudi</button>` : ''}
+  </div>`;
+}
+
+async function drawSeasons(c) {
+  const holder = document.getElementById('seasonList');
+  if (!holder) return;
+  const canEdit = isAdmin(state.currentUser);
+
+  if (state.seasons.length === 0) {
+    holder.innerHTML = '<div class="hint">Nessuna stagione. Creane una: senza, i dati di anni diversi si sommano fra loro.</div>';
+  } else {
+    holder.innerHTML = state.seasons.map(s => seasonRow(s, canEdit)).join('');
+  }
+
+  const reload = async () => {
+    state.seasons = await fetchSeasons(state.teamProfile.id);
+    const active = pickActiveSeason(state.seasons);
+    state.activeSeasonId = active ? active.id : null;
+    const { loadSectorData } = await import('../../router.js');
+    await loadSectorData(state.activeSectorId);
+    renderSquadraTab(c);
+  };
+
+  holder.querySelectorAll('[data-season-edit]').forEach(btn => {
+    btn.onclick = () => openSeasonModal(state.seasons.find(x => x.id === btn.dataset.seasonEdit), c, reload);
+  });
+  holder.querySelectorAll('[data-season-close]').forEach(btn => {
+    btn.onclick = () => openSeasonClose(state.seasons.find(x => x.id === btn.dataset.seasonClose), reload);
+  });
+  const add = document.getElementById('addSeasonBtn');
+  if (add) add.onclick = () => openSeasonModal(null, c, reload);
+}
+
+function openSeasonModal(existing, c, reload) {
+  const y = new Date().getFullYear();
+  const s = existing || { name: `${y}/${y + 1}`, start_date: `${y}-07-01`, end_date: `${y + 1}-06-30` };
+  formModal(existing ? 'Stagione' : 'Nuova stagione', `
+    <div class="field"><label>Nome</label><input type="text" id="ssName" value="${esc(s.name)}" placeholder="Es. 2025/2026"></div>
+    <div class="row2">
+      <div class="field"><label>Inizio</label><input type="date" id="ssStart" value="${s.start_date || ''}"></div>
+      <div class="field"><label>Fine</label><input type="date" id="ssEnd" value="${s.end_date || ''}"></div>
+    </div>
+    <div class="section-label" style="margin-top:6px;">Scadenze di settembre</div>
+    <div class="hint" style="margin-top:0;">Impostale e compariranno in Home con il conto alla rovescia, per tutto lo staff. Lasciale vuote se non ti servono.</div>
+    <div class="row2">
+      <div class="field"><label>Iscrizione ai campionati</label><input type="date" id="ssEnr" value="${(existing && existing.enrollment_deadline) || ''}"></div>
+      <div class="field"><label>Tesseramento giocatori</label><input type="date" id="ssReg" value="${(existing && existing.registration_deadline) || ''}"></div>
+    </div>
+    ${existing ? '<button class="btn btn-ghost" id="ssDelete" style="width:100%;margin-top:4px;">Elimina stagione</button>' : ''}
+  `, async () => {
+    const name = document.getElementById('ssName').value.trim();
+    const start_date = document.getElementById('ssStart').value;
+    const end_date = document.getElementById('ssEnd').value;
+    if (!name) return 'Dai un nome alla stagione.';
+    if (!start_date || !end_date) return 'Servono le date di inizio e fine.';
+    if (end_date <= start_date) return 'La fine deve venire dopo l\'inizio.';
+    const patch = {
+      name, start_date, end_date,
+      enrollment_deadline: document.getElementById('ssEnr').value || null,
+      registration_deadline: document.getElementById('ssReg').value || null
+    };
+    if (existing) await updateSeason(existing.id, patch);
+    else await createSeason(state.teamProfile.id, patch);
+    toast('Stagione salvata');
+    await reload();
+  }, { confirmLabel: 'Salva' });
+
+  const del = document.getElementById('ssDelete');
+  if (del) del.onclick = () => confirmModal('Eliminare la stagione?',
+    'Partite, allenamenti e risultati di quella stagione restano nel database ma non saranno più raggruppati. Meglio chiuderla che eliminarla.',
+    async () => {
+      await removeSeason(existing.id);
+      document.getElementById('modalRoot').innerHTML = '';
+      toast('Stagione eliminata');
+      await reload();
+    }, 'Elimina');
 }

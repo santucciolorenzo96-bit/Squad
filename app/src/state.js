@@ -5,6 +5,8 @@ export const state = {
   staffSectors: {},    // { [profileId]: sectorId[] }
   sectors: [],
   activeSectorId: null,
+  seasons: [],
+  activeSeasonId: null,
   linkedPlayers: [],   // per Genitore/Atleta: i giocatori a cui è collegato
   familySectorIds: [], // per Genitore/Atleta: unione dei settori dei giocatori collegati
   roster: [],
@@ -43,6 +45,8 @@ export function resetState() {
   state.staffSectors = {};
   state.sectors = [];
   state.activeSectorId = null;
+  state.seasons = [];
+  state.activeSeasonId = null;
   state.linkedPlayers = [];
   state.familySectorIds = [];
   state.roster = [];

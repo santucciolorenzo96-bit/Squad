@@ -20,6 +20,12 @@ const SECTIONS = [
 let leagueMatches = [];
 let loaded = false;
 
+// Una serie di playoff non assegna punti di classifica: la tabella si calcola
+// sulla sola stagione regolare, i playoff si leggono a parte.
+function regularOnly(matches) {
+  return matches.filter(m => (m.phase || 'regular') === 'regular');
+}
+
 export function renderClassificaTab(c) {
   const canEdit = canEditHome(state.currentUser);
   const sport = currentSport();
@@ -47,7 +53,7 @@ async function loadAndDraw(c, canEdit, sport, st) {
   const body = document.getElementById('clsBody');
   if (!loaded || leagueMatches._sector !== state.activeSectorId) {
     try {
-      leagueMatches = await fetchLeagueMatches(state.activeSectorId);
+      leagueMatches = await fetchLeagueMatches(state.activeSectorId, state.activeSeasonId);
       leagueMatches._sector = state.activeSectorId;
       loaded = true;
     } catch (e) {
@@ -69,13 +75,13 @@ async function loadAndDraw(c, canEdit, sport, st) {
 // ------------------------------------------------------------------ CLASSIFICA
 function drawClassifica(c, canEdit, sport, st) {
   const body = document.getElementById('clsBody');
-  const played = leagueMatches.filter(m => m.home_score != null);
+  const played = regularOnly(leagueMatches).filter(m => m.home_score != null);
   const auto = played.length > 0;
 
   // Finché non c'è nessun risultato la classifica resta quella inserita a mano:
   // chi ha già compilato la sua non se la vede sparire.
   const rows = auto
-    ? computeStandings(leagueMatches, sport, state.teamProfile.name, state.standings.map(r => r.team_name))
+    ? computeStandings(regularOnly(leagueMatches), sport, state.teamProfile.name, state.standings.map(r => r.team_name))
     : [...state.standings].sort((a, b) => b.points - a.points);
 
   if (rows.length === 0) {
@@ -130,8 +136,9 @@ function drawClassifica(c, canEdit, sport, st) {
 function drawRisultati(c, canEdit, sport) {
   const body = document.getElementById('clsBody');
   const ourName = state.teamProfile.name;
+  const playoff = leagueMatches.filter(m => m.phase === 'playoff');
   const rounds = {};
-  leagueMatches.forEach(m => {
+  regularOnly(leagueMatches).forEach(m => {
     const k = m.giornata == null ? 'altro' : String(m.giornata);
     if (!rounds[k]) rounds[k] = [];
     rounds[k].push(m);
@@ -150,6 +157,13 @@ function drawRisultati(c, canEdit, sport) {
         <div class="section-label">${k === 'altro' ? 'Senza giornata' : 'Giornata ' + k}</div>
         <div class="card">${rounds[k].map(m => resultRow(m, ourName, canEdit)).join('')}</div>
       `).join('')}
+    ${playoff.length ? `
+      <div class="section-label" style="margin-top:20px;">Playoff</div>
+      <div class="hint" style="margin-top:0;">Non entrano in classifica: la stagione regolare e i playoff sono due cose diverse.</div>
+      ${groupPlayoff(playoff).map(g => `
+        <div class="section-label">${esc(g.label)}</div>
+        <div class="card">${g.matches.map(m => resultRow(m, ourName, canEdit)).join('')}</div>
+      `).join('')}` : ''}
   `;
 
   const add = document.getElementById('addResultBtn');
@@ -157,6 +171,18 @@ function drawRisultati(c, canEdit, sport) {
   body.querySelectorAll('[data-lm-edit]').forEach(btn => {
     btn.onclick = () => openResultModal(leagueMatches.find(m => m.id === btn.dataset.lmEdit), c, sport);
   });
+}
+
+// I playoff si raggruppano per turno, non per giornata: "Quarti", "Semifinale",
+// "Finale". Chi non mette il nome del turno finisce in un gruppo unico.
+function groupPlayoff(matches) {
+  const by = {};
+  matches.forEach(m => {
+    const k = (m.round_label || '').trim() || 'Playoff';
+    if (!by[k]) by[k] = [];
+    by[k].push(m);
+  });
+  return Object.entries(by).map(([label, ms]) => ({ label, matches: ms }));
 }
 
 function resultRow(m, ourName, canEdit) {
@@ -179,12 +205,21 @@ function openResultModal(existing, c, sport) {
     ...leagueMatches.flatMap(m => [m.home_team, m.away_team])
   ].filter(Boolean))].sort();
 
-  const m = existing || { giornata: latestGiornata(leagueMatches) || 1, date: '', home_team: '', away_team: '', home_score: '', away_score: '' };
+  const m = existing || { giornata: latestGiornata(regularOnly(leagueMatches)) || 1, phase: 'regular', date: '', home_team: '', away_team: '', home_score: '', away_score: '' };
 
   formModal(existing ? 'Correggi risultato' : 'Risultato di giornata', `
     <div class="row2">
-      <div class="field"><label>Giornata</label><input type="number" min="1" id="lmGio" value="${m.giornata ?? ''}"></div>
+      <div class="field"><label>Fase</label>
+        <select id="lmPhase">
+          <option value="regular"${(m.phase || 'regular') === 'regular' ? ' selected' : ''}>Stagione regolare</option>
+          <option value="playoff"${m.phase === 'playoff' ? ' selected' : ''}>Playoff</option>
+        </select>
+      </div>
       <div class="field"><label>Data</label><input type="date" id="lmDate" value="${m.date || ''}"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Giornata</label><input type="number" min="1" id="lmGio" value="${m.giornata ?? ''}"></div>
+      <div class="field"><label>Turno (playoff)</label><input type="text" id="lmRound" value="${esc(m.round_label || '')}" placeholder="Es. Semifinale"></div>
     </div>
     <div class="field"><label>Squadra in casa</label>
       <input type="text" id="lmHome" list="lmTeams" value="${esc(m.home_team || '')}" placeholder="Nome squadra"></div>
@@ -207,10 +242,12 @@ function openResultModal(existing, c, sport) {
       id: existing ? existing.id : null,
       giornata: document.getElementById('lmGio').value ? parseInt(document.getElementById('lmGio').value, 10) : null,
       date: document.getElementById('lmDate').value || null,
+      phase: document.getElementById('lmPhase').value,
+      round_label: document.getElementById('lmRound').value.trim() || null,
       home_team, away_team,
       home_score: hsRaw === '' ? null : parseInt(hsRaw, 10),
       away_score: asRaw === '' ? null : parseInt(asRaw, 10)
-    });
+    }, state.activeSeasonId);
     await syncOwnCalendar(saved);
     loaded = false;
     toast('Risultato salvato');
@@ -304,11 +341,11 @@ function openStandingModal(existing, c, sport, st) {
     };
     if (is_us) state.standings.forEach(r => { r.is_us = false; });
     if (existing) {
-      await upsertStanding(state.teamProfile.id, state.activeSectorId, { id: existing.id, ...data });
+      await upsertStanding(state.teamProfile.id, state.activeSectorId, { id: existing.id, ...data }, state.activeSeasonId);
       Object.assign(existing, data);
     } else {
-      await upsertStanding(state.teamProfile.id, state.activeSectorId, data);
-      state.standings = await fetchStandings(state.activeSectorId);
+      await upsertStanding(state.teamProfile.id, state.activeSectorId, data, state.activeSeasonId);
+      state.standings = await fetchStandings(state.activeSectorId, state.activeSeasonId);
     }
     toast('Classifica aggiornata');
     renderClassificaTab(c);
