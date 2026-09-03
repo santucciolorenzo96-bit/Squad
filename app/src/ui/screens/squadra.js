@@ -68,6 +68,11 @@ export function renderSquadraTab(c) {
       <button class="btn btn-secondary" id="sqSaveColors" style="width:100%;">Salva colori</button>
     </div>
     <div class="card">
+      <h2>Manutenzione</h2>
+      <div class="hint" style="margin-top:0;">Le notifiche restano nel database anche quando non servono più a nessuno. Novanta giorni è oltre qualunque utilità.</div>
+      <button class="btn btn-ghost" id="sqPrune" style="width:100%;">Elimina le notifiche più vecchie di 90 giorni</button>
+    </div>
+    <div class="card">
       <h2>Codice invito</h2>
       <div class="hint">Condividi questo codice con staff e genitori/giocatori: potranno registrarsi da "Entra in una squadra esistente" scegliendo il proprio ruolo.</div>
       <div style="font-family:var(--font-mono);font-size:24px;letter-spacing:0.1em;color:var(--gold);margin:12px 0;text-align:center;">${esc(state.teamProfile.invite_code)}</div>
@@ -87,6 +92,15 @@ export function renderSquadraTab(c) {
     </div>
   `;
   drawSeasons(c);
+
+  document.getElementById('sqPrune').onclick = (e) => withButtonLoading(e.currentTarget, async () => {
+    const { pruneNotifications } = await import('../../api/notifications.js');
+    const n = await pruneNotifications(90);
+    const { refreshNotifications } = await import('../../router.js');
+    await refreshNotifications().catch(() => {});
+    toast(n ? n + ' notifiche eliminate' : 'Niente da eliminare');
+  });
+
 
   document.getElementById('sqSaveColors').onclick = (e) => withButtonLoading(e.currentTarget, async () => {
     const patch = {

@@ -874,3 +874,20 @@ table.boxscore tr:hover td{background:var(--tint-hover);}
 .gdpr-dump{font-family:var(--font-mono);font-size:11.5px;line-height:1.55;
   white-space:pre;margin:0;padding:10px 12px;background:var(--tint);
   border-radius:8px;color:var(--dim);}
+
+/* Notifiche: non lette in evidenza, personali distinte, tutte raggiungibili.
+   Prima erano un elenco da guardare; ora si toccano e portano da qualche parte. */
+.notif-panel-title{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.notif-panel-title button{background:none;border:none;color:var(--orange);font-family:inherit;
+  font-size:11px;font-weight:600;cursor:pointer;padding:2px 4px;white-space:nowrap;}
+.notif-row.clickable{cursor:pointer;}
+.notif-row.clickable:hover{background:var(--tint);}
+/* Il punto sulla sinistra è l'unico segnale di "non letta": un colore di sfondo
+   diverso su tutta la riga renderebbe illeggibile il testo in tema chiaro. */
+.notif-row.unread{position:relative;}
+.notif-row.unread::before{content:'';position:absolute;left:5px;top:16px;
+  width:6px;height:6px;border-radius:50%;background:var(--orange);}
+.notif-row.unread .notif-row-title{font-weight:700;}
+.notif-personal{display:inline-block;font-size:9px;font-weight:700;letter-spacing:0.06em;
+  text-transform:uppercase;color:var(--orange);background:var(--orange-dim);
+  border-radius:999px;padding:2px 7px;margin-bottom:5px;}

@@ -2,7 +2,7 @@ import { state } from '../state.js';
 import { TABS, canSeeTab, isAdmin, isLinkedUser } from '../utils/permissions.js';
 import { esc } from '../utils/format.js';
 import { switchSector, unseenNotificationsCount } from '../router.js';
-import { markNotificationsSeen } from '../api/profiles.js';
+import { markNotificationsRead } from '../api/notifications.js';
 import { userInitials } from '../utils/theme.js';
 import { navIcon } from './icons.js';
 import { currentSport } from '../utils/sports/index.js';
@@ -162,12 +162,22 @@ export function renderApp() {
     if (existing) { existing.remove(); return; }
     const panel = document.createElement('div');
     panel.className = 'notif-panel'; panel.id = 'notifPanel';
+    const unread = unseenNotificationsCount();
+
     if (state.notifications.length === 0) {
-      panel.innerHTML = `<div class="notif-panel-title">Notifiche</div><div class="hint" style="padding:14px;">Nessuna notifica per ora.</div>`;
+      panel.innerHTML = `<div class="notif-panel-title"><span>Notifiche</span></div>`
+        + `<div class="hint" style="padding:14px;">Nessuna notifica per ora.</div>`;
     } else {
-      panel.innerHTML = `<div class="notif-panel-title">Notifiche</div>` + state.notifications.map(n => {
+      panel.innerHTML = `<div class="notif-panel-title">
+          <span>Notifiche${unread ? ` · ${unread} da leggere` : ''}</span>
+          ${unread ? '<button id="notifReadAll">Segna tutte lette</button>' : ''}
+        </div>` + state.notifications.map(n => {
         const sector = state.sectors.find(s => s.id === n.sector_id);
-        return `<div class="notif-row">
+        const mine = n.actor_id === state.currentUser.id;
+        const isUnread = !n.read && !mine;
+        return `<div class="notif-row${isUnread ? ' unread' : ''}${n.link_tab ? ' clickable' : ''}"
+             data-notif="${esc(n.id)}"${n.link_tab ? ` data-goto="${esc(n.link_tab)}"` : ''}>
+          ${n.profile_id ? '<span class="notif-personal">Per te</span>' : ''}
           <div class="notif-row-title">${esc(n.title)}</div>
           ${n.body ? `<div class="notif-row-body">${esc(n.body)}</div>` : ''}
           <div class="notif-row-meta">${sector ? esc(sector.name) + ' · ' : ''}${formatRelativeTime(n.created_at)}</div>
@@ -175,20 +185,40 @@ export function renderApp() {
       }).join('');
     }
     document.body.appendChild(panel);
+
+    // Il pannello non si chiude cliccandoci dentro: prima si poteva solo
+    // guardarlo, adesso ci sono cose da toccare.
+    panel.onclick = (ev) => ev.stopPropagation();
+
+    const readAll = document.getElementById('notifReadAll');
+    if (readAll) readAll.onclick = async () => {
+      state.notifications.forEach(n => { n.read = true; });
+      panel.remove();
+      renderApp();
+      markNotificationsRead(null).catch(() => {});
+    };
+
+    // Toccare una notifica la segna letta e porta dove serve: senza, si sapeva
+    // che qualcosa era cambiato ma non dove guardare.
+    panel.querySelectorAll('[data-notif]').forEach(row => {
+      row.onclick = async () => {
+        const id = row.dataset.notif;
+        const n = state.notifications.find(x => x.id === id);
+        if (n) n.read = true;
+        markNotificationsRead([id]).catch(() => {});
+        panel.remove();
+        const dest = row.dataset.goto;
+        if (dest && visibleTabs.some(t => t.id === dest)) state.currentTab = dest;
+        renderApp();
+      };
+    });
+
     setTimeout(() => {
       document.addEventListener('click', function h() {
         const p = document.getElementById('notifPanel'); if (p) p.remove();
         document.removeEventListener('click', h);
       }, 0);
     }, 0);
-
-    if (unseenNotificationsCount() > 0) {
-      const seenAt = new Date().toISOString();
-      state.currentUser.notifications_seen_at = seenAt;
-      markNotificationsSeen().catch(() => {});
-      const badge = document.querySelector('#notifBell .bell-badge');
-      if (badge) badge.remove();
-    }
   };
 
   document.getElementById('userAvatarBtn').onclick = (e) => {

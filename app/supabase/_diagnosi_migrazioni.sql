@@ -76,7 +76,9 @@ with atteso(ordine, migrazione, descrizione, presente) as (
          to_regclass('public.seasons') is not null),
     (22, '022 privacy',         'Consenso registrato, cancellazione e accesso ai dati',
          exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-                 where n.nspname = 'public' and p.proname = 'erase_player'))
+                 where n.nspname = 'public' and p.proname = 'erase_player')),
+    (23, '023 notifiche',       'Destinatario, stato di lettura, ciclo dei documenti',
+         to_regclass('public.notification_reads') is not null)
 )
 select
   migrazione,

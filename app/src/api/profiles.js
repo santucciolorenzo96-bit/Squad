@@ -34,12 +34,6 @@ export async function updateMyProfile({ display_name, phone }) {
   return data;
 }
 
-export async function markNotificationsSeen() {
-  const { data, error } = await supabase.rpc('mark_notifications_seen');
-  if (error) throw error;
-  return data;
-}
-
 export async function deactivateProfile(id) {
   const { error } = await supabase.from('profiles').update({ active: false }).eq('id', id);
   if (error) throw error;

@@ -89,11 +89,10 @@ export async function refreshNotifications() {
   state.notifications = await fetchNotifications(state.teamProfile.id);
 }
 
+// Le proprie azioni non si notificano da sole: chi ha creato l'allenamento
+// sa di averlo creato.
 export function unseenNotificationsCount() {
-  const seenAt = state.currentUser.notifications_seen_at;
-  const others = state.notifications.filter(n => n.actor_id !== state.currentUser.id);
-  if (!seenAt) return others.length;
-  return others.filter(n => n.created_at > seenAt).length;
+  return state.notifications.filter(n => !n.read && n.actor_id !== state.currentUser.id).length;
 }
 
 export async function loadFamilyLinks() {

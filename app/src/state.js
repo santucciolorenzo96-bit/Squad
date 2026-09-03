@@ -1,6 +1,6 @@
 export const state = {
   teamProfile: null,   // { id, name, city, category, sport, logo_url, primary_color, secondary_color, invite_code }
-  currentUser: null,   // profile row + email: { id, team_id, display_name, role, email, phone, notifications_seen_at, finance_role, can_upload_documents, can_score_matches }
+  currentUser: null,   // profile row + email: { id, team_id, display_name, role, email, phone, privacy_accepted_at, finance_role, can_upload_documents, can_score_matches }
   staff: [],
   staffSectors: {},    // { [profileId]: sectorId[] }
   sectors: [],
