@@ -1,10 +1,11 @@
 export const state = {
   teamProfile: null,   // { id, name, city, category, sport, logo_url, primary_color, secondary_color, invite_code }
-  currentUser: null,   // profile row + email: { id, team_id, display_name, role, email, phone, privacy_accepted_at, finance_role, can_upload_documents, can_score_matches }
+  currentUser: null,   // profile row + email: { id, team_id, display_name, role, email, phone, avatar_path, privacy_accepted_at, finance_role, can_upload_documents, can_score_matches }
   staff: [],
   staffSectors: {},    // { [profileId]: sectorId[] }
   sectors: [],
   activeSectorId: null,
+  myAvatarUrl: null,   // URL firmato della propria foto, valido un'ora
   seasons: [],
   activeSeasonId: null,
   linkedPlayers: [],   // per Genitore/Atleta: i giocatori a cui è collegato
@@ -45,6 +46,7 @@ export function resetState() {
   state.staffSectors = {};
   state.sectors = [];
   state.activeSectorId = null;
+  state.myAvatarUrl = null;
   state.seasons = [];
   state.activeSeasonId = null;
   state.linkedPlayers = [];

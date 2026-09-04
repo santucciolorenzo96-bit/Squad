@@ -85,11 +85,17 @@
 }
 
 /* transizione di tema: attiva solo per una finestra breve intorno al cambio esplicito */
-.theme-transitioning,.theme-transitioning *{
-  transition:background-color .35s ease,color .35s ease,border-color .35s ease,box-shadow .35s ease !important;
+/* Il cambio tema non anima piu' ogni singolo elemento: la dissolvenza la fa
+   il browser una volta sola, sulla GPU, con le view transition. Dove non ci
+   sono, il tema cambia di colpo — che e' meglio di una dissolvenza che scatta. */
+::view-transition-old(root),
+::view-transition-new(root){
+  animation-duration:.28s;
+  animation-timing-function:cubic-bezier(.4,0,.2,1);
 }
 @media (prefers-reduced-motion:reduce){
-  .theme-transitioning,.theme-transitioning *{ transition:none !important; }
+  ::view-transition-old(root),
+  ::view-transition-new(root){ animation:none; }
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--font-body);}
@@ -966,3 +972,23 @@ table.boxscore tr:hover td{background:var(--tint-hover);}
     border-left:none;border-top:1px solid var(--glass-border);}
   .account-actions{flex-direction:column;}
 }
+
+/* Fotografia del profilo. Le iniziali restano il predefinito: funzionano
+   sempre, non chiedono niente, e per molti bastano. */
+.user-avatar-circle.has-photo{background:none;padding:0;overflow:hidden;}
+.user-avatar-circle img{width:100%;height:100%;object-fit:cover;display:block;}
+
+.profile-avatar-wrap{position:relative;flex-shrink:0;}
+.profile-avatar.has-photo{background:none;padding:0;overflow:hidden;border-color:var(--glass-border);}
+.profile-avatar img{width:100%;height:100%;object-fit:cover;display:block;}
+.avatar-edit{position:absolute;right:-2px;bottom:-2px;width:26px;height:26px;border-radius:50%;
+  background:var(--panel2);border:1px solid var(--glass-border);color:var(--dim);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;padding:0;
+  transition:color .18s ease,border-color .18s ease,transform .18s ease;}
+.avatar-edit svg{width:14px;height:14px;}
+.avatar-edit:hover{color:var(--orange);border-color:var(--orange);transform:scale(1.06);}
+.avatar-edit:focus-visible{outline:2px solid var(--orange);outline-offset:2px;}
+
+.avatar-preview{width:120px;height:120px;border-radius:50%;overflow:hidden;margin:0 auto 14px;
+  border:1px solid var(--glass-border);background:var(--tint);}
+.avatar-preview img{width:100%;height:100%;object-fit:cover;display:block;}

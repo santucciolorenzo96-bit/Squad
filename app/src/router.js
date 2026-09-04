@@ -193,6 +193,10 @@ export async function boot() {
     return;
   }
   state.currentUser = profile;
+  if (profile.avatar_path) {
+    const { getAvatarUrl } = await import('./api/profiles.js');
+    state.myAvatarUrl = await getAvatarUrl(profile.avatar_path).catch(() => null);
+  }
   await loadTeamWideData();
   if (isLinkedUser(profile)) await loadFamilyLinks();
   state.activeSectorId = pickDefaultSectorId();

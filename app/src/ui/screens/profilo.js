@@ -5,7 +5,9 @@ import { getStoredThemeMode, setTheme, userInitials, applyTeamAccent, teamInitia
 import { formModal, toast, withButtonLoading } from '../modal.js';
 import { changePassword } from '../../auth.js';
 import { goLogout } from '../../router.js';
-import { updateMyProfile } from '../../api/profiles.js';
+import { updateMyProfile, uploadMyAvatar, setMyAvatar, removeMyAvatar, getAvatarUrl } from '../../api/profiles.js';
+import { resizeImageFile } from '../../utils/image.js';
+import { openPhotoPositionModal } from '../photoEditor.js';
 import { fetchEntriesForPlayers } from '../../api/financeEntries.js';
 import { fetchPlayerDocuments } from '../../api/roster.js';
 import { openPrivacyText } from '../privacy.js';
@@ -60,7 +62,17 @@ export async function renderProfiloTab(c) {
     <button class="btn btn-ghost" id="profBack" style="margin-bottom:14px;">← Torna</button>
 
     <div class="profile-hero">
-      <div class="profile-avatar">${esc(userInitials(u.display_name))}</div>
+      <div class="profile-avatar-wrap">
+        <div class="profile-avatar${state.myAvatarUrl ? ' has-photo' : ''}">${state.myAvatarUrl
+          ? `<img src="${esc(state.myAvatarUrl)}" alt="" style="object-position:${u.avatar_focal_x ?? 50}% ${u.avatar_focal_y ?? 50}%;">`
+          : esc(userInitials(u.display_name))}</div>
+        <button class="avatar-edit" id="pAvatarBtn" title="Cambia la tua foto" aria-label="Cambia la tua foto">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3.2 15.4V17h1.6l8.4-8.4-1.6-1.6z"/><path d="M12.3 5.7l1.6-1.6a1.1 1.1 0 0 1 1.6 0l0 0a1.1 1.1 0 0 1 0 1.6l-1.6 1.6z"/>
+          </svg>
+        </button>
+        <input type="file" id="pAvatarFile" accept="image/*" hidden>
+      </div>
       <div class="profile-id">
         <h2>${esc(u.display_name)}</h2>
         <div class="profile-meta">
@@ -163,6 +175,8 @@ export async function renderProfiloTab(c) {
 
   document.getElementById('pPrivacy').onclick = () => openPrivacyText();
 
+  wireAvatar(c, u);
+
   document.getElementById('pSave').onclick = (e) => withButtonLoading(e.currentTarget, async () => {
     const errEl = document.getElementById('pError');
     const display_name = document.getElementById('pName').value.trim();
@@ -257,4 +271,84 @@ function openChangePasswordModal() {
     await changePassword(state.currentUser.email, old, n1);
     toast('Password aggiornata');
   }, { confirmLabel: 'Cambia password' });
+}
+
+// La propria fotografia. Le iniziali restano il predefinito — funzionano
+// sempre e non chiedono niente — ma chi vuole puo' mettere la sua foto e
+// deciderne l'inquadratura: il ritaglio automatico taglia le teste, come si
+// era gia' visto con le foto dei giocatori.
+function wireAvatar(c, u) {
+  const btn = document.getElementById('pAvatarBtn');
+  const input = document.getElementById('pAvatarFile');
+  if (!btn || !input) return;
+
+  const ridisegna = async () => {
+    const { renderApp } = await import('../layout.js');
+    renderApp();
+  };
+
+  btn.onclick = () => {
+    if (!state.myAvatarUrl) { input.click(); return; }
+    // Con una foto gia' presente le opzioni sono tre, e vanno mostrate.
+    formModal('La tua foto', `
+      <div class="avatar-preview"><img src="${esc(state.myAvatarUrl)}"
+        style="object-position:${u.avatar_focal_x ?? 50}% ${u.avatar_focal_y ?? 50}%;"></div>
+      <button class="btn btn-secondary" id="avReframe" style="width:100%;margin-bottom:8px;">Sposta l'inquadratura</button>
+      <button class="btn btn-secondary" id="avReplace" style="width:100%;margin-bottom:8px;">Cambia foto</button>
+      <button class="btn btn-ghost" id="avRemove" style="width:100%;">Torna alle iniziali</button>
+    `, async () => {}, { confirmLabel: 'Chiudi' });
+
+    document.getElementById('avReframe').onclick = () => {
+      document.getElementById('modalRoot').innerHTML = '';
+      openPhotoPositionModal(state.myAvatarUrl, u.avatar_focal_x ?? 50, u.avatar_focal_y ?? 50, async (x, y) => {
+        const aggiornato = await setMyAvatar(u.avatar_path, x, y);
+        Object.assign(u, aggiornato);
+        toast('Inquadratura salvata');
+        await ridisegna();
+      });
+    };
+    document.getElementById('avReplace').onclick = () => {
+      document.getElementById('modalRoot').innerHTML = '';
+      input.click();
+    };
+    document.getElementById('avRemove').onclick = async () => {
+      const vecchio = u.avatar_path;
+      document.getElementById('modalRoot').innerHTML = '';
+      try {
+        const aggiornato = await removeMyAvatar(vecchio);
+        Object.assign(u, aggiornato);
+        state.myAvatarUrl = null;
+        toast('Foto rimossa');
+        await ridisegna();
+      } catch (err) {
+        toast(err.message || 'Non è stato possibile rimuovere la foto');
+      }
+    };
+  };
+
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    toast('Carico la foto…');
+    try {
+      // 480 pixel bastano: l'avatar piu' grande dell'app ne occupa 72, e una
+      // foto da telefono senza ridimensionamento pesa qualche megabyte.
+      const blob = await resizeImageFile(file, 480);
+      const aggiornato = await uploadMyAvatar(u.id, blob);
+      Object.assign(u, aggiornato);
+      state.myAvatarUrl = await getAvatarUrl(aggiornato.avatar_path);
+
+      // L'inquadratura si sceglie subito, sull'anteprima locale: aspettare
+      // l'URL firmato per mostrarla sarebbe un'attesa senza motivo.
+      openPhotoPositionModal(URL.createObjectURL(blob), 50, 50, async (x, y) => {
+        const conFuoco = await setMyAvatar(aggiornato.avatar_path, x, y);
+        Object.assign(u, conFuoco);
+        toast('Foto aggiornata');
+        await ridisegna();
+      });
+    } catch (err) {
+      toast(err.message || 'Errore nel caricamento della foto');
+    }
+  };
 }

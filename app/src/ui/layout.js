@@ -76,7 +76,9 @@ export function renderApp() {
             ${unseenNotificationsCount() > 0 ? `<span class="badge-count bell-badge">${unseenNotificationsCount()}</span>` : ''}
           </button>
           <button class="user-avatar-btn" id="userAvatarBtn" aria-label="Profilo e impostazioni" title="Profilo e impostazioni">
-            <span class="user-avatar-circle">${esc(userInitials(state.currentUser.display_name))}</span>
+            <span class="user-avatar-circle${state.myAvatarUrl ? ' has-photo' : ''}">${state.myAvatarUrl
+              ? `<img src="${esc(state.myAvatarUrl)}" alt="" style="object-position:${state.currentUser.avatar_focal_x ?? 50}% ${state.currentUser.avatar_focal_y ?? 50}%;">`
+              : esc(userInitials(state.currentUser.display_name))}</span>
             <span class="user-avatar-gear">
               <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="10" cy="10" r="3"/>

@@ -78,7 +78,10 @@ with atteso(ordine, migrazione, descrizione, presente) as (
          exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                  where n.nspname = 'public' and p.proname = 'erase_player')),
     (23, '023 notifiche',       'Destinatario, stato di lettura, ciclo dei documenti',
-         to_regclass('public.notification_reads') is not null)
+         to_regclass('public.notification_reads') is not null),
+    (24, '024 avatar',          'Fotografia del profilo utente',
+         exists (select 1 from information_schema.columns
+                 where table_name = 'profiles' and column_name = 'avatar_path'))
 )
 select
   migrazione,

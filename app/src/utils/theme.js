@@ -34,14 +34,23 @@ export function initTheme() {
   });
 }
 
+// Il cambio tema era lento per una ragione precisa: la classe di transizione
+// applicava `transition` a OGNI elemento della pagina con !important, e con il
+// vetro sfocato addosso il browser doveva ricomporre l'intera interfaccia
+// quattro proprieta' alla volta. Migliaia di animazioni per un effetto solo.
+//
+// Ora la dissolvenza la fa il browser, una volta sola e sulla GPU, tramite le
+// view transition. Dove non ci sono si cambia di colpo: istantaneo e' meglio
+// di una dissolvenza che scatta.
 export function setTheme(mode) {
   localStorage.setItem(THEME_KEY, mode);
-  const allowTransition = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (allowTransition) {
-    document.documentElement.classList.add('theme-transitioning');
-    setTimeout(() => document.documentElement.classList.remove('theme-transitioning'), 400);
+
+  const ridotto = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (ridotto || typeof document.startViewTransition !== 'function') {
+    applyThemeAttribute(mode);
+    return;
   }
-  applyThemeAttribute(mode);
+  document.startViewTransition(() => applyThemeAttribute(mode));
 }
 
 // ======================= Tema "Squadra" =======================
