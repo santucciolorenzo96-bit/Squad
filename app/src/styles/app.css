@@ -252,11 +252,23 @@ button:focus:not(:focus-visible){outline:none;}
   .sector-switcher{display:none;}
   .sector-picker{display:block;}
 }
-.user-avatar-btn{position:relative;width:42px;height:42px;flex-shrink:0;background:none;border:none;padding:0;display:flex;align-items:center;justify-content:center;}
-.user-avatar-btn .gear-base{position:absolute;inset:3px;border-radius:50%;border:1.5px solid var(--glass-border);}
-.user-avatar-btn .gear-tooth{position:absolute;top:50%;left:50%;width:5px;height:7px;margin:-20px 0 0 -2.5px;background:var(--dim);border-radius:1px;transform-origin:2.5px 20px;transition:background .2s ease;}
-.user-avatar-btn:hover .gear-tooth{background:var(--text);}
-.user-avatar-circle{position:relative;width:30px;height:30px;border-radius:50%;background:var(--tint);border:1px solid var(--glass-border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--text);font-family:var(--font-display);}
+/* Profilo e impostazioni: le iniziali erano dentro un ingranaggio disegnato
+   con otto span, i cui denti stavano a raggio 13-20px mentre il cerchio ne
+   occupava 16 — si sovrapponevano, ed e' per questo che sembrava storto.
+   Ora l'avatar e' pieno e leggibile, e l'ingranaggio e' una pastiglia
+   nell'angolo: dice "impostazioni" senza contendere spazio alle iniziali. */
+.user-avatar-btn{position:relative;width:38px;height:38px;flex-shrink:0;background:none;border:none;padding:0;cursor:pointer;}
+.user-avatar-circle{width:38px;height:38px;border-radius:50%;background:var(--tint);
+  border:1px solid var(--glass-border);display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:700;color:var(--text);font-family:var(--font-display);
+  letter-spacing:0.02em;transition:border-color .18s ease,background .18s ease;}
+.user-avatar-btn:hover .user-avatar-circle{border-color:var(--orange);background:var(--orange-dim);}
+.user-avatar-gear{position:absolute;right:-2px;bottom:-2px;width:16px;height:16px;border-radius:50%;
+  background:var(--panel2);border:1px solid var(--glass-border);color:var(--dim);
+  display:flex;align-items:center;justify-content:center;transition:color .18s ease,border-color .18s ease;}
+.user-avatar-gear svg{width:10px;height:10px;}
+.user-avatar-btn:hover .user-avatar-gear{color:var(--orange);border-color:var(--orange);}
+.user-avatar-btn:focus-visible{outline:2px solid var(--orange);outline-offset:3px;border-radius:50%;}
 .theme-switch{display:flex;gap:3px;padding:4px;margin:2px 0 4px;background:rgba(128,128,128,0.12);border-radius:8px;}
 .theme-switch button{flex:1;background:none;border:none;color:var(--dim);font-size:11px;font-weight:600;padding:7px 4px;border-radius:6px;transition:background .2s ease,color .2s ease;}
 .theme-switch button.active{background:var(--panel2);color:var(--text);}
@@ -901,3 +913,56 @@ table.boxscore tr:hover td{background:var(--tint-hover);}
 .conflict-warn b{display:block;color:var(--amber);margin-bottom:5px;}
 .conflict-warn div{font-family:var(--font-mono);font-size:11.5px;margin-top:2px;}
 .conflict-warn span{display:block;margin-top:7px;color:var(--dim);font-size:11.5px;}
+
+/* ============================ Profilo e impostazioni ============================
+   La stessa zona serve due cose — chi sei e come si comporta l'app — quindi
+   apre con un blocco di identità e prosegue con le impostazioni affiancate,
+   invece della pila di riquadri tutti uguali di prima. */
+.profile-hero{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:18px;
+  padding:20px 22px;margin-bottom:18px;border-radius:var(--radius-lg);
+  background:var(--glass-bg);backdrop-filter:var(--glass-medium-blur);
+  -webkit-backdrop-filter:var(--glass-medium-blur);
+  border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);}
+.profile-avatar{width:72px;height:72px;border-radius:50%;flex-shrink:0;
+  background:var(--orange-dim);border:2px solid var(--orange);color:var(--orange);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-display);font-weight:700;font-size:26px;letter-spacing:0.02em;}
+.profile-id{min-width:0;}
+.profile-id h2{font-family:var(--font-display);font-size:22px;font-weight:700;margin:0;line-height:1.2;}
+.profile-meta{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:6px;}
+.profile-meta span:not(.role-badge){font-size:12px;color:var(--dim);overflow-wrap:anywhere;}
+.profile-role-what{font-size:12.5px;color:var(--dim);line-height:1.5;margin-top:7px;max-width:52ch;}
+
+/* La società a cui appartieni: qui il logo è quello del club, non quello di SQUAD. */
+.profile-team{display:flex;align-items:center;gap:10px;padding-left:18px;
+  border-left:1px solid var(--glass-border);flex-shrink:0;}
+.pt-badge{width:42px;height:42px;border-radius:50%;flex-shrink:0;background:var(--tint);
+  display:flex;align-items:center;justify-content:center;overflow:hidden;
+  font-family:var(--font-display);font-weight:700;font-size:14px;}
+.pt-badge.has-logo{background:none;}
+.pt-badge img{width:100%;height:100%;object-fit:contain;}
+.profile-team b{display:block;font-size:14px;}
+.profile-team span{display:block;font-size:11.5px;color:var(--dim);margin-top:2px;}
+
+.settings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;align-items:start;}
+.settings-grid .card{margin:0;}
+
+/* "Squadra" mostra i colori che applicherà: un'etichetta da sola non dice
+   cosa succede finché non la si prova. */
+.theme-swatch{display:inline-flex;gap:2px;margin-right:6px;vertical-align:-1px;}
+.theme-swatch em{display:block;width:8px;height:8px;border-radius:50%;}
+
+.sector-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.sector-chips span{background:var(--tint);border-radius:999px;padding:4px 11px;font-size:12px;}
+
+.account-actions{display:flex;gap:10px;}
+.account-actions .btn{flex:1;}
+
+@media (max-width:720px){
+  .profile-hero{grid-template-columns:auto 1fr;gap:14px;padding:16px;}
+  .profile-avatar{width:58px;height:58px;font-size:21px;}
+  .profile-id h2{font-size:19px;}
+  .profile-team{grid-column:1 / -1;padding-left:0;padding-top:14px;
+    border-left:none;border-top:1px solid var(--glass-border);}
+  .account-actions{flex-direction:column;}
+}

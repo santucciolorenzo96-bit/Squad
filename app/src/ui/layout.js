@@ -75,10 +75,14 @@ export function renderApp() {
             <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.2 8.4a4.8 4.8 0 0 1 9.6 0c0 3.8 1.4 4.8 1.4 4.8H3.8s1.4-1 1.4-4.8Z"/><path d="M8.1 15.6a1.9 1.9 0 0 0 3.8 0"/><circle cx="10" cy="3.4" r="1.4" fill="currentColor" stroke="none"/></svg>
             ${unseenNotificationsCount() > 0 ? `<span class="badge-count bell-badge">${unseenNotificationsCount()}</span>` : ''}
           </button>
-          <button class="user-avatar-btn" id="userAvatarBtn" aria-label="Profilo e impostazioni">
-            <span class="gear-base"></span>
-            ${Array.from({ length: 8 }, (_, i) => `<span class="gear-tooth" style="transform:rotate(${i * 45}deg);"></span>`).join('')}
+          <button class="user-avatar-btn" id="userAvatarBtn" aria-label="Profilo e impostazioni" title="Profilo e impostazioni">
             <span class="user-avatar-circle">${esc(userInitials(state.currentUser.display_name))}</span>
+            <span class="user-avatar-gear">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="10" cy="10" r="3"/>
+                <path d="M10 1.5v2.2M10 16.3v2.2M18.5 10h-2.2M3.7 10H1.5M16 4l-1.6 1.6M5.6 14.4L4 16M16 16l-1.6-1.6M5.6 5.6L4 4"/>
+              </svg>
+            </span>
           </button>
         </div>
       </div>
