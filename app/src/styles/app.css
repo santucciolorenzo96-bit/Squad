@@ -645,17 +645,18 @@ table.boxscore tr:hover td{background:var(--tint-hover);}
 .sit-hero-title{font-family:var(--font-display);font-weight:700;font-size:20px;line-height:1.2;}
 .sit-hero-sub{font-size:12.5px;color:var(--dim);margin-top:6px;max-width:46ch;line-height:1.5;}
 .sit-hero-counts{display:flex;gap:8px;flex-wrap:wrap;}
-.sit-badge{min-width:74px;padding:9px 12px;border-radius:12px;text-align:center;background:var(--tint);}
+/* Le pastiglie in cima sono una per categoria e portano alla sua sezione. */
+.sit-badge{min-width:74px;padding:9px 12px;border-radius:12px;text-align:center;
+  background:var(--tint);border:1px solid transparent;color:var(--text);
+  font-family:inherit;cursor:pointer;transition:border-color .18s ease,transform .18s ease;}
+.sit-badge:hover{border-color:var(--orange);transform:translateY(-1px);}
+.sit-badge b{color:var(--orange);}
 .sit-badge b{display:block;font-family:var(--font-display);font-size:20px;line-height:1.1;}
 .sit-badge span{font-size:9.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--dim);}
-.sit-badge.critical{background:var(--red-dim);} .sit-badge.critical b{color:var(--red);}
-.sit-badge.warning{background:var(--amber-dim);} .sit-badge.warning b{color:var(--amber);}
-.sit-badge.info{background:var(--orange-dim);} .sit-badge.info b{color:var(--gold);}
 
 .sit-card{border-left:3px solid var(--sev);animation:fadeUp .45s ease both;}
 .sit-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
-.sit-sev{font-size:9.5px;text-transform:uppercase;letter-spacing:0.08em;color:var(--sev);font-weight:700;}
-.sit-title{font-family:var(--font-display);font-weight:700;font-size:16px;margin-top:3px;}
+.sit-title{font-family:var(--font-display);font-weight:700;font-size:16px;}
 .sit-count{font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--sev);line-height:1;flex-shrink:0;}
 .sit-summary{font-size:12.5px;color:var(--dim);line-height:1.55;margin-top:8px;}
 .sit-items{margin-top:12px;}
@@ -992,3 +993,11 @@ table.boxscore tr:hover td{background:var(--tint-hover);}
 .avatar-preview{width:120px;height:120px;border-radius:50%;overflow:hidden;margin:0 auto 14px;
   border:1px solid var(--glass-border);background:var(--tint);}
 .avatar-preview img{width:100%;height:100%;object-fit:cover;display:block;}
+
+/* Azioni su un documento: fino a quattro pulsanti. In fila con flex:1 non
+   entravano in 320 pixel — un elemento flex non scende sotto la larghezza del
+   proprio testo, quindi sfondavano il riquadro. A griglia vanno a capo da
+   soli: due per riga sul telefono, quattro dove c'è spazio. */
+.doc-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));
+  gap:8px;margin-top:10px;}
+.doc-actions .btn{width:100%;min-width:0;padding-left:10px;padding-right:10px;}

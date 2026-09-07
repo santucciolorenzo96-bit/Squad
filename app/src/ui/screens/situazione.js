@@ -1,7 +1,7 @@
 import { state } from '../../state.js';
 import { esc } from '../../utils/format.js';
 import { showLoadError } from '../modal.js';
-import { detectIssues, todayISO, SEVERITY_LABEL } from '../../utils/issues.js';
+import { detectIssues, todayISO } from '../../utils/issues.js';
 import {
   fetchAllPlayers, fetchAllPlayerDocuments, fetchOpenDeadlines,
   fetchOpenCommunications, fetchTrainingsInRange
@@ -65,21 +65,18 @@ function itemHtml(item) {
     </div>`;
 }
 
-function issueCardHtml(issue, index) {
+function issueCardHtml(issue, index, groupKey) {
   const shown = issue.items.slice(0, PREVIEW_ITEMS);
   const rest = issue.items.length - shown.length;
   return `
-    <div class="card sit-card" data-issue="${esc(issue.id)}" style="--sev:${SEVERITY_COLOR[issue.severity]};animation-delay:${Math.min(index, 6) * 45}ms;">
+    <div class="card sit-card" data-issue="${esc(groupKey + '|' + issue.id)}" style="--sev:${SEVERITY_COLOR[issue.severity]};animation-delay:${Math.min(index, 6) * 45}ms;">
       <div class="sit-head">
-        <div>
-          <div class="sit-sev">${SEVERITY_LABEL[issue.severity]}</div>
-          <div class="sit-title">${esc(issue.title)}</div>
-        </div>
+        <div class="sit-title">${esc(issue.title)}</div>
         <div class="sit-count">${issue.items.length}</div>
       </div>
       <div class="sit-summary">${esc(issue.summary)}</div>
-      <div class="sit-items" data-list="${esc(issue.id)}">${shown.map(itemHtml).join('')}</div>
-      ${rest > 0 ? `<button class="btn btn-ghost sit-more" data-more="${esc(issue.id)}">Mostra tutti (${issue.items.length})</button>` : ''}
+      <div class="sit-items" data-list="${esc(groupKey + '|' + issue.id)}">${shown.map(itemHtml).join('')}</div>
+      ${rest > 0 ? `<button class="btn btn-ghost sit-more" data-more="${esc(groupKey + '|' + issue.id)}">Mostra tutti (${issue.items.length})</button>` : ''}
       ${issue.action ? `<button class="btn btn-secondary sit-action" data-tab="${esc(issue.action.tab)}">${esc(issue.action.label)}</button>` : ''}
     </div>`;
 }
@@ -132,40 +129,69 @@ export async function renderSituazioneTab(c) {
     sponsors: state.financeSponsors, sectors: state.sectors, hasFinance
   });
 
-  const counts = { critical: 0, warning: 0, info: 0 };
-  issues.forEach(i => { counts[i.severity] += i.items.length; });
-  const totalItems = counts.critical + counts.warning + counts.info;
+  // I problemi si dividono per categoria, che e' la divisione con cui una
+  // societa' ragiona davvero: chi guarda l'Under 15 vuole i problemi
+  // dell'Under 15. Le voci senza categoria — sponsor, movimenti non legati a
+  // un atleta, palestre contese fra due squadre — stanno sotto "Societa'".
+  const gruppi = [];
+  const perSettore = (sectorId) => issues
+    .map(i => ({ ...i, items: i.items.filter(x => (x.sectorId || null) === sectorId) }))
+    .filter(i => i.items.length > 0);
+
+  state.sectors.forEach(sec => {
+    const suoi = perSettore(sec.id);
+    if (suoi.length) gruppi.push({ key: sec.id, nome: sec.name, issues: suoi });
+  });
+  const societa = perSettore(null);
+  if (societa.length) gruppi.push({ key: 'societa', nome: 'Società', issues: societa });
+
+  const totalItems = gruppi.reduce((n, g) => n + g.issues.reduce((m, i) => m + i.items.length, 0), 0);
 
   body.innerHTML = `
-    <div class="card sit-hero ${issues.length === 0 ? 'clear' : ''}">
+    <div class="card sit-hero ${totalItems === 0 ? 'clear' : ''}">
       <div class="sit-hero-main">
-        <div class="sit-hero-title">${issues.length === 0
+        <div class="sit-hero-title">${totalItems === 0
           ? 'Tutto in regola'
-          : totalItems + (totalItems === 1 ? ' cosa richiede attenzione' : ' cose richiedono attenzione')}</div>
-        <div class="sit-hero-sub">${issues.length === 0
+          : totalItems + (totalItems === 1 ? ' cosa da sistemare' : ' cose da sistemare')}</div>
+        <div class="sit-hero-sub">${totalItems === 0
           ? 'Certificati, scadenze, conferme e presenze: nessuna anomalia rilevata su tutte le categorie.'
-          : 'Controllo su tutte le categorie: certificati, scadenze economiche, conferme e presenze.'}</div>
+          : 'Certificati, scadenze economiche, conferme, presenze e palestre, categoria per categoria.'}</div>
       </div>
-      ${issues.length ? `
+      ${gruppi.length ? `
       <div class="sit-hero-counts">
-        ${counts.critical ? `<div class="sit-badge critical"><b>${counts.critical}</b><span>Da risolvere</span></div>` : ''}
-        ${counts.warning ? `<div class="sit-badge warning"><b>${counts.warning}</b><span>Da seguire</span></div>` : ''}
-        ${counts.info ? `<div class="sit-badge info"><b>${counts.info}</b><span>Da sistemare</span></div>` : ''}
+        ${gruppi.map(g => {
+          const n = g.issues.reduce((m, i) => m + i.items.length, 0);
+          return `<button class="sit-badge" data-jump="${esc(g.key)}"><b>${n}</b><span>${esc(g.nome)}</span></button>`;
+        }).join('')}
       </div>` : ''}
     </div>
 
-    ${issues.length === 0
+    ${totalItems === 0
       ? '<div class="placeholder-card">Non c\'è niente da fare adesso. Questa pagina si ricontrolla ogni volta che la apri.</div>'
-      : issues.map(issueCardHtml).join('')}
+      : gruppi.map(g => `
+        <div class="section-label" id="grp-${esc(g.key)}">${esc(g.nome)}</div>
+        ${g.issues.map((i, idx) => issueCardHtml(i, idx, g.key)).join('')}
+      `).join('')}
 
     <div class="hint">I controlli si basano solo sui dati già inseriti nell'app e vengono ricalcolati a ogni apertura.${!hasFinance ? ' Le scadenze economiche compaiono solo per chi ha accesso alla Finanza.' : (financeBlocked ? ' Le scadenze economiche non sono state caricate: il tuo profilo finanza non ha i permessi per leggerle.' : '')}</div>
   `;
 
+  // Le pastiglie in cima portano alla propria categoria: con quattro squadre
+  // l'elenco diventa lungo e scorrerlo a mano e' lavoro inutile.
+  body.querySelectorAll('[data-jump]').forEach(btn => {
+    btn.onclick = () => {
+      const el = document.getElementById('grp-' + btn.dataset.jump);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+  });
+
   body.querySelectorAll('[data-more]').forEach(btn => {
     btn.onclick = () => {
-      const issue = issues.find(i => i.id === btn.dataset.more);
+      const [gk, id] = btn.dataset.more.split('|');
+      const gruppo = gruppi.find(g => g.key === gk);
+      const issue = gruppo && gruppo.issues.find(i => i.id === id);
       if (!issue) return;
-      body.querySelector(`[data-list="${issue.id}"]`).innerHTML = issue.items.map(itemHtml).join('');
+      body.querySelector(`[data-list="${btn.dataset.more}"]`).innerHTML = issue.items.map(itemHtml).join('');
       btn.remove();
     };
   });

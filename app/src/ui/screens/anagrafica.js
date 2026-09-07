@@ -284,10 +284,10 @@ async function renderPlayerDetail(c, playerId, { readOnlyIdentity }) {
           </div>
           <span class="status-badge ${statusClass === 'ok' ? 'ok' : (statusClass === 'rejected' ? 'rejected' : 'pending')}">${statusLabel}</span>
         </div>
-        <div style="display:flex;gap:8px;margin-top:10px;">
-          <button class="btn btn-secondary" data-view="${existing.file_path}" style="flex:1;">Visualizza</button>
-          ${canUploadDocs ? `<button class="btn btn-ghost" data-replace="${dt.key}" style="flex:1;">Sostituisci</button>` : ''}
-          ${canReview && existing.status === 'in_review' ? `<button class="btn btn-primary" data-approve="${existing.id}" style="flex:1;">✓ Conferma</button><button class="btn btn-danger" data-reject="${existing.id}" style="flex:1;">✗ Rifiuta</button>` : ''}
+        <div class="doc-actions">
+          <button class="btn btn-secondary" data-view="${existing.file_path}">Visualizza</button>
+          ${canUploadDocs ? `<button class="btn btn-ghost" data-replace="${dt.key}">Sostituisci</button>` : ''}
+          ${canReview && existing.status === 'in_review' ? `<button class="btn btn-primary" data-approve="${existing.id}">✓ Conferma</button><button class="btn btn-danger" data-reject="${existing.id}">✗ Rifiuta</button>` : ''}
         </div>
         <input type="file" data-file-for="${dt.key}" class="hidden" accept=".pdf,image/*">
       `;

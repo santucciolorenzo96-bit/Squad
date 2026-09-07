@@ -6,8 +6,18 @@
 
 import { findAllConflicts } from './conflicts.js';
 
+// La gravita' resta, ma non come etichetta: "da risolvere", "da seguire" e
+// "da sistemare" sono la stessa cosa detta in tre modi, e nominarle non
+// aggiungeva niente. Serve solo a mettere in cima quello che scotta di piu'
+// dentro ogni categoria.
 export const SEVERITY_RANK = { critical: 0, warning: 1, info: 2 };
-export const SEVERITY_LABEL = { critical: 'Da risolvere', warning: 'Da seguire', info: 'Da sistemare' };
+
+// La categoria di un giocatore, per raggruppare. Chi ne ha piu' di una compare
+// sotto la prima: duplicarlo gonfierebbe i conteggi.
+function primarySector(p) {
+  const ps = (p && p.player_sectors) || [];
+  return ps.length ? ps[0].sector_id : null;
+}
 
 const DAY = 86400000;
 
@@ -82,7 +92,7 @@ export function detectIssues(ctx) {
     const certs = (docsByPlayer[p.id] || []).filter(d => d.doc_type === 'certificato_medico');
     const eff = effectiveDocument(certs);
     if (!eff) {
-      missing.push({ label: playerLabel(p), sub: playerSub(p) || 'Nessun certificato caricato', player: p });
+      missing.push({ label: playerLabel(p), sub: playerSub(p) || 'Nessun certificato caricato', player: p, sectorId: primarySector(p) });
       return;
     }
     if (!eff.expires_at) return; // caricato senza scadenza: non è deducibile
@@ -92,13 +102,13 @@ export function detectIssues(ctx) {
       expired.push({
         label: playerLabel(p),
         sub: 'Scaduto il ' + fmtDate(eff.expires_at) + ' · ' + (-left) + ' ' + plural(-left, 'giorno', 'giorni') + ' fa',
-        player: p, sort: left
+        player: p, sort: left, sectorId: primarySector(p)
       });
     } else if (left <= 30) {
       expiring.push({
         label: playerLabel(p),
         sub: 'Scade il ' + fmtDate(eff.expires_at) + ' · fra ' + left + ' ' + plural(left, 'giorno', 'giorni'),
-        player: p, sort: left
+        player: p, sort: left, sectorId: primarySector(p)
       });
     }
   });
@@ -141,7 +151,8 @@ export function detectIssues(ctx) {
       return {
         label: p ? playerLabel(p) : 'Atleta',
         sub: (d.doc_type === 'certificato_medico' ? 'Certificato medico' : 'Tesseramento FIP')
-          + ' · caricato il ' + fmtDate((d.uploaded_at || '').slice(0, 10))
+          + ' · caricato il ' + fmtDate((d.uploaded_at || '').slice(0, 10)),
+        sectorId: primarySector(p)
       };
     }),
     action: { label: 'Apri Anagrafica', tab: 'anagrafica' }
@@ -159,7 +170,7 @@ export function detectIssues(ctx) {
       const row = {
         label: who,
         sub: e.description + ' · ' + fmtMoney(residual) + ' · scadenza ' + fmtDate(e.due_date),
-        player: p, sort: left
+        player: p, sort: left, sectorId: primarySector(p)
       };
       if (e.kind === 'income') {
         if (left < 0) overdueIncome.push(row);
@@ -206,7 +217,7 @@ export function detectIssues(ctx) {
         sub: left < 0
           ? 'Contratto scaduto il ' + fmtDate(s.contract_end)
           : 'Contratto in scadenza il ' + fmtDate(s.contract_end) + ' · fra ' + left + ' ' + plural(left, 'giorno', 'giorni'),
-        sort: left
+        sort: left, sectorId: s.sector_id || null
       };
     });
     if (sponsorSoon.length) issues.push({
@@ -234,6 +245,7 @@ export function detectIssues(ctx) {
       label: comm.title,
       sub: sectorName(comm.sector_id) + ' · ' + pending.length + ' su ' + recipients.length + ' senza risposta' + when,
       sort: left == null ? 999 : left,
+      sectorId: comm.sector_id || null,
       urgent: left != null && left <= 2,
       contacts: pending.map(r => playerById[r.player_id]).filter(Boolean)
     });
@@ -278,9 +290,9 @@ export function detectIssues(ctx) {
   const untracked = trainings
     .filter(t => t.date <= today && !tracked.has(t.id))
     .map(t => ({
-      label: ((t.sectors && t.sectors.name) || sectorName(t.sector_id)) + ' · ' + fmtDate(t.date),
+      label: fmtDate(t.date),
       sub: t.title + (t.start_time ? ' · ' + t.start_time : ''),
-      sort: t.date
+      sort: t.date, sectorId: t.sector_id || null
     }));
   if (untracked.length) issues.push({
     id: 'presenze_non_rilevate', severity: 'info',

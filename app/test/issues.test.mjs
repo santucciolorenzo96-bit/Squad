@@ -151,3 +151,34 @@ describe('presenze e ordinamento', () => {
     is(run({}).length, 0);
   });
 });
+
+describe('divisione per categoria', () => {
+  test('ogni voce dichiara la categoria del giocatore', () => {
+    const i = find(run({
+      players: [inRosa('p1', 'Rossi')],
+      documents: [{ player_id: 'p1', doc_type: 'certificato_medico', status: 'approved', expires_at: '2026-01-10' }]
+    }), 'certificati_scaduti');
+    is(i.items[0].sectorId, 's1');
+  });
+
+  // Sponsor e movimenti non legati a un atleta non appartengono a nessuna
+  // categoria: vanno sotto "Società", non sotto la prima squadra per caso.
+  test('quello che non ha categoria resta senza', () => {
+    const i = find(run({
+      deadlines: [{ kind: 'expense', due_date: '2026-01-01', description: 'Fornitore', planned_amount: 500, _status: { residual_amount: 500 } }]
+    }), 'uscite_scadute');
+    is(i.items[0].sectorId, null);
+  });
+
+  test('le convocazioni portano la categoria della comunicazione', () => {
+    const i = find(run({
+      players: [inRosa('p1', 'Rossi')],
+      communications: [{
+        id: 'c1', sector_id: 's1', title: 'Convocazione', requires_response: true,
+        event_date: '2026-03-20',
+        communication_recipients: [{ player_id: 'p1', status: 'pending' }]
+      }]
+    }), 'convocazioni_senza_risposta');
+    is(i.items[0].sectorId, 's1');
+  });
+});
