@@ -121,17 +121,42 @@ create policy "invites_admin_all" on invites for all
 -- Alfabeto senza le coppie che si confondono lette ad alta voce o trascritte a
 -- mano (0/O, 1/I/L): un invito si detta al telefono più spesso di quanto si
 -- copi e incolli.
+--
+-- La casualità viene da gen_random_bytes e NON da random(). random() è un
+-- generatore deterministico con un seme per sessione: serve a distribuire dei
+-- dati, non a produrre un segreto. Chi osserva abbastanza codici può in linea
+-- di principio ricostruirne lo stato e prevedere i successivi — e qui un
+-- codice previsto vale un account amministratore. Le combinazioni sono ~10^18
+-- solo se sono davvero imprevedibili.
+create extension if not exists pgcrypto;
+
 create or replace function generate_invite_token()
-returns text language plpgsql as $$
+returns text
+language plpgsql
+-- extensions è lo schema in cui Supabase installa pgcrypto; public copre
+-- l'installazione predefinita di Postgres. Senza, gen_random_bytes non si
+-- risolve e la funzione fallisce al primo invito.
+set search_path = public, extensions as $$
 declare
   v_alphabet text := 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  v_len int := length(v_alphabet);           -- 31
+  v_max int := 256 - (256 % v_len);          -- 248: soglia per il campionamento
   v_code text;
+  v_byte int;
   v_i int;
 begin
   loop
     v_code := '';
-    for v_i in 1..12 loop
-      v_code := v_code || substr(v_alphabet, 1 + floor(random() * length(v_alphabet))::int, 1);
+    v_i := 0;
+    while v_i < 12 loop
+      v_byte := get_byte(gen_random_bytes(1), 0);
+      -- I byte da 248 in su si scartano: tenerli renderebbe le prime otto
+      -- lettere dell'alfabeto leggermente più probabili delle altre. È un
+      -- vantaggio minuscolo, ma gratuito da togliere.
+      if v_byte < v_max then
+        v_code := v_code || substr(v_alphabet, 1 + (v_byte % v_len), 1);
+        v_i := v_i + 1;
+      end if;
     end loop;
     exit when not exists (select 1 from invites where code = v_code);
   end loop;
