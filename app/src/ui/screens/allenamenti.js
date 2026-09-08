@@ -14,6 +14,7 @@ import { pinIcon, repeatIcon, peopleIcon } from '../icons.js';
 
 export function renderAllenamentiTab(c) {
   const canEdit = canEditHome(state.currentUser);
+  let vista = 'futuri';
   c.innerHTML = `
     ${canEdit ? `
     <div class="section-label">Programma settimanale</div>
@@ -22,6 +23,7 @@ export function renderAllenamentiTab(c) {
     <div class="card"><button class="btn btn-primary" id="addTrainingBtn" style="width:100%;">+ Allenamento straordinario</button></div>
     ` : ''}
     <div class="section-label">Allenamenti</div>
+    <div id="trainingSwitch"></div>
     <div id="trainingList"></div>
   `;
 
@@ -124,9 +126,25 @@ export function renderAllenamentiTab(c) {
   function drawTrainings() {
     const holder = document.getElementById('trainingList');
     if (!holder) return;
-    if (state.trainings.length === 0) { holder.innerHTML = '<div class="placeholder-card">Nessun allenamento in programma.</div>'; return; }
+
+    const oggi = new Date().toISOString().slice(0, 10);
+    const futuri = state.trainings.filter(t => t.date >= oggi)
+      .sort((a, b) => a.date.localeCompare(b.date));      // il piu' vicino per primo
+    const passati = state.trainings.filter(t => t.date < oggi)
+      .sort((a, b) => b.date.localeCompare(a.date));      // il piu' recente per primo
+
+    drawSwitch(futuri.length, passati.length);
+
+    const elenco = vista === 'passati' ? passati : futuri;
+    if (elenco.length === 0) {
+      holder.innerHTML = '<div class="placeholder-card">'
+        + (vista === 'passati' ? 'Nessun allenamento già svolto.' : 'Nessun allenamento in programma.')
+        + '</div>';
+      caricaLuoghiNoti();
+      return;
+    }
     holder.innerHTML = '';
-    [...state.trainings].sort((a, b) => a.date.localeCompare(b.date)).forEach(t => {
+    elenco.forEach(t => {
       const row = document.createElement('div');
       row.className = 'card';
       row.style.display = 'flex';
@@ -157,10 +175,31 @@ export function renderAllenamentiTab(c) {
       }, 'Rimuovi');
     });
   
+    caricaLuoghiNoti();
+  }
+
+  function caricaLuoghiNoti() {
     fetchKnownLocations(state.teamProfile.id).then(luoghi => {
       const dl = document.getElementById('knownLocationsRc');
       if (dl) dl.innerHTML = luoghi.map(l => `<option value="${esc(l)}">`).join('');
     }).catch(() => {});
+  }
+
+  // Con un solo elenco non c'e' niente da scegliere: il selettore comparirebbe
+  // solo per dire che l'altra meta' e' vuota.
+  function drawSwitch(nFuturi, nPassati) {
+    const box = document.getElementById('trainingSwitch');
+    if (!box) return;
+    if (nFuturi === 0 && nPassati === 0) { box.innerHTML = ''; return; }
+    box.innerHTML = `
+      <div class="list-switch">
+        <button data-vista="futuri" class="${vista === 'futuri' ? 'active' : ''}">Futuri <b>${nFuturi}</b></button>
+        <button data-vista="passati" class="${vista === 'passati' ? 'active' : ''}">Passati <b>${nPassati}</b></button>
+      </div>`;
+    box.querySelectorAll('[data-vista]').forEach(btn => btn.onclick = () => {
+      vista = btn.getAttribute('data-vista');
+      drawTrainings();
+    });
   }
 
   // I programmi fissi di tutte le categorie: quelli del settore attivo non

@@ -275,6 +275,15 @@ button:focus:not(:focus-visible){outline:none;}
 .user-avatar-gear svg{width:10px;height:10px;}
 .user-avatar-btn:hover .user-avatar-gear{color:var(--orange);border-color:var(--orange);}
 .user-avatar-btn:focus-visible{outline:2px solid var(--orange);outline-offset:3px;border-radius:50%;}
+/* Selettore di elenco (Futuri / Passati). Stesso principio del .theme-switch
+   delle impostazioni, ma dimensionato sul contenuto invece che sulla colonna. */
+.list-switch{display:inline-flex;gap:3px;padding:4px;margin-bottom:12px;background:rgba(128,128,128,0.12);border-radius:10px;}
+.list-switch button{background:none;border:none;color:var(--dim);font-size:12px;font-weight:700;padding:7px 16px;border-radius:7px;transition:background .2s ease,color .2s ease,transform .15s ease;}
+.list-switch button:hover{color:var(--text);}
+.list-switch button.active{background:var(--panel2);color:var(--text);}
+.list-switch button:active{transform:scale(0.96);}
+.list-switch button b{font-family:var(--font-mono);font-weight:700;font-size:11px;opacity:0.55;margin-left:6px;}
+
 .theme-switch{display:flex;gap:3px;padding:4px;margin:2px 0 4px;background:rgba(128,128,128,0.12);border-radius:8px;}
 .theme-switch button{flex:1;background:none;border:none;color:var(--dim);font-size:11px;font-weight:600;padding:7px 4px;border-radius:6px;transition:background .2s ease,color .2s ease;}
 .theme-switch button.active{background:var(--panel2);color:var(--text);}
