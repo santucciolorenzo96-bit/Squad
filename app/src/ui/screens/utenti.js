@@ -5,14 +5,19 @@ import { confirmModal, formModal, toast, showLoadError } from '../modal.js';
 import { updateProfile, deactivateProfile } from '../../api/profiles.js';
 import { assignStaffToSector, removeStaffFromSector, fetchStaffSectors } from '../../api/sectors.js';
 import { fetchFamilyLinksForTeam, linkProfileToPlayer, unlinkProfileFromPlayer } from '../../api/family.js';
+import { renderInviti } from '../inviti.js';
+import { orderedSectors } from '../../utils/sectors.js';
 
 export function renderUtentiTab(c) {
   c.innerHTML = `
     <div class="placeholder-card">
-      <span class="tag">Codice invito</span><br>
-      Condividi il codice invito della squadra (sezione Squadra): staff e genitori/giocatori si registrano da soli scegliendo "Entra in una squadra esistente", poi qui puoi assegnare ruolo/settori o collegare l'account al giocatore giusto.
+      <span class="tag">Due modi per far entrare qualcuno</span><br>
+      Il <b>codice società</b> (sezione Squadra) vale per tutti e non scade: chi lo usa sceglie da sé se è atleta, genitore, scout o staff, e poi ruolo, categorie e collegamenti li sistemi qui a mano.
+      Un <b>invito</b> vale per una persona sola, una volta sola, e porta già con sé quelle scelte.
     </div>
-    <div class="section-label">Staff (${state.staff.length})</div>
+    <div class="section-label">Inviti</div>
+    <div id="invitiBox"></div>
+    <div class="section-label" style="margin-top:24px;">Staff (${state.staff.length})</div>
     <div id="userList"></div>
     <div class="section-label" style="margin-top:24px;">Giocatori e genitori</div>
     <div id="familyList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
@@ -52,6 +57,7 @@ export function renderUtentiTab(c) {
     });
   }
   drawUsers();
+  renderInviti(document.getElementById('invitiBox'));
 
   function openUserModal(existing) {
     const canGrantFinance = isFinanceAdmin(state.currentUser);
@@ -68,7 +74,7 @@ export function renderUtentiTab(c) {
       </div>
       <div class="field" id="sectorCheckWrap">
         <label>Settori assegnati</label>
-        ${state.sectors.map(s => `<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><input type="checkbox" data-sector="${s.id}" ${(state.staffSectors[existing.id] || []).includes(s.id) ? 'checked' : ''} style="width:auto;"> ${esc(s.name)}</label>`).join('') || '<div class="hint">Nessun settore creato: creane uno da Squadra.</div>'}
+        ${orderedSectors(state.sectors).map(s => `<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;${s.parent_id ? 'padding-left:18px;' : ''}"><input type="checkbox" data-sector="${s.id}" ${(state.staffSectors[existing.id] || []).includes(s.id) ? 'checked' : ''} style="width:auto;"> ${esc(s.name)}</label>`).join('') || '<div class="hint">Nessuna categoria creata: creane una da Squadra.</div>'}
       </div>
       ${canGrantFinance ? `
       <div class="field"><label>Ruolo finanza</label>

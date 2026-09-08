@@ -6,8 +6,11 @@ export async function fetchSectors(teamId) {
   return data;
 }
 
-export async function createSector(teamId, name) {
-  const { data, error } = await supabase.from('sectors').insert({ team_id: teamId, name }).select().single();
+// `parentId` la rende una sottocategoria. Il livello massimo lo fa rispettare
+// il database: qui non si controlla niente che laggiu' non sia gia' garantito.
+export async function createSector(teamId, name, parentId) {
+  const { data, error } = await supabase.from('sectors')
+    .insert({ team_id: teamId, name, parent_id: parentId || null }).select().single();
   if (error) throw error;
   return data;
 }

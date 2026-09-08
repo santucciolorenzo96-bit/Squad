@@ -31,6 +31,13 @@ export async function runPendingAction(action) {
       p_invite_code: action.inviteCode, p_display_name: action.displayName, p_role: action.role || 'genitore'
     });
     if (error) throw error;
+  } else if (action.type === 'join_invite') {
+    // Ruolo, categorie e collegamento alla scheda sono gia' scritti
+    // nell'invito: qui non si sceglie piu' niente.
+    const { error } = await supabase.rpc('join_team_with_invite', {
+      p_code: action.inviteCode, p_display_name: action.displayName
+    });
+    if (error) throw error;
   }
   clearPendingAction();
 }
@@ -117,9 +124,14 @@ export async function createTeamAndAdmin({ email, password, teamName, city, cate
   return { needsEmailConfirmation: false };
 }
 
-export async function joinTeamByCode({ email, password, inviteCode, displayName, role }) {
+// `personale` distingue un invito nominativo dal codice societa'. Sono due
+// strade diverse fin dentro il database: il codice societa' fa scegliere il
+// ruolo a chi si registra, l'invito ce l'ha gia' dentro.
+export async function joinTeamByCode({ email, password, inviteCode, displayName, role, personale }) {
   const data = await signUpUser(email, password);
-  const action = { type: 'join_team', inviteCode, displayName, role: role || 'genitore' };
+  const action = personale
+    ? { type: 'join_invite', inviteCode, displayName }
+    : { type: 'join_team', inviteCode, displayName, role: role || 'genitore' };
   if (!data.session) { savePendingAction(action); return { needsEmailConfirmation: true }; }
   await runActionAfterSignup(action);
   return { needsEmailConfirmation: false };

@@ -5,8 +5,9 @@ import { DOC_TYPES, canReviewDocuments, isLinkedUser } from '../../utils/permiss
 import {
   fetchPlayer, updatePlayer, updateLinkedPlayerDetails, fetchPlayerDocuments, uploadPlayerDocument,
   getDocumentSignedUrl, reviewDocument, fetchPendingDocuments, fetchExpiringDocuments,
-  uploadPlayerPhoto, getPlayerPhotoSignedUrl, fetchPlayerPhotoUrls
+  uploadPlayerPhoto, getPlayerPhotoSignedUrl, fetchPlayerPhotoUrls, fetchDocumentsForPlayers
 } from '../../api/roster.js';
+import { docStatus, worstStatus, ageFrom, DOC_STATE } from '../../utils/docStatus.js';
 import { resizeImageFile } from '../../utils/image.js';
 import { avatarHtml, wireAvatarClicks, openPhotoViewModal } from '../playerAvatar.js';
 import { openPhotoPositionModal } from '../photoEditor.js';
@@ -32,7 +33,19 @@ function renderFamiglia(c) {
   });
 }
 
-/* ======================= STAFF: lista rosa + dettaglio ======================= */
+/* ======================= STAFF: tabella rosa + dettaglio ======================= */
+// L'elenco era una riga per atleta con nome e numero: per sapere se il
+// certificato di qualcuno era scaduto bisognava aprire la sua scheda, una alla
+// volta. La domanda che si fa davvero è "chi non è a posto?", e la si fa su
+// tutta la rosa insieme.
+
+const BADGE_CLASS = { ok: 'ok', warn: 'pending', bad: 'rejected' };
+
+function badge(stato) {
+  const s = DOC_STATE[stato] || DOC_STATE.mancante;
+  return `<span class="status-badge ${BADGE_CLASS[s.tone]}">${s.label}</span>`;
+}
+
 async function renderStaffList(c) {
   c.innerHTML = `
     <div style="display:flex;gap:8px;margin-bottom:14px;">
@@ -43,25 +56,105 @@ async function renderStaffList(c) {
         <span class="status-badge pending">${state.expiringDocsCount} in scadenza</span>
       </button>` : ''}
     </div>
+    <div id="anagraficaKpi"></div>
     <div class="section-label">Anagrafica (${state.roster.length})</div>
-    <div id="anagraficaList"></div>
+    <div id="anagraficaList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
   `;
-  const holder = document.getElementById('anagraficaList');
-  if (state.roster.length === 0) { holder.innerHTML = '<div class="placeholder-card">Nessun giocatore in rosa.</div>'; }
-  const photoUrls = await fetchPlayerPhotoUrls(state.roster).catch(() => ({}));
-  state.roster.forEach(p => {
-    const row = document.createElement('div');
-    row.className = 'list-row';
-    row.style.cursor = 'pointer';
-    row.innerHTML = `${avatarHtml(p, photoUrls[p.id], 36)}<div class="main"><div class="nm">${esc(p.name)} <span class="hint" style="display:inline;">#${esc(p.number)}</span></div></div><span class="icon-btn">›</span>`;
-    row.onclick = () => renderPlayerDetail(c, p.id, {});
-    holder.appendChild(row);
-  });
-  wireAvatarClicks(holder, photoUrls);
   const pendingBtn = document.getElementById('pendingBtn');
   if (pendingBtn) pendingBtn.onclick = () => renderPendingQueue(c);
   const expiringBtn = document.getElementById('expiringBtn');
   if (expiringBtn) expiringBtn.onclick = () => renderExpiringQueue(c);
+
+  const holder = document.getElementById('anagraficaList');
+  if (state.roster.length === 0) {
+    holder.innerHTML = '<div class="placeholder-card">Nessun giocatore in rosa.</div>';
+    return;
+  }
+
+  // Le due richieste partono insieme: sono indipendenti, e una alla volta
+  // raddoppierebbe l'attesa davanti a una tabella vuota.
+  const ids = state.roster.map(p => p.id);
+  const [photoUrls, docsByPlayer] = await Promise.all([
+    fetchPlayerPhotoUrls(state.roster).catch(() => ({})),
+    fetchDocumentsForPlayers(ids).catch(() => ({}))
+  ]);
+
+  const oggi = new Date().toISOString().slice(0, 10);
+  const righe = state.roster.map(p => {
+    const docs = docsByPlayer[p.id] || [];
+    const stati = {};
+    DOC_TYPES.forEach(t => { stati[t.key] = docStatus(docs.filter(d => d.doc_type === t.key), oggi); });
+    return { p, stati, peggiore: worstStatus(Object.values(stati)), eta: ageFrom(p.birth_date, oggi) };
+  });
+
+  drawKpi(righe);
+
+  // In cima chi non è a posto: una tabella ordinata per nome costringe a
+  // leggerla tutta per trovare i due che mancano.
+  righe.sort((a, b) => (DOC_STATE[b.peggiore].rank - DOC_STATE[a.peggiore].rank)
+    || a.p.name.localeCompare(b.p.name));
+
+  holder.innerHTML = `
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr>
+          <th class="col-name">Atleta</th>
+          <th class="col-opt">Età</th>
+          ${DOC_TYPES.map(t => `<th>${esc(SHORT_DOC[t.key] || t.label)}</th>`).join('')}
+          <th class="col-opt">Contatto</th>
+          <th></th>
+        </tr></thead>
+        <tbody>
+          ${righe.map(r => `
+            <tr data-open="${r.p.id}">
+              <td class="col-name">
+                <div class="cell-player">
+                  ${avatarHtml(r.p, photoUrls[r.p.id], 30)}
+                  <div style="min-width:0;">
+                    <div class="nm">${esc(r.p.name)}</div>
+                    <div class="sub">#${esc(r.p.number)}${r.p.role_position ? ' · ' + esc(r.p.role_position) : ''}</div>
+                  </div>
+                </div>
+              </td>
+              <td class="col-opt">${r.eta == null ? '—' : r.eta}</td>
+              ${DOC_TYPES.map(t => `<td>${badge(r.stati[t.key])}</td>`).join('')}
+              <td class="col-opt">${r.p.guardian_phone ? esc(r.p.guardian_phone) : (r.p.email ? esc(r.p.email) : '—')}</td>
+              <td class="col-go">›</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+  holder.querySelectorAll('[data-open]').forEach(tr => tr.onclick = () => renderPlayerDetail(c, tr.getAttribute('data-open'), {}));
+  wireAvatarClicks(holder, photoUrls);
+}
+
+// L'intestazione di una colonna non può essere "Certificato medico agonistico":
+// occuperebbe da sola metà tabella. Il nome per esteso resta nella scheda.
+const SHORT_DOC = { certificato_medico: 'Certificato', tesseramento_fip: 'Tesseramento' };
+
+// Quattro numeri che rispondono alle domande che ci si fa davvero prima di una
+// partita: quanti siamo, chi non può giocare, chi sta per non poter giocare, e
+// a che punto siamo con le carte.
+function drawKpi(righe) {
+  const box = document.getElementById('anagraficaKpi');
+  if (!box) return;
+  const bloccati = righe.filter(r => DOC_STATE[r.peggiore].tone === 'bad').length;
+  const daSeguire = righe.filter(r => DOC_STATE[r.peggiore].tone === 'warn').length;
+  const aPosto = righe.length - bloccati - daSeguire;
+  const pct = righe.length ? Math.round(aPosto / righe.length * 100) : 0;
+  box.innerHTML = `
+    <div class="kpi-row">
+      <div class="mini-card"><div class="lbl">In rosa</div><div class="val">${righe.length}</div></div>
+      <div class="mini-card"><div class="lbl">Non in regola</div>
+        <div class="val" style="${bloccati ? 'color:var(--red);' : ''}">${bloccati}</div>
+        <div class="sub">${bloccati ? 'non possono scendere in campo' : 'nessuno fermo'}</div></div>
+      <div class="mini-card"><div class="lbl">Da seguire</div>
+        <div class="val" style="${daSeguire ? 'color:var(--amber);' : ''}">${daSeguire}</div>
+        <div class="sub">in scadenza o in verifica</div></div>
+      <div class="mini-card"><div class="lbl">In regola</div><div class="val">${pct}%</div>
+        <div class="sub">${aPosto} su ${righe.length}</div></div>
+    </div>`;
 }
 
 async function renderExpiringQueue(c) {

@@ -23,6 +23,7 @@ import { renderProfiloTab } from './screens/profilo.js';
 import { renderDocumentiTab } from './screens/documenti.js';
 import { renderComunicazioniTab } from './screens/comunicazioni.js';
 import { renderSituazioneTab } from './screens/situazione.js';
+import { orderedSectors, sectorFullName } from '../utils/sectors.js';
 
 function formatRelativeTime(iso) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -37,10 +38,17 @@ function formatRelativeTime(iso) {
 }
 
 function accessibleSectorList() {
-  if (isAdmin(state.currentUser)) return state.sectors;
-  if (isLinkedUser(state.currentUser)) return state.sectors.filter(s => state.familySectorIds.includes(s.id));
+  if (isAdmin(state.currentUser)) return orderedSectors(state.sectors);
+  if (isLinkedUser(state.currentUser)) return orderedSectors(state.sectors.filter(s => state.familySectorIds.includes(s.id)));
   const ids = state.staffSectors[state.currentUser.id] || [];
-  return state.sectors.filter(s => ids.includes(s.id));
+  return orderedSectors(state.sectors.filter(s => ids.includes(s.id)));
+}
+
+// Nell'elenco, una sottocategoria si distingue dal rientro. Fuori — nel
+// pulsante che dice dove sei, dove non c'e' il genitore accanto — "Blu" da solo
+// non dice niente, quindi serve il nome per esteso.
+function pillLabel(s) {
+  return s.parent_id ? '› ' + s.name : s.name;
 }
 
 export function renderApp() {
@@ -64,11 +72,11 @@ export function renderApp() {
             <div class="sector-switcher" id="sectorSwitcher"></div>
             <div class="sector-picker" id="sectorPicker">
               <button class="sector-current" id="sectorCurrentBtn" aria-haspopup="listbox" aria-expanded="false">
-                <span>${esc((mySectors.find(s => s.id === state.activeSectorId) || mySectors[0]).name)}</span>
+                <span>${esc(sectorFullName(mySectors.find(s => s.id === state.activeSectorId) || mySectors[0], state.sectors))}</span>
                 <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l5 5 5-5"/></svg>
               </button>
             </div>
-          ` : (mySectors.length === 1 ? `<div class="hint" style="margin:0;">${esc(mySectors[0].name)}</div>` : '')}
+          ` : (mySectors.length === 1 ? `<div class="hint" style="margin:0;">${esc(sectorFullName(mySectors[0], state.sectors))}</div>` : '')}
         </div>
         <div class="header-right">
           <button class="bell-btn" id="notifBell">
@@ -101,8 +109,9 @@ export function renderApp() {
     const sw = document.getElementById('sectorSwitcher');
     mySectors.forEach(s => {
       const b = document.createElement('button');
-      b.className = 'sector-pill' + (state.activeSectorId === s.id ? ' active' : '');
-      b.textContent = s.name;
+      b.className = 'sector-pill' + (state.activeSectorId === s.id ? ' active' : '') + (s.parent_id ? ' sub' : '');
+      b.textContent = pillLabel(s);
+      b.title = sectorFullName(s, state.sectors);
       b.onclick = () => { if (state.activeSectorId !== s.id) switchSector(s.id); };
       sw.appendChild(b);
     });
@@ -125,7 +134,7 @@ export function renderApp() {
         const b = document.createElement('button');
         b.className = state.activeSectorId === s.id ? 'active' : '';
         b.setAttribute('role', 'option');
-        b.textContent = s.name;
+        b.textContent = pillLabel(s);
         b.onclick = () => { closeMenu(); if (state.activeSectorId !== s.id) switchSector(s.id); };
         menu.appendChild(b);
       });

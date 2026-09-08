@@ -237,6 +237,8 @@ button:focus:not(:focus-visible){outline:none;}
 .sector-pill:hover{color:var(--text);background:var(--tint-hover);}
 .sector-pill.active{color:var(--on-accent);background:linear-gradient(135deg,var(--orange),var(--gold));box-shadow:0 3px 10px rgba(25,227,209,0.3);}
 .sector-pill:active{transform:scale(0.94);}
+.sector-pill.sub{font-weight:600;opacity:0.82;}
+.sector-pill.sub.active{opacity:1;}
 
 /* Su mobile lo scorrimento orizzontale dei settori è scomodo: diventa un
    selettore compatto che apre un elenco verticale sotto l'header. */
@@ -639,6 +641,51 @@ table.boxscore tr:hover td{background:var(--tint-hover);}
 .history-row .top{display:flex;justify-content:space-between;font-size:13px;}
 .history-row .date{font-size:11px;color:var(--dim);margin-top:2px;}
 .history-score{font-family:var(--font-mono);font-weight:700;}
+
+/* Cosa ti dà l'invito, sulla schermata di registrazione. Non è un campo da
+   compilare: è la decisione che qualcun altro ha già preso per te, e va letta
+   come tale. */
+.invite-grant{background:var(--tint);border:1px solid var(--glass-border);border-radius:var(--radius-md);
+  padding:13px 15px;margin-bottom:14px;}
+.invite-grant b{display:block;font-size:14px;margin-bottom:4px;}
+.invite-grant span{display:block;font-size:12.5px;color:var(--dim);line-height:1.5;}
+
+/* Codice invito: si legge ad alta voce e si trascrive, quindi va spaziato e
+   monospaziato. Su schermo stretto va a capo invece di spingere fuori i
+   pulsanti. */
+.invite-code-row{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.invite-code{flex:1;min-width:150px;font-family:var(--font-mono);font-size:15px;font-weight:700;
+  letter-spacing:0.12em;background:var(--tint);border:1px solid var(--glass-border);
+  border-radius:9px;padding:9px 12px;user-select:all;overflow-wrap:anywhere;}
+.invite-code-row .btn{width:auto;flex:0 0 auto;}
+
+/* Tabella dati responsive (anagrafica).
+   Non e' la .boxscore: quella e' monospaziata e fatta per numeri fitti che si
+   leggono in colonna. Qui le celle contengono nomi, volti e stati, e la riga
+   intera e' un pulsante.
+
+   Su schermo stretto non diventa una tabella che scorre di lato — scorrere per
+   scoprire che il certificato e' scaduto non e' leggere. Le colonne
+   accessorie spariscono e restano nome e stati, che sono la ragione per cui
+   la tabella esiste. */
+.table-wrap{border:1px solid var(--glass-border);border-radius:var(--radius);overflow:hidden;background:var(--glass-subtle-bg);}
+table.data-table{border-collapse:collapse;width:100%;font-size:12.5px;}
+table.data-table th,table.data-table td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--glass-border);vertical-align:middle;}
+table.data-table th{font-size:9.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--dim);font-weight:600;white-space:nowrap;}
+table.data-table tbody tr{cursor:pointer;transition:background .15s ease;}
+table.data-table tbody tr:hover td{background:var(--tint-hover);}
+table.data-table tbody tr:last-child td{border-bottom:none;}
+table.data-table td.col-go{text-align:right;color:var(--dim);width:1%;}
+table.data-table .cell-player{display:flex;align-items:center;gap:10px;min-width:0;}
+table.data-table .cell-player .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+table.data-table .cell-player .sub{font-size:10.5px;color:var(--dim);margin-top:1px;}
+
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+@media (max-width:899px){
+  .kpi-row{grid-template-columns:repeat(2,1fr);}
+  table.data-table th.col-opt,table.data-table td.col-opt{display:none;}
+  table.data-table th,table.data-table td{padding:9px 8px;}
+}
 
 /* Documenti / anagrafica */
 .dropzone{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:2px dashed var(--glass-border);border-radius:12px;padding:26px;text-align:center;transition:border-color .25s ease,background .25s ease;}

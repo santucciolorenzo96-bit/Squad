@@ -81,7 +81,11 @@ with atteso(ordine, migrazione, descrizione, presente) as (
          to_regclass('public.notification_reads') is not null),
     (24, '024 avatar',          'Fotografia del profilo utente',
          exists (select 1 from information_schema.columns
-                 where table_name = 'profiles' and column_name = 'avatar_path'))
+                 where table_name = 'profiles' and column_name = 'avatar_path')),
+    (25, '025 sottocategorie',  'Sottocategorie dei settori e inviti nominativi',
+         to_regclass('public.invites') is not null
+         and exists (select 1 from information_schema.columns
+                     where table_name = 'sectors' and column_name = 'parent_id'))
 )
 select
   migrazione,

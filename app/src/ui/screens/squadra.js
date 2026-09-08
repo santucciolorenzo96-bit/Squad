@@ -7,6 +7,7 @@ import { esc } from '../../utils/format.js';
 import { toast, confirmModal, formModal, withButtonLoading } from '../modal.js';
 import { updateTeam, uploadTeamLogo, regenerateInviteCode } from '../../api/teams.js';
 import { createSector, renameSector, removeSector } from '../../api/sectors.js';
+import { orderedSectors, hasChildren } from '../../utils/sectors.js';
 import { resizeImageFile, resizeLogoWithTransparency, imageHasAlpha } from '../../utils/image.js';
 import { teamInitials } from '../../utils/theme.js';
 
@@ -87,7 +88,8 @@ export function renderSquadraTab(c) {
     <div class="card">
       <h2>Settori</h2>
       <div id="sectorList"></div>
-      <button class="btn btn-secondary" id="addSectorBtn" style="width:100%;margin-top:10px;">+ Nuovo settore</button>
+      <button class="btn btn-secondary" id="addSectorBtn" style="width:100%;margin-top:10px;">+ Nuova categoria</button>
+      <div class="hint">Una categoria puo' avere sottocategorie: due squadre nella stessa annata, o un minibasket diviso per eta'. Ognuna ha rosa, allenamenti e partite proprie.</div>
     </div>
     </div>
   `;
@@ -204,10 +206,10 @@ export function renderSquadraTab(c) {
 
   drawSectors();
   document.getElementById('addSectorBtn').onclick = () => {
-    formModal('Nuovo settore', `<div class="field"><label>Nome</label><input type="text" id="secName" placeholder="Es. Under 15"></div>`, async () => {
+    formModal('Nuova categoria', `<div class="field"><label>Nome</label><input type="text" id="secName" placeholder="Es. Under 15"></div>`, async () => {
       const name = document.getElementById('secName').value.trim();
       if (!name) return 'Inserisci un nome.';
-      const created = await createSector(state.teamProfile.id, name);
+      const created = await createSector(state.teamProfile.id, name, null);
       state.sectors.push(created);
       toast('Settore creato');
       const { renderApp } = await import('../layout.js');
@@ -221,15 +223,36 @@ function drawSectors() {
   if (!holder) return;
   if (state.sectors.length === 0) { holder.innerHTML = '<div class="hint">Nessun settore creato.</div>'; return; }
   holder.innerHTML = '';
-  state.sectors.forEach(s => {
+  orderedSectors(state.sectors).forEach(s => {
+    const figlia = !!s.parent_id;
     const row = document.createElement('div');
     row.className = 'list-row';
-    row.innerHTML = `<div class="main"><div class="nm">${esc(s.name)}</div></div><button class="icon-btn" data-edit="${s.id}">✎</button><button class="icon-btn danger" data-rm="${s.id}">✕</button>`;
+    if (figlia) row.style.paddingLeft = '26px';
+    row.innerHTML = `
+      <div class="main"><div class="nm">${figlia ? '<span style="color:var(--dim);margin-right:6px;">└</span>' : ''}${esc(s.name)}</div></div>
+      ${figlia ? '' : `<button class="icon-btn" data-sub="${s.id}" title="Aggiungi sottocategoria">+</button>`}
+      <button class="icon-btn" data-edit="${s.id}">✎</button>
+      <button class="icon-btn danger" data-rm="${s.id}">✕</button>`;
     holder.appendChild(row);
+  });
+  holder.querySelectorAll('[data-sub]').forEach(btn => btn.onclick = () => {
+    const parent = state.sectors.find(s => s.id === btn.getAttribute('data-sub'));
+    formModal('Sottocategoria di ' + parent.name,
+      `<div class="field"><label>Nome</label><input type="text" id="secName" placeholder="Es. Blu"></div>
+       <div class="hint">Avrà rosa, allenamenti e partite proprie, separate da quelle di ${esc(parent.name)}.</div>`,
+      async () => {
+        const name = document.getElementById('secName').value.trim();
+        if (!name) return 'Inserisci un nome.';
+        const created = await createSector(state.teamProfile.id, name, parent.id);
+        state.sectors.push(created);
+        toast('Sottocategoria creata');
+        const { renderApp } = await import('../layout.js');
+        renderApp();
+      });
   });
   holder.querySelectorAll('[data-edit]').forEach(btn => btn.onclick = () => {
     const sector = state.sectors.find(s => s.id === btn.getAttribute('data-edit'));
-    formModal('Rinomina settore', `<div class="field"><label>Nome</label><input type="text" id="secName" value="${esc(sector.name)}"></div>`, async () => {
+    formModal('Rinomina categoria', `<div class="field"><label>Nome</label><input type="text" id="secName" value="${esc(sector.name)}"></div>`, async () => {
       const name = document.getElementById('secName').value.trim();
       if (!name) return 'Inserisci un nome.';
       await renameSector(sector.id, name);
@@ -241,7 +264,11 @@ function drawSectors() {
   });
   holder.querySelectorAll('[data-rm]').forEach(btn => btn.onclick = () => {
     const sector = state.sectors.find(s => s.id === btn.getAttribute('data-rm'));
-    confirmModal('Eliminare il settore?', `"${sector.name}" verrà eliminato insieme a rosa, partite, classifica e allenamenti collegati a questo settore. Operazione irreversibile.`, async () => {
+    const conFigli = hasChildren(sector, state.sectors);
+    confirmModal('Eliminare la categoria?',
+      `"${sector.name}" verrà eliminata insieme a rosa, partite, classifica e allenamenti collegati.`
+      + (conFigli ? ' Anche le sue sottocategorie, con tutto quello che contengono.' : '')
+      + ' Operazione irreversibile.', async () => {
       await removeSector(sector.id);
       state.sectors = state.sectors.filter(s => s.id !== sector.id);
       if (state.activeSectorId === sector.id) {

@@ -98,6 +98,23 @@ export async function fetchPlayerDocuments(playerId) {
   return data;
 }
 
+// I documenti di tutta la rosa in una query sola. Chiedere i documenti giocatore
+// per giocatore vorrebbe dire una richiesta a testa: con venti atleti sono venti
+// andate e ritorni per disegnare una tabella.
+export async function fetchDocumentsForPlayers(playerIds) {
+  const map = {};
+  if (!playerIds || playerIds.length === 0) return map;
+  const { data, error } = await supabase.from('player_documents')
+    .select('player_id, doc_type, status, expires_at, uploaded_at')
+    .in('player_id', playerIds);
+  if (error) throw error;
+  data.forEach(d => {
+    if (!map[d.player_id]) map[d.player_id] = [];
+    map[d.player_id].push(d);
+  });
+  return map;
+}
+
 export async function uploadPlayerDocument(teamId, playerId, docType, blob, extension, uploadedBy, expiresAt) {
   const path = `${teamId}/${playerId}/${docType}_${Date.now()}.${extension}`;
   const { error: upErr } = await supabase.storage.from('player-documents').upload(path, blob, { upsert: false });

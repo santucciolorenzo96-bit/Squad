@@ -151,10 +151,10 @@ function openCreateModal(c) {
     ${upcoming.length ? `
     <div class="field"><label>Riferita a una partita</label>
       <select id="cMatch">
-        <option value="">— nessuna —</option>
-        ${upcoming.map((m, i) => `<option value="${i}">${esc(m.opponent)}${m.date ? ' · ' + new Date(m.date).toLocaleDateString('it-IT') : ''}</option>`).join('')}
+        ${upcoming.map((m, i) => `<option value="${i}"${i === 0 ? ' selected' : ''}>${esc(m.opponent)}${m.date ? ' · ' + new Date(m.date).toLocaleDateString('it-IT') : ''}</option>`).join('')}
+        <option value="">— nessuna partita —</option>
       </select>
-      <div class="hint">Sceglierla compila data, orario e luogo.</div>
+      <div class="hint">Titolo, data, orario e luogo sono già compilati con la prossima partita. Cambiala se ne stai convocando un'altra.</div>
     </div>` : ''}
     <div class="field"><label>Titolo</label><input type="text" id="cTitle" placeholder="Es. U15 — partita con Rookies"></div>
     <div class="field"><label>Data</label><input type="date" id="cDate"></div>
@@ -204,15 +204,29 @@ function openCreateModal(c) {
   };
 
   const matchSel = document.getElementById('cMatch');
-  if (matchSel) matchSel.onchange = () => {
-    const m = upcoming[parseInt(matchSel.value, 10)];
-    if (!m) return;
-    document.getElementById('cTitle').value = `${sectorLabel()} — ${m.home === false ? 'trasferta con' : 'partita con'} ${m.opponent}`;
-    if (m.date) document.getElementById('cDate').value = m.date;
-    if (m.time) document.getElementById('cStart').value = m.time;
-    if (m.location) document.getElementById('cLoc').value = m.location;
-    document.getElementById('cKind').value = m.home === false ? 'trasferta' : 'convocazione';
-  };
+  if (matchSel) {
+    const titleEl = document.getElementById('cTitle');
+    // Chi si e' scritto il proprio titolo e poi cambia partita non se lo deve
+    // vedere sovrascrivere: da quel momento il titolo e' suo.
+    let titoloScrittoAMano = false;
+    titleEl.addEventListener('input', () => { titoloScrittoAMano = true; });
+
+    const applica = (m) => {
+      if (!m) return;
+      if (!titoloScrittoAMano) {
+        titleEl.value = `${sectorLabel()} — ${m.home === false ? 'trasferta con' : 'partita con'} ${m.opponent}`;
+      }
+      document.getElementById('cDate').value = m.date || '';
+      document.getElementById('cStart').value = m.time || '';
+      document.getElementById('cLoc').value = m.location || '';
+      document.getElementById('cKind').value = m.home === false ? 'trasferta' : 'convocazione';
+    };
+
+    matchSel.onchange = () => applica(upcoming[parseInt(matchSel.value, 10)]);
+    // La prossima partita e' la convocazione che si sta scrivendo nove volte su
+    // dieci: arriva gia' compilata, e resta cambiabile.
+    applica(upcoming[0]);
+  }
 }
 
 function sectorLabel() {

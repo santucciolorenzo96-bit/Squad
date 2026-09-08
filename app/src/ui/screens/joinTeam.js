@@ -1,6 +1,8 @@
 import { joinTeamByCode } from '../../auth.js';
 import { esc, passwordProblem, PASSWORD_MIN } from '../../utils/format.js';
 import { fetchTeamByInviteCode } from '../../api/teams.js';
+import { fetchInvitePreview } from '../../api/invites.js';
+import { ROLES } from '../../utils/permissions.js';
 import { getSport } from '../../utils/sports/index.js';
 import { renderConfirmEmailNotice } from './confirmEmailNotice.js';
 import { openPrivacyText } from '../privacy.js';
@@ -14,7 +16,7 @@ import { acceptPrivacy } from '../../api/privacy.js';
 // poi i dati personali. Chi sbaglia una lettera del codice se ne accorge lì,
 // non dopo la conferma email.
 
-const ROLES = [
+const SELF_ROLES = [
   { key: 'atleta', label: 'Sono un atleta', hint: 'La società collegherà il tuo account alla tua scheda: da lì completi i tuoi dati e carichi il certificato.' },
   { key: 'genitore', label: 'Sono un genitore', hint: 'La società collegherà il tuo account a tuo figlio: vedrai convocazioni, quote e documenti.' },
   { key: 'staff', label: 'Faccio parte dello staff', hint: 'Allenatore, dirigente o collaboratore. Un amministratore ti assegnerà le categorie e i permessi che ti servono.' },
@@ -26,6 +28,8 @@ export function renderJoinTeam(prefill = {}) {
   let team = null;
   let inviteCode = (prefill.inviteCode || '').toUpperCase();
   let chosenRole = 'atleta';
+  // Un invito nominativo: quando c'e', il ruolo non si sceglie piu'.
+  let invito = null;
 
   const root = document.getElementById('root');
 
@@ -51,10 +55,10 @@ export function renderJoinTeam(prefill = {}) {
     shell(`
       <div class="card">
         <h2>Il codice della tua società</h2>
-        <div class="hint" style="margin-top:0;">Sei nel posto giusto: te l'ha mandato la tua società, sono sei caratteri.</div>
+        <div class="hint" style="margin-top:0;">Sei nel posto giusto: te l'ha mandato la tua società.</div>
         <div class="field">
           <input type="text" id="jCode" class="code-input" inputmode="latin" autocapitalize="characters"
-                 autocomplete="off" maxlength="6" placeholder="A1B2C3" value="${esc(inviteCode)}">
+                 autocomplete="off" maxlength="12" placeholder="A1B2C3" value="${esc(inviteCode)}">
         </div>
         <div id="jTeamPreview"></div>
         <div class="error-msg" id="jError">${errorMsg ? esc(errorMsg) : ''}</div>
@@ -80,8 +84,15 @@ export function renderJoinTeam(prefill = {}) {
 
       const btn = document.getElementById('jNext');
       btn.disabled = true; btn.textContent = 'Verifico…';
+      invito = null;
       try {
-        team = await fetchTeamByInviteCode(code);
+        const inv = await fetchInvitePreview(code);
+        if (inv) {
+          invito = inv;
+          team = { name: inv.team_name, city: inv.city, sport: inv.sport };
+        } else {
+          team = await fetchTeamByInviteCode(code);
+        }
       } catch (e) {
         // Se la verifica non è disponibile si prosegue lo stesso: il codice
         // verrà comunque validato dal server al momento dell'iscrizione.
@@ -113,13 +124,19 @@ export function renderJoinTeam(prefill = {}) {
       </div>
 
       <div class="card">
+        ${invito ? `
+        <div class="invite-grant">
+          <b>Sei invitato come ${esc(ROLES[invito.role] || invito.role)}</b>
+          ${invito.player_name ? `<span>Il tuo account sarà collegato a ${esc(invito.player_name)}.</span>` : ''}
+          ${(invito.sector_names || []).length ? `<span>Categorie: ${esc(invito.sector_names.join(', '))}.</span>` : ''}
+        </div>` : `
         <div class="field">
           <label>Chi sei?</label>
           <div class="choice-list" id="jRoles">
-            ${ROLES.map(r => `<button type="button" class="choice${r.key === chosenRole ? ' on' : ''}" data-role="${r.key}">
+            ${SELF_ROLES.map(r => `<button type="button" class="choice${r.key === chosenRole ? ' on' : ''}" data-role="${r.key}">
               <b>${r.label}</b><span>${r.hint}</span></button>`).join('')}
           </div>
-        </div>
+        </div>`}
         <div class="field"><label>Nome e cognome</label><input type="text" id="jName" autocomplete="name" placeholder="Come ti chiami"></div>
         <div class="field"><label>Email</label><input type="email" id="jEmail" autocomplete="username" inputmode="email" placeholder="La tua email"></div>
         <div class="field">
@@ -176,7 +193,10 @@ export function renderJoinTeam(prefill = {}) {
       const btn = e.currentTarget;
       btn.disabled = true; btn.textContent = 'Creo l\'account…';
       try {
-        const result = await joinTeamByCode({ email, password: pass, inviteCode, displayName, role: chosenRole });
+        const result = await joinTeamByCode({
+          email, password: pass, inviteCode, displayName,
+          role: chosenRole, personale: !!invito
+        });
         if (result.needsEmailConfirmation) { renderConfirmEmailNotice(email); return; }
         // Il consenso si registra subito dopo la creazione del profilo. Se
         // fallisce non si blocca l'iscrizione: verrà richiesto all'apertura.
