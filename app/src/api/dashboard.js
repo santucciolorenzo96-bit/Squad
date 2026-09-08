@@ -52,7 +52,7 @@ export async function fetchOpenCommunications(teamId) {
 // a capire dove le presenze non sono state rilevate.
 export async function fetchTrainingsInRange(teamId, fromDate, toDate) {
   const { data, error } = await supabase.from('trainings')
-    .select('id, sector_id, title, date, start_time, sectors(name)')
+    .select('id, sector_id, title, date, start_time, end_time, location, recurrence_id, sectors(name)')
     .eq('team_id', teamId).gte('date', fromDate).lte('date', toDate)
     .order('date', { ascending: false });
   if (error) throw error;

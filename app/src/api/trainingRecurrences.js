@@ -66,3 +66,14 @@ export async function ensureOccurrencesGenerated(teamId, sectorId, recurrences, 
   if (error) throw error;
   return data;
 }
+
+// Tutti i programmi fissi della società, non del solo settore attivo: un
+// conflitto di palestra sta per definizione fra categorie diverse, quindi
+// guardando un settore alla volta non si vedrebbe mai.
+export async function fetchAllRecurrences(teamId) {
+  const { data, error } = await supabase.from('training_recurrences')
+    .select('*, sectors(name)')
+    .eq('team_id', teamId).eq('active', true);
+  if (error) throw error;
+  return data;
+}

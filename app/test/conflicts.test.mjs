@@ -1,6 +1,7 @@
 import { describe, test, is } from './run.mjs';
 import {
-  normalizeLocation, toMinutes, occupiedRange, findLocationConflicts, findAllConflicts
+  normalizeLocation, toMinutes, occupiedRange, findLocationConflicts, findAllConflicts,
+  findRecurrenceConflicts
 } from '../src/utils/conflicts.js';
 
 const t = (o) => Object.assign({ date: '2026-09-10', location: 'Palestra Comunale', start_time: '19:00', end_time: '20:30' }, o);
@@ -93,5 +94,42 @@ describe('elenco completo dei conflitti', () => {
       t({ id: 'a' }), t({ id: 'b', start_time: '19:15' }), t({ id: 'c', start_time: '19:30' })
     ]);
     is(coppie.length, 3);
+  });
+});
+
+const rec = (o) => Object.assign({ weekday: 1, location: 'Palestra Comunale', start_time: '19:00', end_time: '20:30', active: true }, o);
+
+describe('programmi fissi', () => {
+  // Il caso che conta: un programma sbagliato genera otto occorrenze in
+  // conflitto in un colpo solo, e correggerne una non serve.
+  test('due categorie lo stesso giorno alla stessa ora', () => {
+    const c = findRecurrenceConflicts(rec({ id: 'a' }), [rec({ id: 'b', start_time: '20:00' })]);
+    is(c.length, 1);
+  });
+
+  test('giorni della settimana diversi non si toccano', () => {
+    const c = findRecurrenceConflicts(rec({ id: 'a' }), [rec({ id: 'b', weekday: 3 })]);
+    is(c.length, 0);
+  });
+
+  test('uno dopo l\'altro nello stesso posto va bene', () => {
+    const c = findRecurrenceConflicts(rec({ id: 'a' }), [rec({ id: 'b', start_time: '20:30', end_time: '22:00' })]);
+    is(c.length, 0);
+  });
+
+  // Una regola disattivata non genera niente, quindi non occupa nessuna palestra.
+  test('un programma disattivato non contende niente', () => {
+    is(findRecurrenceConflicts(rec({ id: 'a', active: false }), [rec({ id: 'b' })]).length, 0);
+    is(findRecurrenceConflicts(rec({ id: 'a' }), [rec({ id: 'b', active: false })]).length, 0);
+  });
+
+  test('riconosce lo stesso posto scritto in modo diverso', () => {
+    const c = findRecurrenceConflicts(rec({ id: 'a' }), [rec({ id: 'b', location: 'palestra  comunale' })]);
+    is(c.length, 1);
+  });
+
+  test('un programma non va in conflitto con se stesso', () => {
+    const uno = rec({ id: 'a' });
+    is(findRecurrenceConflicts(uno, [uno]).length, 0);
   });
 });

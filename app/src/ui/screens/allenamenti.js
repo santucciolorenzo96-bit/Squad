@@ -3,10 +3,9 @@ import { esc } from '../../utils/format.js';
 import { formModal, confirmModal, toast } from '../modal.js';
 import { addTraining, updateTraining, removeTraining,
   fetchTrainingsForDate, fetchKnownLocations } from '../../api/trainings.js';
-import { findLocationConflicts } from '../../utils/conflicts.js';
+import { findLocationConflicts, findRecurrenceConflicts } from '../../utils/conflicts.js';
 import {
-  WEEKDAY_LABELS, createRecurrence, updateRecurrence, removeRecurrence, ensureOccurrencesGenerated
-} from '../../api/trainingRecurrences.js';
+  WEEKDAY_LABELS, createRecurrence, updateRecurrence, removeRecurrence, ensureOccurrencesGenerated, fetchAllRecurrences } from '../../api/trainingRecurrences.js';
 import { fetchAttendance, setAttendance } from '../../api/attendance.js';
 import { fetchPlayerPhotoUrls } from '../../api/roster.js';
 import { avatarHtml, wireAvatarClicks } from '../playerAvatar.js';
@@ -84,7 +83,11 @@ export function renderAllenamentiTab(c) {
         <div class="field"><label>Ora inizio</label><input type="text" id="rcStart" placeholder="20:00" value="${existing ? esc(existing.start_time || '') : ''}"></div>
         <div class="field"><label>Ora fine</label><input type="text" id="rcEnd" placeholder="21:30" value="${existing ? esc(existing.end_time || '') : ''}"></div>
       </div>
-      <div class="field"><label>Luogo</label><input type="text" id="rcLoc" value="${existing ? esc(existing.location || '') : ''}"></div>
+      <div class="field"><label>Luogo</label>
+        <input type="text" id="rcLoc" list="knownLocationsRc" value="${existing ? esc(existing.location || '') : ''}" placeholder="Es. Palestra Comunale">
+        <datalist id="knownLocationsRc"></datalist>
+      </div>
+      <div id="rcConflict"></div>
       ${existing ? `<div class="field"><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="rcActive" ${existing.active ? 'checked' : ''} style="width:auto;"> Programma attivo</label></div>` : ''}
       <div class="hint">Genera automaticamente gli allenamenti per le prossime settimane, fino a un cambiamento.</div>
     `, async () => {
@@ -94,8 +97,18 @@ export function renderAllenamentiTab(c) {
         end_time: document.getElementById('rcEnd').value.trim() || null,
         location: document.getElementById('rcLoc').value.trim() || null
       };
+      if (existing) patch.active = document.getElementById('rcActive').checked;
+
+      // Un programma fisso sbagliato genera otto occorrenze in conflitto tutte
+      // insieme, e correggerne una non serve: la settimana dopo torna. Meglio
+      // accorgersene qui che in Situazione fra sette giorni.
+      const scontri = await conflittiRicorrenza({ ...patch, id: existing ? existing.id : null });
+      if (scontri.length && !document.getElementById('rcConflictAck')) {
+        mostraConflittoRicorrenza(scontri);
+        return 'La palestra risulta già occupata: salva di nuovo per confermare.';
+      }
+
       if (existing) {
-        patch.active = document.getElementById('rcActive').checked;
         const updated = await updateRecurrence(existing.id, patch);
         Object.assign(existing, updated);
       } else {
@@ -143,6 +156,34 @@ export function renderAllenamentiTab(c) {
         drawTrainings();
       }, 'Rimuovi');
     });
+  
+    fetchKnownLocations(state.teamProfile.id).then(luoghi => {
+      const dl = document.getElementById('knownLocationsRc');
+      if (dl) dl.innerHTML = luoghi.map(l => `<option value="${esc(l)}">`).join('');
+    }).catch(() => {});
+  }
+
+  // I programmi fissi di tutte le categorie: quelli del settore attivo non
+  // basterebbero, perche' un conflitto sta per definizione fra categorie diverse.
+  async function conflittiRicorrenza(rec) {
+    if (!rec.location || !rec.start_time) return [];
+    try {
+      const tutte = await fetchAllRecurrences(state.teamProfile.id);
+      return findRecurrenceConflicts(rec, tutte);
+    } catch (e) {
+      return []; // un controllo che non parte non deve impedire di salvare
+    }
+  }
+
+  function mostraConflittoRicorrenza(scontri) {
+    const holder = document.getElementById('rcConflict');
+    if (!holder) return;
+    holder.innerHTML = `<div class="conflict-warn" id="rcConflictAck">
+      <b>La palestra è già impegnata quel giorno</b>
+      ${scontri.map(r => `<div>${esc((r.sectors && r.sectors.name) || 'Altra categoria')} ·
+        ${esc(WEEKDAY_LABELS[r.weekday] || '')} ${esc(r.start_time || '')}${r.end_time ? '–' + esc(r.end_time) : ''}</div>`).join('')}
+      <span>Ogni settimana, non una volta sola. Se la palestra si può dividere va bene: salva di nuovo per confermare.</span>
+    </div>`;
   }
 
   function openTrainingModal(existing) {

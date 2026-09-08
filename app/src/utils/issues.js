@@ -268,14 +268,18 @@ export function detectIssues(ctx) {
   // un conflitto per definizione sta fra settori diversi. Solo quelli futuri:
   // su una sovrapposizione di ieri non c'e' piu' niente da decidere.
   const futuri = trainings.filter(t => t.date >= today);
-  const scontri = findAllConflicts(futuri).map(([a, b]) => ({
-    label: ((a.sectors && a.sectors.name) || sectorName(a.sector_id))
-      + ' e ' + ((b.sectors && b.sectors.name) || sectorName(b.sector_id)),
-    sub: fmtDate(a.date) + ' · ' + (a.location || '')
-      + ' · ' + (a.start_time || '') + (a.end_time ? '-' + a.end_time : '')
-      + ' e ' + (b.start_time || '') + (b.end_time ? '-' + b.end_time : ''),
-    sort: a.date
-  }));
+  const scontri = findAllConflicts(futuri).map(([a, b]) => {
+    const fisso = !!(a.recurrence_id || b.recurrence_id);
+    return {
+      label: ((a.sectors && a.sectors.name) || sectorName(a.sector_id))
+        + ' e ' + ((b.sectors && b.sectors.name) || sectorName(b.sector_id)),
+      sub: fmtDate(a.date) + ' · ' + (a.location || '')
+        + ' · ' + (a.start_time || '') + (a.end_time ? '-' + a.end_time : '')
+        + ' e ' + (b.start_time || '') + (b.end_time ? '-' + b.end_time : '')
+        + (fisso ? ' · da programma fisso: si ripete ogni settimana' : ''),
+      sort: a.date, sectorId: null
+    };
+  });
   if (scontri.length) issues.push({
     id: 'palestra_occupata', severity: 'warning',
     title: 'Due categorie nello stesso posto',

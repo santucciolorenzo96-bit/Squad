@@ -80,3 +80,30 @@ export function findAllConflicts(trainings) {
   }
   return out;
 }
+
+// ============================ Programmi fissi ============================
+// Il controllo sugli allenamenti singoli non basta. Un programma ricorrente
+// genera otto occorrenze in un colpo solo, e le inserisce direttamente nel
+// database senza passare dalla modale che fa la verifica: una regola
+// sbagliata produce otto conflitti in silenzio, e correggere la singola
+// occorrenza non serve — la settimana dopo torna.
+//
+// Qui si confronta il giorno della settimana invece della data. Le regole
+// disattivate non generano niente, quindi non contendono nessuna palestra.
+
+export function findRecurrenceConflicts(rec, others) {
+  if (rec.active === false) return [];
+  const place = normalizeLocation(rec.location);
+  if (!place) return [];
+  const range = occupiedRange(rec);
+  if (!range) return [];
+
+  return others.filter(o => {
+    if (o.id && rec.id && o.id === rec.id) return false;
+    if (o.active === false) return false;
+    if (o.weekday !== rec.weekday) return false;
+    if (normalizeLocation(o.location) !== place) return false;
+    const r = occupiedRange(o);
+    return r ? (range.start < r.end && r.start < range.end) : false;
+  });
+}
