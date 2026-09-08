@@ -318,9 +318,10 @@ button:focus:not(:focus-visible){outline:none;}
    Su telefono la barra laterale non c'e' e 100vh mente quando compare o sparisce
    la barra degli indirizzi: li' la pagina continua a scorrere come prima. */
 @media (min-width:900px){
-  html,body{height:100%;overflow:hidden;}
   body{padding-bottom:0;}
-  .app-shell{height:100%;min-height:0;}
+  /* L'altezza viene dalla finestra, non dagli antenati: .app-shell sta dentro
+     un #root senza altezza, quindi una percentuale qui varrebbe "auto". */
+  .app-shell{height:100vh;height:100dvh;min-height:0;}
   .shell-body{overflow:hidden;}
   .sidebar{overflow-y:auto;}
 }
