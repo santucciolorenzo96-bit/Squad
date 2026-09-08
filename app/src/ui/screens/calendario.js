@@ -18,6 +18,7 @@ export function renderCalendarioTab(c) {
   const canEdit = canEditHome(state.currentUser);
   let reviewRows = null;
   let parsing = false;
+  let vista = 'futuri';
 
   function draw() {
     if (reviewRows) drawReview();
@@ -25,7 +26,6 @@ export function renderCalendarioTab(c) {
   }
 
   function drawList() {
-    const sorted = [...state.calendar].sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
     c.innerHTML = `
       ${canEdit ? `
       <div class="card">
@@ -38,50 +38,94 @@ export function renderCalendarioTab(c) {
         <input type="file" id="calFileInput" accept="application/pdf" class="hidden">
         <button class="btn btn-ghost" id="addManualBtn" style="width:100%;margin-top:10px;">+ Aggiungi partita manualmente</button>
       </div>` : ''}
-      <div class="section-label">Calendario (${sorted.length})</div>
+      <div class="section-label">Calendario</div>
+      <div id="calSwitch"></div>
       <div id="calList"></div>
     `;
-    const holder = document.getElementById('calList');
-    if (sorted.length === 0) { holder.innerHTML = '<div class="placeholder-card">Nessuna partita in calendario.</div>'; }
-    else {
-      holder.innerHTML = '';
-      sorted.forEach(m => {
-        const row = document.createElement('div');
-        row.className = 'card';
-        row.style.display = 'flex';
-        row.style.alignItems = 'center';
-        row.style.gap = '14px';
-        row.innerHTML = `
-          <div style="width:44px;height:44px;border-radius:11px;background:var(--tint);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-mono);flex-shrink:0;">
-            ${m.giornata ? `<span style="font-size:9px;color:var(--dim);">GG</span><span style="font-size:15px;font-weight:700;">${m.giornata}</span>` : ballIcon(18)}
-          </div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-weight:600;font-size:14px;">${venueIcon(m.home !== false)} vs ${esc(m.opponent)}</div>
-            <div class="hint">${fmtDate(m.date)}${m.time ? ' · ' + esc(m.time) : ''}${m.location ? ' · ' + esc(m.location) : ''}</div>
-          </div>
-          ${m.played
-            ? `<span class="status-badge ok">${m.team_score ?? '?'} - ${m.opp_score ?? '?'}</span>`
-            : (canEdit ? `<button class="btn btn-secondary" data-result="${m.id}" style="width:auto;">Segna risultato</button>` : '')}
-          ${canEdit ? `<button class="icon-btn" data-edit="${m.id}">✎</button><button class="icon-btn danger" data-rm="${m.id}">✕</button>` : ''}
-        `;
-        holder.appendChild(row);
-      });
-      if (canEdit) {
-        holder.querySelectorAll('[data-result]').forEach(btn => btn.onclick = () => openResultModal(state.calendar.find(m => m.id === btn.getAttribute('data-result'))));
-        holder.querySelectorAll('[data-edit]').forEach(btn => btn.onclick = () => openEditModal(state.calendar.find(m => m.id === btn.getAttribute('data-edit'))));
-        holder.querySelectorAll('[data-rm]').forEach(btn => btn.onclick = () => {
-          confirmModal('Rimuovere partita?', 'La partita verrà tolta dal calendario.', async () => {
-            await removeCalendarMatch(btn.getAttribute('data-rm'));
-            state.calendar = state.calendar.filter(m => m.id !== btn.getAttribute('data-rm'));
-            draw();
-          }, 'Rimuovi');
-        });
-      }
-    }
+    fillList();
     if (!canEdit) return;
     document.getElementById('calDropzone').onclick = () => { if (!parsing) document.getElementById('calFileInput').click(); };
     document.getElementById('calFileInput').onchange = (e) => { const f = e.target.files[0]; if (f) handleFile(f); };
     document.getElementById('addManualBtn').onclick = () => { reviewRows = [emptyRow()]; draw(); };
+  }
+
+  // Una partita passa fra le Passate quando ha un risultato, non quando la sua
+  // data e' trascorsa: una partita di due settimane fa senza punteggio e'
+  // ancora da segnare, ed e' proprio quella che non deve sparire. Restando fra
+  // le Prossime, ordinate per data, finisce in cima da sola.
+  function splitMatches() {
+    const oggi = new Date().toISOString().slice(0, 10);
+    const prossime = state.calendar.filter(m => !m.played)
+      .sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
+    const giocate = state.calendar.filter(m => m.played)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));   // la piu' recente per prima
+    return { prossime, giocate, oggi };
+  }
+
+  function fillList() {
+    const holder = document.getElementById('calList');
+    if (!holder) return;
+    const { prossime, giocate, oggi } = splitMatches();
+    drawSwitch(prossime.length, giocate.length);
+
+    const elenco = vista === 'giocate' ? giocate : prossime;
+    if (elenco.length === 0) {
+      holder.innerHTML = '<div class="placeholder-card">'
+        + (vista === 'giocate' ? 'Nessuna partita ancora giocata.' : 'Nessuna partita in calendario.')
+        + '</div>';
+      return;
+    }
+    holder.innerHTML = '';
+    elenco.forEach(m => {
+      const daSegnare = !m.played && m.date && m.date < oggi;
+      const row = document.createElement('div');
+      row.className = 'card';
+      row.style.display = 'flex';
+      row.style.alignItems = 'center';
+      row.style.gap = '14px';
+      row.innerHTML = `
+        <div style="width:44px;height:44px;border-radius:11px;background:var(--tint);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-mono);flex-shrink:0;">
+          ${m.giornata ? `<span style="font-size:9px;color:var(--dim);">GG</span><span style="font-size:15px;font-weight:700;">${m.giornata}</span>` : ballIcon(18)}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:14px;">${venueIcon(m.home !== false)} vs ${esc(m.opponent)}</div>
+          <div class="hint">${fmtDate(m.date)}${m.time ? ' · ' + esc(m.time) : ''}${m.location ? ' · ' + esc(m.location) : ''}</div>
+          ${daSegnare ? '<div class="sr-chip late" style="display:inline-block;margin-top:4px;">Risultato da inserire</div>' : ''}
+        </div>
+        ${m.played
+          ? `<span class="status-badge ok">${m.team_score ?? '?'} - ${m.opp_score ?? '?'}</span>`
+          : (canEdit ? `<button class="btn btn-secondary" data-result="${m.id}" style="width:auto;">Segna risultato</button>` : '')}
+        ${canEdit ? `<button class="icon-btn" data-edit="${m.id}">✎</button><button class="icon-btn danger" data-rm="${m.id}">✕</button>` : ''}
+      `;
+      holder.appendChild(row);
+    });
+    if (canEdit) {
+      holder.querySelectorAll('[data-result]').forEach(btn => btn.onclick = () => openResultModal(state.calendar.find(m => m.id === btn.getAttribute('data-result'))));
+      holder.querySelectorAll('[data-edit]').forEach(btn => btn.onclick = () => openEditModal(state.calendar.find(m => m.id === btn.getAttribute('data-edit'))));
+      holder.querySelectorAll('[data-rm]').forEach(btn => btn.onclick = () => {
+        confirmModal('Rimuovere partita?', 'La partita verrà tolta dal calendario.', async () => {
+          await removeCalendarMatch(btn.getAttribute('data-rm'));
+          state.calendar = state.calendar.filter(m => m.id !== btn.getAttribute('data-rm'));
+          fillList();
+        }, 'Rimuovi');
+      });
+    }
+  }
+
+  // Con un solo elenco non c'e' niente da scegliere.
+  function drawSwitch(nProssime, nGiocate) {
+    const box = document.getElementById('calSwitch');
+    if (!box) return;
+    if (nProssime === 0 && nGiocate === 0) { box.innerHTML = ''; return; }
+    box.innerHTML = `
+      <div class="list-switch">
+        <button data-vista="futuri" class="${vista === 'futuri' ? 'active' : ''}">Prossime <b>${nProssime}</b></button>
+        <button data-vista="giocate" class="${vista === 'giocate' ? 'active' : ''}">Giocate <b>${nGiocate}</b></button>
+      </div>`;
+    box.querySelectorAll('[data-vista]').forEach(btn => btn.onclick = () => {
+      vista = btn.getAttribute('data-vista');
+      fillList();
+    });
   }
 
   async function handleFile(file) {
