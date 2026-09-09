@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { state } from '../state.js';
 import { removePlayerFromSector, fetchPlayerPhotoUrls } from '../api/roster.js';
-import { canEditRoster, canEditHome, isLinkedUser } from '../utils/permissions.js';
+import { canEditRoster } from '../utils/permissions.js';
 import { computeSeasonStats, findSeasonRow } from '../utils/stats.js';
 import { currentSport } from '../utils/sports/index.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Vuoto, Scheletro, Avatar, cx } from './ui.jsx';
-import { Conferma, Finestra, useAvviso } from './moduli.jsx';
+import { Conferma, useAvviso } from './moduli.jsx';
+import { SchedaAtleta } from './SchedaAtleta.jsx';
 
 /* La rosa.
  *
@@ -412,15 +413,7 @@ export function Rosa() {
         </div>
       )}
 
-      {scheda && (
-        <SchedaGiocatore
-          p={scheda}
-          foto={foto[scheda.id]}
-          riga={findSeasonRow(stagione, scheda)}
-          sport={sport}
-          onChiudi={() => setScheda(null)}
-        />
-      )}
+      {scheda && <SchedaAtleta playerId={scheda.id} onChiudi={() => setScheda(null)} />}
 
       {daRimuovere && (
         <Conferma
@@ -445,53 +438,5 @@ export function Rosa() {
         />
       )}
     </div>
-  );
-}
-
-/* --------------------------------------------------------- scheda giocatore */
-function SchedaGiocatore({ p, foto, riga, sport, onChiudi }) {
-  const puoiVedereEvolutiva = isLinkedUser(state.currentUser)
-    ? state.linkedPlayers.some(lp => lp.id === p.id)
-    : canEditHome(state.currentUser);
-
-  return (
-    <Finestra
-      titolo={p.name}
-      sotto={`#${p.number}${p.role_position ? ' · ' + p.role_position : ''}${p.height_cm ? ' · ' + p.height_cm + ' cm' : ''}`}
-      onChiudi={onChiudi}
-    >
-      <div className="flex justify-center">
-        <Avatar nome={p.name} url={foto} dim={92} />
-      </div>
-
-      {riga && riga.games ? (
-        <>
-          <div className="mt-6 grid grid-cols-3 gap-3">
-            {sport.headline.map(h => (
-              <Pannello key={h.key} className="px-3 py-3 text-center">
-                <div className="text-[24px] font-bold leading-none">
-                  {((riga[h.key] || 0) / riga.games).toFixed(1)}
-                </div>
-                <Etichetta className="mt-2">{h.label}</Etichetta>
-              </Pannello>
-            ))}
-          </div>
-          <p className="mt-3 text-center text-[12px] text-tenue">
-            medie su {riga.games} {riga.games === 1 ? 'partita giocata' : 'partite giocate'}
-          </p>
-        </>
-      ) : (
-        <p className="mt-6 text-center text-[13px] text-tenue">
-          Nessuna statistica: non ha ancora giocato in questa stagione.
-        </p>
-      )}
-
-      {puoiVedereEvolutiva && (
-        <p className="mt-6 rounded-lg bg-pannello/8 px-3.5 py-3 text-[12px] leading-relaxed text-tenue">
-          La scheda evolutiva — obiettivo e nota dell’allenatore — è ancora sull’app attuale:
-          questa sezione non è stata rifatta.
-        </p>
-      )}
-    </Finestra>
   );
 }

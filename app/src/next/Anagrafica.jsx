@@ -8,6 +8,7 @@ import { inCampione, DOCUMENTI_CAMPIONE } from './campione.js';
 import { Pannello, Etichetta, Stato, Dato, Vuoto, Scheletro, Avatar, Pulsante, Titolo, cx } from './ui.jsx';
 import { Modulo, Campo, Testo, useAvviso } from './moduli.jsx';
 import { IconaSezione, Chevron } from './icone.jsx';
+import { SchedaAtleta } from './SchedaAtleta.jsx';
 
 /* L'anagrafica.
  *
@@ -36,6 +37,7 @@ export function Anagrafica() {
   const [documenti, setDocumenti] = useState({});
   const [soloProblemi, setSoloProblemi] = useState(false);
   const [nuovo, setNuovo] = useState(false);
+  const [scheda, setScheda] = useState(null);
   const [, ridisegna] = useState(0);
   const avvisa = useAvviso();
 
@@ -144,7 +146,11 @@ export function Anagrafica() {
               </thead>
               <tbody>
                 {visibili.map(r => (
-                  <tr key={r.p.id} className="border-b border-bordo/6 transition-colors last:border-b-0 hover:bg-pannello/8">
+                  <tr
+                    key={r.p.id}
+                    onClick={() => setScheda(r.p.id)}
+                    className="cursor-pointer border-b border-bordo/6 transition-colors last:border-b-0 hover:bg-pannello/8"
+                  >
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3.5">
                         {/* Il numero di maglia prima del nome, incolonnato:
@@ -179,7 +185,11 @@ export function Anagrafica() {
           {/* ------------------------------------------------- su telefono */}
           <div className="space-y-3 md:hidden">
             {visibili.map(r => (
-              <Pannello key={r.p.id} className="pad-pannello-stretto relative overflow-hidden">
+              <Pannello
+                key={r.p.id}
+                onClick={() => setScheda(r.p.id)}
+                className="pad-pannello-stretto relative cursor-pointer overflow-hidden"
+              >
                 {/* Il filo colorato a sinistra: dice lo stato prima che si
                     legga qualunque parola. */}
                 {DOC_STATE[r.peggiore].tone !== 'ok' && (
@@ -213,6 +223,8 @@ export function Anagrafica() {
           </div>
         </>
       )}
+
+      {scheda && <SchedaAtleta playerId={scheda} onChiudi={() => { setScheda(null); }} />}
 
       {nuovo && (
         <ModuloAtleta
