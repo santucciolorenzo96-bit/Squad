@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { state } from '../state.js';
-import { updateTeam, regenerateInviteCode } from '../api/teams.js';
+import { updateTeam, uploadTeamLogo, regenerateInviteCode } from '../api/teams.js';
+import { resizeImageFile, resizeLogoWithTransparency, imageHasAlpha } from '../utils/image.js';
 import { createSector, renameSector, removeSector } from '../api/sectors.js';
 import { fetchSeasons, createSeason, updateSeason, removeSeason, reopenSeason } from '../api/seasons.js';
 import { orderedSectors, hasChildren } from '../utils/sectors.js';
@@ -8,7 +9,7 @@ import { isAdmin } from '../utils/permissions.js';
 import { SPORT_LIST } from '../utils/sports/index.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, cx } from './ui.jsx';
-import { Modulo, Conferma, Campo, Testo, Data, ErroreCaricamento, useAvviso } from './moduli.jsx';
+import { Modulo, Conferma, Campo, Testo, Data, Spunta, ErroreCaricamento, useAvviso } from './moduli.jsx';
 
 /* Squadra.
  *
@@ -47,15 +48,37 @@ export function Squadra() {
 /* ================================================================ identità */
 function Identita({ avvisa }) {
   const [modifica, setModifica] = useState(false);
+  const [logo, setLogo] = useState(null);      // { file, trasparente }
+  const [carica, setCarica] = useState(false);
   const [, ridisegna] = useState(0);
+  const input = useRef(null);
   const t = state.teamProfile || {};
   const sport = SPORT_LIST.find(s => s.key === t.sport);
+
+  async function scegliLogo(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (inCampione()) { avvisa('Nell\u2019anteprima con dati di esempio non si carica niente.'); return; }
+    try {
+      // Un logo con lo sfondo gia' trasparente non va toccato: passarlo per lo
+      // scontorno lo rovinerebbe. Quello su fondo bianco invece va scontornato,
+      // altrimenti su tema scuro compare come un francobollo bianco.
+      const gia = await imageHasAlpha(file);
+      setLogo({ file, trasparente: gia });
+    } catch (err) {
+      avvisa((err && err.message) || 'Immagine non leggibile.', 'errore');
+    }
+  }
 
   return (
     <div>
       <Etichetta className="mb-2.5">Identità</Etichetta>
       <Pannello className="pad-pannello-stretto">
         <div className="flex items-center gap-4">
+          {/* Il logo della SOCIETA', o le sue iniziali. Mai il simbolo di
+              SQUAD: qui il campo e' il logo della societa', e mostrarne un
+              altro farebbe credere di averlo gia' caricato. */}
           {t.logo_url ? (
             <img src={t.logo_url} alt="" className="h-16 w-16 shrink-0 rounded-lg object-contain" />
           ) : (
@@ -69,10 +92,18 @@ function Identita({ avvisa }) {
               {[t.city, t.category, sport && sport.label].filter(Boolean).join(' · ')}
             </div>
           </div>
-          <Pulsante className="shrink-0 py-1.5 text-[11.5px]" onClick={() => setModifica(true)}>Modifica</Pulsante>
+          <div className="flex shrink-0 flex-col gap-1.5">
+            <Pulsante className="py-1.5 text-[11.5px]" onClick={() => setModifica(true)}>Modifica</Pulsante>
+            <Pulsante className="py-1.5 text-[11.5px]" onClick={() => input.current && input.current.click()}>
+              {t.logo_url ? 'Cambia logo' : 'Carica logo'}
+            </Pulsante>
+          </div>
+          <input ref={input} type="file" accept="image/*" className="hidden" onChange={scegliLogo} />
         </div>
         <p className="mt-3 text-[11.5px] leading-relaxed text-tenue">
-          Il logo si carica dall’app attuale: il ritaglio con trasparenza non è ancora stato rifatto qui.
+          Il logo della società compare sulle partite e sui tabellini. Non sostituisce mai il
+          simbolo di SQUAD in alto a sinistra: quello dice in che applicazione sei, questo con
+          che squadra.
         </p>
       </Pannello>
 
@@ -82,7 +113,95 @@ function Identita({ avvisa }) {
           onFatto={() => { ridisegna(n => n + 1); avvisa('Società salvata'); }}
         />
       )}
+
+      {logo && (
+        <ModuloLogo
+          logo={logo}
+          lavora={carica}
+          onLavora={setCarica}
+          onChiudi={() => setLogo(null)}
+          onFatto={() => { setLogo(null); ridisegna(n => n + 1); avvisa('Logo aggiornato'); }}
+          avvisa={avvisa}
+        />
+      )}
     </div>
+  );
+}
+
+/* --------------------------------------------------------------- il logo */
+// Lo scontorno si vede prima di salvare, e si puo' rifiutare: e' un algoritmo
+// che parte dai bordi e propaga finche' i pixel somigliano al fondo. Su un
+// logo con un alone o su una fotografia sbaglia, e chi guarda deve poterlo
+// dire invece di ritrovarsi un marchio mangiato.
+function ModuloLogo({ logo, lavora, onLavora, onChiudi, onFatto, avvisa }) {
+  const [scontorna, setScontorna] = useState(!logo.trasparente);
+  const [anteprima, setAnteprima] = useState(null);
+  const [errore, setErrore] = useState('');
+
+  useEffect(() => {
+    let vivo = true;
+    let url = null;
+    (async () => {
+      try {
+        const blob = scontorna
+          ? await resizeLogoWithTransparency(logo.file, 512)
+          : await resizeImageFile(logo.file, 512, { format: 'png' });
+        if (!vivo) return;
+        url = URL.createObjectURL(blob);
+        setAnteprima({ blob, url });
+      } catch (e) {
+        if (vivo) setErrore((e && e.message) || 'Elaborazione non riuscita.');
+      }
+    })();
+    return () => { vivo = false; if (url) URL.revokeObjectURL(url); };
+  }, [scontorna]);
+
+  return (
+    <Modulo
+      titolo="Logo della società"
+      sotto="Controlla come viene: se lo scontorno mangia parte del marchio, toglilo."
+      etichettaInvia="Usa questo logo"
+      onChiudi={onChiudi}
+      onInvia={async () => {
+        if (!anteprima) return 'Attendi l\u2019anteprima.';
+        const url = await uploadTeamLogo(state.teamProfile.id, anteprima.blob);
+        const agg = await updateTeam(state.teamProfile.id, { logo_url: url });
+        Object.assign(state.teamProfile, agg);
+        onFatto();
+      }}
+    >
+      {/* Due fondi, uno chiaro e uno scuro: un logo bianco su fondo bianco
+          sembra perfetto finche' non lo si guarda in tema scuro. */}
+      <div className="grid grid-cols-2 gap-3">
+        {[['#f0f3fc', 'su chiaro'], ['#0b1020', 'su scuro']].map(([sfondo, nota]) => (
+          <div key={nota} className="rounded-lg orlo p-4 text-center" style={{ background: sfondo }}>
+            {anteprima
+              ? <img src={anteprima.url} alt="" className="mx-auto h-20 w-20 object-contain" />
+              : <div className="mx-auto h-20 w-20 animate-pulse rounded-lg bg-pannello/20" />}
+            <div className="mt-2 text-[10px] font-bold uppercase tracking-etichetta" style={{ color: '#8894ad' }}>
+              {nota}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {logo.trasparente && (
+        <p className="rounded-lg bg-pannello/8 px-3.5 py-3 text-[12px] leading-relaxed text-tenue">
+          Questo file ha già lo sfondo trasparente: lo scontorno non serve e rischia solo di
+          togliere qualcosa.
+        </p>
+      )}
+
+      <Spunta
+        checked={scontorna}
+        onChange={e => setScontorna(e.target.checked)}
+        etichetta="Togli lo sfondo attorno al marchio"
+      />
+
+      {errore && (
+        <div className="rounded-lg bg-rosso/12 px-3.5 py-2.5 text-[12.5px] text-rosso">{errore}</div>
+      )}
+    </Modulo>
   );
 }
 

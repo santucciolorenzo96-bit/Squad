@@ -71,12 +71,11 @@ function Testata({ onSezione, sectorId, onSettore, strumenti }) {
     <header className="sticky top-0 z-30 shrink-0 vetro-alto border-b border-bordo/10">
       <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
         <button onClick={() => onSezione('home')} className="flex min-w-0 items-center gap-2.5 text-left">
-          {/* Il marchio: monogramma in vetro, poi il nome della società. SQUAD
-              sta sopra piccolo perché il prodotto non è la notizia — la società
-              lo è. */}
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-blu to-blu2 text-[15px] font-bold text-white shadow-blu lg:h-11 lg:w-11">
-            S
-          </span>
+          {/* Il simbolo di SQUAD, e accanto il nome della società. Il simbolo
+              resta questo anche quando la società ha caricato il proprio logo:
+              qui si dice in che applicazione si è, non con che squadra — il
+              logo della società vive nei contesti sportivi. */}
+          <img className="marchio-simbolo h-10 w-10 shrink-0 lg:h-11 lg:w-11" alt="SQUAD" />
           <span className="min-w-0">
             <span className="etichetta block leading-none">Squad</span>
             <span className="block truncate text-[15.5px] font-semibold leading-tight lg:text-[17px]">

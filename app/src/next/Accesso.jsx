@@ -32,12 +32,13 @@ function Colonna({ children, sotto }) {
   return (
     <div className="flex min-h-[100dvh] flex-col items-center justify-center px-5 py-10">
       <div className="w-full max-w-[24rem] animate-salita">
-        <div className="mb-8 flex flex-col items-center text-center">
-          <span className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-blu to-blu2 text-[22px] font-bold text-white shadow-blu">
-            S
-          </span>
-          <div className="mt-3 text-[26px] font-bold tracking-tight">SQUAD</div>
-          <div className="mt-1 text-[12px] text-tenue">Gestionale per società sportive</div>
+        {/* Il marchio: simbolo grande, la scritta sotto. È la prima cosa che
+            si vede aprendo l'app, e prima dell'accesso non c'è nient'altro a
+            dire dove si è finiti. */}
+        <div className="mb-8 flex flex-col items-center gap-3.5 text-center">
+          <img className="marchio-simbolo h-[104px] w-auto sm:h-[124px]" alt="" />
+          <img className="marchio-scritta w-[min(200px,58vw)] h-auto" alt="SQUAD" />
+          <div className="text-[12px] text-tenue">Gestionale per società sportive</div>
         </div>
         {children}
       </div>

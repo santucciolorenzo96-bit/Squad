@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { state } from '../state.js';
-import { updateMyProfile } from '../api/profiles.js';
+import { updateMyProfile, uploadMyAvatar, setMyAvatar, removeMyAvatar, getAvatarUrl } from '../api/profiles.js';
+import { resizeImageFile } from '../utils/image.js';
 import { changePassword } from '../auth.js';
 import { roleLabel, isLinkedUser, isAdmin } from '../utils/permissions.js';
 import { sectorFullName } from '../utils/sectors.js';
@@ -8,6 +9,7 @@ import { PASSWORD_MIN, passwordProblem } from '../utils/format.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Avatar, Stato, cx } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, useAvviso } from './moduli.jsx';
+import { ScegliCentro } from './ritaglio.jsx';
 
 /* Il profilo.
  *
@@ -24,8 +26,24 @@ export function Profilo({ tema, onTema }) {
   const [modifica, setModifica] = useState(false);
   const [password, setPassword] = useState(false);
   const [esci, setEsci] = useState(false);
+  const [centro, setCentro] = useState(null);        // { file } o { esistente: true }
+  const [togli, setTogli] = useState(false);
   const [, ridisegna] = useState(0);
+  const input = useRef(null);
   const avvisa = useAvviso();
+
+  async function scegliFoto(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (inCampione()) { avvisa('Nell\u2019anteprima con dati di esempio non si carica niente.'); return; }
+    try {
+      const ridotta = await resizeImageFile(file, 600);
+      setCentro({ file: ridotta });
+    } catch (err) {
+      avvisa((err && err.message) || 'Immagine non leggibile.', 'errore');
+    }
+  }
 
   const mieiSettori = isAdmin(u)
     ? state.sectors
@@ -40,7 +58,17 @@ export function Profilo({ tema, onTema }) {
       {/* ---------------------------------------------------------- chi sei */}
       <Pannello alto className="pad-pannello">
         <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
-          <Avatar nome={u.display_name} url={state.myAvatarUrl} dim={80} />
+          <button
+            onClick={() => input.current && input.current.click()}
+            className="relative shrink-0"
+            title={state.myAvatarUrl ? 'Cambia fotografia' : 'Carica una fotografia'}
+          >
+            <Avatar nome={u.display_name} url={state.myAvatarUrl} dim={80} />
+            <span className="absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-blu to-blu2 text-[13px] text-white shadow-blu">
+              \u270e
+            </span>
+          </button>
+          <input ref={input} type="file" accept="image/*" className="hidden" onChange={scegliFoto} />
           <div className="min-w-0 flex-1">
             <div className="text-[20px] font-bold leading-tight">{u.display_name}</div>
             <div className="mt-1 text-[12.5px] text-tenue">{u.email}</div>
@@ -51,10 +79,16 @@ export function Profilo({ tema, onTema }) {
           </div>
           <Pulsante className="shrink-0" onClick={() => setModifica(true)}>Modifica</Pulsante>
         </div>
-        <p className="mt-4 text-[11.5px] leading-relaxed text-tenue">
-          La fotografia del profilo, con il ritaglio, si carica dall’app attuale: quella parte
-          non è ancora stata rifatta qui.
-        </p>
+        {state.myAvatarUrl && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Pulsante className="py-1.5 text-[11.5px]" onClick={() => setCentro({ esistente: true })}>
+              Sposta il punto
+            </Pulsante>
+            <Pulsante variante="nudo" className="py-1.5 text-[11.5px]" onClick={() => setTogli(true)}>
+              Togli la fotografia
+            </Pulsante>
+          </div>
+        )}
       </Pannello>
 
       {/* ------------------------------------------------------ cosa vedi */}
@@ -171,6 +205,52 @@ export function Profilo({ tema, onTema }) {
 
       {password && (
         <ModuloPassword onChiudi={() => setPassword(false)} onFatto={() => avvisa('Password cambiata')} />
+      )}
+
+      {centro && (
+        <ScegliCentro
+          file={centro.file}
+          url={centro.esistente ? state.myAvatarUrl : null}
+          iniziale={{ x: u.avatar_focal_x ?? 50, y: u.avatar_focal_y ?? 50 }}
+          onChiudi={() => setCentro(null)}
+          onConferma={async (punto) => {
+            try {
+              if (centro.esistente) {
+                // Solo il punto: la fotografia \u00e8 gi\u00e0 caricata, e rimandarla
+                // vorrebbe dire lasciarne due copie nell'archivio.
+                const agg = await setMyAvatar(u.avatar_path, punto.x, punto.y);
+                Object.assign(state.currentUser, agg);
+              } else {
+                const agg = await uploadMyAvatar(u.id, centro.file);
+                Object.assign(state.currentUser, agg);
+                await setMyAvatar(state.currentUser.avatar_path, punto.x, punto.y);
+                state.myAvatarUrl = await getAvatarUrl(state.currentUser.avatar_path).catch(() => null);
+              }
+              setCentro(null);
+              ridisegna(n => n + 1);
+              avvisa('Fotografia aggiornata');
+            } catch (e) {
+              console.error(e);
+              avvisa((e && e.message) || 'Caricamento non riuscito.', 'errore');
+            }
+          }}
+        />
+      )}
+
+      {togli && (
+        <Conferma
+          titolo="Togliere la fotografia?"
+          testo="Torni alle iniziali. La fotografia viene cancellata dall\u2019archivio."
+          etichetta="Togli"
+          onChiudi={() => setTogli(false)}
+          onConferma={async () => {
+            const agg = await removeMyAvatar(u.avatar_path);
+            Object.assign(state.currentUser, agg);
+            state.myAvatarUrl = null;
+            ridisegna(n => n + 1);
+            avvisa('Fotografia rimossa');
+          }}
+        />
       )}
 
       {esci && (

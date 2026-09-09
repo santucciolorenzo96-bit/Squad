@@ -179,6 +179,38 @@
     -webkit-backdrop-filter: blur(30px) saturate(150%);
   }
 
+  /* ======================== Il marchio ========================
+     Il simbolo e il wordmark sono quelli della brand sheet, non un
+     monogramma disegnato al volo: un marchio non si reinventa a ogni
+     rifacimento dell'interfaccia.
+
+     Il wordmark esiste in due file perche' e' un'immagine e non del testo:
+     bianco per i fondi scuri, inchiostro per quelli chiari. Lo scambio si fa
+     con `content`, che sostituisce la sorgente senza doverla decidere nel
+     JavaScript e senza scaricarli tutti e due.
+
+     ATTENZIONE, e' una distinzione che conta: questo e' il marchio del
+     PRODOTTO. Non sostituisce mai il logo della societa', che serve nei
+     contesti sportivi — la prossima partita, i tabellini. Se una societa' non
+     ha caricato il proprio logo si mostrano le sue iniziali, non questo. */
+  .marchio-simbolo {
+    content: url('/brand/squad-symbol-3d.png');
+    object-fit: contain;
+  }
+
+  .marchio-scritta {
+    content: url('/brand/squad-wordmark.png');
+    object-fit: contain;
+  }
+  :root[data-tema="chiaro"] .marchio-scritta {
+    content: url('/brand/squad-wordmark-dark.png');
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-tema="scuro"]) .marchio-scritta {
+      content: url('/brand/squad-wordmark-dark.png');
+    }
+  }
+
   .etichetta {
     @apply text-[10px] font-bold uppercase tracking-etichetta text-tenue;
   }
