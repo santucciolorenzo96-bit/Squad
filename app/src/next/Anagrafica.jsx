@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
 import { DOC_TYPES } from '../utils/permissions.js';
-import { fetchPlayerPhotoUrls, fetchDocumentsForPlayers } from '../api/roster.js';
+import { fetchPlayerPhotoUrls, fetchDocumentsForPlayers, addPlayer } from '../api/roster.js';
+import { canEditRoster } from '../utils/permissions.js';
 import { docStatus, worstStatus, ageFrom, DOC_STATE } from '../utils/docStatus.js';
 import { inCampione, DOCUMENTI_CAMPIONE } from './campione.js';
 import { Pannello, Etichetta, Stato, Dato, Vuoto, Scheletro, Avatar, Pulsante, Titolo, cx } from './ui.jsx';
+import { Modulo, Campo, Testo, useAvviso } from './moduli.jsx';
 import { IconaSezione, Chevron } from './icone.jsx';
 
 /* L'anagrafica.
@@ -12,6 +14,11 @@ import { IconaSezione, Chevron } from './icone.jsx';
  * La domanda è sempre la stessa: chi non è a posto. Quindi non è un elenco di
  * nomi da aprire uno per uno — chi non è in regola sta in cima, con lo stato
  * scritto sulla riga.
+ *
+ * Un giocatore NUOVO si crea qui, non dalla Rosa. La Rosa dice chi gioca,
+ * l'Anagrafica dice chi esiste: creare una persona dalla schermata in cui si
+ * dispone la formazione confondeva due cose diverse, e portava a crearla
+ * proprio dove non se ne vedono i dati.
  *
  * Su schermo stretto la tabella non diventa una tabella che scorre di lato:
  * diventa schede. Scorrere in orizzontale per scoprire che un certificato è
@@ -28,7 +35,11 @@ export function Anagrafica() {
   const [foto, setFoto] = useState({});
   const [documenti, setDocumenti] = useState({});
   const [soloProblemi, setSoloProblemi] = useState(false);
+  const [nuovo, setNuovo] = useState(false);
+  const [, ridisegna] = useState(0);
+  const avvisa = useAvviso();
 
+  const puoiModificare = canEditRoster(state.currentUser);
   const rosa = state.roster;
 
   useEffect(() => {
@@ -66,7 +77,9 @@ export function Anagrafica() {
     <div className="sezioni">
       <Titolo
         sopra="Categoria"
-        azione={<span className="cifra shrink-0 text-[12.5px] text-tenue">{righe.length} atleti</span>}
+        azione={puoiModificare
+          ? <Pulsante variante="primario" onClick={() => setNuovo(true)}>+ Atleta</Pulsante>
+          : <span className="shrink-0 text-[12.5px] text-tenue">{righe.length} atleti</span>}
       >
         Anagrafica
       </Titolo>
@@ -97,7 +110,10 @@ export function Anagrafica() {
       {!caricato ? (
         <Scheletro righe={4} />
       ) : righe.length === 0 ? (
-        <Vuoto>Nessun atleta in questa categoria. Si aggiungono dalla sezione Rosa.</Vuoto>
+        <Vuoto>
+          Nessun atleta in questa categoria.
+          {puoiModificare && ' Aggiungine uno: bastano numero e nome, il resto si completa dalla sua scheda.'}
+        </Vuoto>
       ) : (
         <>
           <div className="flex items-center justify-between gap-3">
@@ -197,6 +213,52 @@ export function Anagrafica() {
           </div>
         </>
       )}
+
+      {nuovo && (
+        <ModuloAtleta
+          onChiudi={() => setNuovo(false)}
+          onFatto={(creato) => {
+            state.roster.push(creato);
+            ridisegna(n => n + 1);
+            avvisa('Atleta aggiunto');
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ modulo */
+function ModuloAtleta({ onChiudi, onFatto }) {
+  const [numero, setNumero] = useState('');
+  const [nome, setNome] = useState('');
+
+  return (
+    <Modulo
+      titolo="Nuovo atleta"
+      sotto="Bastano numero e nome. Data di nascita, ruolo, contatti e certificato si completano dopo, dalla sua scheda."
+      etichettaInvia="Aggiungi"
+      onChiudi={onChiudi}
+      onInvia={async () => {
+        const n = nome.trim();
+        if (!n) return 'Scrivi il nome dell\u2019atleta.';
+        // Il numero \u00e8 testo di proposito: "00" esiste, e nel minibasket capita
+        // di non averne affatto.
+        const creato = await addPlayer(
+          state.teamProfile.id, state.activeSectorId,
+          numero.trim() || '-', n, state.activeSeasonId
+        );
+        onFatto(creato);
+      }}
+    >
+      <div className="grid grid-cols-[5.5rem_1fr] gap-3">
+        <Campo etichetta="Numero">
+          <Testo value={numero} onChange={e => setNumero(e.target.value)} placeholder="7" maxLength={3} />
+        </Campo>
+        <Campo etichetta="Nome e cognome">
+          <Testo value={nome} onChange={e => setNome(e.target.value)} placeholder="Mario Rossi" autoFocus />
+        </Campo>
+      </div>
+    </Modulo>
   );
 }
