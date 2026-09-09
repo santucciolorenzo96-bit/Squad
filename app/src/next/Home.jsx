@@ -2,27 +2,24 @@ import React from 'react';
 import { state } from '../state.js';
 import { standingsPosition, computeRecord, computeTeamPPG } from '../utils/stats.js';
 import { canEditHome } from '../utils/permissions.js';
-import { Foglio, Etichetta, Titolo, Stato, Dato, Vuoto, cx } from './ui.jsx';
+import { Pannello, Etichetta, Stato, Vuoto, Titolo, Pulsante, cx } from './ui.jsx';
+import { IconaSezione, Chevron } from './icone.jsx';
 
 /* La Home.
  *
- * Non è un cruscotto: è la prima pagina di un giornale. C'è una notizia di
- * apertura — la prossima partita — che occupa lo spazio che merita, e sotto
- * le altre in ordine di importanza. Dodici riquadri tutti uguali sono la
- * confessione che nessuno ha deciso cosa conta.
+ * Un cruscotto non è "tutti i numeri disponibili disposti in griglia": è una
+ * gerarchia. C'è una cosa che conta più delle altre — la prossima partita — e
+ * prende il posto, l'alone e il livello di profondità che merita. Le altre
+ * stanno sotto, sullo stesso piano fra loro.
  */
 
 const GIORNI = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
 
-function oggiISO() {
-  return new Date().toISOString().slice(0, 10);
-}
+const oggiISO = () => new Date().toISOString().slice(0, 10);
 
 function giorniA(iso) {
   if (!iso) return null;
-  const a = new Date(oggiISO() + 'T00:00:00');
-  const b = new Date(iso + 'T00:00:00');
-  return Math.round((b - a) / 86400000);
+  return Math.round((new Date(iso + 'T00:00:00') - new Date(oggiISO() + 'T00:00:00')) / 86400000);
 }
 
 function dataLunga(iso) {
@@ -31,140 +28,163 @@ function dataLunga(iso) {
   return `${GIORNI[d.getDay()]} ${d.getDate()} ${d.toLocaleDateString('it-IT', { month: 'long' })}`;
 }
 
-function contoAllaRovescia(g) {
-  if (g == null) return null;
-  if (g < 0) return 'Risultato da inserire';
-  if (g === 0) return 'Oggi';
-  if (g === 1) return 'Domani';
-  return `Fra ${g} giorni`;
-}
-
-/* --------------------------------------------------------- apertura: partita */
-function Apertura({ partita }) {
+/* ---------------------------------------------------- apertura: la partita */
+function Apertura({ partita, onSezione }) {
   if (!partita) {
     return (
-      <Foglio rilievo className="px-5 py-8">
+      <Pannello alto className="px-5 py-7">
         <Etichetta>Prossima partita</Etichetta>
         <div className="mt-4">
-          <Vuoto>Il calendario è vuoto. Caricalo da Calendario e questa pagina si riempie da sola.</Vuoto>
+          <Vuoto>Il calendario è vuoto. Caricalo dalla sezione Calendario e questa scheda si riempie da sola.</Vuoto>
         </div>
-      </Foglio>
+      </Pannello>
     );
   }
 
   const g = giorniA(partita.date);
   const casa = partita.home !== false;
-  const posizione = standingsPosition(state.standings, partita.opponent);
-  const mia = state.teamProfile ? standingsPosition(state.standings, state.teamProfile.name) : null;
+  const scaduta = g != null && g < 0;
+  const noi = (state.teamProfile || {}).name || 'Noi';
+  const posLoro = standingsPosition(state.standings, partita.opponent);
+  const posNoi = standingsPosition(state.standings, noi);
+
+  // Una partita passata e mai segnata non è "giocata": è da fare, ed è
+  // esattamente il caso che non deve passare inosservato.
+  const conto = scaduta ? 'Risultato da inserire'
+    : g === 0 ? 'Oggi' : g === 1 ? 'Domani' : g != null ? `Fra ${g} giorni` : null;
 
   return (
-    <Foglio rilievo className="overflow-hidden">
-      <div className="flex items-center justify-between border-b riga px-4 py-2">
-        <Etichetta>Prossima partita</Etichetta>
-        <span className="cifra text-[11px] font-bold uppercase tracking-etichetta text-timbro">
-          {contoAllaRovescia(g)}
-        </span>
-      </div>
+    <Pannello alto className="relative overflow-hidden">
+      {/* L'alone dietro: è l'unico pannello che ce l'ha, ed è così che si
+          capisce da lontano qual è la notizia della schermata. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -inset-px opacity-70"
+        style={{
+          background:
+            'radial-gradient(28rem 16rem at 22% -20%, rgb(var(--blu) / .30), transparent 62%),' +
+            'radial-gradient(24rem 14rem at 86% 0%, rgb(var(--viola) / .26), transparent 62%)'
+        }}
+      />
 
-      <div className="px-5 py-6">
-        {/* I due nomi hanno lo stesso peso tipografico e il "vs" li separa
-            piccolo in mezzo: è il modo in cui un tabellino stampa un incontro,
-            e dice a colpo d'occhio che sono due squadre, non un titolo. */}
-        <div className="flex items-center gap-4">
-          <div className="min-w-0 flex-1 text-right">
-            <div className="font-serif text-[clamp(20px,4.5vw,30px)] leading-tight">
-              {casa ? (state.teamProfile || {}).name : partita.opponent}
-            </div>
-            <div className="etichetta mt-1">{casa ? 'in casa' : 'ospite'}</div>
+      <div className="relative">
+        <div className="flex items-center justify-between gap-3 border-b border-bordo/10 px-4 py-2.5 sm:px-5">
+          <div className="flex items-center gap-2">
+            <IconaSezione id="partita" dim={22} />
+            <Etichetta>Prossima partita</Etichetta>
           </div>
-          <div className="cifra shrink-0 text-[13px] font-bold text-grafite">vs</div>
-          <div className="min-w-0 flex-1">
-            <div className="font-serif text-[clamp(20px,4.5vw,30px)] leading-tight">
-              {casa ? partita.opponent : (state.teamProfile || {}).name}
-            </div>
-            <div className="etichetta mt-1">{casa ? 'ospite' : 'in casa'}</div>
-          </div>
+          <Stato tono={scaduta ? 'fermo' : (g != null && g <= 1 ? 'attesa' : 'neutro')}>{conto}</Stato>
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 border-t riga pt-4 text-[13px]">
-          <span className="font-semibold">{dataLunga(partita.date)}</span>
-          {partita.time && <span className="cifra text-grafite">{partita.time}</span>}
-          {partita.location && <span className="text-grafite">{partita.location}</span>}
-          {partita.giornata && <span className="cifra text-grafite">giornata {partita.giornata}</span>}
-        </div>
-
-        {(mia || posizione) && (
-          <div className="mt-4 flex items-center justify-center gap-6 text-[12px] text-grafite">
-            {mia && <span>Noi <b className="cifra text-inchiostro">{mia}ª</b></span>}
-            {posizione && <span>Loro <b className="cifra text-inchiostro">{posizione}ª</b></span>}
+        <div className="px-4 py-6 sm:px-6 sm:py-8">
+          {/* I due nomi hanno lo stesso peso: sono due squadre, non un titolo
+              e un sottotitolo. Il "vs" li separa piccolo in mezzo. */}
+          <div className="flex items-center gap-3 sm:gap-5">
+            <div className="min-w-0 flex-1 text-right">
+              <div className="text-[clamp(17px,4vw,26px)] font-extrabold leading-tight tracking-tight">
+                {casa ? noi : partita.opponent}
+              </div>
+              <Etichetta className="mt-1.5">{casa ? 'in casa' : 'ospite'}</Etichetta>
+            </div>
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full vetro orlo text-[11px] font-bold text-tenue">
+              vs
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[clamp(17px,4vw,26px)] font-extrabold leading-tight tracking-tight">
+                {casa ? partita.opponent : noi}
+              </div>
+              <Etichetta className="mt-1.5">{casa ? 'ospite' : 'in casa'}</Etichetta>
+            </div>
           </div>
-        )}
+
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-bordo/10 pt-4 text-[12.5px]">
+            <span className="font-semibold">{dataLunga(partita.date)}</span>
+            {partita.time && <span className="cifra text-soffuso">{partita.time}</span>}
+            {partita.location && <span className="text-soffuso">{partita.location}</span>}
+            {partita.giornata && <span className="cifra text-tenue">giornata {partita.giornata}</span>}
+          </div>
+
+          {(posNoi || posLoro) && (
+            <div className="mt-4 flex items-center justify-center gap-7 text-[12px] text-tenue">
+              {posNoi && <span>Noi <b className="cifra text-testo">{posNoi}ª</b></span>}
+              {posLoro && <span>Loro <b className="cifra text-testo">{posLoro}ª</b></span>}
+            </div>
+          )}
+
+          <div className="mt-6 flex justify-center">
+            <Pulsante variante="primario" onClick={() => onSezione('calendario')}>
+              Vedi il calendario <Chevron dim={14} />
+            </Pulsante>
+          </div>
+        </div>
       </div>
-    </Foglio>
+    </Pannello>
   );
 }
 
-/* --------------------------------------------------------------- allenamento */
-function ProssimoAllenamento() {
-  const oggi = oggiISO();
+/* ------------------------------------------------------------- allenamento */
+function ProssimoAllenamento({ onSezione }) {
   const t = [...state.trainings]
-    .filter(x => x.date >= oggi)
+    .filter(x => x.date >= oggiISO())
     .sort((a, b) => a.date.localeCompare(b.date))[0];
 
   return (
-    <Foglio className="px-4 py-4">
-      <Etichetta>Prossimo allenamento</Etichetta>
+    <Pannello className="px-4 py-4">
+      <div className="flex items-center gap-2">
+        <IconaSezione id="allenamenti" dim={22} />
+        <Etichetta>Prossimo allenamento</Etichetta>
+      </div>
       {t ? (
-        <>
-          <div className="mt-2 font-serif text-[19px] leading-tight">{t.title}</div>
-          <div className="mt-1 text-[12.5px] text-grafite">
+        <button onClick={() => onSezione('allenamenti')} className="mt-3 block w-full text-left">
+          <div className="text-[17px] font-bold leading-tight">{t.title}</div>
+          <div className="mt-1.5 text-[12.5px] text-soffuso">
             {dataLunga(t.date)}
             {t.start_time && <> · <span className="cifra">{t.start_time}{t.end_time ? `–${t.end_time}` : ''}</span></>}
           </div>
-          {t.location && <div className="mt-0.5 text-[12.5px] font-semibold">{t.location}</div>}
-        </>
+          {t.location && <div className="mt-1 text-[12.5px] font-semibold text-testo">{t.location}</div>}
+        </button>
       ) : (
-        <p className="mt-3 font-serif italic text-[14px] text-grafite">Niente in programma.</p>
+        <p className="mt-3 text-[13px] text-tenue">Niente in programma.</p>
       )}
-    </Foglio>
+    </Pannello>
   );
 }
 
-/* ------------------------------------------------------------------- stagione */
+/* ---------------------------------------------------------------- stagione */
 function Stagione() {
   const record = computeRecord(state.history);
   const ppg = computeTeamPPG(state.history);
-  const posizione = state.teamProfile ? standingsPosition(state.standings, state.teamProfile.name) : null;
+  const pos = state.teamProfile ? standingsPosition(state.standings, state.teamProfile.name) : null;
+  if (state.history.length === 0 && !pos) return null;
 
-  if (state.history.length === 0 && !posizione) return null;
+  const celle = [
+    { v: state.history.length ? `${record.w}–${record.l}` : '—', e: 'vinte–perse' },
+    { v: pos ? `${pos}ª` : '—', e: 'in classifica' },
+    { v: ppg ? Math.round(ppg) : '—', e: 'punti a partita' }
+  ];
 
   return (
-    <Foglio className="px-4 py-4">
-      <Etichetta>La stagione</Etichetta>
-      <div className="mt-3 grid grid-cols-3 gap-3">
-        <div>
-          <div className="cifra text-[26px] font-bold leading-none">
-            {state.history.length ? `${record.w}–${record.l}` : '—'}
-          </div>
-          <div className="etichetta mt-1.5">vinte–perse</div>
-        </div>
-        <div>
-          <div className="cifra text-[26px] font-bold leading-none">{posizione ? `${posizione}ª` : '—'}</div>
-          <div className="etichetta mt-1.5">in classifica</div>
-        </div>
-        <div>
-          <div className="cifra text-[26px] font-bold leading-none">{ppg ? Math.round(ppg) : '—'}</div>
-          <div className="etichetta mt-1.5">punti a partita</div>
-        </div>
+    <Pannello className="px-4 py-4">
+      <div className="flex items-center gap-2">
+        <IconaSezione id="statistiche" dim={22} />
+        <Etichetta>La stagione</Etichetta>
       </div>
-    </Foglio>
+      <div className="mt-4 grid grid-cols-3 gap-3">
+        {celle.map((c, i) => (
+          <div key={i}>
+            <div className="cifra text-[24px] font-extrabold leading-none tracking-tight">{c.v}</div>
+            <Etichetta className="mt-2">{c.e}</Etichetta>
+          </div>
+        ))}
+      </div>
+    </Pannello>
   );
 }
 
-/* ------------------------------------------------------------------ da fare */
-// Compare solo se c'è davvero qualcosa da fare. Un riquadro che dice "0" è
-// rumore che occupa lo stesso spazio di una cosa vera.
-function DaFare({ onSezione }) {
+/* ----------------------------------------------------------- da sistemare */
+// Compare solo se c'è davvero qualcosa da fare: un pannello che dice zero
+// occupa lo stesso spazio di uno che dice una cosa vera.
+function DaSistemare({ onSezione }) {
   const voci = [];
   if (state.pendingDocsCount > 0) {
     voci.push({ n: state.pendingDocsCount, testo: 'documenti da approvare', tono: 'attesa', vai: 'anagrafica' });
@@ -179,26 +199,32 @@ function DaFare({ onSezione }) {
   if (voci.length === 0) return null;
 
   return (
-    <Foglio className="px-4 py-4">
-      <Etichetta>Da sistemare</Etichetta>
-      <div className="mt-3 divide-y divide-matita/15">
+    <Pannello className="px-4 py-4">
+      <div className="flex items-center gap-2">
+        <IconaSezione id="situazione" dim={22} />
+        <Etichetta>Da sistemare</Etichetta>
+      </div>
+      <div className="mt-2 divide-y divide-bordo/8">
         {voci.map((v, i) => (
           <button
             key={i}
             onClick={() => onSezione(v.vai)}
-            className="flex w-full items-center gap-3 py-2.5 text-left first:pt-0 last:pb-0 hover:text-timbro"
+            className="group flex w-full items-center gap-3 py-2.5 text-left"
           >
-            <span className="cifra w-8 shrink-0 text-[21px] font-bold leading-none">{v.n}</span>
-            <span className="flex-1 text-[13px]">{v.testo}</span>
-            <Stato tono={v.tono}>apri</Stato>
+            <span className={cx('cifra w-8 shrink-0 text-[20px] font-extrabold leading-none',
+              v.tono === 'fermo' ? 'text-rosso' : 'text-ambra')}>
+              {v.n}
+            </span>
+            <span className="flex-1 text-[13px] text-soffuso group-hover:text-testo">{v.testo}</span>
+            <Chevron dim={15} className="shrink-0 text-tenue transition-transform group-hover:translate-x-0.5 group-hover:text-testo" />
           </button>
         ))}
       </div>
-    </Foglio>
+    </Pannello>
   );
 }
 
-/* ---------------------------------------------------------------------- Home */
+/* -------------------------------------------------------------------- Home */
 export function Home({ onSezione }) {
   const utente = state.currentUser || {};
   const nome = (utente.display_name || '').trim().split(/\s+/)[0] || '';
@@ -210,25 +236,16 @@ export function Home({ onSezione }) {
     ? [...state.calendar].filter(m => !m.played).sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'))[0] || null
     : state.nextMatch;
 
-  const gestore = canEditHome(utente);
-
   return (
     <div className="space-y-5">
-      {/* La testatina: saluto in serif, data in maiuscoletto. È l'unico punto
-          della schermata in cui l'app parla, quindi parla italiano vero. */}
-      <div className="flex items-baseline justify-between gap-3 border-b-2 riga pb-3">
-        <h1 className="font-serif text-[clamp(24px,5vw,34px)] leading-none">
-          {saluto}{nome && <>, {nome}</>}
-        </h1>
-        <div className="etichetta shrink-0">{oggi}</div>
-      </div>
+      <Titolo sopra={oggi}>{saluto}{nome && <>, {nome}</>}</Titolo>
 
-      <Apertura partita={partita} />
+      <Apertura partita={partita} onSezione={onSezione} />
 
       <div className="grid gap-4 md:grid-cols-2">
-        <ProssimoAllenamento />
+        <ProssimoAllenamento onSezione={onSezione} />
         <Stagione />
-        {gestore && <DaFare onSezione={onSezione} />}
+        {canEditHome(utente) && <DaSistemare onSezione={onSezione} />}
       </div>
     </div>
   );

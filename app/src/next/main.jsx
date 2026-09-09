@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import './carta.css';
+import './vetro.css';
 
 import { state } from '../state.js';
 import { fetchMyProfile } from '../api/profiles.js';
@@ -9,7 +9,7 @@ import { isLinkedUser, isAdmin } from '../utils/permissions.js';
 import { Guscio } from './Guscio.jsx';
 import { Home } from './Home.jsx';
 import { Anagrafica } from './Anagrafica.jsx';
-import { Foglio, Etichetta, Vuoto, Scheletro, Pulsante } from './ui.jsx';
+import { Etichetta, Vuoto, Scheletro, Titolo } from './ui.jsx';
 import { caricaCampione } from './campione.js';
 
 /* Anteprima della nuova interfaccia.
@@ -24,12 +24,12 @@ import { caricaCampione } from './campione.js';
  * continua a funzionare mentre questa esiste.
  */
 
-const TEMA_KEY = 'bbapp_ink';
+const TEMA_KEY = 'bbapp_tema';
 
 function applicaTema(modo) {
   const el = document.documentElement;
-  if (modo === 'sistema') el.removeAttribute('data-ink');
-  else el.setAttribute('data-ink', modo);
+  if (modo === 'sistema') el.removeAttribute('data-tema');
+  else el.setAttribute('data-tema', modo);
   try { localStorage.setItem(TEMA_KEY, modo); } catch (e) { /* modalità privata */ }
 }
 
@@ -43,7 +43,7 @@ function temaIniziale() {
 // e' il modo piu' rapido di trarne la conclusione sbagliata.
 function Nastro() {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b-2 border-timbro bg-timbro px-4 py-1.5 text-carta sm:px-6">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-gradient-to-r from-blu to-blu2 px-4 py-1.5 text-white sm:px-6">
       <span className="text-[10px] font-bold uppercase tracking-etichetta">Dati di esempio</span>
       <span className="text-[11.5px] opacity-90">
         Nessuna sessione aperta. <a href="/" className="underline">Accedi all&rsquo;app</a> e ricarica
@@ -58,10 +58,7 @@ function Nastro() {
 function NonAncora({ nome }) {
   return (
     <div className="space-y-5">
-      <div className="border-b-2 riga pb-3">
-        <Etichetta>Categoria</Etichetta>
-        <h1 className="font-serif text-[clamp(24px,5vw,34px)] leading-none capitalize">{nome}</h1>
-      </div>
+      <Titolo sopra="Sezione"><span className="capitalize">{nome}</span></Titolo>
       <Vuoto>
         Questa schermata non è ancora stata rifatta. In questa passata ci sono il guscio,
         la Home e l&rsquo;Anagrafica: bastano a giudicare la direzione senza riscrivere
@@ -167,14 +164,16 @@ function App() {
       {/* Il commutatore del tema sta qui e non nelle impostazioni perché
           questa è un'anteprima: serve a guardare le due versioni una dopo
           l'altra senza cercarlo. Nella versione definitiva torna al suo posto. */}
-      <div className="fixed bottom-20 right-3 z-50 flex border-2 riga bg-carta shadow lg:bottom-4">
+      <div className="fixed bottom-24 right-3 z-50 flex gap-0.5 rounded-full vetro-alto orlo p-1 shadow-lg lg:bottom-5">
         {['chiaro', 'sistema', 'scuro'].map(m => (
           <button
             key={m}
             onClick={() => setTema(m)}
             className={
-              'px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-etichetta ' +
-              (tema === m ? 'bg-inchiostro text-carta' : 'text-grafite hover:text-inchiostro')
+              'rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-etichetta transition-all ' +
+              (tema === m
+                ? 'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu'
+                : 'text-tenue hover:text-testo')
             }
           >
             {m}

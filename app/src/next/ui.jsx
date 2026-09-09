@@ -1,26 +1,29 @@
 import React from 'react';
 
-/* Le primitive del sistema "carta e inchiostro".
+/* Le primitive del sistema "vetro".
  *
- * Sono poche di proposito. Un sistema di design non è una libreria di
- * componenti: è un insieme di decisioni già prese. Qui le decisioni sono che
- * gli angoli sono quasi vivi, le ombre sono dure e spostate, il colore dice
- * solo lo stato, e i numeri sono sempre monospaziati.
+ * La regola che tiene in piedi tutto: il vetro è una gerarchia, non una
+ * texture. Se ogni superficie è traslucida e sfocata, niente sta sopra niente
+ * e la profondità scompare — che è il modo in cui questa estetica viene fatta
+ * male. Qui ci sono tre livelli e basta:
+ *
+ *   piano   il fondo della scena, con i suoi aloni. Non è un componente.
+ *   vetro   il pannello ordinario: quasi tutto sta qui.
+ *   alto    quello che deve staccarsi: la testata, la scheda di apertura,
+ *           i fogli sopra il contenuto. Si usa poco per definizione.
  */
 
 export function cx(...parti) {
   return parti.filter(Boolean).join(' ');
 }
 
-/* ------------------------------------------------------------------ Foglio */
-// `rilievo` alza il blocco dal piano: si usa per quello che conta in una
-// schermata, mai per tutto. Se tutto è in rilievo niente lo è.
-export function Foglio({ rilievo = false, className, children, ...resto }) {
+/* ---------------------------------------------------------------- Pannello */
+export function Pannello({ alto = false, className, children, ...resto }) {
   return (
     <div
       className={cx(
-        'bg-carta border riga',
-        rilievo ? 'border-2 shadow' : 'shadow-sm',
+        'rounded-lg orlo',
+        alto ? 'vetro-alto shadow-lg' : 'vetro shadow',
         className
       )}
       {...resto}
@@ -30,43 +33,30 @@ export function Foglio({ rilievo = false, className, children, ...resto }) {
   );
 }
 
-/* ---------------------------------------------------------------- Etichetta */
+/* --------------------------------------------------------------- Etichetta */
 export function Etichetta({ children, className }) {
   return <div className={cx('etichetta', className)}>{children}</div>;
 }
 
-/* ------------------------------------------------------------------ Titolo */
-// Il titolo di sezione è tipografico e non decorato: pesa perché è grande e
-// stretto, non perché ha un colore o un'icona accanto.
-export function Titolo({ children, sopra, azione, className }) {
-  return (
-    <div className={cx('flex items-end justify-between gap-3 mb-3', className)}>
-      <div className="min-w-0">
-        {sopra && <Etichetta className="mb-1">{sopra}</Etichetta>}
-        <h2 className="font-serif text-[26px] leading-none tracking-[-0.01em]">{children}</h2>
-      </div>
-      {azione}
-    </div>
-  );
-}
-
 /* ------------------------------------------------------------------- Stato */
-// Quattro toni, nessuno in più. Il colore qui non abbellisce: dice se una
-// persona può scendere in campo o no, quindi non va speso per altro.
+// Pastiglie a bassa saturazione: il colore pieno lo tengono le icone e il
+// pulsante primario. Se anche le etichette di stato urlano, non si capisce più
+// dove guardare per primo.
 const TONI = {
-  neutro: 'border-matita/25 text-grafite',
-  buono: 'border-verde/45 text-verde',
-  attesa: 'border-ambra/50 text-ambra',
-  fermo: 'border-timbro/50 text-timbro'
+  neutro: 'bg-pannello/12 text-soffuso',
+  buono: 'bg-verde/14 text-verde',
+  attesa: 'bg-ambra/16 text-ambra',
+  fermo: 'bg-rosso/16 text-rosso'
 };
 
-export function Stato({ tono = 'neutro', children }) {
+export function Stato({ tono = 'neutro', children, className }) {
   return (
     <span
       className={cx(
-        'inline-flex items-center whitespace-nowrap border px-2 py-[3px]',
-        'text-[10px] font-bold uppercase tracking-etichetta',
-        TONI[tono] || TONI.neutro
+        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1',
+        'text-[10.5px] font-bold uppercase tracking-etichetta',
+        TONI[tono] || TONI.neutro,
+        className
       )}
     >
       {children}
@@ -74,24 +64,27 @@ export function Stato({ tono = 'neutro', children }) {
   );
 }
 
-/* ----------------------------------------------------------------- Pulsante */
+/* ---------------------------------------------------------------- Pulsante */
 const VARIANTI = {
-  // Il pieno è inchiostro su carta, non un colore d'accento: il rosso resta il
-  // timbro, e un timbro perde valore se lo si mette su ogni pulsante.
-  pieno: 'bg-inchiostro text-carta border-inchiostro hover:shadow active:translate-x-[1px] active:translate-y-[1px] active:shadow-none',
-  vuoto: 'bg-carta text-inchiostro riga border hover:shadow-sm active:translate-x-[1px] active:translate-y-[1px] active:shadow-none',
-  nudo: 'bg-transparent text-grafite border-transparent hover:text-inchiostro'
+  // Il primario è l'unico oggetto con una sfumatura piena e un alone: è così
+  // che si vede da lontano qual è l'azione della schermata.
+  primario:
+    'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu hover:brightness-110 active:brightness-95',
+  vetro:
+    'vetro orlo text-testo hover:bg-pannello/12 active:brightness-95',
+  nudo:
+    'text-soffuso hover:text-testo hover:bg-pannello/10'
 };
 
-export function Pulsante({ variante = 'vuoto', className, children, ...resto }) {
+export function Pulsante({ variante = 'vetro', className, children, ...resto }) {
   return (
     <button
       type="button"
       className={cx(
-        'inline-flex items-center justify-center gap-2 border px-3 py-2',
-        'text-[12.5px] font-semibold transition-shadow',
-        'disabled:opacity-45 disabled:pointer-events-none',
-        VARIANTI[variante] || VARIANTI.vuoto,
+        'inline-flex items-center justify-center gap-2 rounded-sm px-3.5 py-2',
+        'text-[12.5px] font-semibold transition-all duration-150',
+        'disabled:opacity-40 disabled:pointer-events-none',
+        VARIANTI[variante] || VARIANTI.vetro,
         className
       )}
       {...resto}
@@ -101,63 +94,102 @@ export function Pulsante({ variante = 'vuoto', className, children, ...resto }) 
   );
 }
 
-/* --------------------------------------------------------------------- Dato */
-// Un numero e cosa significa. Il numero è grande e monospaziato, la didascalia
-// è piccola e spaziata: la gerarchia la fa il contrasto di dimensione, non un
-// riquadro colorato attorno.
-export function Dato({ etichetta, valore, sotto, tono }) {
-  const colore = tono === 'fermo' ? 'text-timbro' : tono === 'attesa' ? 'text-ambra' : 'text-inchiostro';
+/* -------------------------------------------------------------------- Dato */
+// Un numero grande, la sua etichetta sopra piccola, e una nota sotto. La
+// gerarchia la fa la dimensione; il colore entra solo quando il numero è un
+// problema, altrimenti quattro riquadri colorati si annullano a vicenda.
+export function Dato({ etichetta, valore, sotto, tono, icona }) {
+  const colore = tono === 'fermo' ? 'text-rosso' : tono === 'attesa' ? 'text-ambra' : 'text-testo';
   return (
-    <Foglio className="px-4 py-3">
-      <Etichetta>{etichetta}</Etichetta>
-      <div className={cx('cifra mt-2 text-[30px] font-bold leading-none', colore)}>{valore}</div>
-      {sotto && <div className="mt-1.5 text-[11.5px] leading-tight text-grafite">{sotto}</div>}
-    </Foglio>
+    <Pannello className="px-4 py-3.5">
+      <div className="flex items-start justify-between gap-2">
+        <Etichetta>{etichetta}</Etichetta>
+        {icona}
+      </div>
+      <div className={cx('cifra mt-2.5 text-[28px] font-extrabold leading-none tracking-tight', colore)}>
+        {valore}
+      </div>
+      {sotto && <div className="mt-1.5 text-[11.5px] leading-tight text-tenue">{sotto}</div>}
+    </Pannello>
   );
 }
 
 /* ------------------------------------------------------------------- Vuoto */
-// Uno stato vuoto scritto in serif e in italiano vero. È il punto in cui
-// un'interfaccia rivela chi l'ha fatta: "Nessun dato disponibile" non l'ha
-// scritto nessuno.
 export function Vuoto({ children }) {
   return (
-    <div className="border border-dashed riga px-5 py-8 text-center">
-      <p className="font-serif italic text-[15px] text-grafite">{children}</p>
+    <div className="rounded-lg border border-dashed border-bordo/15 px-5 py-9 text-center">
+      <p className="mx-auto max-w-[46ch] text-[13.5px] leading-relaxed text-tenue">{children}</p>
     </div>
   );
 }
 
-/* ---------------------------------------------------------------- Scheletro */
+/* --------------------------------------------------------------- Scheletro */
 export function Scheletro({ righe = 3 }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {Array.from({ length: righe }).map((_, i) => (
-        <div key={i} className="h-14 border riga bg-carta2 animate-pulse" />
+        <div key={i} className="h-16 animate-pulse rounded-lg orlo bg-pannello/6" />
       ))}
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ Avatar */
-// Iniziali su fondo carta con bordo pieno. Tondo, perché è l'unica forma che
-// ha senso per un volto — è l'eccezione dichiarata agli angoli vivi.
+// Senza foto: iniziali su una sfumatura scelta dal nome, così la stessa persona
+// ha sempre lo stesso colore e la si riconosce prima di leggere.
+const SFUMATURE = [
+  'from-[#5B9BFF] to-[#1E5BE0]',
+  'from-[#FF7FB0] to-[#E01E6E]',
+  'from-[#5FE3A6] to-[#12A868]',
+  'from-[#FF9A7A] to-[#E24A22]',
+  'from-[#B39BFF] to-[#6D3FE0]',
+  'from-[#63DCF0] to-[#128FA8]'
+];
+
+function impronta(s) {
+  let n = 0;
+  for (let i = 0; i < (s || '').length; i++) n = (n * 31 + s.charCodeAt(i)) >>> 0;
+  return n;
+}
+
 export function Avatar({ nome, url, dim = 34 }) {
   const iniziali = (nome || '?')
     .split(/\s+/).slice(0, 2).map(p => p[0] || '').join('').toUpperCase();
-  return url ? (
-    <img
-      src={url}
-      alt=""
-      className="shrink-0 rounded-full border riga object-cover"
-      style={{ width: dim, height: dim }}
-    />
-  ) : (
+  if (url) {
+    return (
+      <img
+        src={url}
+        alt=""
+        className="shrink-0 rounded-full orlo object-cover"
+        style={{ width: dim, height: dim }}
+      />
+    );
+  }
+  const g = SFUMATURE[impronta(nome) % SFUMATURE.length];
+  return (
     <div
-      className="shrink-0 rounded-full border-2 riga flex items-center justify-center bg-carta2 font-mono font-bold text-inchiostro"
-      style={{ width: dim, height: dim, fontSize: Math.round(dim * 0.34) }}
+      className={cx(
+        'shrink-0 rounded-full bg-gradient-to-br flex items-center justify-center',
+        'font-bold text-white shadow-sm', g
+      )}
+      style={{ width: dim, height: dim, fontSize: Math.round(dim * 0.36) }}
     >
       {iniziali}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ Titolo */
+export function Titolo({ sopra, children, azione, className }) {
+  return (
+    <div className={cx('flex items-end justify-between gap-3', className)}>
+      <div className="min-w-0">
+        {sopra && <Etichetta className="mb-1.5">{sopra}</Etichetta>}
+        <h1 className="text-[clamp(22px,4.6vw,30px)] font-extrabold leading-none tracking-tight">
+          {children}
+        </h1>
+      </div>
+      {azione}
     </div>
   );
 }

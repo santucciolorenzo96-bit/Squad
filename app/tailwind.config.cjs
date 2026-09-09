@@ -1,62 +1,94 @@
-/* Sistema di design "carta e inchiostro".
+/* Sistema di design "vetro".
  *
- * Tailwind di serie — slate/indigo, rounded-2xl, shadow-lg, tutto sfumato — è
- * esattamente l'aspetto che si voleva evitare. Quindi qui la scala predefinita
- * non si estende: si SOSTITUISCE. Le classi che producono quell'aspetto
- * (colori generici, angoli molto tondi, ombre morbide) semplicemente non
- * esistono in questo progetto, così non possono rientrare per distrazione.
+ * Riferimenti: cruscotto scuro blu notte con pannelli traslucidi, e icone a
+ * volumi di vetro colorato con una forma sfalsata dietro.
  *
- * I colori sono variabili CSS e non valori fissi perché il tema chiaro/scuro
- * e l'accento della società li riscrivono a runtime: theme.js continua a
- * funzionare senza sapere niente di Tailwind.
+ * La scala predefinita di Tailwind resta sostituita e non estesa, per lo stesso
+ * motivo di prima: `slate`, `indigo`, `gray` a disposizione significano che
+ * prima o poi qualcuno li usa, e il sistema si sfilaccia. Qui esistono solo i
+ * colori che hanno un nome nel progetto.
+ *
+ * Il vetro ha un difetto noto: traslucenza e sfocatura abbassano il contrasto,
+ * ed è il modo in cui questa estetica fallisce. Quindi il testo non vive mai
+ * sul vetro puro — i fondi dei pannelli sono abbastanza opachi da tenere il
+ * rapporto AA, e la sfocatura ha tre valori soli, definiti qui una volta.
  */
-const ink = (v) => `rgb(var(${v}) / <alpha-value>)`;
+const c = (v) => `rgb(var(${v}) / <alpha-value>)`;
 
 module.exports = {
   content: ['./anteprima.html', './src/next/**/*.{js,jsx}'],
-  darkMode: ['class', '[data-ink="scuro"]'],
   theme: {
-    // Sostituite, non estese.
     colors: {
       transparent: 'transparent',
       current: 'currentColor',
-      carta: ink('--c-carta'),        // il foglio
-      carta2: ink('--c-carta2'),      // secondo piano, appena più scuro
-      inchiostro: ink('--c-inchiostro'),
-      grafite: ink('--c-grafite'),    // testo secondario
-      matita: ink('--c-matita'),      // righe e bordi
-      timbro: ink('--c-timbro'),      // il rosso del timbro: un accento solo
-      verde: ink('--c-verde'),
-      ambra: ink('--c-ambra')
+      white: '#fff',
+
+      fondo: c('--fondo'),          // la notte dietro tutto
+      fondo2: c('--fondo2'),
+      pannello: c('--pannello'),    // il vetro: si usa con /xx
+      bordo: c('--bordo'),
+
+      testo: c('--testo'),
+      soffuso: c('--soffuso'),      // testo secondario
+      tenue: c('--tenue'),          // testo terziario, mai per informazioni
+
+      // L'accento del prodotto. Uno solo: se ce ne sono due, non ce n'è nessuno.
+      blu: c('--blu'),
+      blu2: c('--blu2'),            // per la sfumatura del pulsante primario
+
+      // I sei colori delle icone. Non sono decorazione: ogni sezione ne tiene
+      // uno per sempre, così l'occhio impara la posizione prima del nome.
+      rosa: c('--rosa'),
+      verde: c('--verde'),
+      corallo: c('--corallo'),
+      viola: c('--viola'),
+      ambra: c('--ambra'),
+      ciano: c('--ciano'),
+
+      // Stato. Verde e ambra sono condivisi con le icone di proposito: sono
+      // pochi colori usati bene, non una tavolozza che cresce.
+      rosso: c('--rosso')
     },
     borderRadius: {
       none: '0',
-      DEFAULT: '2px',
-      sm: '1px',
-      lg: '3px',
-      full: '9999px'   // resta solo per gli elementi circolari veri (avatar)
+      sm: '8px',
+      DEFAULT: '12px',
+      lg: '16px',
+      xl: '20px',
+      '2xl': '26px',
+      full: '9999px'
+    },
+    // Tre valori. Sfocare "quanto sembra giusto" scheda per scheda è il modo
+    // in cui un'interfaccia di vetro diventa una poltiglia.
+    backdropBlur: {
+      none: '0',
+      sm: '10px',
+      DEFAULT: '18px',
+      lg: '30px'
     },
     boxShadow: {
-      // Ombre dure e spostate, come un blocco di carta appoggiato su un altro.
-      // Nessuna sfocatura: la sfocatura è la firma dell'interfaccia generata.
       none: 'none',
-      DEFAULT: '3px 3px 0 0 rgb(var(--c-ombra))',
-      sm: '2px 2px 0 0 rgb(var(--c-ombra))',
-      lg: '5px 5px 0 0 rgb(var(--c-ombra))',
-      timbro: '3px 3px 0 0 rgb(var(--c-timbro))'
+      // Profondità: ombra scura ampia (l'oggetto è sopra il fondo) più un filo
+      // di luce interno sul bordo alto (l'oggetto è illuminato da sopra).
+      // La sorgente di luce è la stessa ovunque, altrimenti il rilievo è finto.
+      sm: '0 2px 8px -2px rgb(0 0 0 / 0.35), inset 0 1px 0 0 rgb(255 255 255 / 0.06)',
+      DEFAULT: '0 8px 24px -6px rgb(0 0 0 / 0.45), inset 0 1px 0 0 rgb(255 255 255 / 0.07)',
+      lg: '0 20px 48px -12px rgb(0 0 0 / 0.55), inset 0 1px 0 0 rgb(255 255 255 / 0.09)',
+      blu: '0 8px 26px -6px rgb(var(--blu) / 0.45)'
     },
     fontFamily: {
-      // Archivo per l'interfaccia, Newsreader per la voce (titoli di pagina,
-      // stati vuoti), Space Mono per tutto ciò che è un numero o un codice.
-      // Tre famiglie con un compito ciascuna: è quello che rende un sistema
-      // riconoscibile, invece di Inter dappertutto.
-      sans: ['Archivo', 'system-ui', 'sans-serif'],
-      serif: ['Newsreader', 'Georgia', 'serif'],
-      mono: ['"Space Mono"', 'ui-monospace', 'monospace']
+      sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+      mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace']
     },
     extend: {
-      letterSpacing: { etichetta: '0.14em' },
-      borderWidth: { 3: '3px' }
+      letterSpacing: { etichetta: '0.1em' },
+      keyframes: {
+        salita: {
+          from: { opacity: '0', transform: 'translateY(8px)' },
+          to: { opacity: '1', transform: 'none' }
+        }
+      },
+      animation: { salita: 'salita .35s cubic-bezier(.22,1,.36,1) both' }
     }
   },
   plugins: []

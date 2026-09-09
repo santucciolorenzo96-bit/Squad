@@ -4,25 +4,24 @@ import { DOC_TYPES } from '../utils/permissions.js';
 import { fetchPlayerPhotoUrls, fetchDocumentsForPlayers } from '../api/roster.js';
 import { docStatus, worstStatus, ageFrom, DOC_STATE } from '../utils/docStatus.js';
 import { inCampione, DOCUMENTI_CAMPIONE } from './campione.js';
-import { Foglio, Etichetta, Stato, Dato, Vuoto, Scheletro, Avatar, Pulsante, cx } from './ui.jsx';
+import { Pannello, Etichetta, Stato, Dato, Vuoto, Scheletro, Avatar, Pulsante, Titolo, cx } from './ui.jsx';
+import { IconaSezione, Chevron } from './icone.jsx';
 
 /* L'anagrafica.
  *
  * La domanda è sempre la stessa: chi non è a posto. Quindi non è un elenco di
- * nomi da aprire uno a uno — è un registro, e chi non è in regola sta in cima
- * con un timbro accanto.
+ * nomi da aprire uno per uno — chi non è in regola sta in cima, con lo stato
+ * scritto sulla riga.
  *
  * Su schermo stretto la tabella non diventa una tabella che scorre di lato:
- * diventa un elenco di schede. Scorrere in orizzontale per scoprire che un
- * certificato è scaduto non è leggere.
+ * diventa schede. Scorrere in orizzontale per scoprire che un certificato è
+ * scaduto non è leggere.
  */
 
 const TONO = { ok: 'buono', scadenza: 'attesa', verifica: 'attesa', scaduto: 'fermo', respinto: 'fermo', mancante: 'fermo' };
 const BREVE = { certificato_medico: 'Certificato', tesseramento_fip: 'Tesseramento' };
 
-function oggiISO() {
-  return new Date().toISOString().slice(0, 10);
-}
+const oggiISO = () => new Date().toISOString().slice(0, 10);
 
 export function Anagrafica() {
   const [caricato, setCaricato] = useState(false);
@@ -65,17 +64,16 @@ export function Anagrafica() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-end justify-between gap-3 border-b-2 riga pb-3">
-        <div>
-          <Etichetta>Categoria</Etichetta>
-          <h1 className="font-serif text-[clamp(24px,5vw,34px)] leading-none">Anagrafica</h1>
-        </div>
-        <div className="cifra shrink-0 text-[13px] text-grafite">{righe.length} atleti</div>
-      </div>
+      <Titolo
+        sopra="Categoria"
+        azione={<span className="cifra shrink-0 text-[12.5px] text-tenue">{righe.length} atleti</span>}
+      >
+        Anagrafica
+      </Titolo>
 
       {righe.length > 0 && (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Dato etichetta="In rosa" valore={righe.length} />
+          <Dato etichetta="In rosa" valore={righe.length} icona={<IconaSezione id="rosa" dim={22} />} />
           <Dato
             etichetta="Fermi"
             valore={fermi.length}
@@ -99,16 +97,16 @@ export function Anagrafica() {
       {!caricato ? (
         <Scheletro righe={4} />
       ) : righe.length === 0 ? (
-        <Vuoto>Nessun atleta in questa categoria. Si aggiungono dalla Rosa.</Vuoto>
+        <Vuoto>Nessun atleta in questa categoria. Si aggiungono dalla sezione Rosa.</Vuoto>
       ) : (
         <>
           <div className="flex items-center justify-between gap-3">
             <Etichetta>Il registro</Etichetta>
             {(fermi.length + daSeguire.length) > 0 && (
               <Pulsante
-                variante={soloProblemi ? 'pieno' : 'vuoto'}
+                variante={soloProblemi ? 'primario' : 'vetro'}
                 onClick={() => setSoloProblemi(v => !v)}
-                className="py-1 text-[11.5px]"
+                className="py-1.5 text-[11.5px]"
               >
                 {soloProblemi ? 'Mostra tutti' : `Solo i ${fermi.length + daSeguire.length} da sistemare`}
               </Pulsante>
@@ -116,82 +114,85 @@ export function Anagrafica() {
           </div>
 
           {/* ---------------------------------------------- da tablet in su */}
-          <Foglio className="hidden overflow-hidden md:block">
+          <Pannello className="hidden overflow-hidden md:block">
             <table className="w-full border-collapse text-left">
               <thead>
-                <tr className="border-b-2 riga">
-                  <th className="etichetta px-4 py-2.5">Atleta</th>
-                  <th className="etichetta px-4 py-2.5 w-16">Età</th>
+                <tr className="border-b border-bordo/10">
+                  <th className="etichetta px-4 py-3">Atleta</th>
+                  <th className="etichetta w-16 px-4 py-3">Età</th>
                   {DOC_TYPES.map(t => (
-                    <th key={t.key} className="etichetta px-4 py-2.5">{BREVE[t.key] || t.label}</th>
+                    <th key={t.key} className="etichetta px-4 py-3">{BREVE[t.key] || t.label}</th>
                   ))}
-                  <th className="etichetta px-4 py-2.5">Contatto</th>
+                  <th className="etichetta px-4 py-3">Contatto</th>
                 </tr>
               </thead>
               <tbody>
                 {visibili.map(r => (
-                  <tr key={r.p.id} className="border-b riga last:border-b-0 hover:bg-carta2/70">
+                  <tr key={r.p.id} className="border-b border-bordo/6 transition-colors last:border-b-0 hover:bg-pannello/8">
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-3">
-                        {/* Il numero di maglia prima del nome, monospaziato e
-                            incolonnato: è come si legge un elenco di squadra. */}
-                        <span className="cifra w-7 shrink-0 text-right text-[15px] font-bold text-grafite">
+                        {/* Il numero di maglia prima del nome, incolonnato:
+                            è come si legge un elenco di squadra. */}
+                        <span className="cifra w-7 shrink-0 text-right text-[15px] font-bold text-tenue">
                           {r.p.number}
                         </span>
-                        <Avatar nome={r.p.name} url={foto[r.p.id]} dim={30} />
+                        <Avatar nome={r.p.name} url={foto[r.p.id]} dim={32} />
                         <div className="min-w-0">
-                          <div className="truncate font-semibold leading-tight">{r.p.name}</div>
+                          <div className="truncate text-[13.5px] font-semibold leading-tight">{r.p.name}</div>
                           {r.p.role_position && (
-                            <div className="text-[11px] text-grafite">{r.p.role_position}</div>
+                            <div className="text-[11px] text-tenue">{r.p.role_position}</div>
                           )}
                         </div>
                       </div>
                     </td>
-                    <td className="cifra px-4 py-2.5 text-[13px]">{r.eta == null ? '—' : r.eta}</td>
+                    <td className="cifra px-4 py-2.5 text-[13px] text-soffuso">{r.eta == null ? '—' : r.eta}</td>
                     {DOC_TYPES.map(t => (
                       <td key={t.key} className="px-4 py-2.5">
                         <Stato tono={TONO[r.stati[t.key]]}>{DOC_STATE[r.stati[t.key]].label}</Stato>
                       </td>
                     ))}
-                    <td className="px-4 py-2.5 text-[12.5px] text-grafite">
+                    <td className="px-4 py-2.5 text-[12.5px] text-tenue">
                       {r.p.guardian_phone || r.p.email || '—'}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </Foglio>
+          </Pannello>
 
           {/* ------------------------------------------------- su telefono */}
           <div className="space-y-2.5 md:hidden">
             {visibili.map(r => (
-              <Foglio
-                key={r.p.id}
-                className={cx('px-3 py-3', DOC_STATE[r.peggiore].tone === 'bad' && 'border-l-3 border-l-timbro')}
-              >
+              <Pannello key={r.p.id} className="relative overflow-hidden px-3.5 py-3.5">
+                {/* Il filo colorato a sinistra: dice lo stato prima che si
+                    legga qualunque parola. */}
+                {DOC_STATE[r.peggiore].tone !== 'ok' && (
+                  <span className={cx('absolute inset-y-0 left-0 w-1',
+                    DOC_STATE[r.peggiore].tone === 'bad' ? 'bg-rosso' : 'bg-ambra')} />
+                )}
                 <div className="flex items-center gap-3">
-                  <span className="cifra w-7 shrink-0 text-right text-[16px] font-bold text-grafite">
+                  <span className="cifra w-6 shrink-0 text-right text-[15px] font-bold text-tenue">
                     {r.p.number}
                   </span>
-                  <Avatar nome={r.p.name} url={foto[r.p.id]} dim={34} />
+                  <Avatar nome={r.p.name} url={foto[r.p.id]} dim={36} />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate font-semibold leading-tight">{r.p.name}</div>
-                    <div className="text-[11.5px] text-grafite">
+                    <div className="truncate text-[14px] font-semibold leading-tight">{r.p.name}</div>
+                    <div className="text-[11.5px] text-tenue">
                       {r.eta != null && <span className="cifra">{r.eta} anni</span>}
                       {r.eta != null && r.p.role_position && ' · '}
                       {r.p.role_position}
                     </div>
                   </div>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t riga pt-2.5">
+                <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2.5 border-t border-bordo/8 pt-3">
                   {DOC_TYPES.map(t => (
                     <div key={t.key}>
-                      <div className="etichetta mb-1">{BREVE[t.key] || t.label}</div>
+                      <Etichetta className="mb-1.5">{BREVE[t.key] || t.label}</Etichetta>
                       <Stato tono={TONO[r.stati[t.key]]}>{DOC_STATE[r.stati[t.key]].label}</Stato>
                     </div>
                   ))}
                 </div>
-              </Foglio>
+              </Pannello>
             ))}
           </div>
         </>

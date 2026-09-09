@@ -1,0 +1,171 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+   Vetro — i valori
+   ============================================================================
+   Il tema scuro è quello primario: è lo stile di riferimento, ed è anche dove
+   il vetro funziona davvero, perché la luce arriva da dietro. Il tema chiaro
+   esiste e ha lo stesso impianto, ma non è la stessa tavolozza schiarita — al
+   chiaro il vetro è bianco sporco su un fondo appena colorato, altrimenti
+   diventa grigio sporco.
+
+   Il fondo non è un blu piatto: è notte con due aloni colorati molto larghi.
+   È quello che nei riferimenti dà l'impressione di profondità prima ancora che
+   compaia un pannello.
+   ========================================================================== */
+
+:root {
+  --fondo: 11 16 32;
+  --fondo2: 17 24 46;
+  --pannello: 148 170 220;      /* si usa sempre con un'opacità: bg-pannello/10 */
+  --bordo: 255 255 255;
+
+  --testo: 233 239 255;
+  --soffuso: 154 170 205;
+  --tenue: 108 124 158;
+
+  --blu: 56 124 255;
+  --blu2: 108 92 255;
+
+  --rosa: 255 77 141;
+  --verde: 45 212 137;
+  --corallo: 255 111 74;
+  --viola: 150 108 255;
+  --ambra: 255 168 60;
+  --ciano: 43 202 226;
+  --rosso: 255 88 88;
+
+  --op-bordo: 0.10;
+  --op-vetro: 0.055;
+  --op-vetro-alto: 0.09;
+}
+
+:root[data-tema="chiaro"] {
+  --fondo: 240 243 252;
+  --fondo2: 228 234 250;
+  --pannello: 255 255 255;
+  --bordo: 12 22 48;
+
+  --testo: 15 23 42;
+  --soffuso: 82 98 130;
+  --tenue: 128 143 173;
+
+  --blu: 37 99 235;
+  --blu2: 99 78 235;
+
+  --rosa: 226 45 112;
+  --verde: 15 145 92;
+  --corallo: 224 84 46;
+  --viola: 118 74 232;
+  --ambra: 190 116 12;
+  --ciano: 14 148 172;
+  --rosso: 214 45 45;
+
+  --op-bordo: 0.10;
+  --op-vetro: 0.72;
+  --op-vetro-alto: 0.88;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-tema="scuro"]) {
+    --fondo: 240 243 252;
+    --fondo2: 228 234 250;
+    --pannello: 255 255 255;
+    --bordo: 12 22 48;
+    --testo: 15 23 42;
+    --soffuso: 82 98 130;
+    --tenue: 128 143 173;
+    --blu: 37 99 235;
+    --blu2: 99 78 235;
+    --rosa: 226 45 112;
+    --verde: 15 145 92;
+    --corallo: 224 84 46;
+    --viola: 118 74 232;
+    --ambra: 190 116 12;
+    --ciano: 14 148 172;
+    --rosso: 214 45 45;
+    --op-bordo: 0.10;
+    --op-vetro: 0.72;
+    --op-vetro-alto: 0.88;
+  }
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    @apply bg-fondo text-testo font-sans antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  /* Gli aloni. Fissi e dietro tutto: sono la sorgente di luce della scena, e
+     una sorgente di luce non scorre insieme al contenuto. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(58rem 40rem at 12% -8%, rgb(var(--blu) / 0.20), transparent 62%),
+      radial-gradient(46rem 34rem at 92% 4%, rgb(var(--viola) / 0.17), transparent 60%),
+      radial-gradient(52rem 40rem at 70% 108%, rgb(var(--ciano) / 0.12), transparent 62%),
+      linear-gradient(180deg, rgb(var(--fondo)), rgb(var(--fondo2)));
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--blu));
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  ::selection { background: rgb(var(--blu) / 0.32); }
+
+  /* Le barre di scorrimento dentro i pannelli: quella di sistema su fondo
+     scuro è un rettangolo chiaro che rompe la scena. */
+  * { scrollbar-width: thin; scrollbar-color: rgb(var(--pannello) / 0.22) transparent; }
+  *::-webkit-scrollbar { width: 8px; height: 8px; }
+  *::-webkit-scrollbar-thumb {
+    background: rgb(var(--pannello) / 0.22);
+    border-radius: 99px;
+  }
+  *::-webkit-scrollbar-track { background: transparent; }
+}
+
+@layer components {
+  /* Il bordo di sistema: uno solo, ovunque. Nei riferimenti è quello che dà
+     l'orlo di luce al vetro, ed è anche ciò che tiene i pannelli leggibili
+     quando il fondo dietro è chiaro. */
+  .orlo { border: 1px solid rgb(var(--bordo) / var(--op-bordo)); }
+
+  /* Il vetro. Il fondo NON è trasparente puro: sotto il testo ci vuole
+     abbastanza materia da reggere il contrasto, altrimenti la sfocatura se lo
+     mangia ed è il modo in cui questa estetica diventa illeggibile. */
+  .vetro {
+    background: rgb(var(--pannello) / var(--op-vetro));
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+  }
+
+  .vetro-alto {
+    background: rgb(var(--pannello) / var(--op-vetro-alto));
+    backdrop-filter: blur(30px) saturate(150%);
+    -webkit-backdrop-filter: blur(30px) saturate(150%);
+  }
+
+  .etichetta {
+    @apply text-[10px] font-bold uppercase tracking-etichetta text-tenue;
+  }
+
+  /* I numeri si incolonnano sempre: in una tabella di dati le cifre che
+     ballano sono un difetto, non uno stile. */
+  .cifra { font-variant-numeric: tabular-nums; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-salita { animation: none !important; }
+  }
+}
