@@ -9,7 +9,15 @@ import { isLinkedUser, isAdmin } from '../utils/permissions.js';
 import { Guscio } from './Guscio.jsx';
 import { Home } from './Home.jsx';
 import { Anagrafica } from './Anagrafica.jsx';
+import { Rosa } from './Rosa.jsx';
+import { Allenamenti } from './Allenamenti.jsx';
+import { Calendario } from './Calendario.jsx';
+import { Classifica } from './Classifica.jsx';
+import { Statistiche } from './Statistiche.jsx';
+import { Presenze } from './Presenze.jsx';
+import { Situazione } from './Situazione.jsx';
 import { Etichetta, Vuoto, Scheletro, Titolo } from './ui.jsx';
+import { ProvvederAvvisi } from './moduli.jsx';
 import { caricaCampione } from './campione.js';
 
 /* Anteprima della nuova interfaccia.
@@ -170,14 +178,30 @@ function App() {
       </div>
     );
   }
-  const contenuto = sectorId === null && sezione !== 'squadra' && sezione !== 'utenti'
+  const SCHERMATE = {
+    home: () => <Home onSezione={setSezione} />,
+    rosa: () => <Rosa />,
+    anagrafica: () => <Anagrafica />,
+    allenamenti: () => <Allenamenti />,
+    calendario: () => <Calendario />,
+    classifica: () => <Classifica />,
+    statistiche: () => <Statistiche />,
+    presenze: () => <Presenze />,
+    situazione: () => <Situazione onSezione={setSezione} />
+  };
+
+  // Situazione e le sezioni di societa' non dipendono dalla categoria aperta:
+  // aspettarne il caricamento le terrebbe ferme davanti a uno scheletro per
+  // niente.
+  const dipendeDallaCategoria = !['situazione', 'documenti', 'utenti', 'squadra', 'finanza', 'profilo'].includes(sezione);
+  const disegna = SCHERMATE[sezione];
+  const contenuto = (sectorId === null && dipendeDallaCategoria)
     ? <Scheletro righe={4} />
-    : sezione === 'home' ? <Home onSezione={setSezione} />
-    : sezione === 'anagrafica' ? <Anagrafica />
+    : disegna ? disegna()
     : <NonAncora nome={sezione} />;
 
   return (
-    <>
+    <ProvvederAvvisi>
       <Guscio
         sezione={sezione}
         onSezione={setSezione}
@@ -188,7 +212,7 @@ function App() {
       >
         {contenuto}
       </Guscio>
-    </>
+    </ProvvederAvvisi>
   );
 }
 
