@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, createContext, useContext, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { cx, Pannello, Etichetta, Pulsante } from './ui.jsx';
 
 /* Finestre, moduli e avvisi.
@@ -67,7 +68,11 @@ export function Finestra({ titolo, sotto, onChiudi, larga = false, azioni, child
     };
   }, [onChiudi]);
 
-  return (
+  // In un portale attaccato al body, e non dove sta il componente: un
+  // antenato con un'animazione o una trasformazione diventa il contenitore di
+  // riferimento per gli elementi fissi, e la finestra finirebbe ancorata alla
+  // colonna del contenuto invece che alla pagina. Succede, e si vede.
+  return createPortal(
     <div className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center" onMouseDown={onChiudi}>
       <div className="absolute inset-0 bg-fondo/75 backdrop-blur-sm" />
       <div
@@ -94,7 +99,8 @@ export function Finestra({ titolo, sotto, onChiudi, larga = false, azioni, child
           <div className="shrink-0 border-t border-bordo/10 px-5 py-4 sm:px-6">{azioni}</div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
