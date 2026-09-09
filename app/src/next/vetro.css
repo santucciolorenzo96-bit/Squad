@@ -239,6 +239,44 @@
       linear-gradient(160deg, rgb(var(--legno2)), rgb(var(--legno)));
   }
 
+  /* Il campo e' un contenitore di dimensionamento: i gettoni dentro si misurano
+     sulla SUA larghezza (cqw) e non su quella della finestra. Serve perche' la
+     colonna delle sezioni si mangia 248px su desktop e sparisce su telefono:
+     con le unita' di viewport i giocatori sarebbero sproporzionati in tutti e
+     due i casi. Cosi' invece il quintetto resta disegnato come su una lavagna,
+     a qualunque larghezza. */
+  .campo { container-type: inline-size; }
+
+  /* Quello che sta SOPRA il legno non segue il tema. Il parquet e' scuro in
+     tutti e due i temi, quindi il fondo dei gettoni deve restare scuro anche
+     quando l'app e' chiara: legandolo a --fondo, in tema chiaro diventava un
+     cerchio chiaro con sopra iniziali bianche. */
+  .su-legno { background: rgb(18 15 12 / 0.72); backdrop-filter: blur(6px); }
+  .su-legno-lieve { background: rgb(18 15 12 / 0.55); backdrop-filter: blur(6px); }
+
+  .gettone-campo {
+    width: clamp(4.4rem, 19cqw, 10rem);
+    --volto: clamp(2.4rem, 10.5cqw, 5.6rem);
+    --nome: clamp(0.62rem, 2.5cqw, 1rem);
+    --numero: clamp(0.55rem, 2.1cqw, 0.85rem);
+    --sigla: clamp(0.4rem, 1.55cqw, 0.62rem);
+    --media: clamp(0.53rem, 2.05cqw, 0.82rem);
+    --scambio: clamp(1.25rem, 5cqw, 2.2rem);
+  }
+
+  /* In panchina il gettone non scala: la panchina non ha proporzioni da
+     rispettare, e un gettone che cambia misura fra sopra e sotto farebbe
+     sembrare i due elenchi due cose diverse. */
+  .gettone-panca {
+    width: 6.6rem;
+    --volto: 3.3rem;
+    --nome: 0.75rem;
+    --numero: 0.66rem;
+    --sigla: 0.47rem;
+    --media: 0.64rem;
+    --scambio: 1.5rem;
+  }
+
   /* Le righe del campo: bianche e traslucide, come vernice consumata su legno.
      Piene ammazzerebbero i giocatori, che sono il contenuto vero. */
   .righe-campo {

@@ -1,33 +1,33 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { state } from '../state.js';
 import { removePlayerFromSector, fetchPlayerPhotoUrls } from '../api/roster.js';
 import { canEditRoster, canEditHome, isLinkedUser } from '../utils/permissions.js';
 import { computeSeasonStats, findSeasonRow } from '../utils/stats.js';
 import { currentSport } from '../utils/sports/index.js';
 import { inCampione } from './campione.js';
-import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Avatar, cx } from './ui.jsx';
+import { Pannello, Etichetta, Titolo, Vuoto, Scheletro, Avatar, cx } from './ui.jsx';
 import { Conferma, Finestra, useAvviso } from './moduli.jsx';
 
 /* La rosa.
  *
- * Due cose in una schermata, ed è voluto: sopra la formazione sul campo, sotto
- * l'elenco. La formazione è il motivo per cui un allenatore apre questa pagina;
- * l'elenco è il modo di sapere chi c'è.
+ * Sopra la formazione sul campo, sotto l'elenco. La formazione è il motivo per
+ * cui un allenatore apre questa pagina; l'elenco è il modo di sapere chi c'è.
  *
- * Il campo NON è una decorazione. Le posizioni dei cinque non dipendono dal
- * ruolo scritto in anagrafica — che spesso manca o è generico — ma da cinque
- * posti fissi definiti dallo sport: è il modo in cui un allenatore disegna una
- * formazione su una lavagna.
+ * Il campo occupa tutta la larghezza disponibile e i giocatori crescono con
+ * lui: le misure dei gettoni sono in `cqw`, cioè in percentuale della larghezza
+ * DEL CAMPO, non della finestra. Con le unità di viewport sarebbero sbagliate
+ * in tutti e due i casi, perché su desktop la colonna delle sezioni si mangia
+ * 248px e su telefono sparisce.
  *
- * Aggiungere un giocatore non si fa più da qui: si fa dall'Anagrafica, che è
- * dove stanno i suoi dati. Qui si compone chi gioca, non si crea chi esiste.
+ * Le posizioni dei cinque non dipendono dal ruolo scritto in anagrafica — che
+ * spesso manca o è generico — ma da cinque posti fissi definiti dallo sport:
+ * è il modo in cui un allenatore disegna una formazione su una lavagna.
  */
 
 function iniziali(nome) {
   return (nome || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 }
 
-// Le tre medie sul gettone: quali siano lo decide lo sport.
 function medie(riga, sport) {
   if (!riga || !riga.games) return sport.headline.map(h => ({ short: h.short, v: '—' }));
   return sport.headline.map(h => ({
@@ -36,9 +36,6 @@ function medie(riga, sport) {
   }));
 }
 
-// Formazione di partenza: chi era in campo nell'ultima partita, rimappato sulla
-// rosa di adesso per id (o per numero, se l'id non c'è più). Senza storico, i
-// primi della rosa.
 function quintettoIniziale(inCampo) {
   const ultima = state.history[state.history.length - 1];
   const ids = [];
@@ -57,36 +54,73 @@ function quintettoIniziale(inCampo) {
 }
 
 /* ------------------------------------------------------------------ gettone */
-function Gettone({ p, foto, sport, riga, armato, sulCampo, onApri, onScambia, stile }) {
+// `suParquet` non è un vezzo: sul legno il testo è bianco perché il fondo è
+// scuro sempre, in tutti e due i temi. In panchina il gettone sta su un
+// pannello di vetro, che in tema chiaro è bianco — e il bianco su bianco è
+// esattamente il difetto che c'era.
+function Gettone({
+  p, foto, sport, riga, armato, suParquet, inTrascinamento, bersaglio,
+  onApri, onScambia, onPointerDown, stile
+}) {
+  const chip = suParquet ? 'su-legno-lieve' : 'bg-pannello/14';
+  const siglaCol = suParquet ? 'text-white/60' : 'text-tenue';
+  const mediaCol = suParquet ? 'text-white' : 'text-testo';
+  const nomeCol = suParquet
+    ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,.85)]'
+    : 'text-testo';
+  const numCol = suParquet ? 'text-white/65' : 'text-tenue';
+  const anello = armato ? 'ring-blu shadow-blu' : (suParquet ? 'ring-white/70' : 'ring-bordo/20');
+
   return (
     <div
       style={stile}
       className={cx(
-        'group flex w-[5.6rem] flex-col items-center sm:w-[6.4rem]',
-        sulCampo && 'absolute -translate-x-1/2 -translate-y-1/2'
+        'flex flex-col items-center transition-opacity',
+        suParquet ? 'gettone-campo absolute -translate-x-1/2 -translate-y-1/2' : 'gettone-panca',
+        inTrascinamento && 'opacity-30',
+        bersaglio && 'scale-105'
       )}
     >
-      {/* Le medie sopra la testa, minuscole: servono a scegliere chi mettere in
-          campo, e su un gettone non c'è posto per una tabella. */}
-      <div className="mb-1 flex gap-1.5">
+      {/* Le medie sopra la testa: servono a scegliere chi mettere in campo, e
+          su un gettone non c'è posto per una tabella. */}
+      <div className="mb-1 flex gap-1">
         {medie(riga, sport).map(m => (
-          <span key={m.short} className="rounded-full bg-fondo/55 px-1.5 py-0.5 text-center leading-none backdrop-blur-sm">
-            <i className="block text-[7.5px] font-bold uppercase not-italic tracking-etichetta text-white/60">{m.short}</i>
-            <b className="block text-[10px] font-bold text-white">{m.v}</b>
+          <span key={m.short} className={cx('rounded-full px-1.5 py-0.5 text-center leading-none', chip)}>
+            <i
+              className={cx('block font-bold uppercase not-italic tracking-etichetta', siglaCol)}
+              style={{ fontSize: 'var(--sigla)' }}
+            >
+              {m.short}
+            </i>
+            <b className={cx('block font-bold', mediaCol)} style={{ fontSize: 'var(--media)' }}>{m.v}</b>
           </span>
         ))}
       </div>
 
       <div className="relative">
-        <button onClick={onApri} title={p.name} className="block">
-          <span className={cx(
-            'block rounded-full ring-2 transition-all',
-            armato ? 'ring-blu shadow-blu' : 'ring-white/70'
-          )}>
+        <button
+          onPointerDown={onPointerDown}
+          onClick={onApri}
+          title={p.name}
+          className={cx('block touch-none', bersaglio && 'transition-transform')}
+        >
+          <span className={cx('block rounded-full ring-2 transition-all', anello)}>
             {foto ? (
-              <img src={foto} alt="" className="h-12 w-12 rounded-full object-cover sm:h-14 sm:w-14" />
+              <img
+                src={foto}
+                alt=""
+                className="rounded-full object-cover"
+                style={{ width: 'var(--volto)', height: 'var(--volto)' }}
+                draggable="false"
+              />
             ) : (
-              <span className="grid h-12 w-12 place-items-center rounded-full bg-fondo/70 text-[14px] font-bold text-white backdrop-blur-sm sm:h-14 sm:w-14">
+              <span
+                className={cx(
+                  'grid place-items-center rounded-full font-bold',
+                  suParquet ? 'su-legno text-white' : 'vetro-alto text-testo'
+                )}
+                style={{ width: 'var(--volto)', height: 'var(--volto)', fontSize: 'calc(var(--volto) * 0.3)' }}
+              >
                 {iniziali(p.name)}
               </span>
             )}
@@ -98,21 +132,26 @@ function Gettone({ p, foto, sport, riga, armato, sulCampo, onApri, onScambia, st
           title="Prepara la sostituzione"
           aria-label={'Sostituisci ' + p.name}
           className={cx(
-            'absolute -right-1.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full',
-            'text-[11px] font-bold transition-all',
+            'absolute -right-1 -top-1 grid place-items-center rounded-full font-bold transition-all',
             armato
               ? 'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu'
-              : 'bg-fondo/80 text-white/80 backdrop-blur-sm hover:text-white'
+              : suParquet
+                ? 'su-legno text-white/85 hover:text-white'
+                : 'vetro-alto orlo text-soffuso hover:text-testo'
           )}
+          style={{ width: 'var(--scambio)', height: 'var(--scambio)', fontSize: 'calc(var(--scambio) * 0.5)' }}
         >
           ⇄
         </button>
       </div>
 
-      <div className="mt-1.5 w-full truncate text-center text-[11px] font-semibold leading-tight text-white drop-shadow-[0_1px_3px_rgba(0,0,0,.8)]">
+      <div
+        className={cx('mt-1.5 w-full truncate text-center font-semibold leading-tight', nomeCol)}
+        style={{ fontSize: 'var(--nome)' }}
+      >
         {p.name}
       </div>
-      <div className="text-[10px] font-bold text-white/65">#{p.number}</div>
+      <div className={cx('font-bold', numCol)} style={{ fontSize: 'var(--numero)' }}>#{p.number}</div>
     </div>
   );
 }
@@ -125,13 +164,14 @@ export function Rosa() {
   const [foto, setFoto] = useState({});
   const [caricato, setCaricato] = useState(false);
   const [quintetto, setQuintetto] = useState(() => quintettoIniziale(inCampo));
-  const [armatoCampo, setArmatoCampo] = useState(null);
-  const [armatoPanca, setArmatoPanca] = useState(null);
+  const [armato, setArmato] = useState(null);
   const [scheda, setScheda] = useState(null);
   const [daRimuovere, setDaRimuovere] = useState(null);
+  const [trascina, setTrascina] = useState(null);   // { id, x, y, sopra }
   const [, ridisegna] = useState(0);
   const avvisa = useAvviso();
 
+  const partenza = useRef(null);
   const puoiModificare = canEditRoster(state.currentUser);
   const rosa = state.roster;
 
@@ -150,29 +190,82 @@ export function Rosa() {
   const inCampoP = quintetto.map(id => rosa.find(p => p.id === id)).filter(Boolean);
   const inPanca = rosa.filter(p => !quintetto.includes(p.id));
 
-  // Due tocchi, non un trascinamento: su un telefono in palestra il
-  // trascinamento sbaglia bersaglio, e questa è una cosa che si fa in piedi
-  // a bordo campo.
-  function scambia(id) {
-    const eraInCampo = quintetto.includes(id);
-    if (eraInCampo) {
-      if (armatoPanca) {
-        setQuintetto(q => q.map(x => (x === id ? armatoPanca : x)));
-        setArmatoPanca(null); setArmatoCampo(null);
-      } else {
-        setArmatoCampo(a => (a === id ? null : id));
-        setArmatoPanca(null);
+  // Scambiare due giocatori qualunque copre tutti e tre i casi con una regola
+  // sola: campo↔panchina è una sostituzione, campo↔campo è un cambio di
+  // posizione, panchina↔panchina non cambia niente e infatti non fa niente.
+  function scambiaCoppia(a, b) {
+    if (!a || !b || a === b) return;
+    setQuintetto(q => {
+      const aDentro = q.includes(a), bDentro = q.includes(b);
+      if (aDentro && bDentro) {
+        const ia = q.indexOf(a), ib = q.indexOf(b);
+        const nuovo = q.slice();
+        nuovo[ia] = b; nuovo[ib] = a;
+        return nuovo;
       }
-    } else {
-      if (armatoCampo) {
-        setQuintetto(q => q.map(x => (x === armatoCampo ? id : x)));
-        setArmatoCampo(null); setArmatoPanca(null);
-      } else {
-        setArmatoPanca(a => (a === id ? null : id));
-        setArmatoCampo(null);
-      }
-    }
+      if (aDentro) return q.map(x => (x === a ? b : x));
+      if (bDentro) return q.map(x => (x === b ? a : x));
+      return q;
+    });
   }
+
+  // Il tocco su ⇄ resta: il trascinamento non è raggiungibile da tastiera, e
+  // con i guanti d'inverno a bordo campo un tocco secco è più affidabile.
+  function armaOScambia(id) {
+    if (armato && armato !== id) { scambiaCoppia(armato, id); setArmato(null); return; }
+    setArmato(a => (a === id ? null : id));
+  }
+
+  /* ---------------------------------------------------------- trascinamento */
+  // Eventi puntatore e non l'API HTML5 di drag: quella su telefono non esiste.
+  // Così lo stesso codice vale per mouse, dito e pennino.
+  function iniziaTrascinamento(e, id) {
+    if (e.button != null && e.button !== 0) return;
+    partenza.current = { id, x: e.clientX, y: e.clientY, partito: false };
+
+    const muovi = (ev) => {
+      const s = partenza.current;
+      if (!s) return;
+      const dx = ev.clientX - s.x, dy = ev.clientY - s.y;
+      // Sei pixel di tolleranza: sotto è un tocco, non un trascinamento. Senza,
+      // ogni tocco un po' storto aprirebbe un trascinamento invece della scheda.
+      if (!s.partito && Math.hypot(dx, dy) < 6) return;
+      s.partito = true;
+      const sotto = document.elementFromPoint(ev.clientX, ev.clientY);
+      const zona = sotto && sotto.closest('[data-gettone]');
+      const sopra = zona ? zona.getAttribute('data-gettone') : null;
+      setTrascina({ id: s.id, x: ev.clientX, y: ev.clientY, sopra: sopra === s.id ? null : sopra });
+    };
+
+    const lascia = (ev) => {
+      window.removeEventListener('pointermove', muovi);
+      window.removeEventListener('pointerup', lascia);
+      window.removeEventListener('pointercancel', lascia);
+      const s = partenza.current;
+      partenza.current = null;
+      if (!s || !s.partito) { setTrascina(null); return; }   // era un tocco
+      const sotto = document.elementFromPoint(ev.clientX, ev.clientY);
+      const zona = sotto && sotto.closest('[data-gettone]');
+      const bersaglio = zona ? zona.getAttribute('data-gettone') : null;
+      if (bersaglio && bersaglio !== s.id) {
+        scambiaCoppia(s.id, bersaglio);
+        setArmato(null);
+      }
+      setTrascina(null);
+    };
+
+    window.addEventListener('pointermove', muovi);
+    window.addEventListener('pointerup', lascia);
+    window.addEventListener('pointercancel', lascia);
+  }
+
+  // Se il trascinamento è partito, il clic che segue non deve aprire la scheda.
+  function apri(p) {
+    if (trascina) return;
+    setScheda(p);
+  }
+
+  const inMovimento = trascina ? rosa.find(p => p.id === trascina.id) : null;
 
   return (
     <div className="sezioni">
@@ -193,29 +286,37 @@ export function Rosa() {
       ) : (
         <>
           {/* ------------------------------------------------------ il campo */}
-          <Pannello alto className="mx-auto w-full max-w-[34rem] overflow-hidden">
+          <Pannello alto className="overflow-hidden">
             <div className="flex items-center justify-between gap-3 border-b border-bordo/10 px-5 py-3">
               <Etichetta>{sport.field.onFieldLabel}</Etichetta>
               <span className="text-[11.5px] text-tenue">{inCampoP.length} di {inCampo}</span>
             </div>
 
-            <div className="parquet relative aspect-[15/14] w-full">
+            <div className="campo parquet relative aspect-[15/14] w-full">
               <div className="righe-campo" dangerouslySetInnerHTML={{ __html: sport.field.svg }} />
               {inCampoP.map((p, i) => {
                 const posto = sport.field.slots[i];
                 return (
-                  <Gettone
+                  <div
                     key={p.id}
-                    p={p}
-                    foto={foto[p.id]}
-                    sport={sport}
-                    riga={findSeasonRow(stagione, p)}
-                    armato={armatoCampo === p.id}
-                    sulCampo
-                    stile={posto ? { top: posto.top, left: posto.left } : undefined}
-                    onApri={() => setScheda(p)}
-                    onScambia={() => scambia(p.id)}
-                  />
+                    data-gettone={p.id}
+                    className="absolute"
+                    style={posto ? { top: posto.top, left: posto.left } : undefined}
+                  >
+                    <Gettone
+                      p={p}
+                      foto={foto[p.id]}
+                      sport={sport}
+                      riga={findSeasonRow(stagione, p)}
+                      armato={armato === p.id}
+                      suParquet
+                      inTrascinamento={trascina && trascina.id === p.id}
+                      bersaglio={trascina && trascina.sopra === p.id}
+                      onApri={() => apri(p)}
+                      onScambia={() => armaOScambia(p.id)}
+                      onPointerDown={(e) => iniziaTrascinamento(e, p.id)}
+                    />
+                  </div>
                 );
               })}
             </div>
@@ -233,23 +334,27 @@ export function Rosa() {
               <Pannello className="overflow-x-auto px-4 py-4">
                 <div className="flex gap-4">
                   {inPanca.map(p => (
-                    <Gettone
-                      key={p.id}
-                      p={p}
-                      foto={foto[p.id]}
-                      sport={sport}
-                      riga={findSeasonRow(stagione, p)}
-                      armato={armatoPanca === p.id}
-                      onApri={() => setScheda(p)}
-                      onScambia={() => scambia(p.id)}
-                    />
+                    <div key={p.id} data-gettone={p.id} className="shrink-0">
+                      <Gettone
+                        p={p}
+                        foto={foto[p.id]}
+                        sport={sport}
+                        riga={findSeasonRow(stagione, p)}
+                        armato={armato === p.id}
+                        inTrascinamento={trascina && trascina.id === p.id}
+                        bersaglio={trascina && trascina.sopra === p.id}
+                        onApri={() => apri(p)}
+                        onScambia={() => armaOScambia(p.id)}
+                        onPointerDown={(e) => iniziaTrascinamento(e, p.id)}
+                      />
+                    </div>
                   ))}
                 </div>
               </Pannello>
             )}
             <p className="mt-2.5 text-[11.5px] leading-relaxed text-tenue">
-              Tocca <b className="text-soffuso">⇄</b> su un giocatore per prepararlo alla sostituzione,
-              poi <b className="text-soffuso">⇄</b> sull’altro per scambiarli. Tocca il volto per le sue statistiche.
+              Trascina un giocatore su un altro per scambiarli. Oppure tocca <b className="text-soffuso">⇄</b> su
+              uno e poi <b className="text-soffuso">⇄</b> sull’altro. Tocca il volto per le sue statistiche.
               {rosa.length < inCampo && ` Servono almeno ${inCampo} giocatori per comporre la formazione.`}
             </p>
           </div>
@@ -293,6 +398,20 @@ export function Rosa() {
         </>
       )}
 
+      {/* Il fantasma sotto il dito. Fuori dal flusso e senza eventi, altrimenti
+          si troverebbe da solo sotto il puntatore e nessun bersaglio verrebbe
+          mai riconosciuto. */}
+      {inMovimento && (
+        <div
+          className="pointer-events-none fixed z-[95] -translate-x-1/2 -translate-y-1/2"
+          style={{ left: trascina.x, top: trascina.y }}
+        >
+          <span className="block rounded-full ring-2 ring-blu shadow-blu">
+            <Avatar nome={inMovimento.name} url={foto[inMovimento.id]} dim={56} />
+          </span>
+        </div>
+      )}
+
       {scheda && (
         <SchedaGiocatore
           p={scheda}
@@ -312,8 +431,6 @@ export function Rosa() {
           onConferma={async () => {
             await removePlayerFromSector(daRimuovere.id, state.activeSectorId, state.activeSeasonId);
             state.roster = state.roster.filter(x => x.id !== daRimuovere.id);
-            // Chi esce dalla rosa non può restare in campo: il posto lasciato
-            // libero lo prende il primo disponibile.
             setQuintetto(q => {
               const resto = q.filter(x => x !== daRimuovere.id);
               for (const p of state.roster) {
@@ -338,7 +455,11 @@ function SchedaGiocatore({ p, foto, riga, sport, onChiudi }) {
     : canEditHome(state.currentUser);
 
   return (
-    <Finestra titolo={p.name} sotto={`#${p.number}${p.role_position ? ' · ' + p.role_position : ''}${p.height_cm ? ' · ' + p.height_cm + ' cm' : ''}`} onChiudi={onChiudi}>
+    <Finestra
+      titolo={p.name}
+      sotto={`#${p.number}${p.role_position ? ' · ' + p.role_position : ''}${p.height_cm ? ' · ' + p.height_cm + ' cm' : ''}`}
+      onChiudi={onChiudi}
+    >
       <div className="flex justify-center">
         <Avatar nome={p.name} url={foto} dim={92} />
       </div>
