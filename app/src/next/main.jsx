@@ -23,6 +23,7 @@ import { Squadra } from './Squadra.jsx';
 import { Profilo } from './Profilo.jsx';
 import { Finanza } from './Finanza.jsx';
 import { Partita } from './Partita.jsx';
+import { Accesso } from './Accesso.jsx';
 import { Etichetta, Vuoto, Scheletro, Titolo } from './ui.jsx';
 import { ProvvederAvvisi } from './moduli.jsx';
 import { caricaCampione } from './campione.js';
@@ -83,13 +84,14 @@ function Tema({ valore, onCambia }) {
 // Va detto forte, non in una nota a pie' di pagina: giudicare un'interfaccia
 // credendo di vedere la propria societa' quando invece i dati sono inventati
 // e' il modo piu' rapido di trarne la conclusione sbagliata.
-function Nastro() {
+function Nastro({ onAccesso }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-gradient-to-r from-blu to-blu2 px-4 py-1.5 text-white sm:px-6">
       <span className="text-[10px] font-bold uppercase tracking-etichetta">Dati di esempio</span>
       <span className="text-[11.5px] opacity-90">
-        Nessuna sessione aperta. <a href="/" className="underline">Accedi all&rsquo;app</a> e ricarica
-        questa pagina per vedere il disegno sui dati veri.
+        Nessuna sessione aperta: questi non sono i tuoi dati.{' '}
+        <button onClick={onAccesso} className="underline">Torna alle schermate d&rsquo;accesso</button>{' '}
+        oppure <a href="/" className="underline">entra dall&rsquo;app</a> e ricarica.
       </span>
     </div>
   );
@@ -112,7 +114,7 @@ function NonAncora({ nome }) {
 
 /* -------------------------------------------------------------------- radice */
 function App() {
-  const [fase, setFase] = useState('carico');   // carico | dentro
+  const [fase, setFase] = useState('carico');   // carico | accesso | dentro
   const [campione, setCampione] = useState(false);
   const [sezione, setSezione] = useState('home');
   const [sectorId, setSectorId] = useState(null);
@@ -126,7 +128,10 @@ function App() {
       try {
         const profilo = await fetchMyProfile();
         if (!vivo) return;
-        if (!profilo) { avviaCampione(); return; }
+        // Senza profilo si mostrano le schermate d'accesso, che e' quello che
+        // succede nell'app vera. I dati d'esempio restano a un clic di
+        // distanza: l'anteprima serve anche a guardare l'app senza entrarci.
+        if (!profilo) { setFase('accesso'); return; }
 
         state.currentUser = profilo;
         await loadTeamWideData();
@@ -155,14 +160,7 @@ function App() {
         // aprire e' l'unico modo in cui puo' fallire del tutto.
         console.error(e);
         if (!vivo) return;
-        avviaCampione();
-      }
-
-      function avviaCampione() {
-        caricaCampione(state);
-        setSectorId(state.activeSectorId);
-        setCampione(true);
-        setFase('dentro');
+        setFase('accesso');
       }
     })();
     return () => { vivo = false; };
@@ -175,6 +173,22 @@ function App() {
     try { localStorage.setItem('bbapp_last_sector', id); } catch (e) { /* niente */ }
     await loadSectorData(id);
     setSectorId(id);
+  }
+
+  if (fase === 'accesso') {
+    return (
+      <ProvvederAvvisi>
+        <Accesso
+          onEntrato={() => window.location.reload()}
+          onCampione={() => {
+            caricaCampione(state);
+            setSectorId(state.activeSectorId);
+            setCampione(true);
+            setFase('dentro');
+          }}
+        />
+      </ProvvederAvvisi>
+    );
   }
 
   if (fase === 'carico') {
@@ -221,7 +235,7 @@ function App() {
         onSezione={setSezione}
         sectorId={sectorId}
         onSettore={cambiaSettore}
-        nastro={campione ? <Nastro /> : null}
+        nastro={campione ? <Nastro onAccesso={() => { setCampione(false); setFase('accesso'); }} /> : null}
         strumenti={<Tema valore={tema} onCambia={setTema} />}
       >
         {contenuto}
