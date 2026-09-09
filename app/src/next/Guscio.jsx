@@ -205,7 +205,7 @@ function BarraMobile({ sezione, onSezione }) {
 }
 
 /* ------------------------------------------------------------------ guscio */
-export function Guscio({ sezione, onSezione, sectorId, onSettore, children }) {
+export function Guscio({ sezione, onSezione, sectorId, onSettore, nastro, children }) {
   // La sezione aperta torna in cima: senza, cambiando sezione ci si ritrova a
   // metà pagina di una schermata mai vista.
   useEffect(() => {
@@ -215,6 +215,7 @@ export function Guscio({ sezione, onSezione, sectorId, onSettore, children }) {
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden">
+      {nastro}
       <Testata sezione={sezione} onSezione={onSezione} sectorId={sectorId} onSettore={onSettore} />
       <div className="flex min-h-0 flex-1">
         <Colonna sezione={sezione} onSezione={onSezione} />

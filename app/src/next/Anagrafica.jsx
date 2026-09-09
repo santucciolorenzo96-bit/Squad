@@ -3,6 +3,7 @@ import { state } from '../state.js';
 import { DOC_TYPES } from '../utils/permissions.js';
 import { fetchPlayerPhotoUrls, fetchDocumentsForPlayers } from '../api/roster.js';
 import { docStatus, worstStatus, ageFrom, DOC_STATE } from '../utils/docStatus.js';
+import { inCampione, DOCUMENTI_CAMPIONE } from './campione.js';
 import { Foglio, Etichetta, Stato, Dato, Vuoto, Scheletro, Avatar, Pulsante, cx } from './ui.jsx';
 
 /* L'anagrafica.
@@ -36,6 +37,7 @@ export function Anagrafica() {
     setCaricato(false);
     const ids = rosa.map(p => p.id);
     if (ids.length === 0) { setCaricato(true); return; }
+    if (inCampione()) { setDocumenti(DOCUMENTI_CAMPIONE); setCaricato(true); return; }
     // Le due richieste sono indipendenti: in sequenza raddoppierebbero
     // l'attesa davanti a una tabella vuota.
     Promise.all([

@@ -33,7 +33,7 @@ function dataLunga(iso) {
 
 function contoAllaRovescia(g) {
   if (g == null) return null;
-  if (g < 0) return 'Giocata';
+  if (g < 0) return 'Risultato da inserire';
   if (g === 0) return 'Oggi';
   if (g === 1) return 'Domani';
   return `Fra ${g} giorni`;

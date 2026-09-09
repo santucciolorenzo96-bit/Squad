@@ -10,6 +10,7 @@ import { Guscio } from './Guscio.jsx';
 import { Home } from './Home.jsx';
 import { Anagrafica } from './Anagrafica.jsx';
 import { Foglio, Etichetta, Vuoto, Scheletro, Pulsante } from './ui.jsx';
+import { caricaCampione } from './campione.js';
 
 /* Anteprima della nuova interfaccia.
  *
@@ -36,25 +37,18 @@ function temaIniziale() {
   try { return localStorage.getItem(TEMA_KEY) || 'sistema'; } catch (e) { return 'sistema'; }
 }
 
-/* ---------------------------------------------------------------- non entrato */
-function FuoriSessione({ errore }) {
+/* ------------------------------------------------------- dati di esempio */
+// Va detto forte, non in una nota a pie' di pagina: giudicare un'interfaccia
+// credendo di vedere la propria societa' quando invece i dati sono inventati
+// e' il modo piu' rapido di trarne la conclusione sbagliata.
+function Nastro() {
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center px-5">
-      <Foglio rilievo className="w-full max-w-[420px] px-6 py-7">
-        <Etichetta>Squad · anteprima</Etichetta>
-        <h1 className="mt-2 font-serif text-[30px] leading-tight">Carta e inchiostro</h1>
-        <p className="mt-3 text-[13.5px] leading-relaxed text-grafite">
-          {errore
-            ? 'Non è stato possibile leggere i dati della società. ' + errore
-            : 'Questa pagina mostra la nuova interfaccia sui dati veri della tua società, quindi prima devi entrare dall’app.'}
-        </p>
-        <a href="/" className="mt-5 block">
-          <Pulsante variante="pieno" className="w-full">Vai all&rsquo;app e accedi</Pulsante>
-        </a>
-        <p className="mt-3 text-[11.5px] leading-relaxed text-grafite">
-          Poi torna qui: la sessione è la stessa.
-        </p>
-      </Foglio>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b-2 border-timbro bg-timbro px-4 py-1.5 text-carta sm:px-6">
+      <span className="text-[10px] font-bold uppercase tracking-etichetta">Dati di esempio</span>
+      <span className="text-[11.5px] opacity-90">
+        Nessuna sessione aperta. <a href="/" className="underline">Accedi all&rsquo;app</a> e ricarica
+        questa pagina per vedere il disegno sui dati veri.
+      </span>
     </div>
   );
 }
@@ -79,8 +73,8 @@ function NonAncora({ nome }) {
 
 /* -------------------------------------------------------------------- radice */
 function App() {
-  const [fase, setFase] = useState('carico');   // carico | fuori | dentro
-  const [errore, setErrore] = useState(null);
+  const [fase, setFase] = useState('carico');   // carico | dentro
+  const [campione, setCampione] = useState(false);
   const [sezione, setSezione] = useState('home');
   const [sectorId, setSectorId] = useState(null);
   const [tema, setTema] = useState(temaIniziale);
@@ -93,7 +87,7 @@ function App() {
       try {
         const profilo = await fetchMyProfile();
         if (!vivo) return;
-        if (!profilo) { setFase('fuori'); return; }
+        if (!profilo) { avviaCampione(); return; }
 
         state.currentUser = profilo;
         await loadTeamWideData();
@@ -117,18 +111,28 @@ function App() {
         setSectorId(scelto);
         setFase('dentro');
       } catch (e) {
+        // Senza sessione, offline, o con Supabase irraggiungibile l'anteprima
+        // si guarda lo stesso. Serve a giudicare un disegno: non potersi
+        // aprire e' l'unico modo in cui puo' fallire del tutto.
         console.error(e);
         if (!vivo) return;
-        setErrore(e && e.message ? e.message : '');
-        setFase('fuori');
+        avviaCampione();
+      }
+
+      function avviaCampione() {
+        caricaCampione(state);
+        setSectorId(state.activeSectorId);
+        setCampione(true);
+        setFase('dentro');
       }
     })();
     return () => { vivo = false; };
   }, []);
 
   async function cambiaSettore(id) {
+    state.activeSectorId = id;
+    if (campione) { setSectorId(id); return; }   // non c'è niente da ricaricare
     setSectorId(null);                 // vuota la schermata: mostrare la rosa
-    state.activeSectorId = id;         // vecchia mentre arriva la nuova è peggio
     try { localStorage.setItem('bbapp_last_sector', id); } catch (e) { /* niente */ }
     await loadSectorData(id);
     setSectorId(id);
@@ -142,8 +146,6 @@ function App() {
       </div>
     );
   }
-  if (fase === 'fuori') return <FuoriSessione errore={errore} />;
-
   const contenuto = sectorId === null && sezione !== 'squadra' && sezione !== 'utenti'
     ? <Scheletro righe={4} />
     : sezione === 'home' ? <Home onSezione={setSezione} />
@@ -157,6 +159,7 @@ function App() {
         onSezione={setSezione}
         sectorId={sectorId}
         onSettore={cambiaSettore}
+        nastro={campione ? <Nastro /> : null}
       >
         {contenuto}
       </Guscio>
@@ -182,4 +185,8 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('radice')).render(<App />);
+// Con il ricaricamento a caldo Vite riesegue questo modulo, e un secondo
+// createRoot sullo stesso nodo fa esplodere React durante lo sviluppo.
+const nodo = document.getElementById('radice');
+if (!nodo.__radice) nodo.__radice = createRoot(nodo);
+nodo.__radice.render(<App />);
