@@ -16,6 +16,11 @@ import { Classifica } from './Classifica.jsx';
 import { Statistiche } from './Statistiche.jsx';
 import { Presenze } from './Presenze.jsx';
 import { Situazione } from './Situazione.jsx';
+import { Comunicazioni } from './Comunicazioni.jsx';
+import { Documenti } from './Documenti.jsx';
+import { Utenti } from './Utenti.jsx';
+import { Squadra } from './Squadra.jsx';
+import { Profilo } from './Profilo.jsx';
 import { Etichetta, Vuoto, Scheletro, Titolo } from './ui.jsx';
 import { ProvvederAvvisi } from './moduli.jsx';
 import { caricaCampione } from './campione.js';
@@ -187,7 +192,12 @@ function App() {
     classifica: () => <Classifica />,
     statistiche: () => <Statistiche />,
     presenze: () => <Presenze />,
-    situazione: () => <Situazione onSezione={setSezione} />
+    comunicazioni: () => <Comunicazioni />,
+    situazione: () => <Situazione onSezione={setSezione} />,
+    documenti: () => <Documenti />,
+    utenti: () => <Utenti />,
+    squadra: () => <Squadra />,
+    profilo: () => <Profilo tema={tema} onTema={setTema} />
   };
 
   // Situazione e le sezioni di societa' non dipendono dalla categoria aperta:
