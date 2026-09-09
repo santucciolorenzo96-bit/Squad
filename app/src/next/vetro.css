@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -99,7 +99,9 @@
 
   body {
     @apply bg-fondo text-testo font-sans antialiased;
-    font-feature-settings: 'cv11', 'ss01';
+    /* Cifre tabulari ovunque: in un gestionale i numeri stanno quasi sempre
+       incolonnati, e quelli che ballano sono un difetto travestito da stile. */
+    font-variant-numeric: tabular-nums;
   }
 
   /* Gli aloni. Fissi e dietro tutto: sono la sorgente di luce della scena, e
@@ -160,6 +162,32 @@
   .etichetta {
     @apply text-[10px] font-bold uppercase tracking-etichetta text-tenue;
   }
+
+  /* ======================== Spaziature ========================
+     Due regole, entrambe verificabili guardando una schermata.
+
+     1. IL PADDING DI UN CONTENITORE E' MAGGIORE DEL PIU' GRANDE SPAZIO AL SUO
+        INTERNO. La vicinanza e' un significato: se il margine del pannello e'
+        stretto quanto lo spazio fra due dati, l'occhio non capisce piu' dove
+        finisce il gruppo, e quattro schede accostate diventano sedici numeri
+        sparsi.
+
+     2. IL PADDING NON E' MAI MINORE DEL RAGGIO. Con angoli da 16px, un testo
+        a 12px dal bordo passa dentro la curva: non tocca il bordo, ma sembra
+        storto, ed e' il difetto che si nota senza saperlo nominare.
+
+     Da qui i valori: pannelli a raggio 16 (rounded-lg), quindi padding 20 su
+     schermo piccolo e 24 da tablet in su, con gli spazi interni fermi a 12-16.
+     Stanno in una classe sola perche' se cambia il raggio deve cambiare qui,
+     non in trenta punti. */
+  .pad-pannello { @apply p-5 sm:p-6; }
+  .pad-pannello-stretto { @apply px-4 py-4 sm:px-5 sm:py-5; }
+
+  /* Il respiro fra le sezioni di una pagina e' il doppio di quello fra le
+     schede di una stessa sezione: e' cosi' che si vede a colpo d'occhio quali
+     cose stanno insieme. */
+  .sezioni { @apply space-y-7 sm:space-y-8; }
+  .schede { @apply gap-4; }
 
   /* I numeri si incolonnano sempre: in una tabella di dati le cifre che
      ballano sono un difetto, non uno stile. */

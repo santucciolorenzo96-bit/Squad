@@ -81,8 +81,8 @@ export function Pulsante({ variante = 'vetro', className, children, ...resto }) 
     <button
       type="button"
       className={cx(
-        'inline-flex items-center justify-center gap-2 rounded-sm px-3.5 py-2',
-        'text-[12.5px] font-semibold transition-all duration-150',
+        'inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5',
+        'text-[13px] font-medium transition-all duration-150',
         'disabled:opacity-40 disabled:pointer-events-none',
         VARIANTI[variante] || VARIANTI.vetro,
         className
@@ -101,15 +101,18 @@ export function Pulsante({ variante = 'vetro', className, children, ...resto }) 
 export function Dato({ etichetta, valore, sotto, tono, icona }) {
   const colore = tono === 'fermo' ? 'text-rosso' : tono === 'attesa' ? 'text-ambra' : 'text-testo';
   return (
-    <Pannello className="px-4 py-3.5">
+    <Pannello className="pad-pannello-stretto">
       <div className="flex items-start justify-between gap-2">
         <Etichetta>{etichetta}</Etichetta>
         {icona}
       </div>
-      <div className={cx('cifra mt-2.5 text-[28px] font-extrabold leading-none tracking-tight', colore)}>
+      {/* 12 fra etichetta e numero, 6 fra numero e nota: la nota appartiene al
+          numero, l’etichetta lo introduce. Entrambi restano ben sotto il
+          padding del pannello, che è quello che tiene insieme il gruppo. */}
+      <div className={cx('mt-3 text-[30px] font-bold leading-none tracking-tight', colore)}>
         {valore}
       </div>
-      {sotto && <div className="mt-1.5 text-[11.5px] leading-tight text-tenue">{sotto}</div>}
+      {sotto && <div className="mt-1.5 text-[11.5px] leading-snug text-tenue">{sotto}</div>}
     </Pannello>
   );
 }
@@ -117,7 +120,7 @@ export function Dato({ etichetta, valore, sotto, tono, icona }) {
 /* ------------------------------------------------------------------- Vuoto */
 export function Vuoto({ children }) {
   return (
-    <div className="rounded-lg border border-dashed border-bordo/15 px-5 py-9 text-center">
+    <div className="rounded-lg border border-dashed border-bordo/15 px-6 py-10 text-center">
       <p className="mx-auto max-w-[46ch] text-[13.5px] leading-relaxed text-tenue">{children}</p>
     </div>
   );
@@ -170,7 +173,7 @@ export function Avatar({ nome, url, dim = 34 }) {
     <div
       className={cx(
         'shrink-0 rounded-full bg-gradient-to-br flex items-center justify-center',
-        'font-bold text-white shadow-sm', g
+        'font-semibold text-white shadow-sm', g
       )}
       style={{ width: dim, height: dim, fontSize: Math.round(dim * 0.36) }}
     >
@@ -184,8 +187,8 @@ export function Titolo({ sopra, children, azione, className }) {
   return (
     <div className={cx('flex items-end justify-between gap-3', className)}>
       <div className="min-w-0">
-        {sopra && <Etichetta className="mb-1.5">{sopra}</Etichetta>}
-        <h1 className="text-[clamp(22px,4.6vw,30px)] font-extrabold leading-none tracking-tight">
+        {sopra && <Etichetta className="mb-2">{sopra}</Etichetta>}
+        <h1 className="text-[clamp(23px,4.6vw,32px)] font-bold leading-none tracking-tight">
           {children}
         </h1>
       </div>

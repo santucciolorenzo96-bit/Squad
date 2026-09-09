@@ -32,7 +32,7 @@ function dataLunga(iso) {
 function Apertura({ partita, onSezione }) {
   if (!partita) {
     return (
-      <Pannello alto className="px-5 py-7">
+      <Pannello alto className="pad-pannello">
         <Etichetta>Prossima partita</Etichetta>
         <div className="mt-4">
           <Vuoto>Il calendario è vuoto. Caricalo dalla sezione Calendario e questa scheda si riempie da sola.</Vuoto>
@@ -68,20 +68,20 @@ function Apertura({ partita, onSezione }) {
       />
 
       <div className="relative">
-        <div className="flex items-center justify-between gap-3 border-b border-bordo/10 px-4 py-2.5 sm:px-5">
-          <div className="flex items-center gap-2">
-            <IconaSezione id="partita" dim={22} />
+        <div className="flex items-center justify-between gap-3 border-b border-bordo/10 px-5 py-3 sm:px-6">
+          <div className="flex items-center gap-2.5">
+            <IconaSezione id="partita" dim={26} />
             <Etichetta>Prossima partita</Etichetta>
           </div>
           <Stato tono={scaduta ? 'fermo' : (g != null && g <= 1 ? 'attesa' : 'neutro')}>{conto}</Stato>
         </div>
 
-        <div className="px-4 py-6 sm:px-6 sm:py-8">
+        <div className="px-5 py-7 sm:px-7 sm:py-9">
           {/* I due nomi hanno lo stesso peso: sono due squadre, non un titolo
               e un sottotitolo. Il "vs" li separa piccolo in mezzo. */}
           <div className="flex items-center gap-3 sm:gap-5">
             <div className="min-w-0 flex-1 text-right">
-              <div className="text-[clamp(17px,4vw,26px)] font-extrabold leading-tight tracking-tight">
+              <div className="text-[clamp(17px,4vw,27px)] font-bold leading-tight tracking-tight">
                 {casa ? noi : partita.opponent}
               </div>
               <Etichetta className="mt-1.5">{casa ? 'in casa' : 'ospite'}</Etichetta>
@@ -90,7 +90,7 @@ function Apertura({ partita, onSezione }) {
               vs
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[clamp(17px,4vw,26px)] font-extrabold leading-tight tracking-tight">
+              <div className="text-[clamp(17px,4vw,27px)] font-bold leading-tight tracking-tight">
                 {casa ? partita.opponent : noi}
               </div>
               <Etichetta className="mt-1.5">{casa ? 'ospite' : 'in casa'}</Etichetta>
@@ -129,9 +129,9 @@ function ProssimoAllenamento({ onSezione }) {
     .sort((a, b) => a.date.localeCompare(b.date))[0];
 
   return (
-    <Pannello className="px-4 py-4">
-      <div className="flex items-center gap-2">
-        <IconaSezione id="allenamenti" dim={22} />
+    <Pannello className="pad-pannello-stretto">
+      <div className="flex items-center gap-2.5">
+        <IconaSezione id="allenamenti" dim={26} />
         <Etichetta>Prossimo allenamento</Etichetta>
       </div>
       {t ? (
@@ -164,15 +164,15 @@ function Stagione() {
   ];
 
   return (
-    <Pannello className="px-4 py-4">
-      <div className="flex items-center gap-2">
-        <IconaSezione id="statistiche" dim={22} />
+    <Pannello className="pad-pannello-stretto">
+      <div className="flex items-center gap-2.5">
+        <IconaSezione id="statistiche" dim={26} />
         <Etichetta>La stagione</Etichetta>
       </div>
       <div className="mt-4 grid grid-cols-3 gap-3">
         {celle.map((c, i) => (
           <div key={i}>
-            <div className="cifra text-[24px] font-extrabold leading-none tracking-tight">{c.v}</div>
+            <div className="text-[26px] font-bold leading-none tracking-tight">{c.v}</div>
             <Etichetta className="mt-2">{c.e}</Etichetta>
           </div>
         ))}
@@ -199,9 +199,9 @@ function DaSistemare({ onSezione }) {
   if (voci.length === 0) return null;
 
   return (
-    <Pannello className="px-4 py-4">
-      <div className="flex items-center gap-2">
-        <IconaSezione id="situazione" dim={22} />
+    <Pannello className="pad-pannello-stretto">
+      <div className="flex items-center gap-2.5">
+        <IconaSezione id="situazione" dim={26} />
         <Etichetta>Da sistemare</Etichetta>
       </div>
       <div className="mt-2 divide-y divide-bordo/8">
@@ -211,7 +211,7 @@ function DaSistemare({ onSezione }) {
             onClick={() => onSezione(v.vai)}
             className="group flex w-full items-center gap-3 py-2.5 text-left"
           >
-            <span className={cx('cifra w-8 shrink-0 text-[20px] font-extrabold leading-none',
+            <span className={cx('w-8 shrink-0 text-[21px] font-bold leading-none',
               v.tono === 'fermo' ? 'text-rosso' : 'text-ambra')}>
               {v.n}
             </span>
@@ -237,12 +237,12 @@ export function Home({ onSezione }) {
     : state.nextMatch;
 
   return (
-    <div className="space-y-5">
+    <div className="sezioni">
       <Titolo sopra={oggi}>{saluto}{nome && <>, {nome}</>}</Titolo>
 
       <Apertura partita={partita} onSezione={onSezione} />
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid schede md:grid-cols-2">
         <ProssimoAllenamento onSezione={onSezione} />
         <Stagione />
         {canEditHome(utente) && <DaSistemare onSezione={onSezione} />}

@@ -37,6 +37,33 @@ function temaIniziale() {
   try { return localStorage.getItem(TEMA_KEY) || 'sistema'; } catch (e) { return 'sistema'; }
 }
 
+/* --------------------------------------------------------------- il tema */
+// Sta nella testata e non fisso in un angolo: un comando fisso sopra il
+// contenuto copre sempre qualcosa, e in ogni schermata copre una cosa diversa.
+// Nella versione definitiva questa scelta torna nelle impostazioni del profilo:
+// qui è in vista perché serve a confrontare i due temi uno dopo l'altro.
+function Tema({ valore, onCambia }) {
+  return (
+    <div className="hidden gap-0.5 rounded-full vetro orlo p-1 sm:flex">
+      {['chiaro', 'sistema', 'scuro'].map(m => (
+        <button
+          key={m}
+          onClick={() => onCambia(m)}
+          title={'Tema ' + m}
+          className={
+            'rounded-full px-2.5 py-1 text-[9.5px] font-bold uppercase tracking-etichetta transition-all ' +
+            (valore === m
+              ? 'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu'
+              : 'text-tenue hover:text-testo')
+          }
+        >
+          {m}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /* ------------------------------------------------------- dati di esempio */
 // Va detto forte, non in una nota a pie' di pagina: giudicare un'interfaccia
 // credendo di vedere la propria societa' quando invece i dati sono inventati
@@ -157,29 +184,10 @@ function App() {
         sectorId={sectorId}
         onSettore={cambiaSettore}
         nastro={campione ? <Nastro /> : null}
+        strumenti={<Tema valore={tema} onCambia={setTema} />}
       >
         {contenuto}
       </Guscio>
-
-      {/* Il commutatore del tema sta qui e non nelle impostazioni perché
-          questa è un'anteprima: serve a guardare le due versioni una dopo
-          l'altra senza cercarlo. Nella versione definitiva torna al suo posto. */}
-      <div className="fixed bottom-24 right-3 z-50 flex gap-0.5 rounded-full vetro-alto orlo p-1 shadow-lg lg:bottom-5">
-        {['chiaro', 'sistema', 'scuro'].map(m => (
-          <button
-            key={m}
-            onClick={() => setTema(m)}
-            className={
-              'rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-etichetta transition-all ' +
-              (tema === m
-                ? 'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu'
-                : 'text-tenue hover:text-testo')
-            }
-          >
-            {m}
-          </button>
-        ))}
-      </div>
     </>
   );
 }

@@ -63,7 +63,7 @@ export function Anagrafica() {
   const visibili = soloProblemi ? righe.filter(r => DOC_STATE[r.peggiore].tone !== 'ok') : righe;
 
   return (
-    <div className="space-y-5">
+    <div className="sezioni">
       <Titolo
         sopra="Categoria"
         azione={<span className="cifra shrink-0 text-[12.5px] text-tenue">{righe.length} atleti</span>}
@@ -72,8 +72,8 @@ export function Anagrafica() {
       </Titolo>
 
       {righe.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Dato etichetta="In rosa" valore={righe.length} icona={<IconaSezione id="rosa" dim={22} />} />
+        <div className="grid grid-cols-2 schede lg:grid-cols-4">
+          <Dato etichetta="In rosa" valore={righe.length} icona={<IconaSezione id="rosa" dim={26} />} />
           <Dato
             etichetta="Fermi"
             valore={fermi.length}
@@ -118,25 +118,25 @@ export function Anagrafica() {
             <table className="w-full border-collapse text-left">
               <thead>
                 <tr className="border-b border-bordo/10">
-                  <th className="etichetta px-4 py-3">Atleta</th>
-                  <th className="etichetta w-16 px-4 py-3">Età</th>
+                  <th className="etichetta px-5 py-3.5">Atleta</th>
+                  <th className="etichetta w-16 px-5 py-3.5">Età</th>
                   {DOC_TYPES.map(t => (
-                    <th key={t.key} className="etichetta px-4 py-3">{BREVE[t.key] || t.label}</th>
+                    <th key={t.key} className="etichetta px-5 py-3.5">{BREVE[t.key] || t.label}</th>
                   ))}
-                  <th className="etichetta px-4 py-3">Contatto</th>
+                  <th className="etichetta px-5 py-3.5">Contatto</th>
                 </tr>
               </thead>
               <tbody>
                 {visibili.map(r => (
                   <tr key={r.p.id} className="border-b border-bordo/6 transition-colors last:border-b-0 hover:bg-pannello/8">
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-3">
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-3.5">
                         {/* Il numero di maglia prima del nome, incolonnato:
                             è come si legge un elenco di squadra. */}
-                        <span className="cifra w-7 shrink-0 text-right text-[15px] font-bold text-tenue">
+                        <span className="w-7 shrink-0 text-right text-[15px] font-medium text-tenue">
                           {r.p.number}
                         </span>
-                        <Avatar nome={r.p.name} url={foto[r.p.id]} dim={32} />
+                        <Avatar nome={r.p.name} url={foto[r.p.id]} dim={34} />
                         <div className="min-w-0">
                           <div className="truncate text-[13.5px] font-semibold leading-tight">{r.p.name}</div>
                           {r.p.role_position && (
@@ -145,13 +145,13 @@ export function Anagrafica() {
                         </div>
                       </div>
                     </td>
-                    <td className="cifra px-4 py-2.5 text-[13px] text-soffuso">{r.eta == null ? '—' : r.eta}</td>
+                    <td className="px-5 py-3 text-[13px] text-soffuso">{r.eta == null ? '—' : r.eta}</td>
                     {DOC_TYPES.map(t => (
-                      <td key={t.key} className="px-4 py-2.5">
+                      <td key={t.key} className="px-5 py-3">
                         <Stato tono={TONO[r.stati[t.key]]}>{DOC_STATE[r.stati[t.key]].label}</Stato>
                       </td>
                     ))}
-                    <td className="px-4 py-2.5 text-[12.5px] text-tenue">
+                    <td className="px-5 py-3 text-[12.5px] text-tenue">
                       {r.p.guardian_phone || r.p.email || '—'}
                     </td>
                   </tr>
@@ -161,9 +161,9 @@ export function Anagrafica() {
           </Pannello>
 
           {/* ------------------------------------------------- su telefono */}
-          <div className="space-y-2.5 md:hidden">
+          <div className="space-y-3 md:hidden">
             {visibili.map(r => (
-              <Pannello key={r.p.id} className="relative overflow-hidden px-3.5 py-3.5">
+              <Pannello key={r.p.id} className="pad-pannello-stretto relative overflow-hidden">
                 {/* Il filo colorato a sinistra: dice lo stato prima che si
                     legga qualunque parola. */}
                 {DOC_STATE[r.peggiore].tone !== 'ok' && (
@@ -171,7 +171,7 @@ export function Anagrafica() {
                     DOC_STATE[r.peggiore].tone === 'bad' ? 'bg-rosso' : 'bg-ambra')} />
                 )}
                 <div className="flex items-center gap-3">
-                  <span className="cifra w-6 shrink-0 text-right text-[15px] font-bold text-tenue">
+                  <span className="w-6 shrink-0 text-right text-[15px] font-medium text-tenue">
                     {r.p.number}
                   </span>
                   <Avatar nome={r.p.name} url={foto[r.p.id]} dim={36} />

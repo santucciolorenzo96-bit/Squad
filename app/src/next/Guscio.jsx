@@ -64,7 +64,7 @@ function Categorie({ attiva, onCambia }) {
 }
 
 /* ------------------------------------------------------------------ testata */
-function Testata({ onSezione, sectorId, onSettore }) {
+function Testata({ onSezione, sectorId, onSettore, strumenti }) {
   const squadra = state.teamProfile || {};
   const utente = state.currentUser || {};
   return (
@@ -74,18 +74,19 @@ function Testata({ onSezione, sectorId, onSettore }) {
           {/* Il marchio: monogramma in vetro, poi il nome della società. SQUAD
               sta sopra piccolo perché il prodotto non è la notizia — la società
               lo è. */}
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded bg-gradient-to-br from-blu to-blu2 text-[13px] font-extrabold text-white shadow-blu">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-blu to-blu2 text-[15px] font-bold text-white shadow-blu lg:h-11 lg:w-11">
             S
           </span>
           <span className="min-w-0">
             <span className="etichetta block leading-none">Squad</span>
-            <span className="block truncate text-[15px] font-bold leading-tight">
+            <span className="block truncate text-[15.5px] font-semibold leading-tight lg:text-[17px]">
               {squadra.name || 'Società'}
             </span>
           </span>
         </button>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
+          {strumenti}
           <button
             onClick={() => onSezione('profilo')}
             className="flex items-center gap-2 rounded-full vetro orlo py-1 pl-1 pr-1 sm:pr-3 transition-colors hover:bg-pannello/12"
@@ -111,14 +112,14 @@ const NOMI_GRUPPO = { settore: 'Categoria', societa: 'Società' };
 function Colonna({ sezione, onSezione }) {
   const voci = sezioniVisibili(state.currentUser);
   return (
-    <nav className="hidden w-[228px] shrink-0 flex-col gap-1 overflow-y-auto px-3 py-4 lg:flex">
+    <nav className="hidden w-[248px] shrink-0 flex-col overflow-y-auto px-3 py-5 lg:flex">
       {['settore', 'societa'].map(g => {
         const dentro = voci.filter(v => v.group === g);
         if (dentro.length === 0) return null;
         return (
-          <div key={g} className="mb-4">
-            <div className="etichetta px-2.5 pb-2">{NOMI_GRUPPO[g]}</div>
-            <div className="space-y-0.5">
+          <div key={g} className="mb-7 last:mb-0">
+            <div className="etichetta px-3 pb-2.5">{NOMI_GRUPPO[g]}</div>
+            <div className="space-y-1">
               {dentro.map(v => {
                 const on = v.id === sezione;
                 return (
@@ -126,8 +127,8 @@ function Colonna({ sezione, onSezione }) {
                     key={v.id}
                     onClick={() => onSezione(v.id)}
                     className={cx(
-                      'group relative flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-left',
-                      'text-[13px] transition-all duration-150',
+                      'group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left',
+                      'text-[13.5px] transition-all duration-150',
                       on
                         ? 'vetro orlo font-bold text-testo shadow-sm'
                         : 'font-medium text-soffuso hover:bg-pannello/8 hover:text-testo'
@@ -135,7 +136,7 @@ function Colonna({ sezione, onSezione }) {
                   >
                     {/* L'icona a colori resta accesa anche da spenta: è
                         l'ancora che fa trovare la voce senza leggerla. */}
-                    <IconaSezione id={v.id} dim={26} className={on ? '' : 'opacity-80 group-hover:opacity-100'} />
+                    <IconaSezione id={v.id} dim={34} className={on ? '' : 'opacity-85 group-hover:opacity-100'} />
                     <span className="min-w-0 flex-1 truncate">{v.label}</span>
                     {on && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blu shadow-blu" />}
                   </button>
@@ -177,7 +178,7 @@ function BarraMobile({ sezione, onSezione }) {
                     v.id === sezione ? 'vetro-alto text-testo' : 'vetro text-soffuso'
                   )}
                 >
-                  <IconaSezione id={v.id} dim={26} />
+                  <IconaSezione id={v.id} dim={30} />
                   <span className="min-w-0 truncate">{v.label}</span>
                 </button>
               ))}
@@ -195,7 +196,7 @@ function BarraMobile({ sezione, onSezione }) {
               onClick={() => onSezione(v.id)}
               className="relative flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2"
             >
-              <IconaSezione id={v.id} dim={26} className={on ? '' : 'opacity-55'} />
+              <IconaSezione id={v.id} dim={30} className={on ? '' : 'opacity-55'} />
               <span className={cx('w-full truncate text-center text-[9px] font-bold uppercase tracking-[0.06em]',
                 on ? 'text-testo' : 'text-tenue')}>
                 {v.label}
@@ -209,7 +210,7 @@ function BarraMobile({ sezione, onSezione }) {
             onClick={() => setAltro(a => !a)}
             className="relative flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2"
           >
-            <span className={cx('grid h-[26px] w-[26px] place-items-center rounded-sm orlo',
+            <span className={cx('grid h-[30px] w-[30px] place-items-center rounded-sm orlo',
               altro ? 'vetro-alto' : 'vetro')}>
               <Chevron dim={14} className={cx('transition-transform', altro ? '-rotate-90' : 'rotate-90')} />
             </span>
@@ -225,7 +226,7 @@ function BarraMobile({ sezione, onSezione }) {
 }
 
 /* ------------------------------------------------------------------ guscio */
-export function Guscio({ sezione, onSezione, sectorId, onSettore, nastro, children }) {
+export function Guscio({ sezione, onSezione, sectorId, onSettore, nastro, strumenti, children }) {
   useEffect(() => {
     const el = document.getElementById('contenuto');
     if (el) el.scrollTop = 0;
@@ -234,10 +235,10 @@ export function Guscio({ sezione, onSezione, sectorId, onSettore, nastro, childr
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden">
       {nastro}
-      <Testata onSezione={onSezione} sectorId={sectorId} onSettore={onSettore} />
+      <Testata onSezione={onSezione} sectorId={sectorId} onSettore={onSettore} strumenti={strumenti} />
       <div className="flex min-h-0 flex-1">
         <Colonna sezione={sezione} onSezione={onSezione} />
-        <main id="contenuto" className="min-w-0 flex-1 overflow-y-auto px-4 pb-28 pt-5 sm:px-6 lg:pb-10 lg:pr-8">
+        <main id="contenuto" className="min-w-0 flex-1 overflow-y-auto px-4 pb-28 pt-6 sm:px-6 sm:pt-7 lg:pb-12 lg:pr-8">
           <div className="mx-auto w-full max-w-[1120px] animate-salita">{children}</div>
         </main>
       </div>

@@ -77,8 +77,16 @@ module.exports = {
       blu: '0 8px 26px -6px rgb(var(--blu) / 0.45)'
     },
     fontFamily: {
-      sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
-      mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace']
+      // Rubik. La scelta non e' "un carattere tondo": e' un carattere con gli
+      // angoli delle aste smussati, cioe' lo stesso gesto del border-radius dei
+      // pannelli e delle icone. Un geometrico dalla O circolare ma dai tagli
+      // netti (Poppins) avrebbe forme tonde e giunture dure, e stonerebbe
+      // proprio dove i due linguaggi si toccano. Rubik regge anche i numeri
+      // piccoli di una tabella, cosa che un tondo piu' morbido non fa.
+      sans: ['Rubik', 'system-ui', 'sans-serif'],
+      // Solo per le stringhe da trascrivere (codici invito). I numeri dei dati
+      // NON sono monospaziati: le cifre tabulari di Rubik gia' incolonnano.
+      mono: ['"DM Mono"', 'ui-monospace', 'monospace']
     },
     extend: {
       letterSpacing: { etichetta: '0.1em' },
