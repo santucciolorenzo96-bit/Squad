@@ -64,6 +64,63 @@ export const DOCUMENTI_CAMPIONE = DOCUMENTI;
 let campione = false;
 export function inCampione() { return campione; }
 
+
+/* La finanza d'esempio.
+ *
+ * Scelta per mostrare i casi che contano, non per far tornare bei numeri: un
+ * conto in rosso, una quota scaduta da un mese, una parzialmente incassata,
+ * uscite distribuite su piu' mesi e su piu' categorie. Con dati tutti a posto
+ * il quadro non direbbe niente di quello che sa dire.
+ */
+function meseFa(n) {
+  const d = new Date();
+  d.setMonth(d.getMonth() - n);
+  return d.toISOString().slice(0, 10);
+}
+
+export function FINANZA_CAMPIONE() {
+  const conti = [
+    { id: 'c1', name: 'Conto corrente', kind: 'banca' },
+    { id: 'c2', name: 'Cassa contanti', kind: 'cassa' }
+  ];
+  const saldi = { c1: 7420, c2: -180 };
+
+  const cat = (n) => ({ name: n });
+  const stato = (previsto, pagato, scadenza) => {
+    const residuo = previsto - pagato;
+    let st;
+    if (pagato === 0) st = (scadenza && scadenza < fra(0)) ? 'scaduto' : 'previsto';
+    else if (pagato >= previsto) st = 'pagato';
+    else st = 'parzialmente_pagato';
+    return { paid_amount: pagato, residual_amount: residuo, status: st, planned_amount: previsto };
+  };
+
+  const entrate = [
+    { id: 'e1', kind: 'income', description: 'Quote associative U15', planned_amount: 5600, accrual_date: meseFa(3), due_date: fra(-32), finance_categories: cat('Quote associative'), _status: { paid_amount: 4100, residual_amount: 1500, status: 'parzialmente_incassato' } },
+    { id: 'e2', kind: 'income', description: 'Sponsor Bar Centrale', planned_amount: 1500, accrual_date: meseFa(2), due_date: fra(12), finance_categories: cat('Sponsorizzazioni'), _status: { paid_amount: 0, residual_amount: 1500, status: 'previsto' } },
+    { id: 'e3', kind: 'income', description: 'Torneo di Natale', planned_amount: 800, accrual_date: meseFa(1), finance_categories: cat('Eventi'), _status: { paid_amount: 800, residual_amount: 0, status: 'incassato' } },
+    { id: 'e4', kind: 'income', description: 'Quote Prima squadra', planned_amount: 3200, accrual_date: meseFa(5), finance_categories: cat('Quote associative'), _status: { paid_amount: 3200, residual_amount: 0, status: 'incassato' } }
+  ];
+
+  const uscite = [
+    { id: 'u1', kind: 'expense', description: 'Affitto palestra', planned_amount: 3600, accrual_date: meseFa(4), finance_categories: cat('Impianti'), _status: { paid_amount: 3600, residual_amount: 0, status: 'pagato' } },
+    { id: 'u2', kind: 'expense', description: 'Affitto palestra', planned_amount: 900, accrual_date: meseFa(0), due_date: fra(-6), finance_categories: cat('Impianti'), _status: { paid_amount: 0, residual_amount: 900, status: 'scaduto' } },
+    { id: 'u3', kind: 'expense', description: 'Arbitraggi girone di andata', planned_amount: 740, accrual_date: meseFa(2), due_date: fra(4), finance_categories: cat('Arbitraggi'), _status: { paid_amount: 300, residual_amount: 440, status: 'parzialmente_pagato' } },
+    { id: 'u4', kind: 'expense', description: 'Iscrizione campionato', planned_amount: 1250, accrual_date: meseFa(6), finance_categories: cat('Tesseramenti'), _status: { paid_amount: 1250, residual_amount: 0, status: 'pagato' } },
+    { id: 'u5', kind: 'expense', description: 'Divise da gioco', planned_amount: 1680, accrual_date: meseFa(5), finance_categories: cat('Materiale'), _status: { paid_amount: 1680, residual_amount: 0, status: 'pagato' } },
+    { id: 'u6', kind: 'expense', description: 'Assicurazione', planned_amount: 420, accrual_date: meseFa(1), due_date: fra(40), finance_categories: cat('Tesseramenti'), _status: { paid_amount: 0, residual_amount: 420, status: 'previsto' } }
+  ];
+
+  const scadenze = [...entrate, ...uscite].filter(e =>
+    e.due_date && !['incassato', 'pagato', 'annullato'].includes(e._status.status));
+
+  const esercizi = [
+    { id: 'f1', name: '2026/27', start_date: fra(-70), end_date: fra(295), closed: false }
+  ];
+
+  return { conti, saldi, entrate, uscite, scadenze, esercizi };
+}
+
 export function caricaCampione(state) {
   campione = true;
   state.teamProfile = {

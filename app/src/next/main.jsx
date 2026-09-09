@@ -21,6 +21,7 @@ import { Documenti } from './Documenti.jsx';
 import { Utenti } from './Utenti.jsx';
 import { Squadra } from './Squadra.jsx';
 import { Profilo } from './Profilo.jsx';
+import { Finanza } from './Finanza.jsx';
 import { Etichetta, Vuoto, Scheletro, Titolo } from './ui.jsx';
 import { ProvvederAvvisi } from './moduli.jsx';
 import { caricaCampione } from './campione.js';
@@ -197,7 +198,8 @@ function App() {
     documenti: () => <Documenti />,
     utenti: () => <Utenti />,
     squadra: () => <Squadra />,
-    profilo: () => <Profilo tema={tema} onTema={setTema} />
+    profilo: () => <Profilo tema={tema} onTema={setTema} />,
+    finanza: () => <Finanza />
   };
 
   // Situazione e le sezioni di societa' non dipendono dalla categoria aperta:
