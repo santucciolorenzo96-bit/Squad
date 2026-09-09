@@ -10,6 +10,7 @@ import { SPORT_LIST } from '../utils/sports/index.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, cx } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Data, Spunta, ErroreCaricamento, useAvviso } from './moduli.jsx';
+import { ChiusuraStagione } from './ChiusuraStagione.jsx';
 
 /* Squadra.
  *
@@ -362,6 +363,7 @@ function Stagioni({ avvisa }) {
   const [dati, setDati] = useState(null);
   const [errore, setErrore] = useState(null);
   const [nuova, setNuova] = useState(false);
+  const [chiusura, setChiusura] = useState(null);
   const [daRimuovere, setDaRimuovere] = useState(null);
 
   function carica() {
@@ -403,6 +405,15 @@ function Stagioni({ avvisa }) {
                 </div>
               </div>
               {s.closed_at ? <Stato>Chiusa</Stato> : <Stato tono="buono">In corso</Stato>}
+              {!s.closed_at && (
+                <Pulsante
+                  variante="primario"
+                  className="shrink-0 py-1.5 text-[11.5px]"
+                  onClick={() => setChiusura(s)}
+                >
+                  Chiudi
+                </Pulsante>
+              )}
               {s.closed_at && (
                 <Pulsante
                   className="shrink-0 py-1.5 text-[11.5px]"
@@ -426,12 +437,20 @@ function Stagioni({ avvisa }) {
         </Pannello>
       )}
       <p className="mt-2.5 text-[11.5px] leading-relaxed text-tenue">
-        La chiusura di una stagione con il passaggio dei giocatori alla successiva è ancora
-        sull’app attuale: è la parte più delicata e la porto per ultima.
+        Chiudere una stagione apre quella successiva e chiede, per ogni giocatore, in quale
+        categoria prosegue. Chi resta fuori non viene cancellato: esce solo dalle rose.
       </p>
 
       {nuova && (
         <ModuloStagione onChiudi={() => setNuova(false)} onFatto={() => { carica(); avvisa('Stagione creata'); }} />
+      )}
+
+      {chiusura && (
+        <ChiusuraStagione
+          stagione={chiusura}
+          onChiudi={() => setChiusura(null)}
+          onFatta={() => { setChiusura(null); carica(); }}
+        />
       )}
 
       {daRimuovere && (

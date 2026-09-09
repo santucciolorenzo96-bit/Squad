@@ -7,6 +7,8 @@ import { EXPORTS } from '../ui/dataExport.js';
 import { inCampione, DOCUMENTI_CAMPIONE } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, Avatar, cx } from './ui.jsx';
 import { useAvviso } from './moduli.jsx';
+import { Cancellazione } from './Cancellazione.jsx';
+import { SchedaAtleta } from './SchedaAtleta.jsx';
 import { IconaSezione, Chevron } from './icone.jsx';
 
 /* Documenti.
@@ -27,6 +29,8 @@ const TONO = {
 const oggiISO = () => new Date().toISOString().slice(0, 10);
 
 export function Documenti() {
+  const [cancella, setCancella] = useState(false);
+  const [scheda, setScheda] = useState(null);
   const [documenti, setDocumenti] = useState(null);
   const [tipo, setTipo] = useState(DOC_TYPES[0] ? DOC_TYPES[0].key : null);
   const avvisa = useAvviso();
@@ -101,7 +105,9 @@ export function Documenti() {
               {righe.map((r, i) => (
                 <div
                   key={r.p.id}
-                  className={cx('flex items-center gap-3.5 px-4 py-3 sm:px-5', i > 0 && 'border-t border-bordo/6')}
+                  onClick={() => setScheda(r.p.id)}
+                  className={cx('flex cursor-pointer items-center gap-3.5 px-4 py-3 transition-colors hover:bg-pannello/8 sm:px-5',
+                    i > 0 && 'border-t border-bordo/6')}
                 >
                   <span className="w-7 shrink-0 text-right text-[13px] text-tenue">{r.p.number}</span>
                   <Avatar nome={r.p.name} dim={32} />
@@ -118,7 +124,8 @@ export function Documenti() {
                   {r.doc && r.doc.file_path && (
                     <Pulsante
                       className="shrink-0 py-1.5 text-[11.5px]"
-                      onClick={async () => {
+                      onClick={async (ev) => {
+                        ev.stopPropagation();
                         try {
                           const url = await getDocumentSignedUrl(r.doc.file_path);
                           window.open(url, '_blank', 'noopener');
@@ -134,8 +141,9 @@ export function Documenti() {
               ))}
             </Pannello>
             <p className="mt-2.5 text-[11.5px] leading-relaxed text-tenue">
-              Il caricamento e l’approvazione dei documenti, con i moduli precompilati da firmare,
-              sono ancora sull’app attuale.
+              Tocca una riga per aprire la scheda dell’atleta: da lì si carica un documento e,
+              se ne hai il permesso, lo si approva o si respinge. I moduli precompilati da far
+              firmare sono ancora sull’app attuale.
             </p>
           </>
         )}
@@ -180,14 +188,22 @@ export function Documenti() {
 
       {isAdmin(state.currentUser) && (
         <Pannello className="pad-pannello-stretto">
-          <Etichetta>Cancellazione dei dati di un atleta</Etichetta>
+          <Etichetta>Dati personali di un atleta</Etichetta>
           <p className="mt-2 text-[12.5px] leading-relaxed text-tenue">
-            La cancellazione definitiva su richiesta della famiglia, e l’estrazione dei suoi dati
-            personali, sono ancora sull’app attuale: sono irreversibili e le porto con la loro
-            schermata, non a metà.
+            Da qui si risponde a una richiesta di accesso ai dati, scaricando tutto ciò che
+            l’app conserva su una persona, oppure a una richiesta di cancellazione.
           </p>
+          <div className="mt-3 flex justify-end">
+            <Pulsante className="py-1.5 text-[11.5px]" onClick={() => setCancella(true)}>
+              Apri
+            </Pulsante>
+          </div>
         </Pannello>
       )}
+
+      {scheda && <SchedaAtleta playerId={scheda} onChiudi={() => setScheda(null)} />}
+
+      {cancella && <Cancellazione onChiudi={() => setCancella(false)} />}
     </div>
   );
 }

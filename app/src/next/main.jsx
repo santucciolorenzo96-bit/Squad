@@ -97,17 +97,14 @@ function Nastro({ onAccesso }) {
   );
 }
 
-/* ------------------------------------------------------------------ da fare */
-// Le schermate non ancora portate lo dicono, invece di fingere di esistere.
+/* ------------------------------------------------------------------- ignota */
+// Rete di sicurezza: una voce di menu senza schermata. Non dovrebbe capitare,
+// e se capita e' meglio dirlo che mostrare una pagina bianca.
 function NonAncora({ nome }) {
   return (
     <div className="space-y-5">
       <Titolo sopra="Sezione"><span className="capitalize">{nome}</span></Titolo>
-      <Vuoto>
-        Questa schermata non è ancora stata rifatta. In questa passata ci sono il guscio,
-        la Home e l&rsquo;Anagrafica: bastano a giudicare la direzione senza riscrivere
-        tutte e trentadue.
-      </Vuoto>
+      <Vuoto>Questa sezione non ha una schermata. È un difetto: segnalalo.</Vuoto>
     </div>
   );
 }
