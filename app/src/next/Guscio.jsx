@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { state } from '../state.js';
 import { TABS, canSeeTab, isAdmin, isLinkedUser } from '../utils/permissions.js';
 import { orderedSectors, sectorFullName } from '../utils/sectors.js';
 import { cx, Avatar, Pannello } from './ui.jsx';
 import { IconaSezione, Chevron } from './icone.jsx';
+import { Finestra } from './moduli.jsx';
 
 /* Il guscio.
  *
@@ -29,37 +30,188 @@ function settoriAccessibili() {
 }
 
 /* ------------------------------------------------------- selettore categoria */
-// Pastiglie. La sottocategoria è più piccola e rientra: un elenco piatto in cui
-// "Blu" e "Under 15" pesano uguale non dice che una sta dentro l'altra.
+/* Due selettori diversi, non lo stesso rimpicciolito.
+ *
+ * Su schermo largo: un controllo segmentato con UN indicatore che scivola da
+ * una voce all'altra. Prima ogni pastiglia aveva la sua ombra blu, e l'ombra
+ * veniva tagliata di netto dal contenitore che scorre — quello che si vedeva
+ * intorno alla scelta erano i bordi dritti del taglio. Qui l'unica cosa che si
+ * muove è l'indicatore, e il movimento dice da dove a dove si è passati.
+ *
+ * Su telefono l'elenco non sta in alto: c'è il nome della categoria aperta, e
+ * il tocco apre un foglio con tutte. Una fila che scorre nasconde metà delle
+ * voci proprio a chi ha meno schermo, e le nasconde senza dirlo.
+ */
+
+function nomeSettore(s) {
+  return sectorFullName(s, state.sectors);
+}
+
+function menoMovimento() {
+  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  catch (e) { return false; }
+}
+
+// La spunta della voce scelta: nel foglio non c'è spazio per un indicatore che
+// scivola, e un segno di scelta è quello che ci si aspetta di trovare.
+function Spunta() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-[18px] w-[18px] shrink-0 text-blu" fill="none" aria-hidden="true">
+      <path d="m4.4 10.4 3.7 3.7 7.5-8.2" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function Pastiglie({ settori, attiva, onCambia }) {
+  const scorrevole = useRef(null);
+  const pista = useRef(null);
+  const voci = useRef({});
+  const [indicatore, setIndicatore] = useState(null);
+  const [animato, setAnimato] = useState(false);
+
+  useEffect(() => {
+    function misura() {
+      const n = voci.current[attiva];
+      setIndicatore(n && n.offsetWidth ? { x: n.offsetLeft, w: n.offsetWidth } : null);
+    }
+    misura();
+    // Il carattere può arrivare dopo il primo disegno: le larghezze cambiano
+    // sotto l'indicatore senza che nessuno abbia toccato niente.
+    const osservatore = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(misura) : null;
+    if (osservatore && pista.current) osservatore.observe(pista.current);
+    window.addEventListener('resize', misura);
+    return () => {
+      if (osservatore) osservatore.disconnect();
+      window.removeEventListener('resize', misura);
+    };
+  }, [attiva, settori.length]);
+
+  // La prima misura non si anima: all'apertura l'indicatore arriverebbe
+  // scivolando da sinistra, come se qualcuno avesse appena scelto.
+  useEffect(() => {
+    if (!indicatore || animato) return;
+    const f = requestAnimationFrame(() => setAnimato(true));
+    return () => cancelAnimationFrame(f);
+  }, [indicatore, animato]);
+
+  // Con molte categorie quella scelta può restare fuori dallo schermo, e
+  // l'indicatore scivolerebbe dove non si vede.
+  useEffect(() => {
+    const n = voci.current[attiva];
+    const box = scorrevole.current;
+    if (!n || !box || box.scrollWidth <= box.clientWidth) return;
+    const meta = (box.clientWidth - n.offsetWidth) / 2;
+    const dolce = animato && !menoMovimento();
+    box.scrollTo({ left: Math.max(0, n.offsetLeft - meta), behavior: dolce ? 'smooth' : 'auto' });
+  }, [attiva, animato]);
+
+  return (
+    <div
+      ref={scorrevole}
+      className="hidden overflow-x-auto [scrollbar-width:none] sm:block [&::-webkit-scrollbar]:hidden"
+    >
+      <div ref={pista} className="relative flex w-max items-center gap-0.5 rounded-full vetro orlo p-1">
+        {indicatore && (
+          <span
+            aria-hidden="true"
+            className={cx(
+              'absolute inset-y-1 left-0 rounded-full bg-gradient-to-br from-blu to-blu2',
+              animato && 'transition-[transform,width] duration-[320ms] ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none'
+            )}
+            style={{ transform: 'translateX(' + indicatore.x + 'px)', width: indicatore.w + 'px' }}
+          />
+        )}
+        {settori.map(s => {
+          const on = s.id === attiva;
+          return (
+            <button
+              key={s.id}
+              ref={n => { voci.current[s.id] = n; }}
+              onClick={() => onCambia(s.id)}
+              title={nomeSettore(s)}
+              className={cx(
+                'relative z-[1] shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 transition-colors duration-200',
+                s.parent_id ? 'text-[11.5px]' : 'text-[12.5px]',
+                on ? 'font-bold text-white' : 'font-semibold text-soffuso hover:text-testo'
+              )}
+            >
+              {s.parent_id && <span className={cx('mr-1', on ? 'opacity-60' : 'opacity-40')}>·</span>}
+              {s.name}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SceltaTelefono({ settori, attiva, onCambia }) {
+  const [aperto, setAperto] = useState(false);
+  const corrente = settori.find(s => s.id === attiva);
+
+  return (
+    <>
+      <button
+        onClick={() => setAperto(true)}
+        className="flex w-full items-center gap-2 rounded-full vetro orlo px-4 py-2 text-left transition-colors hover:bg-pannello/12 sm:hidden"
+      >
+        <span className="etichetta shrink-0">Categoria</span>
+        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
+          {corrente ? nomeSettore(corrente) : 'Scegli'}
+        </span>
+        <Chevron dim={14} className="shrink-0 rotate-90 text-tenue" />
+      </button>
+
+      {aperto && (
+        <Finestra
+          titolo="Categoria"
+          sotto="Vale per rosa, allenamenti, partite e statistiche."
+          onChiudi={() => setAperto(false)}
+        >
+          <div className="-my-2">
+            {settori.map((s, i) => {
+              const on = s.id === attiva;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => { if (!on) onCambia(s.id); setAperto(false); }}
+                  className={cx(
+                    'flex w-full items-center gap-3 py-3.5 text-left transition-colors',
+                    i > 0 && 'border-t border-bordo/8'
+                  )}
+                >
+                  <span
+                    className={cx(
+                      'min-w-0 flex-1 truncate',
+                      s.parent_id ? 'pl-4 text-[13.5px] text-soffuso' : 'text-[15px] font-semibold',
+                      on && 'text-blu'
+                    )}
+                  >
+                    {s.parent_id && <span className="mr-2 opacity-40">·</span>}
+                    {s.name}
+                  </span>
+                  {on && <Spunta />}
+                </button>
+              );
+            })}
+          </div>
+        </Finestra>
+      )}
+    </>
+  );
+}
+
 function Categorie({ attiva, onCambia }) {
   const settori = settoriAccessibili();
   if (settori.length === 0) return null;
   if (settori.length === 1) {
-    return <div className="etichetta">{sectorFullName(settori[0], state.sectors)}</div>;
+    return <div className="etichetta">{nomeSettore(settori[0])}</div>;
   }
   return (
-    <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-      {settori.map(s => {
-        const on = s.id === attiva;
-        return (
-          <button
-            key={s.id}
-            onClick={() => onCambia(s.id)}
-            title={sectorFullName(s, state.sectors)}
-            className={cx(
-              'shrink-0 whitespace-nowrap rounded-full transition-all duration-150',
-              s.parent_id ? 'px-3 py-1 text-[11.5px]' : 'px-3.5 py-1.5 text-[12.5px]',
-              on
-                ? 'bg-gradient-to-br from-blu to-blu2 font-bold text-white shadow-blu'
-                : 'vetro orlo font-semibold text-soffuso hover:text-testo'
-            )}
-          >
-            {s.parent_id && <span className="mr-1 opacity-50">·</span>}
-            {s.name}
-          </button>
-        );
-      })}
-    </div>
+    <>
+      <Pastiglie settori={settori} attiva={attiva} onCambia={onCambia} />
+      <SceltaTelefono settori={settori} attiva={attiva} onCambia={onCambia} />
+    </>
   );
 }
 
