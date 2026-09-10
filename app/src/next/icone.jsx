@@ -251,6 +251,13 @@ export const SEZIONI = {
   profilo: { tono: 'viola', glifo: G.profilo }
 };
 
+// Il colore di una sezione come NOME della variabile di tema, non come esadecimale:
+// serve a chi deve tingere qualcosa di quel colore fuori dall'icona — l'alone
+// della barra, per esempio — restando dentro la stessa tavolozza.
+export function coloreSezione(id) {
+  return (SEZIONI[id] || SEZIONI.home).tono;
+}
+
 export function IconaSezione({ id, dim = 26, className }) {
   const s = SEZIONI[id] || SEZIONI.home;
   return <Icona tono={s.tono} glifo={s.glifo} dim={dim} className={className} />;

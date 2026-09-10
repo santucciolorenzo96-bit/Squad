@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { state } from '../state.js';
 import { TABS, canSeeTab, isAdmin, isLinkedUser } from '../utils/permissions.js';
 import { orderedSectors, sectorFullName } from '../utils/sectors.js';
 import { cx, Avatar, Pannello } from './ui.jsx';
-import { IconaSezione, Chevron } from './icone.jsx';
+import { IconaSezione, Chevron, coloreSezione } from './icone.jsx';
 import { Finestra } from './moduli.jsx';
 
 /* Il guscio.
@@ -302,81 +302,148 @@ function Colonna({ sezione, onSezione }) {
 }
 
 /* ------------------------------------------------------------- barra mobile */
+/* ----------------------------------------------- la barra sul telefono */
+/* Un carosello, non cinque caselle piu' un cassetto.
+ *
+ * La regola e' una sola: la voce piu' vicina al centro E' la sezione aperta.
+ * Non esiste una voce speciale — Home lo sembrava solo perche' stava al
+ * centro per prima, e ora ci sta chiunque arrivi al centro.
+ *
+ * Lo scorrimento e' quello nativo del browser, con lo scatto (`scroll-snap`)
+ * e la sua inerzia: un carosello scritto a mano con i pointer event si
+ * riconosce sempre, perche' la fisica non e' mai quella del sistema. Quello
+ * che aggiungo io e' solo la misura della distanza dal centro, che diventa la
+ * variabile --v su ogni voce.
+ *
+ * Il cassetto «Altro» sparisce: nascondeva meta' dell'applicazione dietro una
+ * parola che non dice niente, e le sezioni nascoste erano proprio quelle che
+ * si usano meno spesso — cioe' quelle che si fatica di piu' a ritrovare.
+ */
+
+// Larghezza di una voce: serve identica al CSS e al calcolo della distanza,
+// quindi sta scritta una volta sola.
+const PASSO = 84;
+
 function BarraMobile({ sezione, onSezione }) {
-  const [altro, setAltro] = useState(false);
-  const voci = sezioniVisibili(state.currentUser);
-  const principali = voci.filter(v => v.primary).slice(0, 4);
-  const resto = voci.filter(v => !principali.includes(v));
+  const pista = useRef(null);
+  const voci = useRef({});
+  const ultimo = useRef(sezione);
+  const attesa = useRef(null);
+
+  const sezioni = sezioniVisibili(state.currentUser);
+
+  // La distanza dal centro, tradotta in --v su ogni voce. Si scrive
+  // direttamente nel DOM: passare da uno stato React vorrebbe dire ridisegnare
+  // sedici voci a ogni fotogramma di scorrimento.
+  const misura = useCallback(() => {
+    const box = pista.current;
+    if (!box) return;
+    const centro = box.scrollLeft + box.clientWidth / 2;
+    sezioni.forEach(x => {
+      const el = voci.current[x.id];
+      if (!el) return;
+      const suo = el.offsetLeft + el.offsetWidth / 2;
+      const d = Math.min(Math.abs(suo - centro) / PASSO, 1);
+      const lineare = 1 - d;
+      // Ammorbidita: la crescita parte piano, accelera a meta' strada e si
+      // posa al centro. Lineare si sente come meccanica.
+      el.style.setProperty('--v', (lineare * lineare * (3 - 2 * lineare)).toFixed(3));
+    });
+  }, [sezioni.length]);
+
+  function porta(id, morbido) {
+    const box = pista.current;
+    const el = voci.current[id];
+    if (!box || !el) return;
+    const meta = el.offsetLeft + el.offsetWidth / 2 - box.clientWidth / 2;
+    const fermo = typeof window !== 'undefined'
+      && window.matchMedia
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    box.scrollTo({ left: Math.round(meta), behavior: morbido && !fermo ? 'smooth' : 'auto' });
+  }
+
+  // All'apertura, e ogni volta che la sezione cambia da fuori (un pannello
+  // della Home, per dire), la voce aperta si porta al centro.
+  useEffect(() => {
+    porta(sezione, ultimo.current !== sezione);
+    ultimo.current = sezione;
+    const t = setTimeout(misura, 60);   // dopo che il carattere ha misurato
+    return () => clearTimeout(t);
+  }, [sezione]);
+
+  useEffect(() => {
+    misura();
+    window.addEventListener('resize', misura);
+    return () => window.removeEventListener('resize', misura);
+  }, [misura]);
+
+  // Fine dello scorrimento: si guarda chi e' rimasto al centro e si apre
+  // quella sezione. `scrollend` non c'e' ovunque, quindi il ritardo fa da
+  // rete — 140ms e' sotto la soglia in cui si percepisce un'attesa.
+  function fineScorrimento() {
+    const box = pista.current;
+    if (!box) return;
+    const centro = box.scrollLeft + box.clientWidth / 2;
+    let vicina = null, minima = Infinity;
+    sezioni.forEach(x => {
+      const el = voci.current[x.id];
+      if (!el) return;
+      const d = Math.abs(el.offsetLeft + el.offsetWidth / 2 - centro);
+      if (d < minima) { minima = d; vicina = x.id; }
+    });
+    if (vicina && vicina !== sezione) { ultimo.current = vicina; onSezione(vicina); }
+  }
+
+  function scorre() {
+    misura();
+    clearTimeout(attesa.current);
+    attesa.current = setTimeout(fineScorrimento, 140);
+  }
 
   return (
-    <>
-      {altro && (
-        <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setAltro(false)}>
-          <div className="absolute inset-0 bg-fondo/70 backdrop-blur-sm" />
-          <div
-            className="absolute inset-x-0 bottom-0 max-h-[74vh] overflow-y-auto rounded-t-2xl vetro-alto border-t border-bordo/12 px-3 pb-28 pt-4 animate-salita"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-pannello/25" />
-            <div className="etichetta px-1 pb-2.5">Tutte le sezioni</div>
-            <div className="grid grid-cols-2 gap-2">
-              {resto.map(v => (
-                <button
-                  key={v.id}
-                  onClick={() => { setAltro(false); onSezione(v.id); }}
-                  className={cx(
-                    'flex items-center gap-2.5 rounded px-3 py-3 text-left text-[13px] font-semibold orlo',
-                    v.id === sezione ? 'vetro-alto text-testo' : 'vetro text-soffuso'
-                  )}
-                >
-                  <IconaSezione id={v.id} dim={30} />
-                  <span className="min-w-0 truncate">{v.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <nav className="fixed inset-x-0 bottom-0 z-50 flex vetro-alto border-t border-bordo/12 pb-[env(safe-area-inset-bottom)] lg:hidden">
-        {principali.map(v => {
-          const on = v.id === sezione;
+    <nav
+      className="fixed inset-x-0 bottom-0 z-50 vetro-alto border-t border-bordo/12 pb-[env(safe-area-inset-bottom)] lg:hidden"
+      aria-label="Sezioni"
+    >
+      <div
+        ref={pista}
+        onScroll={scorre}
+        className="barra-pista flex overflow-x-auto pb-1.5 pt-2"
+        style={{ paddingLeft: 'calc(50% - ' + (PASSO / 2) + 'px)', paddingRight: 'calc(50% - ' + (PASSO / 2) + 'px)' }}
+      >
+        {sezioni.map(v => {
+          const aperta = v.id === sezione;
           return (
             <button
               key={v.id}
-              onClick={() => onSezione(v.id)}
-              className="relative flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2"
+              ref={n => { voci.current[v.id] = n; }}
+              onClick={() => { porta(v.id, true); if (!aperta) onSezione(v.id); }}
+              onFocus={() => porta(v.id, true)}
+              aria-current={aperta ? 'page' : undefined}
+              style={{ width: PASSO + 'px', '--tinta': 'var(--' + coloreSezione(v.id) + ')' }}
+              className="barra-voce relative flex shrink-0 flex-col items-center gap-1 px-1 pb-1 pt-2"
             >
-              <IconaSezione id={v.id} dim={30} className={on ? '' : 'opacity-55'} />
-              <span className={cx('w-full truncate text-center text-[9px] font-bold uppercase tracking-[0.06em]',
-                on ? 'text-testo' : 'text-tenue')}>
+              <span className="barra-filo absolute inset-x-6 top-0 h-0.5 rounded-full bg-testo" />
+
+              <span className="relative grid place-items-center">
+                <span
+                  aria-hidden="true"
+                  className="barra-alone pointer-events-none absolute h-14 w-14 rounded-full"
+                />
+                <IconaSezione id={v.id} dim={32} className="barra-figura relative" />
+              </span>
+
+              <span className="barra-etichetta w-full truncate text-center text-[9px] font-bold uppercase tracking-[0.06em]">
                 {v.label}
               </span>
-              {on && <span className="absolute inset-x-5 top-0 h-0.5 rounded-full bg-blu" />}
             </button>
           );
         })}
-        {resto.length > 0 && (
-          <button
-            onClick={() => setAltro(a => !a)}
-            className="relative flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2"
-          >
-            <span className={cx('grid h-[30px] w-[30px] place-items-center rounded-sm orlo',
-              altro ? 'vetro-alto' : 'vetro')}>
-              <Chevron dim={14} className={cx('transition-transform', altro ? '-rotate-90' : 'rotate-90')} />
-            </span>
-            <span className={cx('text-[9px] font-bold uppercase tracking-[0.06em]',
-              altro ? 'text-testo' : 'text-tenue')}>
-              Altro
-            </span>
-          </button>
-        )}
-      </nav>
-    </>
+      </div>
+    </nav>
   );
 }
 
-/* ------------------------------------------------------------------ guscio */
 export function Guscio({ sezione, onSezione, sectorId, onSettore, nastro, strumenti, children }) {
   useEffect(() => {
     const el = document.getElementById('contenuto');

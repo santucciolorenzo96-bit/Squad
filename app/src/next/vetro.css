@@ -324,7 +324,67 @@
      ballano sono un difetto, non uno stile. */
   .cifra { font-variant-numeric: tabular-nums; }
 
+  /* ==================== La barra di navigazione, sul telefono ====================
+     Una sola idea, dichiarata in una variabile: --v vale 1 quando la voce e'
+     esattamente al centro della barra e 0 quando e' lontana un posto o piu'.
+     Tutto il resto — scala, sollevamento, alone, luminosita' della scritta —
+     e' scritto in funzione di quella.
+
+     Il valore lo aggiorna lo scorrimento, fotogramma per fotogramma: NON c'e'
+     nessuna transizione qui dentro, perche' l'animazione e' il dito. Una
+     transizione, sotto il dito, si sentirebbe come ritardo.
+
+     Cosi' nessuna sezione e' privilegiata nel foglio di stile: privilegiato e'
+     il centro, e chi ci arriva prende il trattamento. */
+
+  .barra-pista {
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .barra-pista::-webkit-scrollbar { display: none; }
+
+  .barra-voce {
+    --v: 0;
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
+  }
+
+  /* L'intero elemento cresce: icona E lastra colorata dietro, che sta gia'
+     dentro all'SVG. E' quello che tiene insieme il movimento con il disegno
+     che c'era prima, invece di sembrare una giostra appoggiata sopra. */
+  .barra-figura {
+    transform: translateY(calc(var(--v) * -0.42rem)) scale(calc(0.84 + 0.28 * var(--v)));
+    transform-origin: center bottom;
+  }
+
+  /* L'alone: una luce del colore della sezione, che esiste solo al centro.
+     Discreta di proposito — deve dire "sei qui", non accendere la stanza. */
+  .barra-alone {
+    opacity: var(--v);
+    background: radial-gradient(closest-side, rgb(var(--tinta) / 0.42), transparent 78%);
+  }
+
+  .barra-etichetta {
+    opacity: calc(0.42 + 0.58 * var(--v));
+    transform: scale(calc(0.94 + 0.06 * var(--v)));
+  }
+
+  /* Il filo sopra la voce centrale: lo stato attivo non si affida al solo
+     colore, e chi non distingue le tinte vede comunque quale sezione e'
+     aperta — dalla misura, dall'altezza e da questo. */
+  .barra-filo {
+    opacity: calc(var(--v) * var(--v));
+    transform: scaleX(calc(0.3 + 0.7 * var(--v)));
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-salita { animation: none !important; }
+    /* Lo scorrimento resta, ed e' giusto: e' il dito. Ma la crescita si
+       smorza, perche' e' quella a dare il senso di movimento. */
+    .barra-figura {
+      transform: translateY(0) scale(calc(0.92 + 0.08 * var(--v)));
+    }
   }
 }
