@@ -23,21 +23,22 @@ import { Squadra } from './Squadra.jsx';
 import { Profilo } from './Profilo.jsx';
 import { Finanza } from './Finanza.jsx';
 import { Partita } from './Partita.jsx';
-import { Accesso } from './Accesso.jsx';
+import { Accesso, CompletaIscrizione } from './Accesso.jsx';
+import { supabase } from '../supabaseClient.js';
+import { getPendingAction, runPendingAction, clearPendingAction } from '../auth.js';
 import { Etichetta, Vuoto, Scheletro, Titolo } from './ui.jsx';
 import { ProvvederAvvisi } from './moduli.jsx';
 import { caricaCampione } from './campione.js';
 
-/* Anteprima della nuova interfaccia.
+/* SQUAD.
  *
- * Vive su una pagina sua e legge i DATI VERI della società attraverso le stesse
- * API e lo stesso `state` dell'app in produzione. Non è un mockup con dati
- * finti: un ridisegno giudicato su nomi inventati e numeri tondi mente, perché
- * i problemi veri li fanno i nomi lunghi, le rose da ventidue e le colonne che
- * restano vuote.
+ * Questa è l'app: la radice di index.html. Legge i dati della società
+ * attraverso le stesse API e lo stesso `state` di prima — il ridisegno ha
+ * rifatto la presentazione, non il funzionamento, e nessun dato è stato
+ * spostato.
  *
- * L'app attuale non viene toccata in nessun modo: resta su index.html e
- * continua a funzionare mentre questa esiste.
+ * La versione precedente resta su classica.html finché serve una via di
+ * ritorno: stesso database, stessa sessione, interfaccia vecchia.
  */
 
 const TEMA_KEY = 'bbapp_tema';
@@ -91,7 +92,7 @@ function Nastro({ onAccesso }) {
       <span className="text-[11.5px] opacity-90">
         Nessuna sessione aperta: questi non sono i tuoi dati.{' '}
         <button onClick={onAccesso} className="underline">Torna alle schermate d&rsquo;accesso</button>{' '}
-        oppure <a href="/" className="underline">entra dall&rsquo;app</a> e ricarica.
+        per entrare con il tuo account.
       </span>
     </div>
   );
@@ -111,8 +112,9 @@ function NonAncora({ nome }) {
 
 /* -------------------------------------------------------------------- radice */
 function App() {
-  const [fase, setFase] = useState('carico');   // carico | accesso | dentro
+  const [fase, setFase] = useState('carico');   // carico | accesso | completa | dentro
   const [campione, setCampione] = useState(false);
+  const [recupero, setRecupero] = useState(null);   // { email, errore }
   const [sezione, setSezione] = useState('home');
   const [sectorId, setSectorId] = useState(null);
   const [tema, setTema] = useState(temaIniziale);
@@ -123,12 +125,34 @@ function App() {
     let vivo = true;
     (async () => {
       try {
-        const profilo = await fetchMyProfile();
+        let profilo = await fetchMyProfile();
         if (!vivo) return;
-        // Senza profilo si mostrano le schermate d'accesso, che e' quello che
-        // succede nell'app vera. I dati d'esempio restano a un clic di
-        // distanza: l'anteprima serve anche a guardare l'app senza entrarci.
-        if (!profilo) { setFase('accesso'); return; }
+
+        if (!profilo) {
+          // Autenticato ma senza profilo: c'e' un'iscrizione a meta'. Prima si
+          // prova a portarla a termine da sola, e solo se non si puo' si
+          // chiede all'utente. Senza questo passaggio, chi conferma l'email
+          // resta fuori dalla propria societa' senza capire perche'.
+          const { data: auth } = await supabase.auth.getUser();
+          const sospesa = getPendingAction();
+          let erroreSospeso = null;
+          if (auth && auth.user && sospesa) {
+            try {
+              await runPendingAction(sospesa);
+              profilo = await fetchMyProfile();
+            } catch (e) {
+              erroreSospeso = (e && e.message) || null;
+              clearPendingAction();
+            }
+          }
+          if (!vivo) return;
+          if (!profilo && auth && auth.user) {
+            setRecupero({ email: auth.user.email, errore: erroreSospeso });
+            setFase('completa');
+            return;
+          }
+          if (!profilo) { setFase('accesso'); return; }
+        }
 
         state.currentUser = profilo;
         await loadTeamWideData();
@@ -152,9 +176,10 @@ function App() {
         setSectorId(scelto);
         setFase('dentro');
       } catch (e) {
-        // Senza sessione, offline, o con Supabase irraggiungibile l'anteprima
-        // si guarda lo stesso. Serve a giudicare un disegno: non potersi
-        // aprire e' l'unico modo in cui puo' fallire del tutto.
+        // Senza sessione, offline, o con Supabase irraggiungibile si finisce
+        // sulle schermate d'accesso: da lì si riprova o si guarda l'app con i
+        // dati di esempio. Una pagina bianca sarebbe l'unico esito davvero
+        // inutile.
         console.error(e);
         if (!vivo) return;
         setFase('accesso');
@@ -170,6 +195,18 @@ function App() {
     try { localStorage.setItem('bbapp_last_sector', id); } catch (e) { /* niente */ }
     await loadSectorData(id);
     setSectorId(id);
+  }
+
+  if (fase === 'completa') {
+    return (
+      <ProvvederAvvisi>
+        <CompletaIscrizione
+          email={recupero.email}
+          erroreIniziale={recupero.errore}
+          onFatto={() => window.location.reload()}
+        />
+      </ProvvederAvvisi>
+    );
   }
 
   if (fase === 'accesso') {
@@ -191,7 +228,7 @@ function App() {
   if (fase === 'carico') {
     return (
       <div className="mx-auto max-w-[900px] px-5 py-10">
-        <Etichetta>Squad · anteprima</Etichetta>
+        <Etichetta>Squad</Etichetta>
         <div className="mt-4"><Scheletro righe={4} /></div>
       </div>
     );

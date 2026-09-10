@@ -2,27 +2,24 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SQUAD</title>
 <link rel="icon" href="/brand/squad-favicon-3d.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="64x64" href="/brand/squad-favicon-3d-64.png">
 <link rel="apple-touch-icon" href="/brand/squad-favicon-3d-180.png">
-<meta name="theme-color" content="#0B0F14" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#F2F4F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B1020" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#EEF1F7" media="(prefers-color-scheme: light)">
 <script>
 (function(){
   try {
-    var m = localStorage.getItem('bbapp_theme') || 'system';
-    if (m !== 'system') document.documentElement.setAttribute('data-theme', m);
+    var m = localStorage.getItem('bbapp_tema');
+    if (m && m !== 'sistema') document.documentElement.setAttribute('data-tema', m);
   } catch (e) {}
 })();
 </script>
-<link rel="stylesheet" href="/src/styles/app.css">
 </head>
 <body>
-<div id="toast"></div>
-<div id="modalRoot"></div>
-<div id="root"></div>
-<script type="module" src="/src/main.js"></script>
+<div id="radice"></div>
+<script type="module" src="/src/next/main.jsx"></script>
 </body>
 </html>

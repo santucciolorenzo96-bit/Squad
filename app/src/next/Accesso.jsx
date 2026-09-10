@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { esc, passwordProblem, PASSWORD_MIN } from '../utils/format.js';
 import { SPORT_LIST } from '../utils/sports/index.js';
 import { ROLES, SELF_SIGNUP_ROLES } from '../utils/permissions.js';
-import { login as apiLogin, createTeamAndAdmin, joinTeamByCode, resendConfirmation, requestPasswordReset } from '../auth.js';
+import { login as apiLogin, createTeamAndAdmin, joinTeamByCode, resendConfirmation, requestPasswordReset, logout } from '../auth.js';
+import { supabase } from '../supabaseClient.js';
 import { fetchTeamByInviteCode } from '../api/teams.js';
 import { fetchInvitePreview } from '../api/invites.js';
 import { acceptPrivacy } from '../api/privacy.js';
@@ -713,6 +714,146 @@ function ConfermaEmail({ email, onAccedi }) {
         <Pulsante variante="primario" onClick={onAccedi} className="mt-2.5 w-full py-3.5 text-[15px]">
           Vai all’accesso
         </Pulsante>
+      </Pannello>
+    </Colonna>
+  );
+}
+
+/* =============================================================== completa */
+// Autenticato, ma senza societa'. Succede quando il link di conferma viene
+// aperto su un dispositivo diverso da quello della registrazione — l'azione in
+// sospeso vive nel localStorage di chi si e' iscritto — oppure quando la
+// creazione e' fallita a meta'.
+//
+// Senza questa schermata l'unica strada era registrarsi di nuovo, e con
+// l'email gia' esistente non parte nessuna mail: un vicolo cieco. Qui la
+// sessione c'e' gia', quindi bastano le RPC.
+export function CompletaIscrizione({ email, erroreIniziale, onFatto }) {
+  const [modo, setModo] = useState('entra');
+  const [nome, setNome] = useState('');
+  const [codice, setCodice] = useState('');
+  const [ruolo, setRuolo] = useState('genitore');
+  const [sport, setSport] = useState('basket');
+  const [societa, setSocieta] = useState('');
+  const [citta, setCitta] = useState('');
+  const [categoria, setCategoria] = useState('');
+  const [lavora, setLavora] = useState(false);
+  const [errore, setErrore] = useState(erroreIniziale || '');
+
+  async function completa() {
+    setErrore('');
+    if (!nome.trim()) { setErrore('Scrivi il tuo nome e cognome.'); return; }
+    setLavora(true);
+    try {
+      if (modo === 'entra') {
+        const c = codice.trim().toUpperCase();
+        if (!c) { setErrore('Inserisci il codice.'); setLavora(false); return; }
+        // Prima l'invito nominativo, poi il codice societa': stesso ordine
+        // della registrazione, per la stessa ragione.
+        const inv = await fetchInvitePreview(c).catch(() => null);
+        const { error } = inv
+          ? await supabase.rpc('join_team_with_invite', { p_code: c, p_display_name: nome.trim() })
+          : await supabase.rpc('join_team', {
+              p_invite_code: c, p_display_name: nome.trim(), p_role: ruolo
+            });
+        if (error) throw error;
+      } else {
+        if (!societa.trim()) { setErrore('Scrivi il nome della societa\u0300.'); setLavora(false); return; }
+        const { error } = await supabase.rpc('create_team', {
+          p_name: societa.trim(), p_city: citta.trim(), p_category: categoria.trim(),
+          p_display_name: nome.trim(), p_sport: sport
+        });
+        if (error) throw error;
+      }
+      try { await acceptPrivacy(); } catch (e) { console.error(e); }
+      onFatto();
+    } catch (e) {
+      setErrore((e && e.message) || 'Non e\u0300 stato possibile completare l\u2019iscrizione.');
+    } finally {
+      setLavora(false);
+    }
+  }
+
+  return (
+    <Colonna>
+      <Pannello alto className="pad-pannello">
+        <h1 className="text-[20px] font-bold leading-tight">Completa l&rsquo;iscrizione</h1>
+        <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
+          Il tuo account <b className="text-testo">{email}</b> esiste, ma non &egrave; ancora
+          collegato a nessuna societ&agrave;. Si finisce da qui: non serve registrarsi di nuovo.
+        </p>
+
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          {[['entra', 'Entro con un codice'], ['crea', 'Creo una societ\u00e0']].map(([k, t]) => (
+            <button
+              key={k}
+              onClick={() => setModo(k)}
+              className={cx(
+                'rounded-lg px-3 py-2.5 text-[12.5px] font-semibold transition-all orlo',
+                modo === k ? 'vetro-alto ring-1 ring-blu' : 'vetro text-tenue hover:text-testo'
+              )}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 space-y-4">
+          <Campo etichetta="Nome e cognome">
+            <Testo value={nome} onChange={e => setNome(e.target.value)} autoComplete="name" autoFocus />
+          </Campo>
+
+          {modo === 'entra' ? (
+            <>
+              <Campo etichetta="Codice">
+                <Testo
+                  value={codice}
+                  onChange={e => setCodice(e.target.value.toUpperCase().replace(/\s/g, ''))}
+                  maxLength={12}
+                  className="text-center text-[18px] font-bold tracking-[0.25em]"
+                />
+              </Campo>
+              <Campo etichetta="Chi sei?" aiuto="Con un invito personale questo campo viene ignorato: il ruolo &egrave; gi&agrave; nell&rsquo;invito.">
+                <Scelta value={ruolo} onChange={e => setRuolo(e.target.value)}>
+                  {SELF_SIGNUP_ROLES.map(r => <option key={r} value={r}>{ROLES[r]}</option>)}
+                </Scelta>
+              </Campo>
+            </>
+          ) : (
+            <>
+              <Campo etichetta="Che sport fate?">
+                <Scelta value={sport} onChange={e => setSport(e.target.value)}>
+                  {SPORT_LIST.map(x => <option key={x.key} value={x.key}>{x.label}</option>)}
+                </Scelta>
+              </Campo>
+              <Campo etichetta="Nome della societ\u00e0">
+                <Testo value={societa} onChange={e => setSocieta(e.target.value)} />
+              </Campo>
+              <div className="grid grid-cols-2 gap-3">
+                <Campo etichetta="Citt\u00e0"><Testo value={citta} onChange={e => setCitta(e.target.value)} /></Campo>
+                <Campo etichetta="Categoria"><Testo value={categoria} onChange={e => setCategoria(e.target.value)} /></Campo>
+              </div>
+            </>
+          )}
+        </div>
+
+        <Errore testo={errore} />
+
+        <Pulsante
+          variante="primario"
+          onClick={completa}
+          disabled={lavora}
+          className="mt-5 w-full py-3.5 text-[15px]"
+        >
+          {lavora ? 'Attendi\u2026' : 'Completa'}
+        </Pulsante>
+
+        <button
+          onClick={async () => { await logout(); window.location.reload(); }}
+          className="mt-3 w-full py-1 text-[12px] text-tenue transition-colors hover:text-testo"
+        >
+          Esci e usa un altro account
+        </button>
       </Pannello>
     </Colonna>
   );

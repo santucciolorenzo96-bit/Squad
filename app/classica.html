@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>SQUAD · versione precedente</title>
+<link rel="icon" href="/brand/squad-favicon-3d.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="64x64" href="/brand/squad-favicon-3d-64.png">
+<link rel="apple-touch-icon" href="/brand/squad-favicon-3d-180.png">
+<meta name="theme-color" content="#0B0F14" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F2F4F7" media="(prefers-color-scheme: light)">
+<script>
+(function(){
+  try {
+    var m = localStorage.getItem('bbapp_theme') || 'system';
+    if (m !== 'system') document.documentElement.setAttribute('data-theme', m);
+  } catch (e) {}
+})();
+</script>
+<link rel="stylesheet" href="/src/styles/app.css">
+</head>
+<body>
+<div id="toast"></div>
+<div id="modalRoot"></div>
+<div id="root"></div>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

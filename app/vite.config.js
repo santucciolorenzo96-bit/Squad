@@ -2,9 +2,10 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'url';
 
-// Due pagine: l'app attuale (index.html) e l'anteprima della nuova interfaccia
-// (anteprima.html). Convivono nella stessa build e condividono state, API e
-// utilita': l'anteprima ridisegna la presentazione, non rifa' il funzionamento.
+// Due pagine: la nuova interfaccia (index.html), che e' l'app, e quella
+// precedente (classica.html), che resta raggiungibile finche' serve una via di
+// ritorno. Condividono state, API e utilita': quello che cambia e' la
+// presentazione, non il funzionamento.
 //
 // __dirname non esiste qui: package.json dichiara "type": "module", quindi il
 // percorso si ricava dall'URL del modulo.
@@ -19,7 +20,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: qui('./index.html'),
-        anteprima: qui('./anteprima.html')
+        classica: qui('./classica.html')
       }
     }
   }
