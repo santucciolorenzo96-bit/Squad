@@ -327,8 +327,8 @@
   /* ==================== La barra di navigazione, sul telefono ====================
      Una sola idea, dichiarata in una variabile: --v vale 1 quando la voce e'
      esattamente al centro della barra e 0 quando e' lontana un posto o piu'.
-     Tutto il resto — scala, sollevamento, alone, luminosita' della scritta —
-     e' scritto in funzione di quella.
+     Scala, sollevamento, colore, alone e luminosita' della scritta sono tutti
+     scritti in funzione di quella.
 
      Il valore lo aggiorna lo scorrimento, fotogramma per fotogramma: NON c'e'
      nessuna transizione qui dentro, perche' l'animazione e' il dito. Una
@@ -336,6 +336,16 @@
 
      Cosi' nessuna sezione e' privilegiata nel foglio di stile: privilegiato e'
      il centro, e chi ci arriva prende il trattamento. */
+
+  /* La superficie, con l'incavo.
+     L'incavo NON si muove: sta fisso al centro perche' al centro c'e' sempre
+     la sezione aperta — e' la stessa regola vista dall'altra parte. Sono le
+     voci a scorrergli sotto, ed e' per questo che basta una maschera ferma
+     invece di una forma che insegue qualcosa. */
+  .barra-superficie {
+    -webkit-mask-image: radial-gradient(circle 1.75rem at 50% 0, transparent 99%, #000 100%);
+    mask-image: radial-gradient(circle 1.75rem at 50% 0, transparent 99%, #000 100%);
+  }
 
   .barra-pista {
     scroll-snap-type: x mandatory;
@@ -351,40 +361,42 @@
     scroll-snap-stop: always;
   }
 
-  /* L'intero elemento cresce: icona E lastra colorata dietro, che sta gia'
-     dentro all'SVG. E' quello che tiene insieme il movimento con il disegno
-     che c'era prima, invece di sembrare una giostra appoggiata sopra. */
+  /* L'elemento intero sale e cresce, lastra colorata inclusa: e' gia' dentro
+     all'SVG dell'icona, quindi al centro l'oggetto emerge dall'incavo invece
+     di ingrandirsi e basta.
+
+     Ai lati il colore si spegne quasi del tutto. Non e' una decorazione: e'
+     quello che rende la voce centrale l'unica cosa colorata della barra, e
+     quindi leggibile come "sei qui" prima di qualunque etichetta. */
   .barra-figura {
-    transform: translateY(calc(var(--v) * -0.42rem)) scale(calc(0.84 + 0.28 * var(--v)));
+    transform: translateY(calc(var(--v) * -1.45rem)) scale(calc(0.86 + 0.30 * var(--v)));
     transform-origin: center bottom;
+    filter:
+      saturate(calc(0.12 + 0.88 * var(--v)))
+      brightness(calc(0.82 + 0.18 * var(--v)));
   }
 
-  /* L'alone: una luce del colore della sezione, che esiste solo al centro.
-     Discreta di proposito — deve dire "sei qui", non accendere la stanza. */
+  /* L'alone sotto l'oggetto sollevato: la luce che si posa sull'incavo. Vive
+     dietro, sfocata, e cresce con lui. */
   .barra-alone {
-    opacity: var(--v);
-    background: radial-gradient(closest-side, rgb(var(--tinta) / 0.42), transparent 78%);
+    opacity: calc(var(--v) * 0.85);
+    transform: translateY(calc(var(--v) * -1.2rem)) scale(calc(0.5 + 0.5 * var(--v)));
+    background: radial-gradient(closest-side, rgb(var(--tinta) / 0.55), transparent 72%);
+    filter: blur(7px);
   }
 
   .barra-etichetta {
-    opacity: calc(0.42 + 0.58 * var(--v));
+    opacity: calc(0.34 + 0.66 * var(--v));
     transform: scale(calc(0.94 + 0.06 * var(--v)));
-  }
-
-  /* Il filo sopra la voce centrale: lo stato attivo non si affida al solo
-     colore, e chi non distingue le tinte vede comunque quale sezione e'
-     aperta — dalla misura, dall'altezza e da questo. */
-  .barra-filo {
-    opacity: calc(var(--v) * var(--v));
-    transform: scaleX(calc(0.3 + 0.7 * var(--v)));
   }
 
   @media (prefers-reduced-motion: reduce) {
     .animate-salita { animation: none !important; }
-    /* Lo scorrimento resta, ed e' giusto: e' il dito. Ma la crescita si
-       smorza, perche' e' quella a dare il senso di movimento. */
+    /* Lo scorrimento resta, ed e' giusto: e' il dito. Ma il sollevamento si
+       accorcia, perche' e' quello a dare il senso di movimento. */
     .barra-figura {
-      transform: translateY(0) scale(calc(0.92 + 0.08 * var(--v)));
+      transform: translateY(calc(var(--v) * -0.5rem)) scale(calc(0.9 + 0.14 * var(--v)));
     }
+    .barra-alone { transform: translateY(calc(var(--v) * -0.4rem)); }
   }
 }

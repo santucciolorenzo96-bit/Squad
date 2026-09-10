@@ -343,7 +343,10 @@ function BarraMobile({ sezione, onSezione }) {
       const el = voci.current[x.id];
       if (!el) return;
       const suo = el.offsetLeft + el.offsetWidth / 2;
-      const d = Math.min(Math.abs(suo - centro) / PASSO, 1);
+      // La sfumatura si estende oltre il singolo posto: cosi' le voci accanto
+      // stanno a meta' strada invece di essere spente come quelle lontane, ed e'
+      // quello che fa sembrare la barra una cosa sola che si muove.
+      const d = Math.min(Math.abs(suo - centro) / (PASSO * 1.7), 1);
       const lineare = 1 - d;
       // Ammorbidita: la crescita parte piano, accelera a meta' strada e si
       // posa al centro. Lineare si sente come meccanica.
@@ -401,14 +404,30 @@ function BarraMobile({ sezione, onSezione }) {
   }
 
   return (
-    <nav
-      className="fixed inset-x-0 bottom-0 z-50 vetro-alto border-t border-bordo/12 pb-[env(safe-area-inset-bottom)] lg:hidden"
-      aria-label="Sezioni"
-    >
+    <nav className="fixed inset-x-0 bottom-0 z-50 lg:hidden" aria-label="Sezioni">
+      {/* La superficie sta DIETRO le voci e non le contiene: un contenitore che
+          scorre in orizzontale ritaglia anche in verticale, e l'oggetto
+          sollevato verrebbe tagliato a meta' proprio mentre esce. Cosi' invece
+          la pista e' trasparente e l'incavo e' un fondale. */}
+      <div
+        aria-hidden="true"
+        className="barra-superficie absolute inset-x-0 bottom-0 top-[1.4rem] vetro-alto border-t border-bordo/12"
+      />
+
+      {/* L incastro: un disco di vetro che riempie esattamente il buco della
+          maschera. Senza, dal taglio si vedeva scorrere il contenuto della
+          pagina — un incavo su un fondo fisso e un incavo su una pagina che
+          scorre non sono la stessa cosa. Il suo bordo disegna la curva
+          proprio dove la superficie e stata tagliata. */}
+      <span
+        aria-hidden="true"
+        className="absolute left-1/2 top-[1.4rem] h-[3.6rem] w-[3.6rem] -translate-x-1/2 -translate-y-1/2 rounded-full vetro-alto border border-bordo/10"
+      />
+
       <div
         ref={pista}
         onScroll={scorre}
-        className="barra-pista flex overflow-x-auto pb-1.5 pt-2"
+        className="barra-pista relative flex overflow-x-auto pb-[calc(0.375rem+env(safe-area-inset-bottom))] pt-2"
         style={{ paddingLeft: 'calc(50% - ' + (PASSO / 2) + 'px)', paddingRight: 'calc(50% - ' + (PASSO / 2) + 'px)' }}
       >
         {sezioni.map(v => {
@@ -421,16 +440,14 @@ function BarraMobile({ sezione, onSezione }) {
               onFocus={() => porta(v.id, true)}
               aria-current={aperta ? 'page' : undefined}
               style={{ width: PASSO + 'px', '--tinta': 'var(--' + coloreSezione(v.id) + ')' }}
-              className="barra-voce relative flex shrink-0 flex-col items-center gap-1 px-1 pb-1 pt-2"
+              className="barra-voce relative flex shrink-0 flex-col items-center gap-1.5 px-1 pb-1 pt-1"
             >
-              <span className="barra-filo absolute inset-x-6 top-0 h-0.5 rounded-full bg-testo" />
-
-              <span className="relative grid place-items-center">
+              <span className="relative grid h-[3.6rem] w-full place-items-end justify-items-center pb-0.5">
                 <span
                   aria-hidden="true"
-                  className="barra-alone pointer-events-none absolute h-14 w-14 rounded-full"
+                  className="barra-alone pointer-events-none absolute bottom-0 h-16 w-16 rounded-full"
                 />
-                <IconaSezione id={v.id} dim={32} className="barra-figura relative" />
+                <IconaSezione id={v.id} dim={34} className="barra-figura relative" />
               </span>
 
               <span className="barra-etichetta w-full truncate text-center text-[9px] font-bold uppercase tracking-[0.06em]">
