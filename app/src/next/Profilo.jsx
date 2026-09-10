@@ -36,7 +36,7 @@ export function Profilo({ tema, onTema }) {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    if (inCampione()) { avvisa('Nell\u2019anteprima con dati di esempio non si carica niente.'); return; }
+    if (inCampione()) { avvisa('Nell’anteprima con dati di esempio non si carica niente.'); return; }
     try {
       const ridotta = await resizeImageFile(file, 600);
       setCentro({ file: ridotta });
@@ -64,8 +64,17 @@ export function Profilo({ tema, onTema }) {
             title={state.myAvatarUrl ? 'Cambia fotografia' : 'Carica una fotografia'}
           >
             <Avatar nome={u.display_name} url={state.myAvatarUrl} dim={80} />
-            <span className="absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-blu to-blu2 text-[13px] text-white shadow-blu">
-              \u270e
+            <span className="absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-blu to-blu2 text-white shadow-blu">
+              {/* Una macchina fotografica, non una matita: il gesto è caricare
+                  una foto. Disegnata qui invece che in icone.jsx perché è
+                  l'unico punto dell'app che ne ha bisogno. */}
+              <svg viewBox="0 0 24 24" className="h-[17px] w-[17px]" fill="currentColor" aria-hidden="true">
+                <path
+                  d="M9.3 4.8h5.4l1.1 1.9h2.6c1.3 0 2.4 1 2.4 2.3v7.7c0 1.3-1.1 2.3-2.4 2.3H5.6c-1.3 0-2.4-1-2.4-2.3V9c0-1.3 1.1-2.3 2.4-2.3h2.6l1.1-1.9Z"
+                  fillOpacity="0.55"
+                />
+                <circle cx="12" cy="13" r="3.3" />
+              </svg>
             </span>
           </button>
           <input ref={input} type="file" accept="image/*" className="hidden" onChange={scegliFoto} />
@@ -216,7 +225,7 @@ export function Profilo({ tema, onTema }) {
           onConferma={async (punto) => {
             try {
               if (centro.esistente) {
-                // Solo il punto: la fotografia \u00e8 gi\u00e0 caricata, e rimandarla
+                // Solo il punto: la fotografia è già caricata, e rimandarla
                 // vorrebbe dire lasciarne due copie nell'archivio.
                 const agg = await setMyAvatar(u.avatar_path, punto.x, punto.y);
                 Object.assign(state.currentUser, agg);
@@ -240,7 +249,7 @@ export function Profilo({ tema, onTema }) {
       {togli && (
         <Conferma
           titolo="Togliere la fotografia?"
-          testo="Torni alle iniziali. La fotografia viene cancellata dall\u2019archivio."
+          testo="Torni alle iniziali. La fotografia viene cancellata dall’archivio."
           etichetta="Togli"
           onChiudi={() => setTogli(false)}
           onConferma={async () => {

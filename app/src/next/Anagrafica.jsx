@@ -253,8 +253,8 @@ function ModuloAtleta({ onChiudi, onFatto }) {
       onChiudi={onChiudi}
       onInvia={async () => {
         const n = nome.trim();
-        if (!n) return 'Scrivi il nome dell\u2019atleta.';
-        // Il numero \u00e8 testo di proposito: "00" esiste, e nel minibasket capita
+        if (!n) return 'Scrivi il nome dell’atleta.';
+        // Il numero è testo di proposito: "00" esiste, e nel minibasket capita
         // di non averne affatto.
         const creato = await addPlayer(
           state.teamProfile.id, state.activeSectorId,

@@ -758,7 +758,7 @@ export function CompletaIscrizione({ email, erroreIniziale, onFatto }) {
             });
         if (error) throw error;
       } else {
-        if (!societa.trim()) { setErrore('Scrivi il nome della societa\u0300.'); setLavora(false); return; }
+        if (!societa.trim()) { setErrore('Scrivi il nome della società.'); setLavora(false); return; }
         const { error } = await supabase.rpc('create_team', {
           p_name: societa.trim(), p_city: citta.trim(), p_category: categoria.trim(),
           p_display_name: nome.trim(), p_sport: sport
@@ -768,7 +768,7 @@ export function CompletaIscrizione({ email, erroreIniziale, onFatto }) {
       try { await acceptPrivacy(); } catch (e) { console.error(e); }
       onFatto();
     } catch (e) {
-      setErrore((e && e.message) || 'Non e\u0300 stato possibile completare l\u2019iscrizione.');
+      setErrore((e && e.message) || 'Non è stato possibile completare l’iscrizione.');
     } finally {
       setLavora(false);
     }
@@ -784,7 +784,7 @@ export function CompletaIscrizione({ email, erroreIniziale, onFatto }) {
         </p>
 
         <div className="mt-5 grid grid-cols-2 gap-2">
-          {[['entra', 'Entro con un codice'], ['crea', 'Creo una societ\u00e0']].map(([k, t]) => (
+          {[['entra', 'Entro con un codice'], ['crea', 'Creo una società']].map(([k, t]) => (
             <button
               key={k}
               onClick={() => setModo(k)}
@@ -826,11 +826,11 @@ export function CompletaIscrizione({ email, erroreIniziale, onFatto }) {
                   {SPORT_LIST.map(x => <option key={x.key} value={x.key}>{x.label}</option>)}
                 </Scelta>
               </Campo>
-              <Campo etichetta="Nome della societ\u00e0">
+              <Campo etichetta="Nome della società">
                 <Testo value={societa} onChange={e => setSocieta(e.target.value)} />
               </Campo>
               <div className="grid grid-cols-2 gap-3">
-                <Campo etichetta="Citt\u00e0"><Testo value={citta} onChange={e => setCitta(e.target.value)} /></Campo>
+                <Campo etichetta="Città"><Testo value={citta} onChange={e => setCitta(e.target.value)} /></Campo>
                 <Campo etichetta="Categoria"><Testo value={categoria} onChange={e => setCategoria(e.target.value)} /></Campo>
               </div>
             </>
@@ -845,7 +845,7 @@ export function CompletaIscrizione({ email, erroreIniziale, onFatto }) {
           disabled={lavora}
           className="mt-5 w-full py-3.5 text-[15px]"
         >
-          {lavora ? 'Attendi\u2026' : 'Completa'}
+          {lavora ? 'Attendi…' : 'Completa'}
         </Pulsante>
 
         <button

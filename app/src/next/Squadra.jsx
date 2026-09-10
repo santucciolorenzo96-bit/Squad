@@ -60,7 +60,7 @@ function Identita({ avvisa }) {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    if (inCampione()) { avvisa('Nell\u2019anteprima con dati di esempio non si carica niente.'); return; }
+    if (inCampione()) { avvisa('Nell’anteprima con dati di esempio non si carica niente.'); return; }
     try {
       // Un logo con lo sfondo gia' trasparente non va toccato: passarlo per lo
       // scontorno lo rovinerebbe. Quello su fondo bianco invece va scontornato,
@@ -164,7 +164,7 @@ function ModuloLogo({ logo, lavora, onLavora, onChiudi, onFatto, avvisa }) {
       etichettaInvia="Usa questo logo"
       onChiudi={onChiudi}
       onInvia={async () => {
-        if (!anteprima) return 'Attendi l\u2019anteprima.';
+        if (!anteprima) return 'Attendi l’anteprima.';
         const url = await uploadTeamLogo(state.teamProfile.id, anteprima.blob);
         const agg = await updateTeam(state.teamProfile.id, { logo_url: url });
         Object.assign(state.teamProfile, agg);
