@@ -54,13 +54,14 @@ export function Icona({ tono = 'blu', dim = 26, glifo, className }) {
       {/* La lastra dietro: stessa sfumatura, ruotata e traslucida. È lei a dare
           lo spessore, e va disegnata prima perché sta sotto. */}
       <rect
+        className="icona-lastra"
         x="12" y="4" width="24" height="24" rx="8"
         fill={`url(#${id})`} opacity="0.42"
         transform="rotate(12 24 16)"
       />
 
       {/* Il volume principale. */}
-      <rect x="4" y="10" width="26" height="26" rx="9" fill={`url(#${id})`} />
+      <rect className="icona-volume" x="4" y="10" width="26" height="26" rx="9" fill={`url(#${id})`} />
 
       {/* Il glifo, inciso. */}
       <g transform="translate(5 11)" fill="#fff" fillOpacity="0.92">

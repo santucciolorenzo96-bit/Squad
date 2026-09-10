@@ -326,25 +326,14 @@
 
   /* ==================== La barra di navigazione, sul telefono ====================
      Una sola idea, dichiarata in una variabile: --v vale 1 quando la voce e'
-     esattamente al centro della barra e 0 quando e' lontana un posto o piu'.
-     Scala, sollevamento, colore, alone e luminosita' della scritta sono tutti
-     scritti in funzione di quella.
+     esattamente al centro e 0 quando e' lontana un posto e mezzo. Misura,
+     altezza, forma e colore sono tutti scritti in funzione di quella.
 
      Il valore lo aggiorna lo scorrimento, fotogramma per fotogramma: NON c'e'
-     nessuna transizione qui dentro, perche' l'animazione e' il dito. Una
-     transizione, sotto il dito, si sentirebbe come ritardo.
+     nessuna transizione qui dentro, perche' l'animazione e' il dito.
 
      Cosi' nessuna sezione e' privilegiata nel foglio di stile: privilegiato e'
      il centro, e chi ci arriva prende il trattamento. */
-
-  /* La superficie NON viene tagliata al centro.
-     Ci avevo provato, con una maschera: la conca era un buco vero, e dal buco
-     si vedeva scorrere il contenuto della pagina — parole e colori che
-     passavano dietro l icona proprio dove serve leggerla. Un incavo su un
-     fondo fisso e un incavo su una pagina che scorre non sono la stessa cosa.
-     La conca quindi la disegna la LINEA, che scende sotto la voce centrale,
-     mentre il vetro resta continuo: la striscia dentro la conca e larga meno
-     dell icona che la copre, quindi il compromesso non si vede. */
 
   .barra-pista {
     scroll-snap-type: x mandatory;
@@ -360,23 +349,29 @@
     scroll-snap-stop: always;
   }
 
-  /* L'elemento intero sale e cresce, lastra colorata inclusa: e' gia' dentro
-     all'SVG dell'icona, quindi al centro l'oggetto emerge dall'incavo invece
-     di ingrandirsi e basta.
-
-     Ai lati il colore si spegne quasi del tutto. Non e' una decorazione: e'
-     quello che rende la voce centrale l'unica cosa colorata della barra, e
-     quindi leggibile come "sei qui" prima di qualunque etichetta. */
+  /* L'oggetto sale e cresce. Sale abbastanza da appoggiarsi dentro la conca
+     con un margine uguale tutt'intorno: e' quel margine a far sembrare che la
+     barra si sia aperta per farlo passare, invece che l'icona appoggiata
+     sopra a una curva disegnata. */
   .barra-figura {
-    transform: translateY(calc(var(--v) * -1.45rem)) scale(calc(0.86 + 0.30 * var(--v)));
+    transform: translateY(calc(var(--v) * -1.6rem)) scale(calc(0.68 + 0.62 * var(--v)));
     transform-origin: center bottom;
-    filter:
-      saturate(calc(0.12 + 0.88 * var(--v)))
-      brightness(calc(0.82 + 0.18 * var(--v)));
+    filter: saturate(calc(0.6 + 0.4 * var(--v)));
+    opacity: calc(0.78 + 0.22 * var(--v));
   }
 
+  /* La metamorfosi.
+     A riposo l'icona e' l'oggetto a due strati di tutta l'app: il volume e la
+     sua lastra ruotata dietro. Ingrandirlo e basta lo faceva leggere come una
+     forma sdoppiata — due sagome sovrapposte grandi il doppio.
+     Avvicinandosi al centro la lastra svanisce e il volume si arrotonda fino
+     al cerchio: al centro resta UN disco pieno con il glifo bianco, che e'
+     la cosa piu' leggibile che si possa mettere li'. */
+  .barra-voce .icona-lastra { opacity: calc(0.42 * (1 - var(--v))); }
+  .barra-voce .icona-volume { rx: calc(9px + 4px * var(--v)); }
+
   .barra-etichetta {
-    opacity: calc(0.34 + 0.66 * var(--v));
+    opacity: calc(0.5 + 0.5 * var(--v));
     transform: scale(calc(0.94 + 0.06 * var(--v)));
   }
 
@@ -385,7 +380,7 @@
     /* Lo scorrimento resta, ed e' giusto: e' il dito. Ma il sollevamento si
        accorcia, perche' e' quello a dare il senso di movimento. */
     .barra-figura {
-      transform: translateY(calc(var(--v) * -0.5rem)) scale(calc(0.9 + 0.14 * var(--v)));
+      transform: translateY(calc(var(--v) * -0.7rem)) scale(calc(0.78 + 0.32 * var(--v)));
     }
   }
 }
