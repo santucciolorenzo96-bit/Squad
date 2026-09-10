@@ -24,6 +24,8 @@ import { Profilo } from './Profilo.jsx';
 import { Finanza } from './Finanza.jsx';
 import { Partita } from './Partita.jsx';
 import { Accesso, CompletaIscrizione } from './Accesso.jsx';
+import { ConsoleSuperAdmin } from './Piattaforma.jsx';
+import { amIPlatformOwner } from '../api/platform.js';
 import { supabase } from '../supabaseClient.js';
 import { getPendingAction, runPendingAction, clearPendingAction } from '../auth.js';
 import { Etichetta, Vuoto, Scheletro, Titolo } from './ui.jsx';
@@ -112,7 +114,7 @@ function NonAncora({ nome }) {
 
 /* -------------------------------------------------------------------- radice */
 function App() {
-  const [fase, setFase] = useState('carico');   // carico | accesso | completa | dentro
+  const [fase, setFase] = useState('carico');   // carico | accesso | completa | console | dentro
   const [campione, setCampione] = useState(false);
   const [recupero, setRecupero] = useState(null);   // { email, errore }
   const [sezione, setSezione] = useState('home');
@@ -147,8 +149,14 @@ function App() {
           }
           if (!vivo) return;
           if (!profilo && auth && auth.user) {
+            // Un SuperAdmin puo' non appartenere a nessuna societa': e' il suo
+            // caso normale, non un'iscrizione lasciata a meta'. Chiedergli di
+            // entrare in una societa' sarebbe chiedergli l'unica cosa che non
+            // deve fare.
+            const piattaforma = await amIPlatformOwner().catch(() => false);
+            if (!vivo) return;
             setRecupero({ email: auth.user.email, errore: erroreSospeso });
-            setFase('completa');
+            setFase(piattaforma ? 'console' : 'completa');
             return;
           }
           if (!profilo) { setFase('accesso'); return; }
@@ -195,6 +203,15 @@ function App() {
     try { localStorage.setItem('bbapp_last_sector', id); } catch (e) { /* niente */ }
     await loadSectorData(id);
     setSectorId(id);
+  }
+
+  if (fase === 'console') {
+    return (
+      <ConsoleSuperAdmin
+        email={recupero.email}
+        onIscriviti={() => setFase('completa')}
+      />
+    );
   }
 
   if (fase === 'completa') {
