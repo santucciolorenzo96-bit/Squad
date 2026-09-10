@@ -287,13 +287,18 @@ export function Rosa() {
       ) : (
         <>
           {/* ------------------------------------------------------ il campo */}
-          <Pannello alto className="overflow-hidden">
+          <Pannello alto className="overflow-hidden 2xl:-mx-10">
             <div className="flex items-center justify-between gap-3 border-b border-bordo/10 px-5 py-3">
               <Etichetta>{sport.field.onFieldLabel}</Etichetta>
               <span className="text-[11.5px] text-tenue">{inCampoP.length} di {inCampo}</span>
             </div>
 
-            <div className="campo parquet relative aspect-[15/14] w-full">
+            {/* Su telefono il campo tiene le sue proporzioni: e' l'unica cosa
+                a schermo e ci sta comoda. Da tablet in su diventa un'altezza
+                fissa legata alla finestra, perche' con le proporzioni vere un
+                campo largo mille pixel ne diventava alto novecento e mangiava
+                tutto lo schermo: l'elenco sotto non si vedeva mai. */}
+            <div className="campo parquet relative aspect-[15/14] w-full md:aspect-auto md:h-[clamp(19rem,46vh,32rem)]">
               <div className="righe-campo" dangerouslySetInnerHTML={{ __html: sport.field.svg }} />
               {inCampoP.map((p, i) => {
                 const posto = sport.field.slots[i];

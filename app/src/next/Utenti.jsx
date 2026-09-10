@@ -496,10 +496,10 @@ function Famiglie({ avvisa }) {
               </div>
 
               <div className="mt-2.5 flex flex-wrap gap-1.5">
-                {(f.players || []).length === 0 ? (
+                {(f.linkedPlayers || []).length === 0 ? (
                   <span className="text-[11.5px] text-ambra">Non collegato a nessun atleta: non vede niente.</span>
                 ) : (
-                  f.players.map(p => (
+                  f.linkedPlayers.filter(Boolean).map(p => (
                     <span
                       key={p.id}
                       className="inline-flex items-center gap-2 rounded-full bg-pannello/12 py-1 pl-3 pr-1.5 text-[12px]"
@@ -510,7 +510,6 @@ function Famiglie({ avvisa }) {
                         onClick={async () => {
                           try {
                             await unlinkProfileFromPlayer(f.id, p.id);
-                            f.players = f.players.filter(x => x.id !== p.id);
                             carica();
                             avvisa('Collegamento rimosso');
                           } catch (e) {
@@ -543,7 +542,10 @@ function Famiglie({ avvisa }) {
 
 function ModuloCollega({ f, onChiudi, onFatto }) {
   const [giocatore, setGiocatore] = useState('');
-  const gia = new Set((f.players || []).map(p => p.id));
+  // Gli atleti gia' collegati non si ripropongono: il collegamento ha per
+  // chiave la coppia (profilo, atleta), quindi rifarlo non e' un doppione
+  // innocuo, e' un errore del database in faccia a chi sta lavorando.
+  const gia = new Set((f.linkedPlayers || []).filter(Boolean).map(p => p.id));
   const liberi = state.roster.filter(p => !gia.has(p.id)).sort((a, b) => a.name.localeCompare(b.name));
 
   return (
@@ -554,7 +556,18 @@ function ModuloCollega({ f, onChiudi, onFatto }) {
       onChiudi={onChiudi}
       onInvia={async () => {
         if (!giocatore) return 'Scegli un atleta.';
-        await linkProfileToPlayer(f.id, giocatore);
+        try {
+          await linkProfileToPlayer(f.id, giocatore);
+        } catch (e) {
+          // Se il collegamento esiste gia' il database risponde con la
+          // violazione della chiave primaria, che a chi guarda non dice
+          // niente. Succede quando l'elenco a schermo e' vecchio.
+          const msg = (e && e.message) || '';
+          if (msg.indexOf('profile_players_pkey') >= 0 || msg.indexOf('duplicate key') >= 0) {
+            return 'Questo account è già collegato a quell’atleta. Ricarica la pagina per vedere i collegamenti aggiornati.';
+          }
+          throw e;
+        }
         onFatto();
       }}
     >

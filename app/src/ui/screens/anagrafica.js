@@ -36,7 +36,7 @@ function renderFamiglia(c) {
 /* ======================= STAFF: tabella rosa + dettaglio ======================= */
 // L'elenco era una riga per atleta con nome e numero: per sapere se il
 // certificato di qualcuno era scaduto bisognava aprire la sua scheda, una alla
-// volta. La domanda che si fa davvero è "chi non è a posto?", e la si fa su
+// volta. La domanda che si fa davvero è "chi non è a posto?", e la si fa su
 // tutta la rosa insieme.
 
 const BADGE_CLASS = { ok: 'ok', warn: 'pending', bad: 'rejected' };
@@ -89,7 +89,7 @@ async function renderStaffList(c) {
 
   drawKpi(righe);
 
-  // In cima chi non è a posto: una tabella ordinata per nome costringe a
+  // In cima chi non è a posto: una tabella ordinata per nome costringe a
   // leggerla tutta per trovare i due che mancano.
   righe.sort((a, b) => (DOC_STATE[b.peggiore].rank - DOC_STATE[a.peggiore].rank)
     || a.p.name.localeCompare(b.p.name));

@@ -204,8 +204,8 @@ export function renderJoinTeam(prefill = {}) {
         const { boot } = await import('../../router.js');
         await boot();
       } catch (err) {
-        // L'account esiste già ma senza squadra: la sessione è aperta, quindi
-        // il recupero può completare l'iscrizione senza registrarsi di nuovo.
+        // L'account esiste già ma senza squadra: la sessione è aperta, quindi
+        // il recupero può completare l'iscrizione senza registrarsi di nuovo.
         if (err.accountCreated) {
           const { boot } = await import('../../router.js');
           await boot();

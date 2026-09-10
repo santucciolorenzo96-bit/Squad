@@ -123,7 +123,7 @@ async function renderMatchSetup(c) {
       quarterFouls: conf.teamFouls ? { 1: 0 } : {},
       periodScores: [],
       // Il legame con la riga di calendario: a fine partita il risultato torna
-      // lì e in classifica, invece di dover essere riscritto a mano.
+      // lì e in classifica, invece di dover essere riscritto a mano.
       calendarMatchId: linked ? linked.id : null
     };
     state.undoStack = []; state.selectedCourtId = null; state.pendingBenchId = null;
@@ -134,9 +134,9 @@ async function renderMatchSetup(c) {
   });
 }
 
-// Le partite che la società gioca oggi (e nei due giorni successivi), su tutti
+// Le partite che la società gioca oggi (e nei due giorni successivi), su tutti
 // i settori: chi apre lo scout quasi sempre sta per seguire una di quelle, e
-// digitare di nuovo il nome dell'avversario è lavoro già fatto una volta.
+// digitare di nuovo il nome dell'avversario è lavoro già fatto una volta.
 async function loadSuggestions(c) {
   const holder = document.getElementById('scoutSuggest');
   if (!holder) return;
@@ -168,7 +168,7 @@ async function loadSuggestions(c) {
       if (!m) return;
       state.pendingScoutMatch = m;
       // Una partita di un'altra categoria richiede prima di cambiare settore:
-      // la rosa da convocare è quella, non quella che si stava guardando.
+      // la rosa da convocare è quella, non quella che si stava guardando.
       if (m.sector_id !== state.activeSectorId) {
         const { switchSector } = await import('../../../router.js');
         await switchSector(m.sector_id);
@@ -179,9 +179,9 @@ async function loadSuggestions(c) {
   });
 }
 
-// Una partita lasciata a metà in un'altra categoria non compare da nessuna
+// Una partita lasciata a metà in un'altra categoria non compare da nessuna
 // parte — l'app carica la partita dal vivo del solo settore attivo — ma occupa
-// comunque il posto: finchè resta aperta, quella categoria non ne può
+// comunque il posto: finchè resta aperta, quella categoria non ne può
 // cominciare un'altra. Va mostrata qui, dove il problema si manifesta.
 async function loadOpenGames(c) {
   const holder = document.getElementById('openGames');
@@ -210,7 +210,7 @@ async function loadOpenGames(c) {
   });
   holder.querySelectorAll('[data-discard]').forEach(btn => {
     btn.onclick = () => confirmModal('Scartare la partita aperta?',
-      'Il tabellino raccolto finora verrà eliminato e non finirà nello storico. Usalo solo se era una prova.',
+      'Il tabellino raccolto finora verrà eliminato e non finirà nello storico. Usalo solo se era una prova.',
       async () => {
         await discardGame(btn.dataset.discard);
         toast('Partita scartata');

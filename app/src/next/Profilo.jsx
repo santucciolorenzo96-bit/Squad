@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { state } from '../state.js';
 import { updateMyProfile, uploadMyAvatar, setMyAvatar, removeMyAvatar, getAvatarUrl } from '../api/profiles.js';
 import { resizeImageFile } from '../utils/image.js';
-import { changePassword } from '../auth.js';
+import { changePassword, logout } from '../auth.js';
 import { roleLabel, isLinkedUser, isAdmin } from '../utils/permissions.js';
 import { sectorFullName } from '../utils/sectors.js';
 import { PASSWORD_MIN, passwordProblem } from '../utils/format.js';
@@ -270,8 +270,12 @@ export function Profilo({ tema, onTema }) {
           onChiudi={() => setEsci(false)}
           onConferma={async () => {
             if (inCampione()) { avvisa('Nell’anteprima con dati di esempio non c’è nessuna sessione da chiudere.'); return; }
-            const { goLogout } = await import('../router.js');
-            await goLogout();
+            // Solo signOut e ricarica. goLogout appartiene all'app precedente:
+            // dopo l'uscita disegna la propria schermata dentro #root, che qui
+            // non esiste, e l'uscita finiva con un errore invece che con la
+            // schermata d'accesso.
+            await logout();
+            window.location.reload();
           }}
         />
       )}

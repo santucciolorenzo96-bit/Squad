@@ -27,29 +27,11 @@ export function renderLanding() {
       </div>
       <span class="entry-arrow">›</span>
     </button>
-
-    <button class="entry-card" id="goCreateTeam">
-      <div class="entry-ico">
-        <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M10 2.8 16 5.2v4.6c0 3.8-2.5 6.3-6 7.4-3.5-1.1-6-3.6-6-7.4V5.2z" stroke-linejoin="round"/>
-          <path d="M10 7.4v4.2M7.9 9.5h4.2"/>
-        </svg>
-      </div>
-      <div class="entry-txt">
-        <b>Registra la tua società</b>
-        <span>Sei un dirigente o un allenatore e vuoi iniziare da zero.</span>
-      </div>
-      <span class="entry-arrow">›</span>
-    </button>
   </div></div>`;
 
   document.getElementById('goLogin').onclick = async () => {
     const { renderLogin } = await import('./login.js');
     renderLogin();
-  };
-  document.getElementById('goCreateTeam').onclick = async () => {
-    const { renderCreateTeam } = await import('./createTeam.js');
-    renderCreateTeam();
   };
   document.getElementById('goJoinTeam').onclick = async () => {
     const { renderJoinTeam } = await import('./joinTeam.js');

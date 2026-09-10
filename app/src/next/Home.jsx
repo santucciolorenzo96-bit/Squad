@@ -2,6 +2,7 @@ import React from 'react';
 import { state } from '../state.js';
 import { standingsPosition, computeRecord, computeTeamPPG } from '../utils/stats.js';
 import { canEditHome } from '../utils/permissions.js';
+import { teamInitials } from '../utils/theme.js';
 import { Pannello, Etichetta, Stato, Vuoto, Titolo, Pulsante, cx } from './ui.jsx';
 import { IconaSezione, Chevron } from './icone.jsx';
 
@@ -28,6 +29,27 @@ function dataLunga(iso) {
   return `${GIORNI[d.getDay()]} ${d.getDate()} ${d.toLocaleDateString('it-IT', { month: 'long' })}`;
 }
 
+/* Lo stemma di una squadra. Il logo della societa' se c'e', altrimenti le sue
+ * iniziali: MAI il simbolo di SQUAD, che dice in che applicazione si e' e non
+ * con che squadra si gioca. Gli avversari non hanno un logo caricato da
+ * nessuna parte, quindi per loro le iniziali sono la regola, non il ripiego. */
+function Stemma({ nome, url }) {
+  if (url) {
+    return (
+      <img
+        src={url}
+        alt=""
+        className="mx-auto h-12 w-12 shrink-0 rounded-xl object-contain sm:h-16 sm:w-16"
+      />
+    );
+  }
+  return (
+    <div className="mx-auto grid h-12 w-12 shrink-0 place-items-center rounded-xl vetro orlo text-[14px] font-bold text-soffuso sm:h-16 sm:w-16 sm:text-[18px]">
+      {teamInitials(nome)}
+    </div>
+  );
+}
+
 /* ---------------------------------------------------- apertura: la partita */
 function Apertura({ partita, onSezione }) {
   if (!partita) {
@@ -47,6 +69,7 @@ function Apertura({ partita, onSezione }) {
   const noi = (state.teamProfile || {}).name || 'Noi';
   const posLoro = standingsPosition(state.standings, partita.opponent);
   const posNoi = standingsPosition(state.standings, noi);
+  const logoNostro = (state.teamProfile || {}).logo_url || null;
 
   // Una partita passata e mai segnata non è "giocata": è da fare, ed è
   // esattamente il caso che non deve passare inosservato.
@@ -79,21 +102,42 @@ function Apertura({ partita, onSezione }) {
         <div className="px-5 py-7 sm:px-7 sm:py-9">
           {/* I due nomi hanno lo stesso peso: sono due squadre, non un titolo
               e un sottotitolo. Il "vs" li separa piccolo in mezzo. */}
-          <div className="flex items-center gap-3 sm:gap-5">
-            <div className="min-w-0 flex-1 text-right">
-              <div className="text-[clamp(17px,4vw,27px)] font-bold leading-tight tracking-tight">
+          <div className="flex items-start gap-3 sm:gap-5">
+            <div className="min-w-0 flex-1 text-center">
+              <Stemma
+                nome={casa ? noi : partita.opponent}
+                url={casa ? logoNostro : null}
+              />
+              <div className="mt-2.5 text-[clamp(16px,3.6vw,25px)] font-bold leading-tight tracking-tight">
                 {casa ? noi : partita.opponent}
               </div>
-              <Etichetta className="mt-1.5">{casa ? 'in casa' : 'ospite'}</Etichetta>
+              {/* La posizione sta con casa/ospite e non in una riga a parte:
+                  sono le due cose che si guardano insieme per capire che
+                  partita e'. */}
+              <Etichetta className="mt-1.5">
+                {casa ? 'in casa' : 'ospite'}
+                {(casa ? posNoi : posLoro) && (
+                  <span className="cifra text-soffuso"> · {casa ? posNoi : posLoro}ª</span>
+                )}
+              </Etichetta>
             </div>
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full vetro orlo text-[11px] font-bold text-tenue">
+            <div className="mt-2 grid h-9 w-9 shrink-0 place-items-center rounded-full vetro orlo text-[11px] font-bold text-tenue sm:mt-3.5">
               vs
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[clamp(17px,4vw,27px)] font-bold leading-tight tracking-tight">
+            <div className="min-w-0 flex-1 text-center">
+              <Stemma
+                nome={casa ? partita.opponent : noi}
+                url={casa ? null : logoNostro}
+              />
+              <div className="mt-2.5 text-[clamp(16px,3.6vw,25px)] font-bold leading-tight tracking-tight">
                 {casa ? partita.opponent : noi}
               </div>
-              <Etichetta className="mt-1.5">{casa ? 'ospite' : 'in casa'}</Etichetta>
+              <Etichetta className="mt-1.5">
+                {casa ? 'ospite' : 'in casa'}
+                {(casa ? posLoro : posNoi) && (
+                  <span className="cifra text-soffuso"> · {casa ? posLoro : posNoi}ª</span>
+                )}
+              </Etichetta>
             </div>
           </div>
 
@@ -103,13 +147,6 @@ function Apertura({ partita, onSezione }) {
             {partita.location && <span className="text-soffuso">{partita.location}</span>}
             {partita.giornata && <span className="cifra text-tenue">giornata {partita.giornata}</span>}
           </div>
-
-          {(posNoi || posLoro) && (
-            <div className="mt-4 flex items-center justify-center gap-7 text-[12px] text-tenue">
-              {posNoi && <span>Noi <b className="cifra text-testo">{posNoi}ª</b></span>}
-              {posLoro && <span>Loro <b className="cifra text-testo">{posLoro}ª</b></span>}
-            </div>
-          )}
 
           <div className="mt-6 flex justify-center">
             <Pulsante variante="primario" onClick={() => onSezione('calendario')}>

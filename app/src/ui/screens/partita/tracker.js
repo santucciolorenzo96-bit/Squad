@@ -176,10 +176,10 @@ function askPeriodScore({ thenAdvance }) {
       - (g.periodScores || []).slice(0, idx).reduce((n, x) => n + ((x && x.us) || 0), 0)
     : (existing ? existing.us : 0);
 
-  // Il punteggio avversario lo copi dal tabellone, quindi è verità; il nostro
-  // è dedotto dalle azioni assegnate. Se ti sfugge un canestro il nostro resta
+  // Il punteggio avversario lo copi dal tabellone, quindi è verità; il nostro
+  // è dedotto dalle azioni assegnate. Se ti sfugge un canestro il nostro resta
   // sbagliato per sempre, e senza un momento di confronto non te ne accorgi
-  // mai. La chiusura del periodo è quel momento: stai già guardando il
+  // mai. La chiusura del periodo è quel momento: stai già guardando il
   // tabellone, quindi il nostro totale te lo metto accanto.
   formModal(`${conf.period.label} ${g.quarter}`, `
     <div class="hint" style="margin-top:0;">${esc(conf.periodPrompt)}</div>
@@ -194,7 +194,7 @@ function askPeriodScore({ thenAdvance }) {
     ${ourFromActions ? `<div class="score-check">
       Il nostro punteggio arriva dalle azioni che hai assegnato.
       <b>Guarda il tabellone: dice ${Math.max(0, ourNow)}?</b>
-      Se il numero è più alto ti è sfuggito un canestro da assegnare a qualcuno.
+      Se il numero è più alto ti è sfuggito un canestro da assegnare a qualcuno.
     </div>` : ''}
   `, async () => {
     const us = Math.max(0, parseInt(document.getElementById('psUs').value) || 0);
@@ -524,7 +524,7 @@ function applyStatAction(playerId, act) {
 }
 
 // Una partita seguita con lo scout non deve restare "da giocare" nel calendario
-// né assente dalla classifica: sarebbero tre schermate che raccontano cose
+// né assente dalla classifica: sarebbero tre schermate che raccontano cose
 // diverse dello stesso evento. Se qualcosa qui fallisce la partita resta
 // comunque salvata nello storico — si avvisa e basta, non si annulla nulla.
 async function closeTheLoop(finished) {

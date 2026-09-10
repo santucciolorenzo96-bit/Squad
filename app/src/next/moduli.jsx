@@ -108,7 +108,10 @@ export function Finestra({ titolo, sotto, onChiudi, larga = false, azioni, child
 // `onInvia` può restituire una stringa: quella è l'obiezione, e compare sopra i
 // pulsanti invece di far finta che sia andato tutto bene. Se lancia, l'errore
 // si vede lo stesso — è il caso in cui prima non succedeva niente.
-export function Modulo({ titolo, sotto, onChiudi, onInvia, etichettaInvia = 'Salva', larga, children }) {
+// `azioniExtra` sta a sinistra dei due pulsanti: è il posto delle azioni che
+// non sono né confermare né annullare — togliere una riga, per esempio. Lontano
+// da «Salva», perché sono le uniche che non si annullano.
+export function Modulo({ titolo, sotto, onChiudi, onInvia, etichettaInvia = 'Salva', larga, azioniExtra, children }) {
   const [lavora, setLavora] = useState(false);
   const [errore, setErrore] = useState('');
 
@@ -140,7 +143,8 @@ export function Modulo({ titolo, sotto, onChiudi, onInvia, etichettaInvia = 'Sal
               {errore}
             </div>
           )}
-          <div className="flex justify-end gap-2">
+          <div className="flex items-center justify-end gap-2">
+            {azioniExtra && <div className="mr-auto">{azioniExtra}</div>}
             <Pulsante variante="nudo" onClick={onChiudi} disabled={lavora}>Annulla</Pulsante>
             <Pulsante variante="primario" onClick={invia} disabled={lavora}>
               {lavora ? 'Attendi…' : etichettaInvia}

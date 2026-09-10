@@ -22,8 +22,8 @@ export const MANAGER_ROLES = ['admin', 'presidente', 'allenatore', 'staff'];
 export const ROSTER_ROLES = ['admin', 'presidente', 'allenatore'];
 // Utenti base, collegati a un giocatore: stessi permessi, etichette diverse
 export const LINKED_ROLES = ['genitore', 'atleta'];
-// Ruoli assegnabili in autonomia al momento della registrazione. Lo staff è
-// compreso perchè di per sé non dà nessun potere: ogni scrittura passa da
+// Ruoli assegnabili in autonomia al momento della registrazione. Lo staff è
+// compreso perchè di per sé non dà nessun potere: ogni scrittura passa da
 // can_manage_sector, che richiede un settore assegnato da un amministratore.
 // Admin, presidente e allenatore restano fuori: quelli contano anche senza settori.
 export const SELF_SIGNUP_ROLES = ['staff', 'segnapunti', 'genitore', 'atleta'];

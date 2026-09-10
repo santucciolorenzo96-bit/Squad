@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { esc, passwordProblem, PASSWORD_MIN } from '../utils/format.js';
 import { SPORT_LIST } from '../utils/sports/index.js';
 import { ROLES, SELF_SIGNUP_ROLES } from '../utils/permissions.js';
-import { login as apiLogin, createTeamAndAdmin, joinTeamByCode, resendConfirmation, requestPasswordReset, logout } from '../auth.js';
+import { login as apiLogin, createTeamAndAdmin, joinTeamByCode, resendConfirmation, requestPasswordReset, checkActivationCode, logout } from '../auth.js';
 import { supabase } from '../supabaseClient.js';
 import { fetchTeamByInviteCode } from '../api/teams.js';
 import { fetchInvitePreview } from '../api/invites.js';
@@ -39,7 +39,6 @@ function Colonna({ children, sotto }) {
         <div className="mb-8 flex flex-col items-center gap-3.5 text-center">
           <img className="marchio-simbolo h-[104px] w-auto sm:h-[124px]" alt="" />
           <img className="marchio-scritta w-[min(200px,58vw)] h-auto" alt="SQUAD" />
-          <div className="text-[12px] text-tenue">Gestionale per società sportive</div>
         </div>
         {children}
       </div>
@@ -72,12 +71,27 @@ function Errore({ testo }) {
 export function Accesso({ onEntrato, onCampione }) {
   const [passo, setPasso] = useState(PASSI.landing);
   const [emailConfermata, setEmailConfermata] = useState('');
+  const [codiceAttivazione, setCodiceAttivazione] = useState('');
 
   const vai = (p) => setPasso(p);
 
   if (passo === PASSI.accedi) return <Accedi onEntrato={onEntrato} onIndietro={() => vai(PASSI.landing)} onRecupero={() => vai(PASSI.recupero)} />;
-  if (passo === PASSI.entra) return <Entra onEntrato={onEntrato} onIndietro={() => vai(PASSI.landing)} onConferma={(e) => { setEmailConfermata(e); vai(PASSI.conferma); }} />;
-  if (passo === PASSI.crea) return <Crea onEntrato={onEntrato} onIndietro={() => vai(PASSI.landing)} onConferma={(e) => { setEmailConfermata(e); vai(PASSI.conferma); }} />;
+  if (passo === PASSI.entra) return (
+    <Entra
+      onEntrato={onEntrato}
+      onIndietro={() => vai(PASSI.landing)}
+      onConferma={(e) => { setEmailConfermata(e); vai(PASSI.conferma); }}
+      onAttivazione={(c) => { setCodiceAttivazione(c); vai(PASSI.crea); }}
+    />
+  );
+  if (passo === PASSI.crea) return (
+    <Crea
+      codice={codiceAttivazione}
+      onEntrato={onEntrato}
+      onIndietro={() => vai(PASSI.entra)}
+      onConferma={(e) => { setEmailConfermata(e); vai(PASSI.conferma); }}
+    />
+  );
   if (passo === PASSI.conferma) return <ConfermaEmail email={emailConfermata} onAccedi={() => vai(PASSI.accedi)} />;
   if (passo === PASSI.recupero) return <Recupero onIndietro={() => vai(PASSI.accedi)} />;
 
@@ -102,20 +116,15 @@ export function Accesso({ onEntrato, onCampione }) {
         <span className="h-px flex-1 bg-bordo/12" />
       </div>
 
-      <div className="space-y-2.5">
-        <Ingresso
-          titolo="Ho un codice"
-          nota="Te l’ha dato la tua società. Bastano un minuto e la tua email."
-          tono="from-ciano to-blu"
-          onClick={() => vai(PASSI.entra)}
-        />
-        <Ingresso
-          titolo="Registra la tua società"
-          nota="Sei un dirigente o un allenatore e vuoi iniziare da zero."
-          tono="from-viola to-blu2"
-          onClick={() => vai(PASSI.crea)}
-        />
-      </div>
+      {/* Un ingresso solo. Il codice di una società fa entrare, un codice di
+          attivazione fa aprire una società nuova: chi digita non deve sapere
+          in anticipo quale ha in mano — glielo dice l'app. */}
+      <Ingresso
+        titolo="Ho un codice"
+        nota="Te l’ha dato la tua società, o l’amministratore di SQUAD."
+        tono="from-ciano to-blu"
+        onClick={() => vai(PASSI.entra)}
+      />
     </Colonna>
   );
 }
@@ -294,7 +303,7 @@ function Recupero({ onIndietro }) {
 /* ================================================================== entra */
 // Due passi: prima il codice, verificato subito, poi i dati personali. Chi
 // sbaglia una lettera se ne accorge lì, non dopo aver compilato tutto.
-function Entra({ onEntrato, onIndietro, onConferma }) {
+function Entra({ onEntrato, onIndietro, onConferma, onAttivazione }) {
   const [passo, setPasso] = useState(1);
   const [codice, setCodice] = useState('');
   const [societa, setSocieta] = useState(null);
@@ -327,6 +336,10 @@ function Entra({ onEntrato, onIndietro, onConferma }) {
       }
       const t = await fetchTeamByInviteCode(c).catch(() => null);
       if (!t) {
+        // Terza possibilità: un codice di attivazione, che non fa entrare in
+        // una società ma ne fa aprire una.
+        const attivazione = await checkActivationCode(c).catch(() => false);
+        if (attivazione) { onAttivazione(c); return; }
         setErrore('Non troviamo niente con questo codice. Controlla di averlo copiato bene: potrebbe anche essere scaduto o già usato.');
         return;
       }
@@ -531,7 +544,7 @@ function Entra({ onEntrato, onIndietro, onConferma }) {
 }
 
 /* ==================================================================== crea */
-function Crea({ onEntrato, onIndietro, onConferma }) {
+function Crea({ codice, onEntrato, onIndietro, onConferma }) {
   const [sport, setSport] = useState('basket');
   const [societa, setSocieta] = useState('');
   const [citta, setCitta] = useState('');
@@ -547,10 +560,10 @@ function Crea({ onEntrato, onIndietro, onConferma }) {
   return (
     <Colonna>
       <Pannello alto className="pad-pannello">
-        <h1 className="text-[20px] font-bold leading-tight">Registra la tua società</h1>
+        <h1 className="text-[20px] font-bold leading-tight">La tua società</h1>
         <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
-          Diventi tu l’amministratore. Le categorie, la rosa e il resto si aggiungono dopo,
-          con calma.
+          Il codice <b className="cifra text-testo">{codice}</b> apre una società, e diventi tu
+          l’amministratore. Le categorie, la rosa e il resto si aggiungono dopo, con calma.
         </p>
 
         <div className="mt-5">
@@ -641,7 +654,7 @@ function Crea({ onEntrato, onIndietro, onConferma }) {
             setLavora(true);
             try {
               const res = await createTeamAndAdmin({
-                email: email.trim(), password: pass,
+                email: email.trim(), password: pass, activationCode: codice,
                 teamName: societa.trim(), city: citta.trim(), category: categoria.trim(),
                 displayName: nome.trim(), sport
               });
@@ -732,6 +745,7 @@ export function CompletaIscrizione({ email, erroreIniziale, onFatto }) {
   const [modo, setModo] = useState('entra');
   const [nome, setNome] = useState('');
   const [codice, setCodice] = useState('');
+  const [attivazione, setAttivazione] = useState('');
   const [ruolo, setRuolo] = useState('genitore');
   const [sport, setSport] = useState('basket');
   const [societa, setSocieta] = useState('');
@@ -758,17 +772,18 @@ export function CompletaIscrizione({ email, erroreIniziale, onFatto }) {
             });
         if (error) throw error;
       } else {
-        if (!societa.trim()) { setErrore('Scrivi il nome della società.'); setLavora(false); return; }
-        const { error } = await supabase.rpc('create_team', {
-          p_name: societa.trim(), p_city: citta.trim(), p_category: categoria.trim(),
-          p_display_name: nome.trim(), p_sport: sport
+        if (!attivazione.trim()) { setErrore('Serve il codice di attivazione che ti ha dato l’amministratore.'); setLavora(false); return; }
+        if (!societa.trim()) { setErrore('Scrivi il nome della società.'); setLavora(false); return; }
+        const { error } = await supabase.rpc('create_team_with_code', {
+          p_code: attivazione.trim().toUpperCase(), p_name: societa.trim(), p_city: citta.trim(),
+          p_category: categoria.trim(), p_display_name: nome.trim(), p_sport: sport
         });
         if (error) throw error;
       }
       try { await acceptPrivacy(); } catch (e) { console.error(e); }
       onFatto();
     } catch (e) {
-      setErrore((e && e.message) || 'Non è stato possibile completare l’iscrizione.');
+      setErrore((e && e.message) || 'Non è stato possibile completare l’iscrizione.');
     } finally {
       setLavora(false);
     }
@@ -821,6 +836,14 @@ export function CompletaIscrizione({ email, erroreIniziale, onFatto }) {
             </>
           ) : (
             <>
+              <Campo etichetta="Codice di attivazione" aiuto="Una società nuova si apre solo con questo: te lo dà l’amministratore di SQUAD.">
+                <Testo
+                  value={attivazione}
+                  onChange={e => setAttivazione(e.target.value.toUpperCase().replace(/\s/g, ''))}
+                  maxLength={12}
+                  className="text-center text-[16px] font-bold tracking-[0.2em]"
+                />
+              </Campo>
               <Campo etichetta="Che sport fate?">
                 <Scelta value={sport} onChange={e => setSport(e.target.value)}>
                   {SPORT_LIST.map(x => <option key={x.key} value={x.key}>{x.label}</option>)}

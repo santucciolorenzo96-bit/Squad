@@ -21,9 +21,10 @@ export function clearPendingAction() {
 
 export async function runPendingAction(action) {
   if (action.type === 'create_team') {
-    const { error } = await supabase.rpc('create_team', {
-      p_name: action.teamName, p_city: action.city, p_category: action.category,
-      p_display_name: action.displayName, p_sport: action.sport || 'basket'
+    const { error } = await supabase.rpc('create_team_with_code', {
+      p_code: action.code || '', p_name: action.teamName, p_city: action.city,
+      p_category: action.category, p_display_name: action.displayName,
+      p_sport: action.sport || 'basket'
     });
     if (error) throw error;
   } else if (action.type === 'join_team') {
@@ -58,9 +59,9 @@ function isExistingUser(data) {
   return !!(data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0);
 }
 
-// Senza conferma email Supabase non finge più: risponde con un errore in
-// chiaro, ma in inglese. Diventa lo stesso messaggio dell'altro caso, perché
-// per chi si registra la situazione è identica.
+// Senza conferma email Supabase non finge più: risponde con un errore in
+// chiaro, ma in inglese. Diventa lo stesso messaggio dell'altro caso, perché
+// per chi si registra la situazione è identica.
 function isAlreadyRegisteredError(error) {
   const msg = (error && error.message) || '';
   return /already registered|already exists|user_already_exists/i.test(msg);
@@ -83,10 +84,10 @@ async function signUpUser(email, password) {
   return data;
 }
 
-// Con la conferma attiva l'iscrizione alla squadra è rimandata al primo
+// Con la conferma attiva l'iscrizione alla squadra è rimandata al primo
 // accesso; senza, parte subito dopo la registrazione. In quel secondo caso, se
-// fallisce — un codice invito sbagliato — l'account è già creato ma senza
-// squadra, e riprovare dalla stessa schermata darebbe "email già registrata":
+// fallisce — un codice invito sbagliato — l'account è già creato ma senza
+// squadra, e riprovare dalla stessa schermata darebbe "email già registrata":
 // un vicolo cieco. Marcare l'errore permette alle schermate di portare
 // l'utente al recupero, dove la sessione aperta basta a completare.
 async function runActionAfterSignup(action) {
@@ -116,9 +117,12 @@ export async function logout() {
   await supabase.auth.signOut();
 }
 
-export async function createTeamAndAdmin({ email, password, teamName, city, category, displayName, sport }) {
+// Il codice di attivazione viaggia con l'azione in sospeso: se la conferma
+// dell'email arriva domani, la societa' si crea domani, e senza il codice il
+// database la rifiuterebbe.
+export async function createTeamAndAdmin({ email, password, activationCode, teamName, city, category, displayName, sport }) {
   const data = await signUpUser(email, password);
-  const action = { type: 'create_team', teamName, city, category, displayName, sport: sport || 'basket' };
+  const action = { type: 'create_team', code: activationCode, teamName, city, category, displayName, sport: sport || 'basket' };
   if (!data.session) { savePendingAction(action); return { needsEmailConfirmation: true }; }
   await runActionAfterSignup(action);
   return { needsEmailConfirmation: false };
@@ -135,6 +139,15 @@ export async function joinTeamByCode({ email, password, inviteCode, displayName,
   if (!data.session) { savePendingAction(action); return { needsEmailConfirmation: true }; }
   await runActionAfterSignup(action);
   return { needsEmailConfirmation: false };
+}
+
+// Il codice di attivazione si verifica PRIMA del modulo: scoprire che non va
+// bene dopo aver scritto nome, email e password e' il modo migliore per far
+// chiudere la pagina a qualcuno che aveva diritto di entrare.
+export async function checkActivationCode(code) {
+  const { data, error } = await supabase.rpc('activation_code_ok', { p_code: (code || '').trim().toUpperCase() });
+  if (error) return false;
+  return data === true;
 }
 
 export async function changePassword(email, oldPassword, newPassword) {

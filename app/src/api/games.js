@@ -41,8 +41,8 @@ function toDbPatch(g) {
 }
 
 // Una colonna mancante significa quasi sempre una migrazione non ancora
-// eseguita. Il messaggio di Postgres è corretto ma criptico: qui diventa
-// un'istruzione, altrimenti l'unico sintomo è "non funziona".
+// eseguita. Il messaggio di Postgres è corretto ma criptico: qui diventa
+// un'istruzione, altrimenti l'unico sintomo è "non funziona".
 function describeWriteError(error) {
   const msg = (error && error.message) || '';
   if (/period_scores/.test(msg)) {

@@ -204,7 +204,7 @@ function wirePersonalData(playerId, player) {
   const erase = document.getElementById('gdprErase');
   if (erase) erase.onclick = () => confirmModal(
     `Cancellare i dati di ${player.name}?`,
-    'Nome, data di nascita, codice fiscale, contatti e fotografia vengono rimossi; i documenti caricati eliminati; le rose e le presenze scollegate. I movimenti contabili restano senza nome, perché la legge impone di conservarli dieci anni. Non è reversibile.',
+    'Nome, data di nascita, codice fiscale, contatti e fotografia vengono rimossi; i documenti caricati eliminati; le rose e le presenze scollegate. I movimenti contabili restano senza nome, perché la legge impone di conservarli dieci anni. Non è reversibile.',
     async () => {
       await erasePlayer(playerId, "richiesta dell'interessato");
       toast('Dati cancellati');
@@ -230,7 +230,7 @@ function openPersonalData(player, data) {
 
   root.innerHTML = `<div class="modal-overlay" id="pdOverlay"><div class="modal-box wide">
     <h3>Dati conservati su ${esc(player.name)}</h3>
-    <div class="hint" style="margin-top:0;">Tutto ciò che l'applicazione tiene su questa persona, tabella per tabella.</div>
+    <div class="hint" style="margin-top:0;">Tutto ciò che l'applicazione tiene su questa persona, tabella per tabella.</div>
     ${sezioni.map(([nome, v]) => `
       <div class="section-label">${esc(nome)} <span class="hint" style="margin:0;">${conta(v)} voc${conta(v) === 1 ? 'e' : 'i'}</span></div>
       <div class="boxscore-wrap"><pre class="gdpr-dump">${esc(JSON.stringify(v ?? null, null, 2))}</pre></div>
