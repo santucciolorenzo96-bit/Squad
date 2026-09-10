@@ -337,15 +337,14 @@
      Cosi' nessuna sezione e' privilegiata nel foglio di stile: privilegiato e'
      il centro, e chi ci arriva prende il trattamento. */
 
-  /* La superficie, con l'incavo.
-     L'incavo NON si muove: sta fisso al centro perche' al centro c'e' sempre
-     la sezione aperta — e' la stessa regola vista dall'altra parte. Sono le
-     voci a scorrergli sotto, ed e' per questo che basta una maschera ferma
-     invece di una forma che insegue qualcosa. */
-  .barra-superficie {
-    -webkit-mask-image: radial-gradient(circle 1.75rem at 50% 0, transparent 99%, #000 100%);
-    mask-image: radial-gradient(circle 1.75rem at 50% 0, transparent 99%, #000 100%);
-  }
+  /* La superficie NON viene tagliata al centro.
+     Ci avevo provato, con una maschera: la conca era un buco vero, e dal buco
+     si vedeva scorrere il contenuto della pagina — parole e colori che
+     passavano dietro l icona proprio dove serve leggerla. Un incavo su un
+     fondo fisso e un incavo su una pagina che scorre non sono la stessa cosa.
+     La conca quindi la disegna la LINEA, che scende sotto la voce centrale,
+     mentre il vetro resta continuo: la striscia dentro la conca e larga meno
+     dell icona che la copre, quindi il compromesso non si vede. */
 
   .barra-pista {
     scroll-snap-type: x mandatory;
@@ -376,15 +375,6 @@
       brightness(calc(0.82 + 0.18 * var(--v)));
   }
 
-  /* L'alone sotto l'oggetto sollevato: la luce che si posa sull'incavo. Vive
-     dietro, sfocata, e cresce con lui. */
-  .barra-alone {
-    opacity: calc(var(--v) * 0.85);
-    transform: translateY(calc(var(--v) * -1.2rem)) scale(calc(0.5 + 0.5 * var(--v)));
-    background: radial-gradient(closest-side, rgb(var(--tinta) / 0.55), transparent 72%);
-    filter: blur(7px);
-  }
-
   .barra-etichetta {
     opacity: calc(0.34 + 0.66 * var(--v));
     transform: scale(calc(0.94 + 0.06 * var(--v)));
@@ -397,6 +387,5 @@
     .barra-figura {
       transform: translateY(calc(var(--v) * -0.5rem)) scale(calc(0.9 + 0.14 * var(--v)));
     }
-    .barra-alone { transform: translateY(calc(var(--v) * -0.4rem)); }
   }
 }

@@ -411,18 +411,26 @@ function BarraMobile({ sezione, onSezione }) {
           la pista e' trasparente e l'incavo e' un fondale. */}
       <div
         aria-hidden="true"
-        className="barra-superficie absolute inset-x-0 bottom-0 top-[1.4rem] vetro-alto border-t border-bordo/12"
+        className="barra-superficie absolute inset-x-0 bottom-0 top-[1.4rem] vetro-alto"
       />
 
-      {/* L incastro: un disco di vetro che riempie esattamente il buco della
-          maschera. Senza, dal taglio si vedeva scorrere il contenuto della
-          pagina — un incavo su un fondo fisso e un incavo su una pagina che
-          scorre non sono la stessa cosa. Il suo bordo disegna la curva
-          proprio dove la superficie e stata tagliata. */}
-      <span
-        aria-hidden="true"
-        className="absolute left-1/2 top-[1.4rem] h-[3.6rem] w-[3.6rem] -translate-x-1/2 -translate-y-1/2 rounded-full vetro-alto border border-bordo/10"
-      />
+      {/* La linea di confine, che al centro scende a formare una conca e passa
+          SOTTO la voce sollevata. Un bordo CSS non sa curvare a meta' strada,
+          quindi la linea e' composta: due tratti dritti ai lati e un semicerchio
+          in mezzo, disegnato con lo stesso raggio con cui e' tagliato il vetro —
+          se i due raggi non coincidono, fra la linea e la superficie si apre una
+          fessura che si vede solo sul telefono vero. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-[1.4rem] flex items-start">
+        <span className="h-px flex-1 bg-bordo/38" />
+        <svg width="96" height="27" viewBox="0 0 96 27" fill="none" className="shrink-0 -translate-y-px">
+          <path
+            d="M0 0.5H24A24 24 0 0 0 72 0.5H96"
+            stroke="rgb(var(--bordo) / 0.38)"
+            strokeWidth="1.1"
+          />
+        </svg>
+        <span className="h-px flex-1 bg-bordo/38" />
+      </div>
 
       <div
         ref={pista}
@@ -442,12 +450,8 @@ function BarraMobile({ sezione, onSezione }) {
               style={{ width: PASSO + 'px', '--tinta': 'var(--' + coloreSezione(v.id) + ')' }}
               className="barra-voce relative flex shrink-0 flex-col items-center gap-1.5 px-1 pb-1 pt-1"
             >
-              <span className="relative grid h-[3.6rem] w-full place-items-end justify-items-center pb-0.5">
-                <span
-                  aria-hidden="true"
-                  className="barra-alone pointer-events-none absolute bottom-0 h-16 w-16 rounded-full"
-                />
-                <IconaSezione id={v.id} dim={34} className="barra-figura relative" />
+              <span className="relative grid h-[4.1rem] w-full place-items-end justify-items-center pb-0.5">
+                <IconaSezione id={v.id} dim={38} className="barra-figura relative" />
               </span>
 
               <span className="barra-etichetta w-full truncate text-center text-[9px] font-bold uppercase tracking-[0.06em]">
@@ -473,7 +477,7 @@ export function Guscio({ sezione, onSezione, sectorId, onSettore, nastro, strume
       <Testata onSezione={onSezione} sectorId={sectorId} onSettore={onSettore} strumenti={strumenti} />
       <div className="flex min-h-0 flex-1">
         <Colonna sezione={sezione} onSezione={onSezione} />
-        <main id="contenuto" className="min-w-0 flex-1 overflow-y-auto px-4 pb-28 pt-6 sm:px-6 sm:pt-7 lg:pb-12 lg:pr-8">
+        <main id="contenuto" className="min-w-0 flex-1 overflow-y-auto px-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] pt-6 sm:px-6 sm:pt-7 lg:pb-12 lg:pr-8">
           <div className="mx-auto w-full max-w-[1120px] animate-salita">{children}</div>
         </main>
       </div>
