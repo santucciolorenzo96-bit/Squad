@@ -87,6 +87,22 @@ function Casella({ nome, totale, critici, attiva, onClick }) {
   );
 }
 
+/* Il contatto, cliccabile: un numero si chiama, non si trascrive. Il clic non
+ * deve portare anche alla sezione, quindi si ferma qui. */
+function Contatto({ valore }) {
+  if (!valore) return <span className="text-tenue">—</span>;
+  const telefono = /^[+\d][\d\s.\-()]{5,}$/.test(valore.trim());
+  return (
+    <a
+      href={(telefono ? 'tel:' : 'mailto:') + valore.replace(/\s/g, '')}
+      onClick={e => e.stopPropagation()}
+      className={cx('transition-opacity hover:opacity-75', telefono ? 'cifra text-blu' : 'text-blu')}
+    >
+      {valore}
+    </a>
+  );
+}
+
 /* ----------------------------------------------------------- un tipo di guaio */
 // La frase del gruppo compare qui, una volta. Le righe sotto dicono chi e cosa.
 function Gruppo({ problema, mostraCategoria, onSezione }) {
@@ -122,6 +138,7 @@ function Gruppo({ problema, mostraCategoria, onSezione }) {
             <tr className="border-b border-bordo/10">
               <th className="etichetta px-5 py-3">Chi</th>
               <th className="etichetta px-5 py-3">Cosa manca</th>
+              <th className="etichetta w-48 px-5 py-3">Contatto</th>
               {mostraCategoria && <th className="etichetta w-44 px-5 py-3">Categoria</th>}
             </tr>
           </thead>
@@ -137,6 +154,7 @@ function Gruppo({ problema, mostraCategoria, onSezione }) {
               >
                 <td className="px-5 py-3 text-[13.5px] font-semibold">{v.label}</td>
                 <td className="px-5 py-3 text-[12.5px] leading-snug text-soffuso">{v.sub || '—'}</td>
+                <td className="px-5 py-3 text-[12.5px]"><Contatto valore={v.contatto} /></td>
                 {mostraCategoria && (
                   <td className="px-5 py-3 text-[12px] text-tenue">{nomeCategoria(v.sectorId)}</td>
                 )}
@@ -162,6 +180,9 @@ function Gruppo({ problema, mostraCategoria, onSezione }) {
             <div className="min-w-0 flex-1">
               <div className="text-[13.5px] font-semibold leading-tight">{v.label}</div>
               {v.sub && <div className="mt-1 text-[12px] leading-snug text-tenue">{v.sub}</div>}
+              {v.contatto && (
+                <div className="mt-1 text-[12px]"><Contatto valore={v.contatto} /></div>
+              )}
             </div>
             {mostraCategoria && (
               <span className="shrink-0 text-[11px] text-tenue">{nomeCategoria(v.sectorId)}</span>

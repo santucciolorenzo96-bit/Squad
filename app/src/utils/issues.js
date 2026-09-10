@@ -84,7 +84,9 @@ export function detectIssues(ctx) {
   });
 
   const playerLabel = (p) => '#' + p.number + ' ' + p.name;
-  const playerSub = (p) => (p.player_sectors || []).map(ps => sectorName(ps.sector_id)).join(', ');
+  // Il numero di chi va sentito, dove esiste: il telefono del genitore prima
+  // dell'email, perche' per un certificato scaduto si telefona.
+  const playerContact = (p) => (p && (p.guardian_phone || p.email)) || null;
 
   // --- Certificati medici -------------------------------------------------
   const missing = [], expired = [], expiring = [];
@@ -92,7 +94,12 @@ export function detectIssues(ctx) {
     const certs = (docsByPlayer[p.id] || []).filter(d => d.doc_type === 'certificato_medico');
     const eff = effectiveDocument(certs);
     if (!eff) {
-      missing.push({ label: playerLabel(p), sub: playerSub(p) || 'Nessun certificato caricato', player: p, sectorId: primarySector(p) });
+      // La categoria NON va qui: ha una colonna sua, e ripeterla toglieva
+      // il posto all'unica informazione che serviva.
+      missing.push({
+        label: playerLabel(p), sub: 'Nessun certificato caricato',
+        contatto: playerContact(p), player: p, sectorId: primarySector(p)
+      });
       return;
     }
     if (!eff.expires_at) return; // caricato senza scadenza: non è deducibile
@@ -102,13 +109,13 @@ export function detectIssues(ctx) {
       expired.push({
         label: playerLabel(p),
         sub: 'Scaduto il ' + fmtDate(eff.expires_at) + ' · ' + (-left) + ' ' + plural(-left, 'giorno', 'giorni') + ' fa',
-        player: p, sort: left, sectorId: primarySector(p)
+        contatto: playerContact(p), player: p, sort: left, sectorId: primarySector(p)
       });
     } else if (left <= 30) {
       expiring.push({
         label: playerLabel(p),
         sub: 'Scade il ' + fmtDate(eff.expires_at) + ' · fra ' + left + ' ' + plural(left, 'giorno', 'giorni'),
-        player: p, sort: left, sectorId: primarySector(p)
+        contatto: playerContact(p), player: p, sort: left, sectorId: primarySector(p)
       });
     }
   });
@@ -152,7 +159,7 @@ export function detectIssues(ctx) {
         label: p ? playerLabel(p) : 'Atleta',
         sub: (d.doc_type === 'certificato_medico' ? 'Certificato medico' : 'Tesseramento FIP')
           + ' · caricato il ' + fmtDate((d.uploaded_at || '').slice(0, 10)),
-        sectorId: primarySector(p)
+        contatto: playerContact(p), sectorId: primarySector(p)
       };
     }),
     action: { label: 'Apri Anagrafica', tab: 'anagrafica' }
@@ -170,7 +177,7 @@ export function detectIssues(ctx) {
       const row = {
         label: who,
         sub: e.description + ' · ' + fmtMoney(residual) + ' · scadenza ' + fmtDate(e.due_date),
-        player: p, sort: left, sectorId: primarySector(p)
+        contatto: playerContact(p), player: p, sort: left, sectorId: primarySector(p)
       };
       if (e.kind === 'income') {
         if (left < 0) overdueIncome.push(row);
@@ -243,7 +250,7 @@ export function detectIssues(ctx) {
     if (left != null) when = ' · ' + (left === 0 ? 'oggi' : (left === 1 ? 'domani' : 'fra ' + left + ' giorni'));
     pendingComms.push({
       label: comm.title,
-      sub: sectorName(comm.sector_id) + ' · ' + pending.length + ' su ' + recipients.length + ' senza risposta' + when,
+      sub: pending.length + ' su ' + recipients.length + ' senza risposta' + when,
       sort: left == null ? 999 : left,
       sectorId: comm.sector_id || null,
       urgent: left != null && left <= 2,
