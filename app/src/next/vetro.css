@@ -356,23 +356,29 @@
   .barra-figura {
     transform: translateY(calc(var(--v) * -1.6rem)) scale(calc(0.68 + 0.62 * var(--v)));
     transform-origin: center bottom;
-    filter: saturate(calc(0.6 + 0.4 * var(--v)));
-    opacity: calc(0.78 + 0.22 * var(--v));
+    /* Il fondo della scala non scende oltre: in tema chiaro un oggetto pastello
+       troppo spento su fondo bianco sparisce, e una voce che non si vede non e
+       una voce in secondo piano, e una voce che non c e. */
+    filter: saturate(calc(0.55 + 0.45 * var(--v)));
+    opacity: calc(0.74 + 0.26 * var(--v));
   }
 
   /* La metamorfosi.
-     A riposo l'icona e' l'oggetto a due strati di tutta l'app: il volume e la
-     sua lastra ruotata dietro. Ingrandirlo e basta lo faceva leggere come una
-     forma sdoppiata — due sagome sovrapposte grandi il doppio.
-     Avvicinandosi al centro la lastra svanisce e il volume si arrotonda fino
-     al cerchio: al centro resta UN disco pieno con il glifo bianco, che e'
-     la cosa piu' leggibile che si possa mettere li'. */
-  .barra-voce .icona-lastra { opacity: calc(0.42 * (1 - var(--v))); }
-  .barra-voce .icona-volume { rx: calc(9px + 4px * var(--v)); }
+     Avvicinandosi al centro il corpo si arrotonda fino al cerchio (su un
+     quadrato di 27 il raggio pieno e 13.5) e lo spessore lo segue: al centro
+     resta un disco con il suo fianco sotto, che e la cosa piu leggibile che si
+     possa mettere li. Il fianco si accorcia perche un oggetto che viene verso
+     di te mostra meno fianco: non e un vezzo, e la stessa prospettiva che
+     regge il resto del disegno. */
+  .barra-voce .icona-volume,
+  .barra-voce .icona-spessore { rx: calc(9.5px + 4px * var(--v)); }
+  .barra-voce .icona-spessore {
+    transform: translate(calc(var(--v) * -1.2px), calc(var(--v) * -1.2px));
+  }
 
   .barra-etichetta {
-    opacity: calc(0.5 + 0.5 * var(--v));
-    transform: scale(calc(0.94 + 0.06 * var(--v)));
+    opacity: calc(var(--v) * var(--v));
+    transform: translateY(calc((1 - var(--v)) * 0.25rem));
   }
 
   @media (prefers-reduced-motion: reduce) {

@@ -2,20 +2,29 @@ import React from 'react';
 
 /* Icone di vetro.
  *
- * Costruite come nel riferimento: una forma sfalsata e ruotata dietro, il
- * volume principale davanti in sfumatura, e i dettagli incisi in bianco
- * traslucido. Non è decorazione — è quello che fa leggere l'insieme come un
- * sistema invece che come icone prese qua e là.
+ * Il riferimento e' materiale, non colore: oggetti di vetro traslucido con uno
+ * SPESSORE vero, una lastra di luce che ci passa sopra e un riflesso dove
+ * batte. Il colore invece resta quello di ogni sezione — e' la cosa che si
+ * impara prima del nome, e renderle tutte verdi vorrebbe dire buttarla via.
  *
- * Tre regole che tengono la serie coerente:
- *   1. la luce viene sempre da sopra-sinistra, quindi la sfumatura va dal
- *      chiaro in alto a sinistra allo scuro in basso a destra;
- *   2. la forma di dietro è sempre ruotata nello stesso verso e ha sempre la
- *      stessa opacità: se ogni icona ruota a modo suo la serie si sfalda;
- *   3. il glifo dentro è bianco traslucido, mai un secondo colore.
+ * Costruzione, dal fondo alla superficie:
  *
- * Il colore non è arbitrario: ogni sezione ne tiene uno per sempre, così si
- * impara la posizione prima del nome.
+ *   1. lo SPESSORE: la stessa sagoma spostata in basso a destra, in tinta piu'
+ *      scura. Non e' una seconda icona ruotata — quella leggeva come una forma
+ *      sdoppiata appena si ingrandiva — e' il fianco dell'oggetto, cioe' la
+ *      cosa che gli da' volume;
+ *   2. il CORPO, in sfumatura dal chiaro in alto a sinistra allo scuro in
+ *      basso a destra: la luce viene sempre da li', per tutte;
+ *   3. la LASTRA di vetro, una fascia obliqua bianca al 12% ritagliata dentro
+ *      il corpo: e' quella che fa sembrare la superficie trasparente invece
+ *      che verniciata;
+ *   4. il RIFLESSO: un'ellisse morbida in alto a sinistra e un filo di luce
+ *      sul bordo alto, dove il vetro incontra l'aria;
+ *   5. il GLIFO, bianco, sopra tutto.
+ *
+ * Tutto in SVG e senza immagini: a 24 pixel un rendering 3D vero e a questa
+ * costruzione si assomigliano, a 48 la differenza la nota solo chi cerca, e in
+ * cambio le icone pesano zero, seguono il tema e si colorano da sole.
  */
 
 const TONI = {
@@ -30,10 +39,14 @@ const TONI = {
 
 let seme = 0;
 
-// `glifo` disegna dentro un riquadro 0 0 24 24 centrato sul volume principale.
+// `glifo` disegna dentro un riquadro 0 0 24 24 centrato sul corpo.
 export function Icona({ tono = 'blu', dim = 26, glifo, className }) {
   const [chiaro, scuro] = TONI[tono] || TONI.blu;
-  const id = 'ic' + (seme++);
+  const n = seme++;
+  const gCorpo = 'ic' + n + 'c';
+  const gFianco = 'ic' + n + 'f';
+  const gVetro = 'ic' + n + 'v';
+  const rit = 'ic' + n + 'r';
 
   return (
     <svg
@@ -45,36 +58,45 @@ export function Icona({ tono = 'blu', dim = 26, glifo, className }) {
       className={className}
     >
       <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id={gCorpo} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor={chiaro} />
           <stop offset="1" stopColor={scuro} />
         </linearGradient>
+        {/* Il fianco e' la stessa tinta scura, piu' spenta: e' la parte che la
+            luce non prende. */}
+        <linearGradient id={gFianco} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor={scuro} stopOpacity="0.9" />
+          <stop offset="1" stopColor={scuro} stopOpacity="0.6" />
+        </linearGradient>
+        <linearGradient id={gVetro} x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stopColor="#fff" stopOpacity="0.02" />
+          <stop offset="1" stopColor="#fff" stopOpacity="0.26" />
+        </linearGradient>
+        <clipPath id={rit}>
+          <rect x="5" y="6" width="27" height="27" rx="9.5" />
+        </clipPath>
       </defs>
 
-      {/* La lastra dietro: stessa sfumatura, ruotata e traslucida. È lei a dare
-          lo spessore, e va disegnata prima perché sta sotto. */}
-      <rect
-        className="icona-lastra"
-        x="12" y="4" width="24" height="24" rx="8"
-        fill={`url(#${id})`} opacity="0.42"
-        transform="rotate(12 24 16)"
-      />
+      {/* 1. lo spessore */}
+      <rect className="icona-spessore" x="8" y="9" width="27" height="27" rx="9.5" fill={`url(#${gFianco})`} />
 
-      {/* Il volume principale. */}
-      <rect className="icona-volume" x="4" y="10" width="26" height="26" rx="9" fill={`url(#${id})`} />
+      {/* 2. il corpo */}
+      <rect className="icona-volume" x="5" y="6" width="27" height="27" rx="9.5" fill={`url(#${gCorpo})`} />
 
-      {/* Il glifo, inciso. */}
-      <g transform="translate(5 11)" fill="#fff" fillOpacity="0.92">
+      {/* 3-4. la lastra e i riflessi, ritagliati dentro il corpo */}
+      <g clipPath={`url(#${rit})`}>
+        <path d="M5 27 L34 5 L34 13 L13 33 Z" fill={`url(#${gVetro})`} />
+        <ellipse cx="14" cy="13" rx="9" ry="5.6" fill="#fff" opacity="0.15" transform="rotate(-30 14 13)" />
+        <path d="M7.5 12.5A8 8 0 0 1 15.5 7H22" stroke="#fff" strokeOpacity="0.34" strokeWidth="1.1" strokeLinecap="round" fill="none" />
+      </g>
+
+      {/* 5. il glifo */}
+      <g transform="translate(6.5 7.5)" fill="#fff" fillOpacity="0.95">
         {glifo}
       </g>
     </svg>
   );
 }
-
-/* --------------------------------------------------------------------------
- * I glifi. Riquadro 24x24, disegnati pieni: a queste dimensioni un contorno
- * sottile sparisce, e il riferimento è fatto di forme piene.
- * ------------------------------------------------------------------------ */
 
 const G = {
   // Casa
@@ -252,17 +274,16 @@ export const SEZIONI = {
   profilo: { tono: 'viola', glifo: G.profilo }
 };
 
-// Il colore di una sezione come NOME della variabile di tema, non come esadecimale:
-// serve a chi deve tingere qualcosa di quel colore fuori dall'icona — l'alone
-// della barra, per esempio — restando dentro la stessa tavolozza.
-export function coloreSezione(id) {
-  return (SEZIONI[id] || SEZIONI.home).tono;
-}
-
 export function IconaSezione({ id, dim = 26, className }) {
   const s = SEZIONI[id] || SEZIONI.home;
   return <Icona tono={s.tono} glifo={s.glifo} dim={dim} className={className} />;
 }
+
+export function coloreSezione(id) {
+  return (SEZIONI[id] || SEZIONI.home).tono;
+}
+
+
 
 /* Icone di interfaccia: tratto sottile, monocromatiche, prendono il colore del
    testo. Sono un'altra famiglia di proposito — mettere un volume di vetro su

@@ -418,8 +418,13 @@ function BarraMobile({ sezione, onSezione }) {
 
   useEffect(() => {
     window.addEventListener('resize', misura);
-    return () => window.removeEventListener('resize', misura);
-  }, [misura]);
+    const box = pista.current;
+    if (box && scattoNativo.current) box.addEventListener('scrollend', fineScorrimento);
+    return () => {
+      window.removeEventListener('resize', misura);
+      if (box && scattoNativo.current) box.removeEventListener('scrollend', fineScorrimento);
+    };
+  });
 
   // Fine dello scorrimento: si guarda chi e' rimasto al centro e si apre quella
   // sezione. `scrollend` non c'e' ovunque, quindi il ritardo fa da rete.
@@ -438,10 +443,18 @@ function BarraMobile({ sezione, onSezione }) {
     if (vicina && vicina !== sezione) { ultimo.current = vicina; onSezione(vicina); }
   }
 
+  const scattoNativo = useRef(
+    typeof window !== 'undefined' && typeof window.onscrollend !== 'undefined'
+  );
+
   function scorre() {
     misura();
+    // Con `scrollend` e' il browser a dire quando lo scatto e' finito: e'
+    // esatto, e toglie l'attesa a vuoto di chi si e' gia' fermato. Dove non
+    // c'e' — Safari, per ora — il ritardo resta come rete.
+    if (scattoNativo.current) return;
     clearTimeout(attesa.current);
-    attesa.current = setTimeout(fineScorrimento, 140);
+    attesa.current = setTimeout(fineScorrimento, 130);
   }
 
   return (
@@ -507,7 +520,7 @@ function BarraMobile({ sezione, onSezione }) {
               <span className="relative grid h-[4.6rem] w-full place-items-end justify-items-center pb-0.5">
                 <IconaSezione id={x.v.id} dim={48} className="barra-figura relative" />
               </span>
-              <span className="barra-etichetta w-full truncate text-center text-[9px] font-bold uppercase tracking-[0.06em]">
+              <span className="barra-etichetta w-full truncate text-center text-[9.5px] font-bold uppercase tracking-[0.08em]">
                 {x.v.label}
               </span>
             </button>
