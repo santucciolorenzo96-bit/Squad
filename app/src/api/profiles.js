@@ -1,11 +1,16 @@
 import { supabase } from '../supabaseClient.js';
 
 export async function fetchMyProfile() {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return null;
-  const { data, error } = await supabase.from('profiles').select('*').eq('id', auth.user.id).maybeSingle();
+  // getSession legge la sessione gia' in memoria e rinnova il token solo se e'
+  // scaduto; getUser andava SEMPRE a chiedere al server di validarlo, e quella
+  // richiesta stava in cima alla catena di avvio: la pagava ogni apertura
+  // dell app, anche quando non c era nessuna sessione da validare.
+  const { data: auth } = await supabase.auth.getSession();
+  const utente = auth && auth.session ? auth.session.user : null;
+  if (!utente) return null;
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', utente.id).maybeSingle();
   if (error) throw error;
-  return data ? { ...data, email: auth.user.email } : null;
+  return data ? { ...data, email: utente.email } : null;
 }
 
 export async function fetchTeamStaff(teamId) {

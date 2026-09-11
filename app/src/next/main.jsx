@@ -4,7 +4,7 @@ import './vetro.css';
 
 import { state } from '../state.js';
 import { fetchMyProfile } from '../api/profiles.js';
-import { loadTeamWideData, loadFamilyLinks, loadSectorData } from '../router.js';
+import { loadTeamCore, loadTeamExtras, loadFamilyLinks, loadSectorData } from '../router.js';
 import { isLinkedUser, isAdmin } from '../utils/permissions.js';
 import { Guscio } from './Guscio.jsx';
 import { Home } from './Home.jsx';
@@ -115,6 +115,7 @@ function NonAncora({ nome }) {
 /* -------------------------------------------------------------------- radice */
 function App() {
   const [fase, setFase] = useState('carico');   // carico | accesso | completa | console | dentro
+  const [lento, setLento] = useState(false);   // l'avvio sta durando troppo
   const [campione, setCampione] = useState(false);
   const [recupero, setRecupero] = useState(null);   // { email, errore }
   const [sezione, setSezione] = useState('home');
@@ -125,6 +126,10 @@ function App() {
 
   useEffect(() => {
     let vivo = true;
+    // Un avvio che non finisce non deve restare uno scheletro per sempre: dopo
+    // dodici secondi la schermata lo dice e offre di riprovare. Non interrompe
+    // niente — se il caricamento arriva dopo, entra lo stesso.
+    const orologio = setTimeout(() => { if (vivo) setLento(true); }, 12000);
     (async () => {
       try {
         let profilo = await fetchMyProfile();
@@ -135,10 +140,10 @@ function App() {
           // prova a portarla a termine da sola, e solo se non si puo' si
           // chiede all'utente. Senza questo passaggio, chi conferma l'email
           // resta fuori dalla propria societa' senza capire perche'.
-          const { data: auth } = await supabase.auth.getUser();
+          const { data: auth } = await supabase.auth.getSession();
           const sospesa = getPendingAction();
           let erroreSospeso = null;
-          if (auth && auth.user && sospesa) {
+          if (auth && auth.session && sospesa) {
             try {
               await runPendingAction(sospesa);
               profilo = await fetchMyProfile();
@@ -148,14 +153,14 @@ function App() {
             }
           }
           if (!vivo) return;
-          if (!profilo && auth && auth.user) {
+          if (!profilo && auth && auth.session) {
             // Un SuperAdmin puo' non appartenere a nessuna societa': e' il suo
             // caso normale, non un'iscrizione lasciata a meta'. Chiedergli di
             // entrare in una societa' sarebbe chiedergli l'unica cosa che non
             // deve fare.
             const piattaforma = await amIPlatformOwner().catch(() => false);
             if (!vivo) return;
-            setRecupero({ email: auth.user.email, errore: erroreSospeso });
+            setRecupero({ email: auth.session.user.email, errore: erroreSospeso });
             setFase(piattaforma ? 'console' : 'completa');
             return;
           }
@@ -163,7 +168,9 @@ function App() {
         }
 
         state.currentUser = profilo;
-        await loadTeamWideData();
+        // Solo il nucleo: nome della societa', categorie, permessi, stagione.
+        // E' tutto quello che serve per disegnare il guscio.
+        await loadTeamCore();
         if (isLinkedUser(profilo)) await loadFamilyLinks();
 
         // Stessa preferenza dell'app: se non c'è, la prima categoria
@@ -179,10 +186,23 @@ function App() {
           : ((state.sectors.find(s => accessibili.includes(s.id)) || {}).id || null);
 
         state.activeSectorId = scelto;
-        if (scelto) await loadSectorData(scelto);
         if (!vivo) return;
-        setSectorId(scelto);
+
+        // Si entra QUI, non dopo i dati della categoria: il guscio ha gia' il
+        // suo scheletro per quando la categoria non e' pronta, e vedere la
+        // propria societa' con la barra e le sezioni mentre la rosa arriva e'
+        // un'altra cosa rispetto a quattro rettangoli vuoti.
         setFase('dentro');
+
+        // Da qui in poi niente blocca piu' niente.
+        loadTeamExtras().catch(e => console.error(e));
+        if (scelto) {
+          loadSectorData(scelto)
+            .then(() => { if (vivo) setSectorId(scelto); })
+            .catch(e => { console.error(e); if (vivo) setSectorId(scelto); });
+        } else {
+          setSectorId(null);
+        }
       } catch (e) {
         // Senza sessione, offline, o con Supabase irraggiungibile si finisce
         // sulle schermate d'accesso: da lì si riprova o si guarda l'app con i
@@ -191,9 +211,11 @@ function App() {
         console.error(e);
         if (!vivo) return;
         setFase('accesso');
+      } finally {
+        clearTimeout(orologio);
       }
     })();
-    return () => { vivo = false; };
+    return () => { vivo = false; clearTimeout(orologio); };
   }, []);
 
   async function cambiaSettore(id) {
@@ -244,9 +266,26 @@ function App() {
 
   if (fase === 'carico') {
     return (
-      <div className="mx-auto max-w-[900px] px-5 py-10">
-        <Etichetta>Squad</Etichetta>
-        <div className="mt-4"><Scheletro righe={4} /></div>
+      <div className="flex min-h-[100dvh] flex-col items-center justify-center px-6 text-center">
+        <img className="marchio-simbolo h-[68px] w-auto animate-pulse" alt="" />
+        <p className="mt-5 text-[13px] text-tenue">Sto aprendo la tua società…</p>
+
+        {/* Quattro rettangoli vuoti non dicono se sta caricando o se si e'
+            rotto qualcosa. Dopo dodici secondi la differenza va detta. */}
+        {lento && (
+          <div className="mt-7 max-w-[19rem]">
+            <p className="text-[12.5px] leading-relaxed text-soffuso">
+              Ci sta mettendo più del solito. Può essere la rete, o il database che si sta
+              svegliando.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-3 rounded-lg vetro orlo px-4 py-2 text-[12.5px] font-semibold transition-colors hover:bg-pannello/12"
+            >
+              Riprova
+            </button>
+          </div>
+        )}
       </div>
     );
   }

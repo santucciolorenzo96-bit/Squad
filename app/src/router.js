@@ -22,7 +22,20 @@ import { isAdmin, isLinkedUser } from './utils/permissions.js';
 
 const LAST_SECTOR_KEY = 'bbapp_active_sector';
 
-export async function loadTeamWideData() {
+// Il carico dell'avvio, diviso in due.
+//
+// Prima erano una funzione sola, e l'app restava sullo scheletro finche' non
+// finiva TUTTA: sette ondate di richieste in fila — squadra, stagioni,
+// documenti da approvare, documenti in scadenza, notifiche, configurazione
+// della finanza (altre sette query), e poi i dati della categoria. Su una rete
+// mobile sono facilmente cinque o sei secondi di schermata vuota, ogni volta.
+//
+// Solo la prima ondata serve a DISEGNARE: nome della societa', categorie,
+// permessi. I contatori delle pastiglie, le notifiche e la finanza servono a
+// pezzi di schermata che si vedono dopo, o che hanno gia' il loro scheletro.
+// Quindi il guscio si apre con il nucleo, e il resto arriva mentre lo guardi.
+
+export async function loadTeamCore() {
   const teamId = state.currentUser.team_id;
   const [team, sectors, staff, staffSectors] = await Promise.all([
     fetchTeam(teamId),
@@ -37,8 +50,10 @@ export async function loadTeamWideData() {
   state.staff = staff;
   state.staffSectors = staffSectors;
 
-  // La stagione decide il perimetro di rose, partite, presenze e classifica.
-  // Se la tabella non c'è ancora (migrazione 021 non eseguita) si continua
+  // La stagione decide il perimetro di rose, partite, presenze e classifica,
+  // quindi sta nel nucleo: senza, la prima richiesta della categoria
+  // chiederebbe i dati della stagione sbagliata.
+  // Se la tabella non c'e' ancora (migrazione 021 non eseguita) si continua
   // senza: le query cadono sul comportamento precedente invece di fallire.
   try {
     state.seasons = await fetchSeasons(teamId);
@@ -48,21 +63,46 @@ export async function loadTeamWideData() {
     state.activeSeasonId = null;
     console.error(e);
   }
+}
+
+// Tutto quello che puo' arrivare dopo che il guscio e' a schermo. Nessuna di
+// queste richieste blocca piu' niente, e ognuna fallisce per conto suo: una
+// notifica che non arriva non deve impedire di vedere la rosa.
+export async function loadTeamExtras() {
+  const teamId = state.currentUser.team_id;
+  const lavori = [];
 
   if (!isLinkedUser(state.currentUser)) {
-    try { state.pendingDocsCount = (await fetchPendingDocuments(teamId)).length; }
-    catch (e) { state.pendingDocsCount = 0; }
-    try { state.expiringDocsCount = (await fetchExpiringDocuments(teamId)).length; }
-    catch (e) { state.expiringDocsCount = 0; }
+    lavori.push(
+      fetchPendingDocuments(teamId)
+        .then(d => { state.pendingDocsCount = d.length; })
+        .catch(() => { state.pendingDocsCount = 0; })
+    );
+    lavori.push(
+      fetchExpiringDocuments(teamId)
+        .then(d => { state.expiringDocsCount = d.length; })
+        .catch(() => { state.expiringDocsCount = 0; })
+    );
   }
 
-  try { state.notifications = await fetchNotifications(teamId); }
-  catch (e) { state.notifications = []; }
+  lavori.push(
+    fetchNotifications(teamId)
+      .then(n => { state.notifications = n; })
+      .catch(() => { state.notifications = []; })
+  );
 
   if (state.currentUser.finance_role) {
-    try { await loadFinanceConfig(); }
-    catch (e) { console.error('Errore nel caricamento dati finanza:', e); }
+    lavori.push(loadFinanceConfig().catch(e => console.error('Errore nel caricamento dati finanza:', e)));
   }
+
+  await Promise.all(lavori);
+}
+
+// L'app precedente si aspetta che al ritorno ci sia tutto: per lei le due
+// meta' restano una cosa sola.
+export async function loadTeamWideData() {
+  await loadTeamCore();
+  await loadTeamExtras();
 }
 
 export async function loadFinanceConfig() {
