@@ -349,44 +349,32 @@
     scroll-snap-stop: always;
   }
 
-  /* L'oggetto sale e cresce. Sale abbastanza da appoggiarsi dentro la conca
-     con un margine uguale tutt'intorno: e' quel margine a far sembrare che la
-     barra si sia aperta per farlo passare, invece che l'icona appoggiata
-     sopra a una curva disegnata. */
+  /* L'oggetto cresce, e basta.
+     Niente metamorfosi in cerchio, niente sollevamento fuori dalla barra,
+     niente colore spento ai lati: l'icona nella barra e' LA STESSA icona che
+     si vede nella colonna su schermo grande, nella Home, in Situazione. Stessa
+     forma, stesso spessore, stessi riflessi.
+
+     E' la ragione per cui le versioni precedenti non tenevano: un'icona che
+     cambia natura entrando in un contenitore insegna che quel contenitore e'
+     un posto a parte, e non lo e' — e' la stessa app. La gerarchia la fanno
+     due cose sole, la misura e il nome, e bastano perche' agiscono insieme. */
   .barra-figura {
-    transform: translateY(calc(var(--v) * -1.6rem)) scale(calc(0.68 + 0.62 * var(--v)));
+    transform: scale(calc(0.84 + 0.30 * var(--v)));
     transform-origin: center bottom;
-    /* Il fondo della scala non scende oltre: in tema chiaro un oggetto pastello
-       troppo spento su fondo bianco sparisce, e una voce che non si vede non e
-       una voce in secondo piano, e una voce che non c e. */
-    filter: saturate(calc(0.55 + 0.45 * var(--v)));
-    opacity: calc(0.74 + 0.26 * var(--v));
   }
 
-  /* La metamorfosi.
-     Avvicinandosi al centro il corpo si arrotonda fino al cerchio (su un
-     quadrato di 27 il raggio pieno e 13.5) e lo spessore lo segue: al centro
-     resta un disco con il suo fianco sotto, che e la cosa piu leggibile che si
-     possa mettere li. Il fianco si accorcia perche un oggetto che viene verso
-     di te mostra meno fianco: non e un vezzo, e la stessa prospettiva che
-     regge il resto del disegno. */
-  .barra-voce .icona-volume,
-  .barra-voce .icona-spessore { rx: calc(9.5px + 4px * var(--v)); }
-  .barra-voce .icona-spessore {
-    transform: translate(calc(var(--v) * -1.2px), calc(var(--v) * -1.2px));
-  }
-
+  /* Il nome compare solo dove si sta guardando. E' il secondo segnale, ed e'
+     quello che regge anche senza colore: chi non distingue le tinte legge
+     comunque quale sezione e' aperta. */
   .barra-etichetta {
-    opacity: calc(var(--v) * var(--v));
-    transform: translateY(calc((1 - var(--v)) * 0.25rem));
+    opacity: calc(0.28 + 0.72 * var(--v));
   }
 
   @media (prefers-reduced-motion: reduce) {
     .animate-salita { animation: none !important; }
-    /* Lo scorrimento resta, ed e' giusto: e' il dito. Ma il sollevamento si
-       accorcia, perche' e' quello a dare il senso di movimento. */
-    .barra-figura {
-      transform: translateY(calc(var(--v) * -0.7rem)) scale(calc(0.78 + 0.32 * var(--v)));
-    }
+    /* Lo scorrimento resta, ed e' giusto: e' il dito. Si accorcia il salto di
+       misura, che e' quello che da' il senso di movimento. */
+    .barra-figura { transform: scale(calc(0.9 + 0.14 * var(--v))); }
   }
 }

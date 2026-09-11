@@ -326,7 +326,7 @@ function Colonna({ sezione, onSezione }) {
 // Larghezza di una voce. Con il riempimento laterale a meta' schermo che
 // mettiamo sotto, portare al centro la voce numero i vuol dire esattamente
 // scrollLeft = i * PASSO: e' quello che rende semplice tutto il resto.
-const PASSO = 84;
+const PASSO = 78;
 const COPIE = 3;
 
 function BarraMobile({ sezione, onSezione }) {
@@ -458,51 +458,17 @@ function BarraMobile({ sezione, onSezione }) {
   }
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 lg:hidden" aria-label="Sezioni">
-      {/* La superficie sta DIETRO le voci e non le contiene: un contenitore che
-          scorre in orizzontale ritaglia anche in verticale, e l'oggetto
-          sollevato verrebbe tagliato a meta' proprio mentre esce. */}
-      <div
-        aria-hidden="true"
-        className="barra-superficie absolute inset-x-0 bottom-0 top-[2rem] vetro-alto"
-      />
-
-      {/* La linea di confine, che al centro scende a formare la conca e passa
-          SOTTO la voce sollevata.
-
-          Tre pezzi che si toccano, non un tratto lungo con una toppa sopra:
-          il dritto a sinistra, il semicerchio, il dritto a destra. La prima
-          versione tirava la linea per tutta la larghezza e copriva il pezzo
-          dentro la conca con una pennellata del colore del pannello — che in
-          tema chiaro non e' esattamente il colore della barra, e infatti si
-          vedeva. Qui non c'e' niente da coprire. */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute left-0 top-[2rem] h-px bg-bordo/40"
-        style={{ right: 'calc(50% + 60px)' }}
-      />
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute right-0 top-[2rem] h-px bg-bordo/40"
-        style={{ left: 'calc(50% + 60px)' }}
-      />
-      <svg
-        aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-[2rem] h-[2.2rem] w-[7.5rem] -translate-x-1/2 -translate-y-px"
-        viewBox="0 0 120 35"
-        fill="none"
-      >
-        {/* Raggio 28 contro un disco che al centro ne misura 20: otto pixel di
-            margine tutt'intorno. E' quel margine a far sembrare che la barra si
-            sia aperta per far passare l'oggetto, invece che l'oggetto appoggiato
-            sopra una curva disegnata. */}
-        <path d="M0 1H32A28 28 0 0 0 88 1H120" stroke="rgb(var(--bordo) / 0.4)" strokeWidth="1.5" />
-      </svg>
-
+    <nav
+      className="fixed inset-x-0 bottom-0 z-50 vetro-alto border-t border-bordo/12 lg:hidden"
+      aria-label="Sezioni"
+    >
+      {/* Nessun fondale separato e nessuna conca: senza un oggetto che esce
+          dalla barra, la barra torna a essere una superficie sola con il suo
+          filo in cima — la cosa piu' semplice che faccia il lavoro. */}
       <div
         ref={pista}
         onScroll={scorre}
-        className="barra-pista relative flex overflow-x-auto pb-[calc(0.375rem+env(safe-area-inset-bottom))] pt-2"
+        className="barra-pista flex overflow-x-auto pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2.5"
         style={{ paddingLeft: 'calc(50% - ' + (PASSO / 2) + 'px)', paddingRight: 'calc(50% - ' + (PASSO / 2) + 'px)' }}
       >
         {catena.map(x => {
@@ -515,12 +481,15 @@ function BarraMobile({ sezione, onSezione }) {
               onFocus={() => porta(x.v.id, true)}
               aria-current={aperta ? 'page' : undefined}
               style={{ width: PASSO + 'px' }}
-              className="barra-voce relative flex shrink-0 flex-col items-center gap-1.5 px-1 pb-1 pt-1"
+              className="barra-voce flex shrink-0 flex-col items-center gap-1.5 px-1 pb-0.5"
             >
-              <span className="relative grid h-[4.6rem] w-full place-items-end justify-items-center pb-0.5">
-                <IconaSezione id={x.v.id} dim={48} className="barra-figura relative" />
+              {/* La colonna e' alta quanto l'icona cresciuta: l'oggetto si
+                  appoggia al fondo e cresce verso l'alto, cosi' le etichette
+                  restano incolonnate mentre le icone cambiano misura. */}
+              <span className="grid h-[2.9rem] w-full place-items-end justify-items-center">
+                <IconaSezione id={x.v.id} dim={40} className="barra-figura" />
               </span>
-              <span className="barra-etichetta w-full truncate text-center text-[9.5px] font-bold uppercase tracking-[0.08em]">
+              <span className="barra-etichetta w-full truncate text-center text-[9.5px] font-bold uppercase tracking-[0.07em]">
                 {x.v.label}
               </span>
             </button>
@@ -543,7 +512,7 @@ export function Guscio({ sezione, onSezione, sectorId, onSettore, nastro, strume
       <Testata onSezione={onSezione} sectorId={sectorId} onSettore={onSettore} strumenti={strumenti} />
       <div className="flex min-h-0 flex-1">
         <Colonna sezione={sezione} onSezione={onSezione} />
-        <main id="contenuto" className="min-w-0 flex-1 overflow-y-auto px-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] pt-6 sm:px-6 sm:pt-7 lg:pb-12 lg:pr-8">
+        <main id="contenuto" className="min-w-0 flex-1 overflow-y-auto px-4 pb-[calc(6.25rem+env(safe-area-inset-bottom))] pt-6 sm:px-6 sm:pt-7 lg:pb-12 lg:pr-8">
           <div className="mx-auto w-full max-w-[1120px] animate-salita">{children}</div>
         </main>
       </div>
