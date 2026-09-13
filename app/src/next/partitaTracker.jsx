@@ -64,7 +64,7 @@ function calcolaPunteggi(g, sport) {
   g.oppScore = periodi.reduce((n, x) => n + ((x && x.them) || 0), 0);
 }
 
-export function Tracker({ onFinita }) {
+export function Tracker({ onFinita, onEsci }) {
   const sport = currentSport();
   const conf = sport.scout;
   const avvisa = useAvviso();
@@ -78,6 +78,16 @@ export function Tracker({ onFinita }) {
   const [chiudiPeriodo, setChiudiPeriodo] = useState(false);
   const [finePartita, setFinePartita] = useState(false);
   const salvataggioRotto = useRef(false);
+
+  // A schermo intero la pagina sotto non deve scorrere: due superfici che
+  // scorrono una dentro l'altra, su un tablet tenuto in mano, vuol dire
+  // perdere il campo mentre si cerca un pulsante.
+  useEffect(() => {
+    if (!onEsci) return undefined;
+    const prima = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prima; };
+  }, [onEsci]);
 
   const g = state.liveGame;
   if (!g) return null;
@@ -224,38 +234,87 @@ export function Tracker({ onFinita }) {
   const bonus = conf.teamFouls && falli >= conf.teamFoulBonus;
   const giocatoreScelto = g.players.find(p => p.id === scelto);
 
-  // Il periodo in corso, dal vivo. Nella pallavolo e' IL punteggio — i numeri
-  // grandi sono i set vinti — e nel basket e' il controllo che si confronta
-  // col tabellone della palestra a ogni interruzione.
+  // Il periodo in corso. Nella pallavolo e' il punteggio che si vede in grande;
+  // nel basket serve alla chiusura del quarto, dove si confronta col tabellone
+  // della palestra.
   const inCorso = (g.periodScores || [])[(g.quarter || 1) - 1] || { us: 0, them: 0 };
+
+  // UN SOLO PUNTEGGIO GRANDE, e vivo.
+  //
+  // Chi segna guarda un numero solo, e quel numero deve essere quello che sta
+  // sul tabellone della palestra in questo momento. Nella pallavolo quel numero
+  // e' il punteggio DEL SET: i set vinti sono la storia della partita, non il
+  // gioco in corso, e vanno in mezzo, piccoli. Nel basket e nel calcio e' il
+  // totale, che cresce gia' da solo azione dopo azione.
+  const perSet = conf.scoreDisplay === 'setsWon';
+  const grandeNostro = perSet ? inCorso.us : g.teamScore;
+  const grandeLoro = perSet ? inCorso.them : g.oppScore;
+
+  // I periodi gia' chiusi, in riga e in piccolo: il parziale quarto per quarto
+  // (o set per set) e' la cosa che si guarda dopo il punteggio, mai prima.
+  const chiusi = (g.periodScores || []).slice(0, Math.max(0, (g.quarter || 1) - 1));
+  const parziali = chiusi.filter(Boolean).map(x => x.us + '-' + x.them).join('  ·  ');
   // I nostri punti si possono aggiungere a mano solo dove NON appartengono a
   // un giocatore: nella pallavolo un errore avversario e' un punto nostro che
   // non ha autore. Nel basket ogni punto ha un autore, e una mano libera sul
   // punteggio sarebbe solo un modo per falsare il tabellino.
   const manoNostra = conf.ourScore === 'perPeriod';
 
-  return (
+  const corpo = (
     <div className="relative pb-4">
       {/* ============================================================ tabellone */}
       {/* Resta in cima mentre si scorre: è il numero che si controlla a ogni
           interruzione, e cercarlo scorrendo all'insù durante una partita è
           esattamente il gesto da togliere. */}
-      <div className="sticky top-0 z-20 -mx-4 mb-4 px-4 pt-1 sm:-mx-6 sm:px-6">
+      <div className={cx(
+        'sticky top-0 z-20 -mx-4 mb-4 px-4 pt-1 sm:-mx-6 sm:px-6',
+        onEsci && 'bg-fondo/85 pb-1 backdrop-blur-sm'
+      )}>
+        {/* La via d'uscita sta dentro la parte che resta in cima: se scorresse
+            via, per uscire da una partita bisognerebbe prima ritrovarla. */}
+        {onEsci && (
+          <div className="mb-1.5 flex items-center justify-between gap-3 pt-[env(safe-area-inset-top)]">
+            <button
+              onClick={onEsci}
+              className="-ml-1 rounded-lg px-2 py-1 text-[12px] font-semibold text-tenue transition-colors hover:text-testo"
+            >
+              ‹ Esci dallo scout
+            </button>
+            <span className="truncate text-[11px] text-tenue">
+              Uscire non chiude la partita
+            </span>
+          </div>
+        )}
+
         <Pannello alto className="overflow-hidden">
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-4">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-3.5 sm:px-4">
             <div className="min-w-0 text-center">
               <div className="truncate text-[10px] font-bold uppercase tracking-etichetta text-tenue">
                 {(state.teamProfile || {}).name}
               </div>
               <div className="mt-1 text-[clamp(30px,9vw,46px)] font-bold leading-none text-verde">
-                {g.teamScore}
+                {grandeNostro}
               </div>
+              <ManoPunteggio
+                attiva={manoNostra}
+                onPiu={() => manoPunteggio('us', 1)}
+                onMeno={() => manoPunteggio('us', -1)}
+              />
             </div>
 
-            <div className="px-2 text-center">
+            {/* La zona centrale: che periodo si sta giocando, e tutto il
+                contorno. Qui sta anche il conto dei set vinti — piccolo,
+                perche' e' il riassunto, non il gioco. */}
+            <div className="px-1 text-center sm:px-2">
               <div className="text-[11px] font-bold uppercase tracking-etichetta text-tenue">
                 {conf.period.short}{g.quarter}
               </div>
+              {perSet && (
+                <div className="mt-1.5 rounded-full bg-pannello/14 px-2.5 py-0.5 text-[11px] font-bold leading-none text-soffuso">
+                  <span className="cifra">{g.teamScore}–{g.oppScore}</span>
+                  <span className="ml-1 text-[9px] font-bold uppercase tracking-etichetta text-tenue">set</span>
+                </div>
+              )}
               {g.friendly && (
                 <div className="mt-1.5 rounded-full bg-pannello/14 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-etichetta text-tenue">
                   amichevole
@@ -274,35 +333,24 @@ export function Tracker({ onFinita }) {
                 {g.oppName}
               </div>
               <div className="mt-1 text-[clamp(30px,9vw,46px)] font-bold leading-none">
-                {g.oppScore}
+                {grandeLoro}
               </div>
+              <ManoPunteggio
+                attiva
+                onPiu={() => manoPunteggio('them', 1)}
+                onMeno={() => manoPunteggio('them', -1)}
+              />
             </div>
           </div>
 
-          {/* Il periodo in corso, con le mani sul punteggio. Verde aggiunge,
-              rosso toglie: sono i due gesti che si fanno guardando il campo, e
-              devono essere distinguibili senza leggere. */}
-          <div className="flex items-center justify-between gap-2 border-t border-bordo/10 px-3 py-2.5">
-            <ManoPunteggio
-              valore={inCorso.us}
-              attiva={manoNostra}
-              onPiu={() => manoPunteggio('us', 1)}
-              onMeno={() => manoPunteggio('us', -1)}
-            />
-
-            <div className="shrink-0 text-center">
-              <div className="text-[9.5px] font-bold uppercase tracking-etichetta text-tenue">
-                {conf.period.label} {g.quarter} in corso
-              </div>
+          {/* I parziali chiusi, in fondo e in mezzo. Non c'e' riga finche' non
+              si chiude il primo periodo: uno spazio vuoto che aspetta e' peggio
+              di nessuno spazio. */}
+          {parziali && (
+            <div className="border-t border-bordo/10 px-3 py-1.5 text-center">
+              <span className="cifra text-[10.5px] font-semibold text-tenue">{parziali}</span>
             </div>
-
-            <ManoPunteggio
-              valore={inCorso.them}
-              attiva
-              onPiu={() => manoPunteggio('them', 1)}
-              onMeno={() => manoPunteggio('them', -1)}
-            />
-          </div>
+          )}
 
           <div className="flex gap-px border-t border-bordo/10 bg-bordo/10">
             <button
@@ -401,8 +449,9 @@ export function Tracker({ onFinita }) {
           <p className="mt-4 text-[11.5px] leading-relaxed text-tenue">
             Tocca un giocatore e poi l’azione. Dopo un tiro sbagliato l’app chiede subito chi ha
             preso il rimbalzo, e dopo un canestro se c’era un assist: rispondi con un tocco, o
-            tocca fuori per saltare. Il ⇄ sul gettone prepara una sostituzione. Il punteggio
-            avversario si scrive alla chiusura del {conf.period.label.toLowerCase()}.
+            tocca fuori per saltare. Il ⇄ sul gettone prepara una sostituzione. I punti che non
+            hanno un autore — quelli dell’avversario{manoNostra ? ', e i nostri su errore loro' : ''} —
+            si mettono col + e col − sotto al punteggio.
           </p>
         </div>
       </div>
@@ -468,34 +517,52 @@ export function Tracker({ onFinita }) {
       )}
     </div>
   );
+
+  if (!onEsci) return corpo;
+
+  // LO SCOUT E' UNA SCHERMATA A SE'.
+  //
+  // Mentre si segna una partita non serve nient'altro: non la barra delle
+  // sezioni, non il menu, non il nome della societa'. Ogni cosa che resta sullo
+  // schermo e' una cosa che si puo' toccare per sbaglio mentre il gioco corre,
+  // e su un tablet tenuto con due mani gli sbagli si fanno ai bordi.
+  //
+  // Fuori dall'impaginazione dell'app, quindi: la finestra e' tutta della
+  // partita, e si esce da un pulsante solo.
+  return createPortal(
+    <div className="scout-schermo fixed inset-0 z-[60] overflow-y-auto overscroll-contain bg-fondo">
+      <div className="mx-auto w-full max-w-[110rem] px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6">
+        {corpo}
+      </div>
+    </div>,
+    document.body
+  );
 }
 
 /* -------------------------------------------------- mano sul punteggio */
-// Meno a sinistra, numero in mezzo, piu' a destra: l'ordine in cui si legge
-// una retta, e il piu' — quello che si tocca dieci volte piu' spesso — sta
-// dalla parte del pollice destro.
+// Sotto il numero grande, non accanto a un secondo numero: il punteggio e'
+// uno, e questi sono i due gesti che lo muovono. Verde aggiunge, rosso toglie
+// — si distinguono senza leggere, che e' l'unico modo di usarli mentre si
+// guarda il campo.
 //
-// Dove il punteggio non si tocca a mano (i nostri punti nel basket, che
-// appartengono sempre a un giocatore) restano solo le cifre: un pulsante che
-// non deve essere premuto e' meglio non disegnarlo.
-function ManoPunteggio({ valore, attiva, onPiu, onMeno }) {
-  if (!attiva) {
-    return <div className="min-w-[4.5rem] text-center text-[17px] font-bold leading-none">{valore}</div>;
-  }
+// Dove i punti appartengono sempre a un giocatore (i nostri, nel basket) la
+// mano non c'e': lo spazio pero' resta, cosi' i due numeri grandi restano
+// sulla stessa riga invece di sfalsarsi.
+function ManoPunteggio({ attiva, onPiu, onMeno }) {
+  if (!attiva) return <div className="mt-1.5 h-7" aria-hidden="true" />;
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="mt-1.5 flex items-center justify-center gap-1.5">
       <button
         onClick={onMeno}
         aria-label="Togli un punto"
-        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-rosso/14 text-[15px] font-bold text-rosso transition-all hover:bg-rosso/22 active:scale-95"
+        className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-rosso/14 text-[14px] font-bold leading-none text-rosso transition-all hover:bg-rosso/22 active:scale-95"
       >
         −
       </button>
-      <span className="cifra min-w-[2rem] text-center text-[19px] font-bold leading-none">{valore}</span>
       <button
         onClick={onPiu}
         aria-label="Aggiungi un punto"
-        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-verde/16 text-[15px] font-bold text-verde transition-all hover:bg-verde/24 active:scale-95"
+        className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-verde/16 text-[14px] font-bold leading-none text-verde transition-all hover:bg-verde/24 active:scale-95"
       >
         +
       </button>

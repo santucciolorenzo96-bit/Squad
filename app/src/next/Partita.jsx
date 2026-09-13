@@ -16,9 +16,62 @@ import { Tracker } from './partitaTracker.jsx';
  * blocca le altre pur restando invisibile da qui.
  */
 
+/* Si e' usciti dallo scout, ma la partita e' ancora aperta.
+ *
+ * Non e' una schermata di lavoro: e' un cartello che dice dove si era rimasti e
+ * come tornarci. Il punteggio si vede perche' e' l'unica cosa che serve
+ * sapere da fuori. */
+function PartitaInCorso({ sport, onRientra }) {
+  const g = state.liveGame || {};
+  const conf = sport.scout;
+  // Lo stesso numero che si vede nello scout: quello vivo. Nella pallavolo
+  // teamScore sono i set, e un «0–0» mentre il primo set è a metà direbbe
+  // il falso.
+  const perSet = conf.scoreDisplay === 'setsWon';
+  const vivo = (g.periodScores || [])[(g.quarter || 1) - 1] || { us: 0, them: 0 };
+  const nostri = perSet ? vivo.us : g.teamScore;
+  const loro = perSet ? vivo.them : g.oppScore;
+  return (
+    <>
+      <Titolo sopra="Categoria">Partita</Titolo>
+      <div className="mt-5">
+        <Pannello alto className="pad-pannello-stretto">
+          <Etichetta className="!text-verde">Partita in corso</Etichetta>
+          <div className="mt-3 flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[15px] font-bold">
+                {(state.teamProfile || {}).name} – {g.oppName}
+              </div>
+              <div className="mt-0.5 text-[11.5px] text-tenue">
+                {conf.period.label} {g.quarter}{g.friendly ? ' · amichevole' : ''}
+              </div>
+            </div>
+            <div className="shrink-0 text-right">
+              <div className="cifra text-[24px] font-bold leading-none">{nostri}–{loro}</div>
+              {perSet && (
+                <div className="mt-1 text-[10px] font-bold uppercase tracking-etichetta text-tenue">
+                  set {g.teamScore}–{g.oppScore}
+                </div>
+              )}
+            </div>
+          </div>
+          <Pulsante variante="primario" className="mt-4 w-full" onClick={onRientra}>
+            Torna allo scout
+          </Pulsante>
+          <p className="mt-3 text-[11.5px] leading-relaxed text-tenue">
+            Finché non chiudi la partita dallo scout, il tabellino resta aperto e questa
+            categoria non ne può iniziare un’altra.
+          </p>
+        </Pannello>
+      </div>
+    </>
+  );
+}
+
 export function Partita() {
   const sport = currentSport();
   const [fase, setFase] = useState('carico');   // carico | vuoto | live
+  const [scout, setScout] = useState(true);    // lo scout occupa tutta la finestra
   const [errore, setErrore] = useState(null);
   const [aperte, setAperte] = useState([]);
   const [daScartare, setDaScartare] = useState(null);
@@ -34,6 +87,9 @@ export function Partita() {
     ]).then(([viva, tutte]) => {
       state.liveGame = viva;
       setAperte((tutte || []).filter(x => x.sector_id !== state.activeSectorId));
+      // Se una partita e' aperta si entra dritti nello scout: chi apre questa
+      // sezione durante una partita non ci arriva per curiosare.
+      setScout(true);
       setFase(viva ? 'live' : 'vuoto');
     }).catch(setErrore);
   }
@@ -55,7 +111,9 @@ export function Partita() {
   }
 
   if (fase === 'live') {
-    return <Tracker onFinita={() => { avvisa('Partita archiviata'); carica(); }} />;
+    const finita = () => { avvisa('Partita archiviata'); carica(); };
+    if (scout) return <Tracker onEsci={() => setScout(false)} onFinita={finita} />;
+    return <PartitaInCorso sport={sport} onRientra={() => setScout(true)} />;
   }
 
   return (
@@ -92,7 +150,7 @@ export function Partita() {
         </div>
       )}
 
-      <AvvioPartita onAvviata={() => { setFase('live'); avvisa('Partita avviata'); }} />
+      <AvvioPartita onAvviata={() => { setScout(true); setFase('live'); avvisa('Partita avviata'); }} />
 
       {daScartare && (
         <Conferma
