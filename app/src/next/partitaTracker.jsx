@@ -53,8 +53,9 @@ function calcolaPunteggi(g, sport) {
   const conf = sport.scout;
   const periodi = g.periodScores || [];
   if (conf.scoreDisplay === 'setsWon') {
-    g.teamScore = periodi.filter(x => x && x.us > x.them).length;
-    g.oppScore = periodi.filter(x => x && x.them > x.us).length;
+    const chiusi = periodi.slice(0, Math.max(0, (g.quarter || 1) - 1));
+    g.teamScore = chiusi.filter(x => x && x.us > x.them).length;
+    g.oppScore = chiusi.filter(x => x && x.them > x.us).length;
     return;
   }
   g.teamScore = conf.ourScore === 'fromActions'
@@ -131,6 +132,10 @@ export function Tracker({ onFinita }) {
   function esegui(giocatore, azione, senzaCatena) {
     memorizza(giocatore.number + ' ' + (azione.etichettaBreve || azione.label));
     const s = giocatore.stats;
+    // Quanto vale questa azione in punti lo dice lo sport, non l'azione: nel
+    // basket sta scritto (2, 3, 1), nella pallavolo e' un `points: 1` dentro le
+    // statistiche. Si misura la differenza prima e dopo, e va bene per tutti.
+    const primaPunti = sport.score(s || {});
     Object.entries(azione.apply || {}).forEach(([k, v]) => { s[k] = (s[k] || 0) + v; });
     if (azione.nested) {
       Object.entries(azione.nested).forEach(([contenitore, chiave]) => {
@@ -141,6 +146,13 @@ export function Tracker({ onFinita }) {
     if (azione.teamFoul && conf.teamFouls) {
       g.quarterFouls[g.quarter] = (g.quarterFouls[g.quarter] || 0) + 1;
     }
+
+    // Il punteggio del periodo in corso cresce subito: e' il numero che chi
+    // segna confronta col tabellone della palestra, e un numero che si aggiorna
+    // solo a fine set non serve a confrontare niente.
+    const guadagnati = sport.score(s || {}) - primaPunti;
+    if (guadagnati) segnaPeriodo('us', guadagnati);
+
     calcolaPunteggi(g, sport);
 
     // Il riscontro sul gettone, non un avviso in mezzo allo schermo: chi segna
@@ -168,6 +180,33 @@ export function Tracker({ onFinita }) {
     esegui(giocatore, { ...c.azione, etichettaBreve: c.azione.label }, true);
   }
 
+  // Il punteggio del periodo in corso, da una parte o dall'altra.
+  //
+  // Serve per forza in due casi che non passano dalle azioni dei nostri: i
+  // punti che l'avversario fa — e che nessuno di noi ha "prodotto" — e, nella
+  // pallavolo, i punti che prendiamo NOI per un errore avversario, che non si
+  // possono assegnare a nessun giocatore. Senza questo, quel punteggio
+  // resterebbe fermo per tutto il set.
+  function segnaPeriodo(lato, delta, conAnnulla) {
+    const idx = (g.quarter || 1) - 1;
+    g.periodScores = g.periodScores || [];
+    const riga = g.periodScores[idx] || { us: 0, them: 0 };
+    const nuovo = Math.max(0, (riga[lato] || 0) + delta);
+    if (nuovo === riga[lato] && delta < 0) return;      // gia' a zero: niente da togliere
+    g.periodScores[idx] = { ...riga, [lato]: nuovo };
+    if (conAnnulla) {
+      calcolaPunteggi(g, sport);
+      aggiorna();
+      salva();
+    }
+  }
+
+  function manoPunteggio(lato, delta) {
+    memorizza((lato === 'us' ? 'Noi' : g.oppName) + ' ' + (delta > 0 ? '+1' : '−1'));
+    segnaPeriodo(lato, delta, true);
+    if (navigator.vibrate) navigator.vibrate(8);
+  }
+
   function sostituisci(entrante) {
     const uscente = g.players.find(p => p.id === sostituzione);
     if (!uscente || !entrante) return;
@@ -184,6 +223,16 @@ export function Tracker({ onFinita }) {
   const falli = conf.teamFouls ? (g.quarterFouls[g.quarter] || 0) : 0;
   const bonus = conf.teamFouls && falli >= conf.teamFoulBonus;
   const giocatoreScelto = g.players.find(p => p.id === scelto);
+
+  // Il periodo in corso, dal vivo. Nella pallavolo e' IL punteggio — i numeri
+  // grandi sono i set vinti — e nel basket e' il controllo che si confronta
+  // col tabellone della palestra a ogni interruzione.
+  const inCorso = (g.periodScores || [])[(g.quarter || 1) - 1] || { us: 0, them: 0 };
+  // I nostri punti si possono aggiungere a mano solo dove NON appartengono a
+  // un giocatore: nella pallavolo un errore avversario e' un punto nostro che
+  // non ha autore. Nel basket ogni punto ha un autore, e una mano libera sul
+  // punteggio sarebbe solo un modo per falsare il tabellino.
+  const manoNostra = conf.ourScore === 'perPeriod';
 
   return (
     <div className="relative pb-4">
@@ -228,6 +277,31 @@ export function Tracker({ onFinita }) {
                 {g.oppScore}
               </div>
             </div>
+          </div>
+
+          {/* Il periodo in corso, con le mani sul punteggio. Verde aggiunge,
+              rosso toglie: sono i due gesti che si fanno guardando il campo, e
+              devono essere distinguibili senza leggere. */}
+          <div className="flex items-center justify-between gap-2 border-t border-bordo/10 px-3 py-2.5">
+            <ManoPunteggio
+              valore={inCorso.us}
+              attiva={manoNostra}
+              onPiu={() => manoPunteggio('us', 1)}
+              onMeno={() => manoPunteggio('us', -1)}
+            />
+
+            <div className="shrink-0 text-center">
+              <div className="text-[9.5px] font-bold uppercase tracking-etichetta text-tenue">
+                {conf.period.label} {g.quarter} in corso
+              </div>
+            </div>
+
+            <ManoPunteggio
+              valore={inCorso.them}
+              attiva
+              onPiu={() => manoPunteggio('them', 1)}
+              onMeno={() => manoPunteggio('them', -1)}
+            />
           </div>
 
           <div className="flex gap-px border-t border-bordo/10 bg-bordo/10">
@@ -392,6 +466,39 @@ export function Tracker({ onFinita }) {
           }}
         />
       )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------- mano sul punteggio */
+// Meno a sinistra, numero in mezzo, piu' a destra: l'ordine in cui si legge
+// una retta, e il piu' — quello che si tocca dieci volte piu' spesso — sta
+// dalla parte del pollice destro.
+//
+// Dove il punteggio non si tocca a mano (i nostri punti nel basket, che
+// appartengono sempre a un giocatore) restano solo le cifre: un pulsante che
+// non deve essere premuto e' meglio non disegnarlo.
+function ManoPunteggio({ valore, attiva, onPiu, onMeno }) {
+  if (!attiva) {
+    return <div className="min-w-[4.5rem] text-center text-[17px] font-bold leading-none">{valore}</div>;
+  }
+  return (
+    <div className="flex items-center gap-1.5">
+      <button
+        onClick={onMeno}
+        aria-label="Togli un punto"
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-rosso/14 text-[15px] font-bold text-rosso transition-all hover:bg-rosso/22 active:scale-95"
+      >
+        −
+      </button>
+      <span className="cifra min-w-[2rem] text-center text-[19px] font-bold leading-none">{valore}</span>
+      <button
+        onClick={onPiu}
+        aria-label="Aggiungi un punto"
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-verde/16 text-[15px] font-bold text-verde transition-all hover:bg-verde/24 active:scale-95"
+      >
+        +
+      </button>
     </div>
   );
 }
