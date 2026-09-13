@@ -320,12 +320,26 @@
     pointer-events: none;
   }
 
-  /* Il campo dello scout: piu' basso di quello della Rosa, perche' qui sotto
-     c'e' sempre dell'altro da raggiungere col pollice mentre la partita va.
-     Su tablet si allarga e prende la meta' sinistra, che e' il motivo per cui
-     e' un'altezza e non una proporzione. */
-  .campo-scout { height: clamp(15rem, 38vh, 24rem); }
-  @media (min-width: 768px) { .campo-scout { height: clamp(18rem, 52vh, 30rem); } }
+  /* La cornice del campo.
+
+     Il campo tiene SEMPRE le sue proporzioni vere — quelle del viewBox, messe
+     in --proporzione dallo sport — ma non puo' crescere all'infinito: su un
+     monitor largo un mezzo campo da basket a tutta larghezza diventerebbe alto
+     novecento pixel e si mangerebbe la pagina.
+
+     Il limite quindi e' un'ALTEZZA, e la larghezza si ricava da quella:
+     larghezza = proporzione x altezza. Cosi' il riquadro e' esatto in tutti e
+     due i versi, il disegno non si stira mai, e su schermi larghi il campo
+     smette di allargarsi e si centra invece di deformarsi. */
+  .campo-cornice {
+    --alta: clamp(16rem, 44vh, 26rem);
+    margin-inline: auto;
+    max-width: calc(var(--proporzione, 1) * var(--alta));
+  }
+  @media (min-width: 768px) { .campo-cornice { --alta: clamp(20rem, 58vh, 34rem); } }
+  @media (min-width: 1280px) { .campo-cornice { --alta: clamp(22rem, 64vh, 40rem); } }
+
+  .campo-cornice .campo { aspect-ratio: var(--proporzione, 1); width: 100%; }
 
   /* Il gettone sul campo dello scout: si tocca, quindi ha bisogno di essere
      grande abbastanza, ma il campo non deve diventare un elenco. */

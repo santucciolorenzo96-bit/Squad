@@ -152,7 +152,11 @@ function Gettone({
       >
         {p.name}
       </div>
-      <div className={cx('font-bold', numCol)} style={{ fontSize: 'var(--numero)' }}>#{p.number}</div>
+      {/* Senza numero di maglia non si scrive «#-»: un cancelletto seguito da
+          niente sembra un dato rotto, mentre l'assenza del numero e' normale. */}
+      {String(p.number || '').trim() !== '' && (
+        <div className={cx('font-bold', numCol)} style={{ fontSize: 'var(--numero)' }}>#{p.number}</div>
+      )}
     </div>
   );
 }
@@ -287,18 +291,16 @@ export function Rosa() {
       ) : (
         <>
           {/* ------------------------------------------------------ il campo */}
-          <Pannello alto className="overflow-hidden 2xl:-mx-10">
+          <div className="campo-cornice" style={{ '--proporzione': sport.field.ratio }}>
+          <Pannello alto className="overflow-hidden">
             <div className="flex items-center justify-between gap-3 border-b border-bordo/10 px-5 py-3">
               <Etichetta>{sport.field.onFieldLabel}</Etichetta>
               <span className="text-[11.5px] text-tenue">{inCampoP.length} di {inCampo}</span>
             </div>
 
-            {/* Su telefono il campo tiene le sue proporzioni: e' l'unica cosa
-                a schermo e ci sta comoda. Da tablet in su diventa un'altezza
-                fissa legata alla finestra, perche' con le proporzioni vere un
-                campo largo mille pixel ne diventava alto novecento e mangiava
-                tutto lo schermo: l'elenco sotto non si vedeva mai. */}
-            <div className="campo parquet relative aspect-[15/14] w-full md:aspect-auto md:h-[clamp(19rem,46vh,32rem)]">
+            {/* Il campo tiene sempre le sue proporzioni vere; a limitarlo e'
+                l'altezza massima della cornice, non uno schiacciamento. */}
+            <div className="campo parquet relative w-full">
               <div className="righe-campo" dangerouslySetInnerHTML={{ __html: sport.field.svg }} />
               {inCampoP.map((p, i) => {
                 const posto = sport.field.slots[i];
@@ -327,6 +329,7 @@ export function Rosa() {
               })}
             </div>
           </Pannello>
+          </div>
 
           {/* ---------------------------------------------------- la panchina */}
           <div>

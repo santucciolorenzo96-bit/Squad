@@ -61,7 +61,7 @@ export const PALLAVOLO = {
   positions: ['Palleggiatore', 'Opposto', 'Schiacciatore', 'Centrale', 'Libero'],
   positionPlaceholder: 'Es. Centrale',
 
-  field: { svg: FIELD_SVG, slots: SLOTS, onFieldLabel: 'Sestetto', benchLabel: 'Panchina' },
+  field: { svg: FIELD_SVG, slots: SLOTS, ratio: 90 / 110, onFieldLabel: 'Sestetto', benchLabel: 'Panchina' },
 
   headline: [
     { key: 'points', short: 'PT', label: 'Punti' },

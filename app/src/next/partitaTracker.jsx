@@ -49,6 +49,19 @@ import { inCampione } from './campione.js';
  * ha appena toccato, e il foglio dal basso copre metà campo.
  */
 
+// Il numero di maglia non c'e' sempre: in un'anagrafica vera ci sono atleti
+// senza numero assegnato, e in campo comparivano come un trattino. Un trattino
+// non identifica nessuno — cinque trattini in panchina sono cinque sconosciuti.
+// Al posto suo le iniziali, che almeno si legano al nome scritto sotto.
+function sigla(p) {
+  const n = String(p.number == null ? '' : p.number).trim();
+  if (/\d/.test(n)) return n;
+  const parti = String(p.name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parti.length) return '?';
+  const primo = parti[0][0];
+  return (parti.length > 1 ? primo + parti[parti.length - 1][0] : primo).toUpperCase();
+}
+
 function calcolaPunteggi(g, sport) {
   const conf = sport.scout;
   const periodi = g.periodScores || [];
@@ -140,7 +153,7 @@ export function Tracker({ onFinita, onEsci }) {
   const daAnnullare = (state.undoTesti || [])[(state.undoTesti || []).length - 1] || '';
 
   function esegui(giocatore, azione, senzaCatena) {
-    memorizza(giocatore.number + ' ' + (azione.etichettaBreve || azione.label));
+    memorizza(sigla(giocatore) + ' ' + (azione.etichettaBreve || azione.label));
     const s = giocatore.stats;
     // Quanto vale questa azione in punti lo dice lo sport, non l'azione: nel
     // basket sta scritto (2, 3, 1), nella pallavolo e' un `points: 1` dentro le
@@ -286,7 +299,11 @@ export function Tracker({ onFinita, onEsci }) {
           </div>
         )}
 
-        <Pannello alto className="overflow-hidden">
+        {/* Largo quanto serve e non di piu': su un monitor da lavoro un
+            tabellone a tutta pagina allontana i due punteggi di mezzo metro
+            l'uno dall'altro, e il confronto fra i due numeri e' esattamente
+            la cosa per cui lo si guarda. */}
+        <Pannello alto className="mx-auto max-w-[54rem] overflow-hidden">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-3.5 sm:px-4">
             <div className="min-w-0 text-center">
               <div className="truncate text-[10px] font-bold uppercase tracking-etichetta text-tenue">
@@ -383,14 +400,14 @@ export function Tracker({ onFinita, onEsci }) {
           colonne tolgono lo scorrimento proprio mentre il gioco corre. */}
       <div className="md:grid md:grid-cols-[minmax(0,1fr)_15rem] md:items-start md:gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
 
-        <div>
+        <div className="campo-cornice" style={{ '--proporzione': sport.field.ratio }}>
           <div className="mb-2.5 flex items-center justify-between gap-3">
             <Etichetta>{sport.field.onFieldLabel} · tocca per assegnare</Etichetta>
             <span className="text-[11.5px] text-tenue">{inCampo.length} di {sport.match.minOnField}</span>
           </div>
 
           <Pannello alto className="overflow-hidden">
-            <div className="campo campo-scout parquet relative w-full">
+            <div className="campo parquet relative w-full">
               <RigheCampo svg={sport.field.svg} />
               {inCampo.map((p, i) => {
                 const posto = sport.field.slots[i];
@@ -431,7 +448,7 @@ export function Tracker({ onFinita, onEsci }) {
                   sostituzione ? 'vetro-alto ring-1 ring-blu' : 'vetro hover:bg-pannello/12'
                 )}
               >
-                <div className="text-[15px] font-bold leading-none">{p.number}</div>
+                <div className="text-[15px] font-bold leading-none">{sigla(p)}</div>
                 <div className="mt-1 truncate text-[10.5px] text-tenue">{p.name.split(' ')[0]}</div>
               </button>
             ))}
@@ -446,13 +463,14 @@ export function Tracker({ onFinita, onEsci }) {
             </button>
           )}
 
-          <p className="mt-4 text-[11.5px] leading-relaxed text-tenue">
-            Tocca un giocatore e poi l’azione. Dopo un tiro sbagliato l’app chiede subito chi ha
-            preso il rimbalzo, e dopo un canestro se c’era un assist: rispondi con un tocco, o
-            tocca fuori per saltare. Il ⇄ sul gettone prepara una sostituzione. I punti che non
-            hanno un autore — quelli dell’avversario{manoNostra ? ', e i nostri su errore loro' : ''} —
-            si mettono col + e col − sotto al punteggio.
-          </p>
+          {/* Tre righe, non un foglietto di istruzioni: durante una partita
+              nessuno legge, e quello che resta a schermo va guadagnato. */}
+          <ul className="mt-4 space-y-1.5 text-[11.5px] leading-relaxed text-tenue">
+            <li>Tocca un giocatore, poi l’azione.</li>
+            <li>Le domande che seguono (rimbalzo, assist) si saltano toccando fuori.</li>
+            <li>Il ⇄ sul gettone prepara una sostituzione.</li>
+            <li>I punti senza autore si mettono col + e col − sotto al punteggio.</li>
+          </ul>
         </div>
       </div>
 
@@ -531,7 +549,7 @@ export function Tracker({ onFinita, onEsci }) {
   // partita, e si esce da un pulsante solo.
   return createPortal(
     <div className="scout-schermo fixed inset-0 z-[60] overflow-y-auto overscroll-contain bg-fondo">
-      <div className="mx-auto w-full max-w-[110rem] px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6">
+      <div className="mx-auto w-full max-w-[82rem] px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-2 sm:px-6 sm:pt-3">
         {corpo}
       </div>
     </div>,
@@ -549,20 +567,20 @@ export function Tracker({ onFinita, onEsci }) {
 // mano non c'e': lo spazio pero' resta, cosi' i due numeri grandi restano
 // sulla stessa riga invece di sfalsarsi.
 function ManoPunteggio({ attiva, onPiu, onMeno }) {
-  if (!attiva) return <div className="mt-1.5 h-7" aria-hidden="true" />;
+  if (!attiva) return <div className="mt-2 h-8" aria-hidden="true" />;
   return (
-    <div className="mt-1.5 flex items-center justify-center gap-1.5">
+    <div className="mt-2 flex items-center justify-center gap-2">
       <button
         onClick={onMeno}
         aria-label="Togli un punto"
-        className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-rosso/14 text-[14px] font-bold leading-none text-rosso transition-all hover:bg-rosso/22 active:scale-95"
+        className="grid h-8 w-11 shrink-0 place-items-center rounded-lg bg-rosso/16 text-[16px] font-bold leading-none text-rosso ring-1 ring-rosso/35 transition-all hover:bg-rosso/26 active:scale-95"
       >
         −
       </button>
       <button
         onClick={onPiu}
         aria-label="Aggiungi un punto"
-        className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-verde/16 text-[14px] font-bold leading-none text-verde transition-all hover:bg-verde/24 active:scale-95"
+        className="grid h-8 w-11 shrink-0 place-items-center rounded-lg bg-verde/18 text-[16px] font-bold leading-none text-verde ring-1 ring-verde/35 transition-all hover:bg-verde/28 active:scale-95"
       >
         +
       </button>
@@ -619,7 +637,7 @@ const GettoneCampo = React.memo(function GettoneCampo({
           )}
           style={{ width: 'var(--volto)', height: 'var(--volto)', fontSize: 'var(--numero)' }}
         >
-          {p.number}
+          {sigla(p)}
         </button>
 
         <button
@@ -771,7 +789,7 @@ function PannelloAzioni({ p, conf, ancora, onAzione, onChiudi }) {
     <>
       <div className="mb-3.5 flex items-center gap-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-blu to-blu2 text-[16px] font-bold text-white shadow-blu">
-          {p.number}
+          {sigla(p)}
         </span>
         <div className="min-w-0 flex-1">
           <div className="truncate text-[15px] font-bold leading-tight">{p.name}</div>

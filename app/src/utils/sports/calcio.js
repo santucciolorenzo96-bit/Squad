@@ -43,7 +43,7 @@ export const CALCIO = {
     'Mediano', 'Centrocampista', 'Trequartista', 'Ala destra', 'Ala sinistra', 'Attaccante'],
   positionPlaceholder: 'Es. Centrocampista',
 
-  field: { svg: FIELD_SVG, slots: SLOTS, onFieldLabel: 'Formazione', benchLabel: 'Panchina' },
+  field: { svg: FIELD_SVG, slots: SLOTS, ratio: 136 / 105, onFieldLabel: 'Formazione', benchLabel: 'Panchina' },
 
   headline: [
     { key: 'goals', short: 'GL', label: 'Gol' },

@@ -50,7 +50,11 @@ export const BASKET = {
   positions: ['Playmaker', 'Guardia', 'Ala piccola', 'Ala grande', 'Centro'],
   positionPlaceholder: 'Es. Guardia',
 
-  field: { svg: FIELD_SVG, slots: SLOTS, onFieldLabel: 'Quintetto', benchLabel: 'Panchina' },
+  // La proporzione e' quella del viewBox, cioe' quella del campo vero: senza,
+  // il disegno si stira per riempire il riquadro e l'arco da tre diventa
+  // un'ellisse. Un campo disegnato male e' peggio di nessun campo, perche' chi
+  // lo guarda ci cerca dentro delle distanze.
+  field: { svg: FIELD_SVG, slots: SLOTS, ratio: 150 / 140, onFieldLabel: 'Quintetto', benchLabel: 'Panchina' },
 
   // Le tre medie mostrate sul campo in Rosa e nella Scheda evolutiva.
   headline: [
