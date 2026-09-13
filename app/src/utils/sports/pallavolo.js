@@ -15,11 +15,33 @@ const SLOTS = [
 const FIELD_SVG = `
 <svg class="court-lines" viewBox="0 0 90 110" preserveAspectRatio="none" fill="none"
      stroke="currentColor" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Il campo: nove metri per nove, rete in alto, zona di servizio sotto. -->
   <rect x="0.6" y="0.6" width="88.8" height="88.8" rx="1"/>
-  <path d="M0.6 30.6h88.8"/>
-  <path d="M0.6 0.6h88.8" stroke-width="1.4"/>
-  <path d="M0.6 100h88.8" stroke-dasharray="3 3"/>
-  <path d="M6 0.6v-0" />
+
+  <!-- La rete, con le sue bande: e' il bordo alto, e va visto come un muro. -->
+  <path d="M0.6 0.6h88.8" stroke-width="1.8"/>
+  <path d="M0.6 3.2h88.8" stroke-opacity="0.35"/>
+
+  <!-- La linea dei tre metri: quella che si riconosce a colpo d'occhio, e che
+       divide chi puo' attaccare da chi no. -->
+  <path d="M0.6 30.6h88.8" stroke-width="0.7"/>
+
+  <!-- Il fondo campo e la zona di servizio dietro. -->
+  <path d="M0.6 89.4h88.8" stroke-width="0.7"/>
+  <path d="M0.6 106h88.8" stroke-dasharray="3 3" stroke-opacity="0.5"/>
+  <path d="M0.6 89.4v16.6M89.4 89.4v16.6" stroke-dasharray="3 3" stroke-opacity="0.5"/>
+
+  <!-- I numeri di zona, scritti dove stanno davvero. Sono il nome che
+       l'allenatore usa per parlare: "sta in quattro", "gira in uno". -->
+  <g fill="currentColor" fill-opacity="0.3" stroke="none"
+     font-family="inherit" font-size="7" font-weight="700" text-anchor="middle">
+    <text x="70" y="86">1</text>
+    <text x="70" y="20">2</text>
+    <text x="45" y="20">3</text>
+    <text x="20" y="20">4</text>
+    <text x="20" y="86">5</text>
+    <text x="45" y="86">6</text>
+  </g>
 </svg>`;
 
 function newStats() {

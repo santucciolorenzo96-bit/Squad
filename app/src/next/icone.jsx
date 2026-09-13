@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 
 /* Icone di vetro.
  *
@@ -37,12 +37,14 @@ const TONI = {
   ciano: ['#63DCF0', '#128FA8']
 };
 
-let seme = 0;
+
 
 // `glifo` disegna dentro un riquadro 0 0 24 24 centrato sul corpo.
 export function Icona({ tono = 'blu', dim = 26, glifo, className }) {
   const [chiaro, scuro] = TONI[tono] || TONI.blu;
-  const n = seme++;
+  // Stabile per istanza: non cambia a ogni ridisegno, quindi il DOM non viene
+  // toccato per niente quando la schermata si aggiorna.
+  const n = useId().replace(/:/g, '');
   const gCorpo = 'ic' + n + 'c';
   const gFianco = 'ic' + n + 'f';
   const gVetro = 'ic' + n + 'v';

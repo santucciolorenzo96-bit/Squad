@@ -320,6 +320,23 @@
     pointer-events: none;
   }
 
+  /* Il campo dello scout: piu' basso di quello della Rosa, perche' qui sotto
+     c'e' sempre dell'altro da raggiungere col pollice mentre la partita va.
+     Su tablet si allarga e prende la meta' sinistra, che e' il motivo per cui
+     e' un'altezza e non una proporzione. */
+  .campo-scout { height: clamp(15rem, 38vh, 24rem); }
+  @media (min-width: 768px) { .campo-scout { height: clamp(18rem, 52vh, 30rem); } }
+
+  /* Il gettone sul campo dello scout: si tocca, quindi ha bisogno di essere
+     grande abbastanza, ma il campo non deve diventare un elenco. */
+  .gettone-scout {
+    width: clamp(3.4rem, 15cqw, 6rem);
+    --volto: clamp(2.4rem, 11cqw, 4rem);
+    --numero: clamp(0.9rem, 4cqw, 1.5rem);
+    --nome: clamp(0.55rem, 2.3cqw, 0.8rem);
+    --media: clamp(0.55rem, 2.3cqw, 0.8rem);
+  }
+
   /* I numeri si incolonnano sempre: in una tabella di dati le cifre che
      ballano sono un difetto, non uno stile. */
   .cifra { font-variant-numeric: tabular-nums; }
@@ -371,8 +388,18 @@
     opacity: calc(0.28 + 0.72 * var(--v));
   }
 
+  /* Il pannello che nasce dal gettone: parte piccolo dal punto toccato e si
+     apre in un soffio. Centosessanta millisecondi — piu' lento si sente come
+     attesa, mentre la partita va avanti. */
+  @keyframes nascita {
+    from { opacity: 0; transform: scale(0.92); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .animate-nascita { animation: nascita 160ms cubic-bezier(.22,1,.36,1); }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-salita { animation: none !important; }
+    .animate-nascita { animation: none !important; }
     /* Lo scorrimento resta, ed e' giusto: e' il dito. Si accorcia il salto di
        misura, che e' quello che da' il senso di movimento. */
     .barra-figura { transform: scale(calc(0.9 + 0.14 * var(--v))); }

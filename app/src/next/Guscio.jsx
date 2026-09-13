@@ -263,7 +263,7 @@ const NOMI_GRUPPO = { settore: 'Categoria', societa: 'Società' };
 function Colonna({ sezione, onSezione }) {
   const voci = sezioniVisibili(state.currentUser);
   return (
-    <nav className="hidden w-[248px] shrink-0 flex-col overflow-y-auto px-3 py-5 lg:flex">
+    <nav className="hidden w-[13.5rem] shrink-0 flex-col overflow-y-auto px-3 py-5 md:flex lg:w-[248px]">
       {['settore', 'societa'].map(g => {
         const dentro = voci.filter(v => v.group === g);
         if (dentro.length === 0) return null;
@@ -459,7 +459,7 @@ function BarraMobile({ sezione, onSezione }) {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-50 vetro-alto border-t border-bordo/12 lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-50 vetro-alto border-t border-bordo/12 md:hidden"
       aria-label="Sezioni"
     >
       {/* Nessun fondale separato e nessuna conca: senza un oggetto che esce
@@ -512,7 +512,7 @@ export function Guscio({ sezione, onSezione, sectorId, onSettore, nastro, strume
       <Testata onSezione={onSezione} sectorId={sectorId} onSettore={onSettore} strumenti={strumenti} />
       <div className="flex min-h-0 flex-1">
         <Colonna sezione={sezione} onSezione={onSezione} />
-        <main id="contenuto" className="min-w-0 flex-1 overflow-y-auto px-4 pb-[calc(6.25rem+env(safe-area-inset-bottom))] pt-6 sm:px-6 sm:pt-7 lg:pb-12 lg:pr-8">
+        <main id="contenuto" className="min-w-0 flex-1 overflow-y-auto px-4 pb-[calc(6.25rem+env(safe-area-inset-bottom))] pt-6 sm:px-6 sm:pt-7 md:pb-10 md:pr-6 lg:pb-12 lg:pr-8">
           <div className="mx-auto w-full max-w-[1120px] animate-salita">{children}</div>
         </main>
       </div>

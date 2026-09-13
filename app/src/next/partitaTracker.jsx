@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { state } from '../state.js';
 import { saveLiveGame, endGame } from '../api/games.js';
@@ -37,6 +37,16 @@ import { inCampione } from './campione.js';
  *
  * Niente cronometro: nel basket si ferma troppo spesso perché valga la pena
  * inseguirlo, e i minuti contati male sono peggio dei minuti non contati.
+ *
+ * 3. SI VEDE IL CAMPO, non un elenco. Chi segna guarda la partita e poi lo
+ *    schermo: deve ritrovare i giocatori dove li ha appena visti, non in
+ *    ordine di numero. Nella pallavolo, poi, la posizione HA un nome — zona 1,
+ *    zona 4 — ed è il nome con cui l'allenatore parla.
+ *
+ * E si segna quasi sempre da tablet: da lì in su campo e panchina stanno
+ * affiancati, e i comandi si aprono ANCORATI al giocatore toccato invece che
+ * in fondo allo schermo. Su un tablet «in fondo» è lontanissimo dal dito che
+ * ha appena toccato, e il foglio dal basso copre metà campo.
  */
 
 function calcolaPunteggi(g, sport) {
@@ -60,6 +70,7 @@ export function Tracker({ onFinita }) {
 
   const [, ridisegna] = useState(0);
   const [scelto, setScelto] = useState(null);      // id giocatore col pannello aperto
+  const [ancora, setAncora] = useState(null);      // da dove è stato toccato: il pannello nasce lì
   const [lampo, setLampo] = useState(null);        // { id, testo } riscontro dell'ultima azione
   const [catena, setCatena] = useState(null);      // { tipo, autore } la domanda successiva
   const [sostituzione, setSostituzione] = useState(null);
@@ -109,6 +120,7 @@ export function Tracker({ onFinita }) {
     state.liveGame = JSON.parse(state.undoStack.pop());
     if (state.undoTesti) state.undoTesti.pop();
     setScelto(null);
+    setAncora(null);
     setCatena(null);
     aggiorna();
     salva();
@@ -137,6 +149,7 @@ export function Tracker({ onFinita }) {
     setTimeout(() => setLampo(l => (l && l.id === giocatore.id ? null : l)), 900);
 
     setScelto(null);
+    setAncora(null);
     aggiorna();
     salva();
     if (navigator.vibrate) navigator.vibrate(12);
@@ -243,59 +256,82 @@ export function Tracker({ onFinita }) {
         </Pannello>
       </div>
 
-      {/* ========================================================= in campo */}
-      <Etichetta className="mb-2.5">In campo · tocca per assegnare</Etichetta>
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
-        {inCampo.map(p => (
-          <GettoneCampo
-            key={p.id}
-            p={p}
-            sport={sport}
-            lampo={lampo && lampo.id === p.id ? lampo.testo : null}
-            inSostituzione={sostituzione === p.id}
-            onAssegna={() => setScelto(p.id)}
-            onSostituisci={() => setSostituzione(s => (s === p.id ? null : p.id))}
-          />
-        ))}
-      </div>
+      {/* ============================================== campo e panchina */}
+      {/* Affiancati da tablet in su: è lì che si segna quasi sempre, e due
+          colonne tolgono lo scorrimento proprio mentre il gioco corre. */}
+      <div className="md:grid md:grid-cols-[minmax(0,1fr)_15rem] md:items-start md:gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
 
-      {/* ========================================================= panchina */}
-      <Etichetta className="mb-2.5 mt-6">
-        {sostituzione ? 'Chi entra?' : 'Panchina'}
-      </Etichetta>
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-        {inPanca.length === 0 ? (
-          <p className="col-span-full text-[12.5px] text-tenue">Nessuno in panchina.</p>
-        ) : inPanca.map(p => (
-          <button
-            key={p.id}
-            onClick={() => (sostituzione ? sostituisci(p) : setScelto(p.id))}
-            className={cx(
-              'rounded-lg px-2 py-2.5 text-center transition-all orlo',
-              sostituzione ? 'vetro-alto ring-1 ring-blu' : 'vetro hover:bg-pannello/12'
-            )}
-          >
-            <div className="text-[15px] font-bold leading-none">{p.number}</div>
-            <div className="mt-1 truncate text-[10.5px] text-tenue">{p.name.split(' ')[0]}</div>
-          </button>
-        ))}
-      </div>
-      {sostituzione && (
-        <button
-          onClick={() => setSostituzione(null)}
-          className="mt-3 w-full rounded-lg vetro orlo py-2 text-[12px] font-semibold text-tenue hover:text-testo"
-        >
-          Annulla la sostituzione
-        </button>
-      )}
+        <div>
+          <div className="mb-2.5 flex items-center justify-between gap-3">
+            <Etichetta>{sport.field.onFieldLabel} · tocca per assegnare</Etichetta>
+            <span className="text-[11.5px] text-tenue">{inCampo.length} di {sport.match.minOnField}</span>
+          </div>
 
-      <p className="mt-5 text-[11.5px] leading-relaxed text-tenue">
-        Tocca un giocatore e poi l’azione: due tocchi, senza scorrere. Dopo un tiro sbagliato
-        l’app chiede subito chi ha preso il rimbalzo, e dopo un canestro se c’era un assist:
-        rispondi con un tocco, o tocca fuori per saltare. Il ⇄ sul gettone prepara una
-        sostituzione. Il punteggio avversario si scrive alla chiusura del{' '}
-        {conf.period.label.toLowerCase()}, non canestro per canestro.
-      </p>
+          <Pannello alto className="overflow-hidden">
+            <div className="campo campo-scout parquet relative w-full">
+              <RigheCampo svg={sport.field.svg} />
+              {inCampo.map((p, i) => {
+                const posto = sport.field.slots[i];
+                return (
+                  <GettoneCampo
+                    key={p.id}
+                    p={p}
+                    sport={sport}
+                    lampo={lampo && lampo.id === p.id ? lampo.testo : null}
+                    inSostituzione={sostituzione === p.id}
+                    stile={posto ? { top: posto.top, left: posto.left } : undefined}
+                    onAssegna={(e) => { setAncora(e.currentTarget.getBoundingClientRect()); setScelto(p.id); }}
+                    onSostituisci={() => setSostituzione(s => (s === p.id ? null : p.id))}
+                  />
+                );
+              })}
+            </div>
+          </Pannello>
+        </div>
+
+        <div className="mt-6 md:mt-0">
+          <Etichetta className="mb-2.5">
+            {sostituzione ? 'Chi entra?' : sport.field.benchLabel}
+          </Etichetta>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-2">
+            {inPanca.length === 0 ? (
+              <p className="col-span-full text-[12.5px] text-tenue">Nessuno in panchina.</p>
+            ) : inPanca.map(p => (
+              <button
+                key={p.id}
+                onClick={(e) => {
+                  if (sostituzione) { sostituisci(p); return; }
+                  setAncora(e.currentTarget.getBoundingClientRect());
+                  setScelto(p.id);
+                }}
+                className={cx(
+                  'rounded-lg px-2 py-2.5 text-center transition-all orlo',
+                  sostituzione ? 'vetro-alto ring-1 ring-blu' : 'vetro hover:bg-pannello/12'
+                )}
+              >
+                <div className="text-[15px] font-bold leading-none">{p.number}</div>
+                <div className="mt-1 truncate text-[10.5px] text-tenue">{p.name.split(' ')[0]}</div>
+              </button>
+            ))}
+          </div>
+
+          {sostituzione && (
+            <button
+              onClick={() => setSostituzione(null)}
+              className="mt-3 w-full rounded-lg vetro orlo py-2 text-[12px] font-semibold text-tenue hover:text-testo"
+            >
+              Annulla la sostituzione
+            </button>
+          )}
+
+          <p className="mt-4 text-[11.5px] leading-relaxed text-tenue">
+            Tocca un giocatore e poi l’azione. Dopo un tiro sbagliato l’app chiede subito chi ha
+            preso il rimbalzo, e dopo un canestro se c’era un assist: rispondi con un tocco, o
+            tocca fuori per saltare. Il ⇄ sul gettone prepara una sostituzione. Il punteggio
+            avversario si scrive alla chiusura del {conf.period.label.toLowerCase()}.
+          </p>
+        </div>
+      </div>
 
       {/* ======================================================= la catena */}
       {catena && (
@@ -313,8 +349,9 @@ export function Tracker({ onFinita }) {
         <PannelloAzioni
           p={giocatoreScelto}
           conf={conf}
+          ancora={ancora}
           onAzione={(a) => esegui(giocatoreScelto, a)}
-          onChiudi={() => setScelto(null)}
+          onChiudi={() => { setScelto(null); setAncora(null); }}
         />
       )}
 
@@ -359,62 +396,90 @@ export function Tracker({ onFinita }) {
   );
 }
 
+/* ------------------------------------------------------------- le righe */
+// Il disegno del campo non cambia mai durante una partita, ma sta dentro una
+// schermata che si ridisegna a ogni tocco. Memorizzato, il browser smette di
+// rileggere e ricostruire l'SVG ogni volta che qualcuno segna un canestro.
+const RigheCampo = React.memo(function RigheCampo({ svg }) {
+  return <div className="righe-campo" dangerouslySetInnerHTML={{ __html: svg }} />;
+});
+
 /* ---------------------------------------------------------- gettone in campo */
-function GettoneCampo({ p, sport, lampo, inSostituzione, onAssegna, onSostituisci }) {
+// Sul parquet, alla sua posizione. I colori sono fissi e non seguono il tema:
+// il legno è scuro in tutti e due, e un gettone chiaro in tema chiaro sparirebbe.
+//
+// Memorizzato: quando si segna un canestro cambia UN giocatore, e ridisegnare
+// gli altri quattro è lavoro che si paga a ogni tocco per tutta la partita.
+const GettoneCampo = React.memo(function GettoneCampo({
+  p, sport, lampo, inSostituzione, stile, onAssegna, onSostituisci
+}) {
   const conf = sport.scout;
   const valore = conf.tileStat
     ? (conf.tileStat.key === 'pts' ? sport.score(p.stats || {}) : (p.stats || {})[conf.tileStat.key] || 0)
     : null;
 
   return (
-    <div className="relative">
-      <button
-        onClick={onAssegna}
-        className={cx(
-          'w-full rounded-lg px-3 py-3.5 text-left transition-all orlo',
-          inSostituzione ? 'vetro-alto ring-1 ring-blu' : 'vetro hover:bg-pannello/12 active:scale-[0.98]'
-        )}
-      >
-        <div className="flex items-baseline gap-2">
-          <span className="text-[19px] font-bold leading-none">{p.number}</span>
-          {/* La voce che il segnapunti controlla di continuo per accorgersi di
-              aver sbagliato persona: sta grande e sempre nello stesso posto. */}
-          {conf.tileStat && (
-            <span className="ml-auto text-right leading-none">
-              <b className="text-[19px] font-bold">{valore}</b>
-              <i className="ml-1 text-[10px] font-bold uppercase not-italic tracking-etichetta text-tenue">
-                {conf.tileStat.short}
-              </i>
-            </span>
-          )}
-        </div>
-        <div className="mt-1.5 truncate text-[12.5px] font-semibold">{p.name}</div>
-      </button>
-
-      <button
-        onClick={onSostituisci}
-        title="Prepara la sostituzione"
-        className={cx(
-          'absolute -right-1.5 -top-1.5 grid h-7 w-7 place-items-center rounded-full text-[12px] font-bold transition-all',
-          inSostituzione
-            ? 'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu'
-            : 'vetro-alto orlo text-soffuso hover:text-testo'
-        )}
-      >
-        ⇄
-      </button>
-
-      {/* Il riscontro dell'ultima azione, sopra il gettone di chi l'ha fatta. */}
-      {lampo && (
-        <span className="pointer-events-none absolute inset-x-0 -top-2 flex justify-center">
-          <span className="animate-salita rounded-full bg-gradient-to-br from-blu to-blu2 px-2.5 py-1 text-[11px] font-bold text-white shadow-blu">
-            {lampo}
-          </span>
+    <div
+      style={stile}
+      className="gettone-scout absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
+    >
+      {/* La voce che chi segna controlla di continuo per accorgersi di aver
+          sbagliato persona: sopra la testa, sempre nello stesso posto. */}
+      {conf.tileStat && (
+        <span className="su-legno-lieve mb-1 rounded-full px-1.5 py-0.5 text-center leading-none">
+          <b className="block font-bold text-white" style={{ fontSize: 'var(--media)' }}>
+            {valore}
+            <i className="ml-0.5 font-bold not-italic text-white/60">{conf.tileStat.short}</i>
+          </b>
         </span>
       )}
+
+      <div className="relative">
+        <button
+          onClick={onAssegna}
+          title={p.name}
+          className={cx(
+            'grid place-items-center rounded-full font-bold text-white ring-2 transition-all active:scale-95',
+            'su-legno',
+            inSostituzione ? 'ring-blu shadow-blu' : 'ring-white/70'
+          )}
+          style={{ width: 'var(--volto)', height: 'var(--volto)', fontSize: 'var(--numero)' }}
+        >
+          {p.number}
+        </button>
+
+        <button
+          onClick={onSostituisci}
+          title="Prepara la sostituzione"
+          className={cx(
+            'absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold transition-all',
+            inSostituzione
+              ? 'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu'
+              : 'su-legno text-white/80 ring-1 ring-white/40 hover:text-white'
+          )}
+        >
+          ⇄
+        </button>
+
+        {/* Il riscontro dell'ultima azione, sopra il gettone di chi l'ha fatta. */}
+        {lampo && (
+          <span className="pointer-events-none absolute inset-x-0 -top-3 flex justify-center">
+            <span className="animate-salita whitespace-nowrap rounded-full bg-gradient-to-br from-blu to-blu2 px-2 py-0.5 text-[10px] font-bold text-white shadow-blu">
+              {lampo}
+            </span>
+          </span>
+        )}
+      </div>
+
+      <div
+        className="mt-1 max-w-full truncate font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,.85)]"
+        style={{ fontSize: 'var(--nome)' }}
+      >
+        {p.name.split(' ')[0]}
+      </div>
     </div>
   );
-}
+});
 
 /* --------------------------------------------------------------- la catena */
 // La domanda successiva. Sta in basso come il pannello delle azioni, ma e'
@@ -477,24 +542,125 @@ function Catena({ conf, catena, giocatori, onScegli, onChiudi }) {
 }
 
 /* -------------------------------------------------------- pannello azioni */
-// Ancorato in basso e a tutta larghezza: il pollice arriva lì. I bottoni sono
-// alti perché si tocca in piedi, guardando il campo e non lo schermo.
-function PannelloAzioni({ p, conf, onAzione, onChiudi }) {
+/* Da dove nasce il pannello.
+ *
+ * Su telefono dal basso, a tutta larghezza: il pollice arriva lì e lo schermo
+ * è stretto comunque.
+ *
+ * Da tablet in su ANCORATO al giocatore toccato, come se uscisse da lui. Su un
+ * tablet «in fondo allo schermo» è a venti centimetri dal dito che ha appena
+ * toccato, e un foglio a tutta larghezza copre il campo proprio mentre la
+ * partita va avanti. Il pannello si apre accanto al gettone, si ribalta sopra
+ * o sotto a seconda dello spazio, e resta dentro i bordi.
+ */
+function PannelloAzioni({ p, conf, ancora, onAzione, onChiudi }) {
+  const [posa, setPosa] = useState(null);   // { left, top, maxH, origine } oppure null = foglio
+  const largo = !!posa;
+
   useEffect(() => {
     const tasto = (e) => { if (e.key === 'Escape') onChiudi(); };
     document.addEventListener('keydown', tasto);
     return () => document.removeEventListener('keydown', tasto);
   }, [onChiudi]);
 
-  const tono = {
-    made: 'bg-verde/16 text-verde hover:bg-verde/24',
-    miss: 'bg-rosso/12 text-rosso hover:bg-rosso/20',
-    warn: 'bg-ambra/14 text-ambra hover:bg-ambra/22',
-    neutral: 'vetro text-testo hover:bg-pannello/16'
-  };
+  // La posizione si calcola una volta, all'apertura: il gettone non si muove
+  // mentre il pannello è aperto, e ricalcolare a ogni disegno vorrebbe dire
+  // farlo ballare sotto il dito.
+  useEffect(() => {
+      const L = 34 * 16;                      // larghezza del pannello, in pixel
+    const grande = typeof window !== 'undefined' && window.innerWidth >= 768;
+    if (!grande || !ancora) { setPosa(null); return; }
+
+    const margine = 12;
+    const sopra = ancora.top;
+    const sotto = window.innerHeight - ancora.bottom;
+    const verso = sotto >= sopra ? 'giu' : 'su';
+    const spazio = (verso === 'giu' ? sotto : sopra) - margine * 2;
+
+    const left = Math.min(
+      Math.max(ancora.left + ancora.width / 2 - L / 2, margine),
+      window.innerWidth - L - margine
+    );
+
+    setPosa({
+      left,
+      top: verso === 'giu' ? ancora.bottom + margine : null,
+      bottom: verso === 'su' ? window.innerHeight - ancora.top + margine : null,
+      maxH: Math.max(spazio, 240),
+      // L'origine della crescita è il gettone: l'occhio segue il movimento e
+      // capisce da cosa è uscito il pannello.
+      origine: (ancora.left + ancora.width / 2 - left) + 'px ' + (verso === 'giu' ? '0%' : '100%')
+    });
+  }, [ancora]);
+
+  const corpo = (
+    <>
+      <div className="mb-3.5 flex items-center gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-blu to-blu2 text-[16px] font-bold text-white shadow-blu">
+          {p.number}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[15px] font-bold leading-tight">{p.name}</div>
+          <div className="text-[11.5px] text-tenue">{p.onCourt ? 'in campo' : 'in panchina'}</div>
+        </div>
+        <button
+          onClick={onChiudi}
+          className="shrink-0 rounded-lg px-3 py-2 text-[12px] font-semibold text-tenue hover:text-testo"
+        >
+          Chiudi
+        </button>
+      </div>
+
+      {/* Nel pannello ancorato i gruppi stanno su due colonne: con diciotto
+          azioni in colonna unica il pannello diventa piu' alto dello schermo e
+          copre il campo, che e' la cosa che si stava guardando. */}
+      <div className={cx(largo ? 'grid grid-cols-2 gap-x-3 gap-y-3' : 'space-y-3')}>
+        {conf.groups.map(gr => (
+          <div key={gr.label}>
+            <Etichetta className="mb-1.5">{gr.label}</Etichetta>
+            <div className={cx('grid gap-2', gr.layout === 'pair' ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3')}>
+              {gr.actions.map(a => (
+                <button
+                  key={a.act}
+                  onClick={() => onAzione(a)}
+                  className={cx(
+                    'rounded-lg px-3 py-3 text-[13px] font-semibold transition-all orlo active:scale-[0.97]',
+                    TONO_AZIONE[a.tone] || TONO_AZIONE.neutral
+                  )}
+                >
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
 
   // Nel portale, per lo stesso motivo della Finestra: ancorato alla pagina e
-  // non alla colonna, altrimenti il pollice non lo trova dove deve.
+  // non alla colonna, altrimenti finisce dove non deve.
+  if (posa) {
+    return createPortal(
+      <div className="fixed inset-0 z-[70]" onMouseDown={onChiudi}>
+        <div
+          onMouseDown={e => e.stopPropagation()}
+          style={{
+            left: posa.left,
+            top: posa.top != null ? posa.top : undefined,
+            bottom: posa.bottom != null ? posa.bottom : undefined,
+            maxHeight: posa.maxH,
+            transformOrigin: posa.origine
+          }}
+          className="animate-nascita fixed w-[34rem] overflow-y-auto rounded-2xl vetro-alto orlo px-4 py-4 shadow-lg"
+        >
+          {corpo}
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
   return createPortal(
     <div className="fixed inset-0 z-[70] flex flex-col justify-end" onMouseDown={onChiudi}>
       <div className="absolute inset-0 bg-fondo/70 backdrop-blur-sm" />
@@ -503,49 +669,19 @@ function PannelloAzioni({ p, conf, onAzione, onChiudi }) {
         className="relative max-h-[82dvh] overflow-y-auto rounded-t-2xl vetro-alto border-t border-bordo/12 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-lg animate-salita sm:px-6"
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-pannello/25" />
-
-        <div className="mb-4 flex items-center gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-blu to-blu2 text-[17px] font-bold text-white shadow-blu">
-            {p.number}
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[16px] font-bold leading-tight">{p.name}</div>
-            <div className="text-[11.5px] text-tenue">{p.onCourt ? 'in campo' : 'in panchina'}</div>
-          </div>
-          <button
-            onClick={onChiudi}
-            className="shrink-0 rounded-lg px-3 py-2 text-[12px] font-semibold text-tenue hover:text-testo"
-          >
-            Chiudi
-          </button>
-        </div>
-
-        <div className="space-y-3.5">
-          {conf.groups.map(gr => (
-            <div key={gr.label}>
-              <Etichetta className="mb-1.5">{gr.label}</Etichetta>
-              <div className={cx('grid gap-2', gr.layout === 'pair' ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3')}>
-                {gr.actions.map(a => (
-                  <button
-                    key={a.act}
-                    onClick={() => onAzione(a)}
-                    className={cx(
-                      'rounded-lg px-3 py-3.5 text-[13px] font-semibold transition-all orlo active:scale-[0.97]',
-                      tono[a.tone] || tono.neutral
-                    )}
-                  >
-                    {a.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        {corpo}
       </div>
     </div>,
     document.body
   );
 }
+
+const TONO_AZIONE = {
+  made: 'bg-verde/16 text-verde hover:bg-verde/24',
+  miss: 'bg-rosso/12 text-rosso hover:bg-rosso/20',
+  warn: 'bg-ambra/14 text-ambra hover:bg-ambra/22',
+  neutral: 'vetro text-testo hover:bg-pannello/16'
+};
 
 /* ------------------------------------------------------- chiusura periodo */
 function ChiusuraPeriodo({ g, sport, onChiudi, onFatto }) {
