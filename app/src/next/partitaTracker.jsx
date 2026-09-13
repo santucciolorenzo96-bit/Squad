@@ -398,7 +398,7 @@ export function Tracker({ onFinita, onEsci }) {
       {/* ============================================== campo e panchina */}
       {/* Affiancati da tablet in su: è lì che si segna quasi sempre, e due
           colonne tolgono lo scorrimento proprio mentre il gioco corre. */}
-      <div className="md:grid md:grid-cols-[minmax(0,1fr)_15rem] md:items-start md:gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
+      <div className="md:grid md:grid-cols-[minmax(0,1fr)_14rem] md:items-start md:gap-5 lg:grid-cols-[minmax(0,1fr)_16rem]">
 
         <div className="campo-cornice" style={{ '--proporzione': sport.field.ratio }}>
           <div className="mb-2.5 flex items-center justify-between gap-3">
@@ -549,7 +549,7 @@ export function Tracker({ onFinita, onEsci }) {
   // partita, e si esce da un pulsante solo.
   return createPortal(
     <div className="scout-schermo fixed inset-0 z-[60] overflow-y-auto overscroll-contain bg-fondo">
-      <div className="mx-auto w-full max-w-[82rem] px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-2 sm:px-6 sm:pt-3">
+      <div className="mx-auto w-full max-w-[68rem] px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-2 sm:px-6 sm:pt-3">
         {corpo}
       </div>
     </div>,
@@ -644,11 +644,12 @@ const GettoneCampo = React.memo(function GettoneCampo({
           onClick={onSostituisci}
           title="Prepara la sostituzione"
           className={cx(
-            'absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold transition-all',
+            'absolute -right-0.5 -top-0.5 grid place-items-center rounded-full font-bold transition-all',
             inSostituzione
               ? 'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu'
               : 'su-legno text-white/80 ring-1 ring-white/40 hover:text-white'
           )}
+          style={{ width: 'var(--scambio)', height: 'var(--scambio)', fontSize: 'calc(var(--scambio) * 0.52)' }}
         >
           ⇄
         </button>

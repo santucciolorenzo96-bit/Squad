@@ -332,23 +332,31 @@
      due i versi, il disegno non si stira mai, e su schermi larghi il campo
      smette di allargarsi e si centra invece di deformarsi. */
   .campo-cornice {
-    --alta: clamp(16rem, 44vh, 26rem);
+    --alta: clamp(16rem, 46vh, 26rem);
+    /* LARGHEZZA, non max-width: un elemento di griglia con i margini automatici
+       smette di allargarsi e si stringe sul contenuto — il campo diventava una
+       miniatura larga quanto la scritta sopra. Con una larghezza dichiarata il
+       margine automatico torna a fare solo il suo mestiere, centrare. */
+    width: min(100%, calc(var(--proporzione, 1) * var(--alta)));
     margin-inline: auto;
-    max-width: calc(var(--proporzione, 1) * var(--alta));
   }
-  @media (min-width: 768px) { .campo-cornice { --alta: clamp(20rem, 58vh, 34rem); } }
-  @media (min-width: 1280px) { .campo-cornice { --alta: clamp(22rem, 64vh, 40rem); } }
+  @media (min-width: 768px) { .campo-cornice { --alta: clamp(20rem, 60vh, 36rem); } }
+  @media (min-width: 1280px) { .campo-cornice { --alta: clamp(24rem, 66vh, 42rem); } }
 
   .campo-cornice .campo { aspect-ratio: var(--proporzione, 1); width: 100%; }
 
   /* Il gettone sul campo dello scout: si tocca, quindi ha bisogno di essere
      grande abbastanza, ma il campo non deve diventare un elenco. */
   .gettone-scout {
-    width: clamp(3.4rem, 15cqw, 6rem);
-    --volto: clamp(2.4rem, 11cqw, 4rem);
-    --numero: clamp(0.9rem, 4cqw, 1.5rem);
-    --nome: clamp(0.55rem, 2.3cqw, 0.8rem);
-    --media: clamp(0.55rem, 2.3cqw, 0.8rem);
+    width: clamp(3.2rem, 15cqw, 6.5rem);
+    --volto: clamp(2.3rem, 11cqw, 4.4rem);
+    --numero: clamp(0.85rem, 4cqw, 1.6rem);
+    --nome: clamp(0.55rem, 2.3cqw, 0.85rem);
+    --media: clamp(0.55rem, 2.3cqw, 0.85rem);
+    /* Anche il ⇄ si misura sul campo. Fisso a 24px, su un campo piccolo
+       copriva il numero di maglia: il distintivo diventava piu' importante
+       del giocatore. */
+    --scambio: clamp(1.05rem, 4.4cqw, 1.75rem);
   }
 
   /* I numeri si incolonnano sempre: in una tabella di dati le cifre che
