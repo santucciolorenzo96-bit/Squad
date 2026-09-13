@@ -35,6 +35,7 @@ function newStats() {
 export const CALCIO = {
   key: 'calcio',
   label: 'Calcio',
+  federazione: 'FIGC',
   short: 'Calcio',
   description: 'Undici in campo, gol e assist, classifica con i pareggi.',
 

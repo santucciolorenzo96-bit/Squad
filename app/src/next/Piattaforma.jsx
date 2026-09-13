@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { logout } from '../auth.js';
-import { amIPlatformOwner, createActivationCode, listActivationCodes, revokeActivationCode } from '../api/platform.js';
+import { amIPlatformOwner, createActivationCode, listActivationCodes, revokeActivationCode, listSocieties } from '../api/platform.js';
+import { SPORT_LIST } from '../utils/sports/index.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Pulsante, Scheletro, cx } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, useAvviso, ProvvederAvvisi } from './moduli.jsx';
@@ -239,6 +240,101 @@ function ModuloCodice({ onChiudi, onFatto }) {
   );
 }
 
+/* ============================================================= le societa' */
+/* L'anagrafe, non il contenuto.
+ *
+ * Chi amministra la piattaforma deve sapere QUALI societa' esistono: senza,
+ * l'unico modo di accorgersi che una e' nata e' ricordarsi di aver dato un
+ * codice. Ma sapere che esistono e sapere cosa contengono sono due cose
+ * diverse, e la seconda non deve succedere: rose, quote, certificati restano
+ * di chi ne fa parte.
+ *
+ * Il confine non e' disegnato qui — e' nella funzione del database, che
+ * restituisce solo queste colonne. Anche volendo, da questa schermata non c'e'
+ * niente altro da mostrare.
+ */
+export function PannelloSocieta() {
+  const [abilitato, setAbilitato] = useState(null);
+  const [righe, setRighe] = useState(null);
+  const [errore, setErrore] = useState(null);
+
+  // Il pannello si chiede da solo se tocca a lui: cosi funziona sia nella
+  // console — dove ci arriva solo un SuperAdmin — sia dentro Squadra, dove
+  // passa qualunque amministratore di societa e non deve vedere niente.
+  useEffect(() => {
+    let vivo = true;
+    if (inCampione()) { setAbilitato(false); return; }
+    amIPlatformOwner().then(ok => {
+      if (!vivo) return;
+      setAbilitato(ok);
+      if (!ok) return;
+      listSocieties()
+        .then(r => { if (vivo) setRighe(r); })
+        .catch(e => { if (vivo) setErrore(e); });
+    });
+    return () => { vivo = false; };
+  }, []);
+
+  if (!abilitato) return null;
+
+  const nomeSport = (k) => (SPORT_LIST.find(x => x.key === k) || {}).label || k;
+
+  return (
+    <div className="mt-7">
+      <div className="mb-2.5 flex items-center justify-between gap-3">
+        <Etichetta>Società sulla piattaforma</Etichetta>
+        {righe && <span className="cifra text-[11.5px] text-tenue">{righe.length}</span>}
+      </div>
+
+      {errore ? (
+        <Pannello className="pad-pannello-stretto">
+          <p className="text-[12.5px] leading-relaxed text-ambra">
+            L’elenco non si legge: {(errore && errore.message) || 'errore sconosciuto'}. Se la
+            migrazione 029 non è ancora stata eseguita, questa funzione non esiste ancora.
+          </p>
+        </Pannello>
+      ) : righe === null ? (
+        <Pannello className="pad-pannello-stretto"><Scheletro righe={2} /></Pannello>
+      ) : righe.length === 0 ? (
+        <Pannello className="pad-pannello-stretto">
+          <p className="text-[12.5px] text-tenue">Nessuna società ancora registrata.</p>
+        </Pannello>
+      ) : (
+        <Pannello className="overflow-hidden">
+          {righe.map((r, i) => (
+            <div
+              key={r.id}
+              className={cx('flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 sm:px-5', i > 0 && 'border-t border-bordo/6')}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[13.5px] font-semibold">{r.name}</div>
+                <div className="text-[11.5px] text-tenue">
+                  {[nomeSport(r.sport), r.city, r.category].filter(Boolean).join(' · ')}
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="cifra text-[13px] font-semibold">{r.attivi}</div>
+                <div className="text-[10px] font-bold uppercase tracking-etichetta text-tenue">
+                  {r.attivi === 1 ? 'persona' : 'persone'}
+                </div>
+              </div>
+              <div className="w-full text-[11px] text-tenue sm:w-auto sm:pl-3">
+                dal {fmtData((r.created_at || '').slice(0, 10))}
+              </div>
+            </div>
+          ))}
+        </Pannello>
+      )}
+
+      <p className="mt-2.5 text-[11.5px] leading-relaxed text-tenue">
+        Solo l’anagrafe: nome, sport, quante persone. Dentro le società non si entra — rose,
+        quote e certificati restano di chi ne fa parte, e la funzione del database non li
+        restituisce nemmeno volendo.
+      </p>
+    </div>
+  );
+}
+
 /* ================================================================= console */
 /* Un SuperAdmin senza società: l'app non ha niente da mostrargli tranne
  * questo. Prima finiva su «Completa l'iscrizione», che gli chiedeva di
@@ -283,6 +379,7 @@ function ConsoleDentro({ email, onIscriviti }) {
       </Pannello>
 
       <PannelloCodici avvisa={avvisa} />
+      <PannelloSocieta />
 
       {onIscriviti && (
         <button

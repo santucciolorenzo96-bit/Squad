@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
-import { DOC_TYPES, isAdmin } from '../utils/permissions.js';
+import { isAdmin } from '../utils/permissions.js';
+import { tipiDocumento } from '../utils/sports/index.js';
 import { fetchDocumentsForPlayers, getDocumentSignedUrl } from '../api/roster.js';
 import { docStatus, DOC_STATE } from '../utils/docStatus.js';
 import { EXPORTS } from '../ui/dataExport.js';
@@ -32,7 +33,7 @@ export function Documenti() {
   const [cancella, setCancella] = useState(false);
   const [scheda, setScheda] = useState(null);
   const [documenti, setDocumenti] = useState(null);
-  const [tipo, setTipo] = useState(DOC_TYPES[0] ? DOC_TYPES[0].key : null);
+  const [tipo, setTipo] = useState(tipiDocumento()[0] ? tipiDocumento()[0].key : null);
   const avvisa = useAvviso();
 
   const rosa = state.roster;
@@ -72,7 +73,7 @@ export function Documenti() {
         <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
           <Etichetta>Documenti degli atleti</Etichetta>
           <div className="flex gap-1 rounded-full vetro orlo p-1">
-            {DOC_TYPES.map(t => (
+            {tipiDocumento().map(t => (
               <button
                 key={t.key}
                 onClick={() => setTipo(t.key)}

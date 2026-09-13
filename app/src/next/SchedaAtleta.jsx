@@ -6,7 +6,8 @@ import {
   uploadPlayerPhoto, getPlayerPhotoSignedUrl
 } from '../api/roster.js';
 import { fetchDevelopment, saveDevelopment } from '../api/development.js';
-import { DOC_TYPES, canReviewDocuments, isLinkedUser, canEditHome } from '../utils/permissions.js';
+import { canReviewDocuments, isLinkedUser, canEditHome } from '../utils/permissions.js';
+import { tipiDocumento } from '../utils/sports/index.js';
 import { docStatus, DOC_STATE, ageFrom } from '../utils/docStatus.js';
 import { resizeImageFile } from '../utils/image.js';
 import { currentSport } from '../utils/sports/index.js';
@@ -193,7 +194,7 @@ export function SchedaAtleta({ playerId, onChiudi }) {
         <div className="mt-6">
           <Etichetta className="mb-2.5">Documenti</Etichetta>
           <div className="space-y-3">
-            {DOC_TYPES.map(t => {
+            {tipiDocumento().map(t => {
               const suoi = documenti.filter(d => d.doc_type === t.key)
                 .sort((a, b) => String(b.uploaded_at).localeCompare(String(a.uploaded_at)));
               const stato = docStatus(suoi, oggi);

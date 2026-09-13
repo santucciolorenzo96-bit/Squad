@@ -35,6 +35,7 @@ export function AvvioPartita({ onAvviata }) {
   const [scelta, setScelta] = useState(candidate.length ? candidate[0].id : '');
   const [avversario, setAvversario] = useState(candidate.length ? candidate[0].opponent : '');
   const [periodi, setPeriodi] = useState(String(conf.period.count));
+  const [amichevole, setAmichevole] = useState(false);
   const [titolari, setTitolari] = useState([]);
   const [lavora, setLavora] = useState(false);
   const [errore, setErrore] = useState('');
@@ -64,6 +65,7 @@ export function AvvioPartita({ onAvviata }) {
       const nQ = Math.max(1, Math.min(parseInt(periodi, 10) || conf.period.count, 9));
       const bozza = {
         oppName: avversario.trim() || 'Avversari',
+        friendly: amichevole,
         quarterLength: 0,
         numQuarters: nQ,
         quarter: 1,
@@ -171,31 +173,67 @@ export function AvvioPartita({ onAvviata }) {
         )}
       </Pannello>
 
-      {/* ----------------------------------------------------- i periodi */}
+      {/* ------------------------------------------------- che partita è */}
+      {/* Serve a leggere i numeri senza sbagliarsi: una sconfitta in amichevole
+          contro una squadra di categoria superiore non è una sconfitta, e
+          mescolarla al campionato rende la media punti una frase priva di
+          senso. Si chiede qui perché dopo, a partita finita, nessuno se lo
+          ricorda più. */}
       <Pannello className="pad-pannello-stretto">
-        <Etichetta>Quanti {conf.period.label.toLowerCase()}</Etichetta>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {[2, 3, 4, 5, 6].map(n => (
+        <Etichetta>Che partita è</Etichetta>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {[[false, 'Campionato'], [true, 'Amichevole']].map(([v, t]) => (
             <button
-              key={n}
-              onClick={() => setPeriodi(String(n))}
+              key={t}
+              onClick={() => setAmichevole(v)}
               className={cx(
-                'h-11 w-11 rounded-lg text-[15px] font-bold transition-all orlo',
-                periodi === String(n)
+                'rounded-lg py-3 text-[13.5px] font-semibold transition-all orlo',
+                amichevole === v
                   ? 'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu'
                   : 'vetro text-soffuso hover:text-testo'
               )}
             >
-              {n}
+              {t}
             </button>
           ))}
         </div>
         <p className="mt-3 text-[11.5px] leading-relaxed text-tenue">
-          Niente cronometro: nel basket si ferma troppo spesso perché inseguirlo valga la pena,
-          e i minuti in campo si contano male più che non contarli.
-          {conf.period.allowExtra && ' I supplementari si aggiungono in corsa, quando servono.'}
+          {amichevole
+            ? 'Resta nello storico e nel tabellino, ma segnata come amichevole: il risultato non va in classifica.'
+            : 'Vale per il campionato: a fine partita il risultato conta nel bilancio della stagione.'}
         </p>
       </Pannello>
+
+      {/* ----------------------------------------------------- i periodi */}
+      {/* Nella pallavolo non si chiede: al meglio dei cinque se ne giocano
+          tre, quattro o cinque, e lo si scopre giocando. Chiederlo alla palla
+          a due è chiedere una cosa che nessuno può sapere. */}
+      {conf.period.askCount !== false && (
+        <Pannello className="pad-pannello-stretto">
+          <Etichetta>Quanti {conf.period.label.toLowerCase()}</Etichetta>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[2, 3, 4, 5, 6].map(n => (
+              <button
+                key={n}
+                onClick={() => setPeriodi(String(n))}
+                className={cx(
+                  'h-11 w-11 rounded-lg text-[15px] font-bold transition-all orlo',
+                  periodi === String(n)
+                    ? 'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu'
+                    : 'vetro text-soffuso hover:text-testo'
+                )}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+          <p className="mt-3 text-[11.5px] leading-relaxed text-tenue">
+            Niente cronometro: si ferma troppo spesso perché inseguirlo valga la pena, e i minuti
+            in campo si contano male più che non contarli.
+            {conf.period.allowExtra && ' I supplementari si aggiungono in corsa, quando servono.'}
+          </p>
+        </Pannello>
+      )}
 
       {/* -------------------------------------------------- chi comincia */}
       <Pannello className="pad-pannello-stretto">

@@ -32,6 +32,7 @@ function newStats() {
 export const PALLAVOLO = {
   key: 'pallavolo',
   label: 'Pallavolo',
+  federazione: 'FIPAV',
   short: 'Volley',
   description: 'Sei in campo per zone, set invece dei periodi, punti e muri.',
 
@@ -86,9 +87,13 @@ export const PALLAVOLO = {
   // assegnano a nessuno. Quindi a fine set si scrivono i due punteggi.
   scout: {
     period: {
-      label: 'Set', short: 'S', count: 5, minutes: null,
+      label: 'Set', short: 'S', count: 3, minutes: null,
       hasClock: false, direction: null,
-      allowExtra: false
+      // Non si chiede quanti: al meglio dei cinque se ne giocano tre, quattro
+      // o cinque, e lo si scopre giocando. Si parte dal minimo e i successivi
+      // si aggiungono da soli chiudendo quello in corso.
+      askCount: false,
+      allowExtra: true, extraLabel: 'Set'
     },
     ourScore: 'perPeriod',
     opponentScore: 'perPeriod',

@@ -194,6 +194,11 @@ export function Tracker({ onFinita }) {
               <div className="text-[11px] font-bold uppercase tracking-etichetta text-tenue">
                 {conf.period.short}{g.quarter}
               </div>
+              {g.friendly && (
+                <div className="mt-1.5 rounded-full bg-pannello/14 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-etichetta text-tenue">
+                  amichevole
+                </div>
+              )}
               {conf.teamFouls && (
                 <div className={cx('mt-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold',
                   bonus ? 'bg-rosso/18 text-rosso' : 'bg-pannello/12 text-tenue')}>

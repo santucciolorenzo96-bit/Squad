@@ -33,3 +33,12 @@ export async function revokeActivationCode(code) {
   const { error } = await supabase.rpc('revoke_activation_code', { p_code: code });
   if (error) throw error;
 }
+
+// L'anagrafe delle societa': nome, sport, citta', quando sono nate, quante
+// persone ci sono. NON i loro dati — rose, documenti e conti restano di chi ne
+// fa parte, e la funzione nel database non li restituisce nemmeno volendo.
+export async function listSocieties() {
+  const { data, error } = await supabase.rpc('list_societies');
+  if (error) throw error;
+  return data || [];
+}

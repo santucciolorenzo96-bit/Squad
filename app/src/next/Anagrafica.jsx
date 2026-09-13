@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
-import { DOC_TYPES } from '../utils/permissions.js';
+import { tipiDocumento } from '../utils/sports/index.js';
 import { fetchPlayerPhotoUrls, fetchDocumentsForPlayers, addPlayer } from '../api/roster.js';
 import { canEditRoster } from '../utils/permissions.js';
 import { docStatus, worstStatus, ageFrom, DOC_STATE } from '../utils/docStatus.js';
@@ -66,7 +66,7 @@ export function Anagrafica() {
   const righe = rosa.map(p => {
     const suoi = documenti[p.id] || [];
     const stati = {};
-    DOC_TYPES.forEach(t => { stati[t.key] = docStatus(suoi.filter(d => d.doc_type === t.key), oggi); });
+    tipiDocumento().forEach(t => { stati[t.key] = docStatus(suoi.filter(d => d.doc_type === t.key), oggi); });
     return { p, stati, peggiore: worstStatus(Object.values(stati)), eta: ageFrom(p.birth_date, oggi) };
   }).sort((a, b) => (DOC_STATE[b.peggiore].rank - DOC_STATE[a.peggiore].rank) || a.p.name.localeCompare(b.p.name));
 
@@ -138,7 +138,7 @@ export function Anagrafica() {
                 <tr className="border-b border-bordo/10">
                   <th className="etichetta px-5 py-3.5">Atleta</th>
                   <th className="etichetta w-16 px-5 py-3.5">Età</th>
-                  {DOC_TYPES.map(t => (
+                  {tipiDocumento().map(t => (
                     <th key={t.key} className="etichetta px-5 py-3.5">{BREVE[t.key] || t.label}</th>
                   ))}
                   <th className="etichetta px-5 py-3.5">Contatto</th>
@@ -168,7 +168,7 @@ export function Anagrafica() {
                       </div>
                     </td>
                     <td className="px-5 py-3 text-[13px] text-soffuso">{r.eta == null ? '—' : r.eta}</td>
-                    {DOC_TYPES.map(t => (
+                    {tipiDocumento().map(t => (
                       <td key={t.key} className="px-5 py-3">
                         <Stato tono={TONO[r.stati[t.key]]}>{DOC_STATE[r.stati[t.key]].label}</Stato>
                       </td>
@@ -211,7 +211,7 @@ export function Anagrafica() {
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2.5 border-t border-bordo/8 pt-3">
-                  {DOC_TYPES.map(t => (
+                  {tipiDocumento().map(t => (
                     <div key={t.key}>
                       <Etichetta className="mb-1.5">{BREVE[t.key] || t.label}</Etichetta>
                       <Stato tono={TONO[r.stati[t.key]]}>{DOC_STATE[r.stati[t.key]].label}</Stato>

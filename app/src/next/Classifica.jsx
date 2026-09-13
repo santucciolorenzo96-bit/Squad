@@ -273,7 +273,14 @@ function Storico() {
               {pari ? 'N' : vinta ? 'V' : 'S'}
             </span>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-[13.5px] font-semibold">{g.oppName || 'Avversari'}</div>
+              <div className="flex items-center gap-2">
+                <span className="truncate text-[13.5px] font-semibold">{g.oppName || 'Avversari'}</span>
+                {g.friendly && (
+                  <span className="shrink-0 rounded-full bg-pannello/14 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-etichetta text-tenue">
+                    amichevole
+                  </span>
+                )}
+              </div>
               {g.date && <div className="text-[11.5px] text-tenue">{fmtData(g.date)}</div>}
             </div>
             <div className="shrink-0 text-[16px] font-bold">

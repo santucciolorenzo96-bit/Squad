@@ -43,6 +43,7 @@ function score(s) {
 export const BASKET = {
   key: 'basket',
   label: 'Pallacanestro',
+  federazione: 'FIP',
   short: 'Basket',
   description: 'Quintetto, periodi e tabellino completo con tiri, rimbalzi e valutazione.',
 
@@ -108,6 +109,7 @@ export const BASKET = {
   scout: {
     period: {
       label: 'Periodo', short: 'P', count: 4, minutes: null,
+      askCount: true,
       hasClock: false, direction: null,
       allowExtra: true, extraLabel: 'Supplementare'
     },

@@ -5,6 +5,7 @@
 // scaduto è scaduto, non "forse". Nessun servizio esterno, nessun costo.
 
 import { findAllConflicts } from './conflicts.js';
+import { siglaFederazione } from './sports/index.js';
 
 // La gravita' resta, ma non come etichetta: "da risolvere", "da seguire" e
 // "da sistemare" sono la stessa cosa detta in tre modi, e nominarle non
@@ -157,7 +158,7 @@ export function detectIssues(ctx) {
       const p = playerById[d.player_id];
       return {
         label: p ? playerLabel(p) : 'Atleta',
-        sub: (d.doc_type === 'certificato_medico' ? 'Certificato medico' : 'Tesseramento FIP')
+        sub: (d.doc_type === 'certificato_medico' ? 'Certificato medico' : 'Tesseramento ' + siglaFederazione())
           + ' · caricato il ' + fmtDate((d.uploaded_at || '').slice(0, 10)),
         contatto: playerContact(p), sectorId: primarySector(p)
       };

@@ -11,7 +11,7 @@ import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, cx } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Data, Spunta, ErroreCaricamento, useAvviso } from './moduli.jsx';
 import { ChiusuraStagione } from './ChiusuraStagione.jsx';
-import { PannelloCodici } from './Piattaforma.jsx';
+import { PannelloCodici, PannelloSocieta } from './Piattaforma.jsx';
 
 /* Squadra.
  *
@@ -44,6 +44,7 @@ export function Squadra() {
       <Stagioni avvisa={avvisa} />
       <CodiceInvito avvisa={avvisa} />
       <PannelloCodici avvisa={avvisa} />
+      <PannelloSocieta />
     </div>
   );
 }

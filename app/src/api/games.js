@@ -16,6 +16,7 @@ function fromDbGame(row) {
     quarterFouls: row.quarter_fouls || {},
     periodScores: row.period_scores || [],
     calendarMatchId: row.calendar_match_id || null,
+    friendly: !!row.friendly,
     players: row.players || [],
     startedBy: row.started_by,
     startedAt: row.started_at,
@@ -36,6 +37,7 @@ function toDbPatch(g) {
   if ('quarterFouls' in g) patch.quarter_fouls = g.quarterFouls;
   if ('periodScores' in g) patch.period_scores = g.periodScores;
   if ('calendarMatchId' in g) patch.calendar_match_id = g.calendarMatchId;
+  if ('friendly' in g) patch.friendly = !!g.friendly;
   if ('players' in g) patch.players = g.players;
   return patch;
 }

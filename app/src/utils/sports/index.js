@@ -1,4 +1,5 @@
 import { state } from '../../state.js';
+import { DOC_TYPES } from '../permissions.js';
 import { BASKET } from './basket.js';
 import { CALCIO } from './calcio.js';
 import { PALLAVOLO } from './pallavolo.js';
@@ -26,4 +27,20 @@ export function getSport(key) {
 // Lo sport della società attualmente aperta.
 export function currentSport() {
   return getSport(state.teamProfile && state.teamProfile.sport);
+}
+
+// I tipi di documento con la sigla della federazione giusta: FIP per il
+// basket, FIPAV per la pallavolo, FIGC per il calcio. La chiave resta quella
+// scritta nel database da sempre — cambiarla per una parola vorrebbe dire
+// riscrivere le righe esistenti — quindi cambia solo l'etichetta.
+export function tipiDocumento() {
+  const sigla = currentSport().federazione || 'FIP';
+  return DOC_TYPES.map(t => (
+    t.key === 'tesseramento_fip' ? { ...t, label: 'Tesseramento ' + sigla } : t
+  ));
+}
+
+// La sola sigla, per chi deve comporre una frase invece di un elenco.
+export function siglaFederazione() {
+  return currentSport().federazione || 'FIP';
 }
