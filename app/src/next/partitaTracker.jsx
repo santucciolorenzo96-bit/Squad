@@ -10,12 +10,26 @@ import { inCampione } from './campione.js';
 
 /* Lo scout dal vivo.
  *
- * Due regole, e vengono dal campo, non dal disegno:
+ * Tre regole, e vengono dal campo, non dal disegno:
  *
  * 1. DUE TOCCHI PER OGNI EVENTO — giocatore, poi azione — e mai uno scorrimento
  *    in mezzo. I comandi si aprono ancorati in basso, sotto il pollice. Nel
  *    basket si segna un evento ogni pochi secondi: ogni gesto in più si paga
  *    per tutta la partita.
+ *
+ * 1-bis. E DOVE IL GIOCO LO SA GIÀ, UNO SOLO. Dopo un errore al tiro arriva
+ *    quasi sempre un rimbalzo; dopo un canestro, spesso un assist. Invece di
+ *    far ricominciare da capo, l'app fa la domanda successiva da sola: si
+ *    tocca chi ha preso il rimbalzo e si è già tornati al gioco.
+ *
+ *    Il tipo del rimbalzo non si chiede: se l'errore è nostro, un nostro
+ *    rimbalzo è offensivo per definizione. Una domanda la cui risposta è
+ *    deducibile dal contesto è una domanda di troppo — ed è il genere di
+ *    domanda che, moltiplicata per una partita intera, fa chiudere l'app.
+ *
+ *    Le catene NON sono obbligatorie: si chiudono con un tocco fuori, e chi
+ *    non le vuole segna come prima. Chi tiene lo scout cambia ogni volta, e
+ *    una scorciatoia che si mette in mezzo a chi non la conosce è un ostacolo.
  *
  * 2. IL PUNTEGGIO AVVERSARIO SI SCRIVE A FINE PERIODO, non colpo su colpo.
  *    Inseguire i canestri altrui mentre si segue la propria squadra è la prima
@@ -47,6 +61,7 @@ export function Tracker({ onFinita }) {
   const [, ridisegna] = useState(0);
   const [scelto, setScelto] = useState(null);      // id giocatore col pannello aperto
   const [lampo, setLampo] = useState(null);        // { id, testo } riscontro dell'ultima azione
+  const [catena, setCatena] = useState(null);      // { tipo, autore } la domanda successiva
   const [sostituzione, setSostituzione] = useState(null);
   const [chiudiPeriodo, setChiudiPeriodo] = useState(false);
   const [finePartita, setFinePartita] = useState(false);
@@ -79,21 +94,30 @@ export function Tracker({ onFinita }) {
     });
   }
 
-  function memorizza() {
+  // Insieme allo stato si memorizza COSA si sta per annullare. Durante una
+  // partita l'annulla si preme di fretta, e un pulsante che non dice cosa
+  // toglie si preme due volte: la seconda cancella un evento buono.
+  function memorizza(testo) {
     state.undoStack.push(JSON.stringify(g));
-    if (state.undoStack.length > 60) state.undoStack.shift();
+    state.undoTesti = state.undoTesti || [];
+    state.undoTesti.push(testo || '');
+    if (state.undoStack.length > 60) { state.undoStack.shift(); state.undoTesti.shift(); }
   }
 
   function annulla() {
     if (state.undoStack.length === 0) { avvisa('Niente da annullare'); return; }
     state.liveGame = JSON.parse(state.undoStack.pop());
+    if (state.undoTesti) state.undoTesti.pop();
     setScelto(null);
+    setCatena(null);
     aggiorna();
     salva();
   }
 
-  function esegui(giocatore, azione) {
-    memorizza();
+  const daAnnullare = (state.undoTesti || [])[(state.undoTesti || []).length - 1] || '';
+
+  function esegui(giocatore, azione, senzaCatena) {
+    memorizza(giocatore.number + ' ' + (azione.etichettaBreve || azione.label));
     const s = giocatore.stats;
     Object.entries(azione.apply || {}).forEach(([k, v]) => { s[k] = (s[k] || 0) + v; });
     if (azione.nested) {
@@ -116,6 +140,19 @@ export function Tracker({ onFinita }) {
     aggiorna();
     salva();
     if (navigator.vibrate) navigator.vibrate(12);
+
+    // La domanda successiva, se il gioco ne ha una. Arriva dopo il riscontro
+    // sul gettone, non al posto suo: si deve vedere che il primo evento e'
+    // stato preso, altrimenti si segna due volte per il dubbio.
+    const seguito = !senzaCatena && azione.poi && (conf.chains || {})[azione.poi];
+    setCatena(seguito ? { tipo: azione.poi, autore: giocatore.id } : null);
+  }
+
+  function rispondiCatena(giocatore) {
+    const c = (conf.chains || {})[catena.tipo];
+    setCatena(null);
+    if (!giocatore || !c) return;
+    esegui(giocatore, { ...c.azione, etichettaBreve: c.azione.label }, true);
   }
 
   function sostituisci(entrante) {
@@ -179,9 +216,11 @@ export function Tracker({ onFinita }) {
             <button
               onClick={annulla}
               disabled={state.undoStack.length === 0}
-              className="flex-1 bg-fondo/40 py-2.5 text-[12px] font-semibold text-soffuso transition-colors hover:text-testo disabled:opacity-35"
+              className="min-w-0 flex-1 bg-fondo/40 px-2 py-2.5 text-[12px] font-semibold text-soffuso transition-colors hover:text-testo disabled:opacity-35"
             >
-              ↺ Annulla
+              <span className="block truncate">
+                ↺ Annulla{daAnnullare ? <span className="text-tenue"> · {daAnnullare}</span> : null}
+              </span>
             </button>
             <button
               onClick={() => setChiudiPeriodo(true)}
@@ -246,10 +285,23 @@ export function Tracker({ onFinita }) {
       )}
 
       <p className="mt-5 text-[11.5px] leading-relaxed text-tenue">
-        Tocca un giocatore e poi l’azione: due tocchi, senza scorrere. Il ⇄ sul gettone
-        prepara una sostituzione. Il punteggio avversario si scrive alla chiusura del{' '}
+        Tocca un giocatore e poi l’azione: due tocchi, senza scorrere. Dopo un tiro sbagliato
+        l’app chiede subito chi ha preso il rimbalzo, e dopo un canestro se c’era un assist:
+        rispondi con un tocco, o tocca fuori per saltare. Il ⇄ sul gettone prepara una
+        sostituzione. Il punteggio avversario si scrive alla chiusura del{' '}
         {conf.period.label.toLowerCase()}, non canestro per canestro.
       </p>
+
+      {/* ======================================================= la catena */}
+      {catena && (
+        <Catena
+          conf={conf}
+          catena={catena}
+          giocatori={g.players.filter(x => x.onCourt)}
+          onScegli={rispondiCatena}
+          onChiudi={() => setCatena(null)}
+        />
+      )}
 
       {/* ==================================================== pannello azioni */}
       {giocatoreScelto && (
@@ -293,6 +345,7 @@ export function Tracker({ onFinita }) {
             }
             state.liveGame = null;
             state.undoStack = [];
+            state.undoTesti = [];
             onFinita();
           }}
         />
@@ -355,6 +408,66 @@ function GettoneCampo({ p, sport, lampo, inSostituzione, onAssegna, onSostituisc
         </span>
       )}
     </div>
+  );
+}
+
+/* --------------------------------------------------------------- la catena */
+// La domanda successiva. Sta in basso come il pannello delle azioni, ma e'
+// piu' bassa e non copre il campo: si risponde guardando ancora il gioco.
+//
+// Non ha un pulsante "annulla" e non ne ha bisogno: toccare fuori la chiude, e
+// chiuderla non perde niente — l'evento di partenza e' gia' registrato.
+function Catena({ conf, catena, giocatori, onScegli, onChiudi }) {
+  const c = (conf.chains || {})[catena.tipo];
+
+  // L'effetto sta PRIMA di qualunque uscita anticipata: un hook dentro un ramo
+  // condizionale cambia l'ordine degli hook fra un disegno e l'altro, ed e' il
+  // genere di difetto che esplode molto dopo, in un punto che non c'entra.
+  useEffect(() => {
+    const tasto = (e) => { if (e.key === 'Escape') onChiudi(); };
+    document.addEventListener('keydown', tasto);
+    return () => document.removeEventListener('keydown', tasto);
+  }, [onChiudi]);
+
+  if (!c) return null;
+
+  const candidati = c.includiAutore
+    ? giocatori
+    : giocatori.filter(p => p.id !== catena.autore);
+
+  return createPortal(
+    <div className="fixed inset-0 z-[75] flex flex-col justify-end" onMouseDown={onChiudi}>
+      {/* Niente sfocatura sul fondo: qui la domanda dura due secondi e il campo
+          deve restare visibile dietro. */}
+      <div
+        onMouseDown={e => e.stopPropagation()}
+        className="relative rounded-t-2xl vetro-alto border-t border-bordo/12 px-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] pt-3.5 shadow-lg animate-salita sm:px-6"
+      >
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <Etichetta>{c.titolo}</Etichetta>
+          <button
+            onClick={onChiudi}
+            className="shrink-0 rounded-lg px-2.5 py-1 text-[11.5px] font-semibold text-tenue hover:text-testo"
+          >
+            {c.altro}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-5 gap-2">
+          {candidati.map(p => (
+            <button
+              key={p.id}
+              onClick={() => onScegli(p)}
+              className="rounded-lg vetro orlo px-1 py-2.5 text-center transition-all hover:bg-pannello/16 active:scale-[0.97]"
+            >
+              <div className="text-[17px] font-bold leading-none">{p.number}</div>
+              <div className="mt-1 truncate text-[10px] text-tenue">{p.name.split(' ')[0]}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 

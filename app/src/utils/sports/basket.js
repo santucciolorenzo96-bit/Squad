@@ -120,16 +120,16 @@ export const BASKET = {
     periodPrompt: 'Quanti punti ha segnato l\u2019avversario in questo periodo?',
     groups: [
       { label: 'Tiro da 2', layout: 'pair', actions: [
-        { act: 'fg2_made', label: '\u2713 Canestro', tone: 'made', apply: { fgm2: 1, fga2: 1 }, score: 2 },
-        { act: 'fg2_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga2: 1 } }
+        { act: 'fg2_made', label: '\u2713 Canestro', tone: 'made', apply: { fgm2: 1, fga2: 1 }, score: 2, poi: 'assist' },
+        { act: 'fg2_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga2: 1 }, poi: 'rimbalzo' }
       ]},
       { label: 'Tiro da 3', layout: 'pair', actions: [
-        { act: 'fg3_made', label: '\u2713 Canestro', tone: 'made', apply: { fgm3: 1, fga3: 1 }, score: 3 },
-        { act: 'fg3_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga3: 1 } }
+        { act: 'fg3_made', label: '\u2713 Canestro', tone: 'made', apply: { fgm3: 1, fga3: 1 }, score: 3, poi: 'assist' },
+        { act: 'fg3_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga3: 1 }, poi: 'rimbalzo' }
       ]},
       { label: 'Tiro libero', layout: 'pair', actions: [
         { act: 'ft_made', label: '\u2713 Segnato', tone: 'made', apply: { ftm: 1, fta: 1 }, score: 1 },
-        { act: 'ft_miss', label: '\u2717 Sbagliato', tone: 'miss', apply: { fta: 1 } }
+        { act: 'ft_miss', label: '\u2717 Sbagliato', tone: 'miss', apply: { fta: 1 }, poi: 'rimbalzo' }
       ]},
       { label: 'Rimbalzo', layout: 'pair', actions: [
         { act: 'orb', label: 'Offensivo', tone: 'neutral', apply: { orb: 1 } },
@@ -152,6 +152,30 @@ export const BASKET = {
         { act: 'blkAgainst', label: 'Stoppata subita', tone: 'warn', apply: { blkAgainst: 1 } }
       ]}
     ],
+
+    // ------------------------------------------------------------- catene
+    // Nel basket certi eventi ne chiamano un altro quasi sempre: dopo un
+    // errore al tiro c'e' un rimbalzo, dopo un canestro spesso un assist.
+    // Invece di far ricominciare da capo — giocatore, azione — l'app fa la
+    // domanda successiva da sola, e per rispondere basta un tocco.
+    //
+    // Il TIPO del rimbalzo non si chiede: se l'errore e' nostro, un nostro
+    // rimbalzo e' offensivo per definizione. Il contesto sa gia' la risposta,
+    // e una domanda la cui risposta e' deducibile e' una domanda di troppo.
+    chains: {
+      rimbalzo: {
+        titolo: 'Chi prende il rimbalzo?',
+        azione: { act: 'orb', label: 'Rimbalzo', apply: { orb: 1 } },
+        altro: 'Agli avversari',
+        includiAutore: true
+      },
+      assist: {
+        titolo: 'Assist di chi?',
+        azione: { act: 'ast', label: 'Assist', apply: { ast: 1 } },
+        altro: 'Nessun assist',
+        includiAutore: false
+      }
+    },
     // Il riquadro del giocatore in campo mostra questa voce: e' quella che il
     // segnapunti controlla di continuo per accorgersi di aver sbagliato persona.
     tileStat: { key: 'pts', short: 'PT' }
