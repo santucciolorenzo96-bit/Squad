@@ -1,5 +1,5 @@
-import { describe, test, is } from './run.mjs';
-import { esc, clamp, fmtClock, fmtMin } from '../src/utils/format.js';
+import { describe, test, is, ok } from './run.mjs';
+import { esc, clamp, fmtClock, fmtMin, contiene, senzaAccenti } from '../src/utils/format.js';
 
 describe('esc — escape HTML', () => {
   test('codifica i caratteri di markup', () => {
@@ -48,4 +48,18 @@ describe('format — numeri e tempo', () => {
     is(fmtMin(125), "2'");
     is(fmtMin(59), "0'");
   });
+});
+
+// Chi cerca scrive di fretta: la ricerca deve perdonare maiuscole, accenti e
+// apostrofi, altrimenti la si usa una volta sola.
+describe('cercare un nome', () => {
+  test('ignora le maiuscole', () => ok(contiene('Filippo Serra', 'filippo')));
+  test('trova Nicolo senza accento', () => ok(contiene('Nicolò Abbagnale', 'nicolo')));
+  test('trova Nicolò con accento', () => ok(contiene('Nicolò Abbagnale', 'Nicolò')));
+  test('ignora l’apostrofo', () => ok(contiene('D’Ambrosio', 'dambrosio')));
+  test('cerca anche nel cognome', () => ok(contiene('Youssef El Amrani', 'amrani')));
+  test('una ricerca vuota trova tutto', () => ok(contiene('chiunque', '   ')));
+  test('quello che non c’è non lo trova', () => is(contiene('Filippo Serra', 'rossi'), false));
+  test('il numero di maglia è cercabile', () => ok(contiene('Filippo Serra 23', '23')));
+  test('senzaAccenti non si rompe sul nulla', () => is(senzaAccenti(null), ''));
 });

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
+import { contiene } from '../utils/format.js';
 import { tipiDocumento } from '../utils/sports/index.js';
 import { fetchPlayerPhotoUrls, fetchDocumentsForPlayers, addPlayer } from '../api/roster.js';
 import { canEditRoster } from '../utils/permissions.js';
 import { docStatus, worstStatus, ageFrom, DOC_STATE } from '../utils/docStatus.js';
 import { inCampione, DOCUMENTI_CAMPIONE } from './campione.js';
-import { Pannello, Etichetta, Stato, Dato, Vuoto, Scheletro, Avatar, Pulsante, Titolo, cx } from './ui.jsx';
+import { Pannello, Etichetta, Stato, Dato, Vuoto, Scheletro, Avatar, Pulsante, Titolo, Cerca, NessunRisultato, cx } from './ui.jsx';
 import { Modulo, Campo, Testo, useAvviso } from './moduli.jsx';
 import { IconaSezione, Chevron } from './icone.jsx';
 import { SchedaAtleta } from './SchedaAtleta.jsx';
@@ -36,6 +37,7 @@ export function Anagrafica() {
   const [foto, setFoto] = useState({});
   const [documenti, setDocumenti] = useState({});
   const [soloProblemi, setSoloProblemi] = useState(false);
+  const [cerca, setCerca] = useState('');
   const [nuovo, setNuovo] = useState(false);
   const [scheda, setScheda] = useState(null);
   const [, ridisegna] = useState(0);
@@ -73,7 +75,11 @@ export function Anagrafica() {
   const fermi = righe.filter(r => DOC_STATE[r.peggiore].tone === 'bad');
   const daSeguire = righe.filter(r => DOC_STATE[r.peggiore].tone === 'warn');
   const aPosto = righe.length - fermi.length - daSeguire.length;
-  const visibili = soloProblemi ? righe.filter(r => DOC_STATE[r.peggiore].tone !== 'ok') : righe;
+  // Il registro di una societa' vera e' lungo: la ricerca non e' un di piu', e'
+  // il modo normale di arrivare a una persona. Nome e numero insieme, perche' in
+  // palestra un atleta si chiama tanto col nome quanto col numero.
+  const perNome = righe.filter(r => contiene(r.p.name + ' ' + (r.p.number || ''), cerca));
+  const visibili = soloProblemi ? perNome.filter(r => DOC_STATE[r.peggiore].tone !== 'ok') : perNome;
 
   return (
     <div className="sezioni">
@@ -118,8 +124,14 @@ export function Anagrafica() {
         </Vuoto>
       ) : (
         <>
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <Etichetta>Il registro</Etichetta>
+            <Cerca
+              valore={cerca}
+              onCambia={setCerca}
+              segnaposto="Cerca un atleta"
+              className="order-last w-full sm:order-none sm:w-56"
+            />
             {(fermi.length + daSeguire.length) > 0 && (
               <Pulsante
                 variante={soloProblemi ? 'primario' : 'vetro'}
@@ -131,96 +143,106 @@ export function Anagrafica() {
             )}
           </div>
 
-          {/* ---------------------------------------------- da tablet in su */}
-          <Pannello className="hidden overflow-hidden md:block">
-            <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="border-b border-bordo/10">
-                  <th className="etichetta px-5 py-3.5">Atleta</th>
-                  <th className="etichetta w-16 px-5 py-3.5">Età</th>
-                  {tipiDocumento().map(t => (
-                    <th key={t.key} className="etichetta px-5 py-3.5">{BREVE[t.key] || t.label}</th>
-                  ))}
-                  <th className="etichetta px-5 py-3.5">Contatto</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibili.map(r => (
-                  <tr
-                    key={r.p.id}
-                    onClick={() => setScheda(r.p.id)}
-                    className="cursor-pointer border-b border-bordo/6 transition-colors last:border-b-0 hover:bg-pannello/8"
-                  >
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-3.5">
-                        {/* Il numero di maglia prima del nome, incolonnato:
-                            è come si legge un elenco di squadra. */}
-                        <span className="w-7 shrink-0 text-right text-[15px] font-medium text-tenue">
-                          {r.p.number}
-                        </span>
-                        <Avatar nome={r.p.name} url={foto[r.p.id]} dim={34} />
-                        <div className="min-w-0">
-                          <div className="truncate text-[13.5px] font-semibold leading-tight">{r.p.name}</div>
-                          {r.p.role_position && (
-                            <div className="text-[11px] text-tenue">{r.p.role_position}</div>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3 text-[13px] text-soffuso">{r.eta == null ? '—' : r.eta}</td>
+          {/* Una ricerca che non trova niente deve dirlo con la parola
+              cercata dentro: un elenco che sparisce sembra un difetto. */}
+          {visibili.length === 0 ? (
+            cerca
+              ? <NessunRisultato cosa="Nessun atleta" ago={cerca} />
+              : <Vuoto>Nessun atleta da sistemare in questa categoria.</Vuoto>
+          ) : (
+            <>
+            {/* ---------------------------------------------- da tablet in su */}
+            <Pannello className="hidden overflow-hidden md:block">
+              <table className="w-full border-collapse text-left">
+                <thead>
+                  <tr className="border-b border-bordo/10">
+                    <th className="etichetta px-5 py-3.5">Atleta</th>
+                    <th className="etichetta w-16 px-5 py-3.5">Età</th>
                     {tipiDocumento().map(t => (
-                      <td key={t.key} className="px-5 py-3">
-                        <Stato tono={TONO[r.stati[t.key]]}>{DOC_STATE[r.stati[t.key]].label}</Stato>
-                      </td>
+                      <th key={t.key} className="etichetta px-5 py-3.5">{BREVE[t.key] || t.label}</th>
                     ))}
-                    <td className="px-5 py-3 text-[12.5px] text-tenue">
-                      {r.p.guardian_phone || r.p.email || '—'}
-                    </td>
+                    <th className="etichetta px-5 py-3.5">Contatto</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </Pannello>
+                </thead>
+                <tbody>
+                  {visibili.map(r => (
+                    <tr
+                      key={r.p.id}
+                      onClick={() => setScheda(r.p.id)}
+                      className="cursor-pointer border-b border-bordo/6 transition-colors last:border-b-0 hover:bg-pannello/8"
+                    >
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-3.5">
+                          {/* Il numero di maglia prima del nome, incolonnato:
+                              è come si legge un elenco di squadra. */}
+                          <span className="w-7 shrink-0 text-right text-[15px] font-medium text-tenue">
+                            {r.p.number}
+                          </span>
+                          <Avatar nome={r.p.name} url={foto[r.p.id]} dim={34} />
+                          <div className="min-w-0">
+                            <div className="truncate text-[13.5px] font-semibold leading-tight">{r.p.name}</div>
+                            {r.p.role_position && (
+                              <div className="text-[11px] text-tenue">{r.p.role_position}</div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 text-[13px] text-soffuso">{r.eta == null ? '—' : r.eta}</td>
+                      {tipiDocumento().map(t => (
+                        <td key={t.key} className="px-5 py-3">
+                          <Stato tono={TONO[r.stati[t.key]]}>{DOC_STATE[r.stati[t.key]].label}</Stato>
+                        </td>
+                      ))}
+                      <td className="px-5 py-3 text-[12.5px] text-tenue">
+                        {r.p.guardian_phone || r.p.email || '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Pannello>
 
-          {/* ------------------------------------------------- su telefono */}
-          <div className="space-y-3 md:hidden">
-            {visibili.map(r => (
-              <Pannello
-                key={r.p.id}
-                onClick={() => setScheda(r.p.id)}
-                className="pad-pannello-stretto relative cursor-pointer overflow-hidden"
-              >
-                {/* Il filo colorato a sinistra: dice lo stato prima che si
-                    legga qualunque parola. */}
-                {DOC_STATE[r.peggiore].tone !== 'ok' && (
-                  <span className={cx('absolute inset-y-0 left-0 w-1',
-                    DOC_STATE[r.peggiore].tone === 'bad' ? 'bg-rosso' : 'bg-ambra')} />
-                )}
-                <div className="flex items-center gap-3">
-                  <span className="w-6 shrink-0 text-right text-[15px] font-medium text-tenue">
-                    {r.p.number}
-                  </span>
-                  <Avatar nome={r.p.name} url={foto[r.p.id]} dim={36} />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[14px] font-semibold leading-tight">{r.p.name}</div>
-                    <div className="text-[11.5px] text-tenue">
-                      {r.eta != null && <span className="cifra">{r.eta} anni</span>}
-                      {r.eta != null && r.p.role_position && ' · '}
-                      {r.p.role_position}
+            {/* ------------------------------------------------- su telefono */}
+            <div className="space-y-3 md:hidden">
+              {visibili.map(r => (
+                <Pannello
+                  key={r.p.id}
+                  onClick={() => setScheda(r.p.id)}
+                  className="pad-pannello-stretto relative cursor-pointer overflow-hidden"
+                >
+                  {/* Il filo colorato a sinistra: dice lo stato prima che si
+                      legga qualunque parola. */}
+                  {DOC_STATE[r.peggiore].tone !== 'ok' && (
+                    <span className={cx('absolute inset-y-0 left-0 w-1',
+                      DOC_STATE[r.peggiore].tone === 'bad' ? 'bg-rosso' : 'bg-ambra')} />
+                  )}
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 shrink-0 text-right text-[15px] font-medium text-tenue">
+                      {r.p.number}
+                    </span>
+                    <Avatar nome={r.p.name} url={foto[r.p.id]} dim={36} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[14px] font-semibold leading-tight">{r.p.name}</div>
+                      <div className="text-[11.5px] text-tenue">
+                        {r.eta != null && <span className="cifra">{r.eta} anni</span>}
+                        {r.eta != null && r.p.role_position && ' · '}
+                        {r.p.role_position}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2.5 border-t border-bordo/8 pt-3">
-                  {tipiDocumento().map(t => (
-                    <div key={t.key}>
-                      <Etichetta className="mb-1.5">{BREVE[t.key] || t.label}</Etichetta>
-                      <Stato tono={TONO[r.stati[t.key]]}>{DOC_STATE[r.stati[t.key]].label}</Stato>
-                    </div>
-                  ))}
-                </div>
-              </Pannello>
-            ))}
-          </div>
+                  <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2.5 border-t border-bordo/8 pt-3">
+                    {tipiDocumento().map(t => (
+                      <div key={t.key}>
+                        <Etichetta className="mb-1.5">{BREVE[t.key] || t.label}</Etichetta>
+                        <Stato tono={TONO[r.stati[t.key]]}>{DOC_STATE[r.stati[t.key]].label}</Stato>
+                      </div>
+                    ))}
+                  </div>
+                </Pannello>
+              ))}
+            </div>
+            </>
+          )}
         </>
       )}
 

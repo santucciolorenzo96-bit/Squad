@@ -5,7 +5,7 @@ import './vetro.css';
 import { state } from '../state.js';
 import { fetchMyProfile } from '../api/profiles.js';
 import { loadTeamCore, loadTeamExtras, loadFamilyLinks, loadSectorData } from '../router.js';
-import { isLinkedUser, isAdmin } from '../utils/permissions.js';
+import { isLinkedUser, isAdmin, TABS } from '../utils/permissions.js';
 import { Guscio } from './Guscio.jsx';
 import { Home } from './Home.jsx';
 import { Anagrafica } from './Anagrafica.jsx';
@@ -112,17 +112,78 @@ function NonAncora({ nome }) {
   );
 }
 
+/* ------------------------------------------------------------- l'indirizzo
+ *
+ * La sezione aperta sta nell'indirizzo. Serve a tre cose che prima non si
+ * potevano fare: il tasto Indietro del telefono torna alla sezione di prima
+ * invece di uscire dall'app, un collaboratore puo' ricevere il link di una
+ * schermata precisa, e ricaricare la pagina non riporta sempre alla Home.
+ *
+ * Nel frammento (#) e non nel percorso: cosi' funziona su qualunque hosting
+ * senza chiedergli di riscrivere gli indirizzi verso index.html, e senza una
+ * sola richiesta in piu' al server.
+ */
+function leggiIndirizzo() {
+  const h = (window.location.hash || '').replace(/^#\/?/, '');
+  const pezzi = h.split('/').filter(Boolean);
+  const nome = pezzi[0] || null;
+  // Un indirizzo inventato non deve aprire una schermata che non esiste: se il
+  // nome non e' una sezione vera, vale come se non ci fosse.
+  const buona = nome && (nome === 'profilo' || TABS.some(t => t.id === nome));
+  return { sezione: buona ? nome : null, settore: pezzi[1] || null };
+}
+
+function scriviIndirizzo(sezione, settore, sostituisci) {
+  const nuovo = '#/' + sezione + (settore ? '/' + settore : '');
+  if (window.location.hash === nuovo) return;
+  try {
+    // replaceState quando l'indirizzo sta solo rincorrendo lo stato (il primo
+    // disegno, o un cambio di categoria): non e' un posto nuovo dove si e'
+    // andati, e non deve occupare una tacca della cronologia.
+    if (sostituisci) window.history.replaceState(null, '', nuovo);
+    else window.history.pushState(null, '', nuovo);
+  } catch (e) {
+    window.location.hash = nuovo;
+  }
+}
+
 /* -------------------------------------------------------------------- radice */
 function App() {
   const [fase, setFase] = useState('carico');   // carico | accesso | completa | console | dentro
   const [lento, setLento] = useState(false);   // l'avvio sta durando troppo
   const [campione, setCampione] = useState(false);
   const [recupero, setRecupero] = useState(null);   // { email, errore }
-  const [sezione, setSezione] = useState('home');
+  const [sezione, setSezione] = useState(() => leggiIndirizzo().sezione || 'home');
   const [sectorId, setSectorId] = useState(null);
   const [tema, setTema] = useState(temaIniziale);
 
   useEffect(() => { applicaTema(tema); }, [tema]);
+
+  // Dentro l'app, l'indirizzo dice dove si e'. Fuori (accesso, console) no: le
+  // schermate prima dell'ingresso non sono posti in cui tornare.
+  useEffect(() => {
+    if (fase !== 'dentro') return;
+    const suo = leggiIndirizzo();
+    // Si aggiunge una tacca alla cronologia solo quando si e' davvero cambiata
+    // sezione: il primo disegno e i cambi di categoria sostituiscono, altrimenti
+    // il tasto Indietro richiederebbe due tocchi per fare un passo.
+    scriviIndirizzo(sezione, sectorId, !suo.sezione || suo.sezione === sezione);
+  }, [fase, sezione, sectorId]);
+
+  // Indietro e Avanti del browser, e i link incollati a mano.
+  useEffect(() => {
+    function torna() {
+      const suo = leggiIndirizzo();
+      if (suo.sezione) setSezione(suo.sezione);
+      if (suo.settore) setSectorId(s => (s === suo.settore ? s : suo.settore));
+    }
+    window.addEventListener('popstate', torna);
+    window.addEventListener('hashchange', torna);
+    return () => {
+      window.removeEventListener('popstate', torna);
+      window.removeEventListener('hashchange', torna);
+    };
+  }, []);
 
   useEffect(() => {
     let vivo = true;
@@ -332,6 +393,23 @@ function App() {
       </Guscio>
     </ProvvederAvvisi>
   );
+}
+
+/* Il guscio offline.
+ *
+ * Si registra SOLO nella versione pubblicata: in sviluppo si metterebbe in
+ * mezzo al ricaricamento a caldo e si passerebbe il tempo a chiedersi perche'
+ * una modifica non si vede.
+ *
+ * Il suo unico compito e' far aprire l'app dove non c'e' rete — in palestra,
+ * dove c'e' una partita salvata sul dispositivo che aspetta di essere ripresa.
+ * Va sempre in rete per primo: non serve a rendere l'app piu' veloce, serve a
+ * non lasciarla chiusa.
+ */
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(e => console.warn('Guscio offline non registrato', e));
+  });
 }
 
 // Con il ricaricamento a caldo Vite riesegue questo modulo, e un secondo

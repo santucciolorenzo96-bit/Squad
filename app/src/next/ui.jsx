@@ -196,3 +196,50 @@ export function Titolo({ sopra, children, azione, className }) {
     </div>
   );
 }
+
+/* ------------------------------------------------------------------- Cerca */
+/* Un campo solo, con la lente dentro e la crocetta per svuotarlo.
+ *
+ * Compare dove gli elenchi diventano lunghi — l'anagrafica di una societa' ha
+ * centinaia di nomi — e non altrove: un campo di ricerca sopra sei righe e'
+ * solo una riga in piu' da saltare con gli occhi.
+ */
+export function Cerca({ valore, onCambia, segnaposto = 'Cerca\u2026', className }) {
+  return (
+    <div className={cx('relative', className)}>
+      <svg
+        viewBox="0 0 20 20" aria-hidden="true"
+        className="pointer-events-none absolute left-3 top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-tenue"
+        fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"
+      >
+        <circle cx="8.6" cy="8.6" r="5.4" /><path d="m12.6 12.6 4 4" />
+      </svg>
+      <input
+        type="search"
+        value={valore}
+        onChange={e => onCambia(e.target.value)}
+        placeholder={segnaposto}
+        className="w-full rounded-lg vetro orlo py-2 pl-9 pr-9 text-[13px] text-testo placeholder:text-tenue focus:outline-none focus:ring-2 focus:ring-blu/40"
+      />
+      {valore && (
+        <button
+          onClick={() => onCambia('')}
+          aria-label="Svuota la ricerca"
+          className="absolute right-2 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full text-[15px] leading-none text-tenue transition-colors hover:text-testo"
+        >
+          ×
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* Quando la ricerca non trova niente, dirlo con la parola cercata dentro: un
+   elenco vuoto senza spiegazione sembra un difetto dell'app. */
+export function NessunRisultato({ cosa = 'Nessun risultato', ago }) {
+  return (
+    <Vuoto>
+      {cosa} per «{ago}».
+    </Vuoto>
+  );
+}

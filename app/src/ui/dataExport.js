@@ -1,5 +1,4 @@
 import { state } from '../state.js';
-import { toast } from './modal.js';
 import { downloadCsv, safeName } from '../utils/csv.js';
 import { currentSport } from '../utils/sports/index.js';
 import { computeSeasonStats } from '../utils/stats.js';
@@ -11,6 +10,11 @@ import { fetchAttendanceForTrainings } from '../api/attendance.js';
 //
 // Non è un backup del database: è il modo di rispondere a "mandami i dati",
 // che arriva da un commercialista, da un genitore o da una federazione.
+//
+// Ogni funzione RESTITUISCE il messaggio da mostrare e SOLLEVA un errore
+// quando non c'è niente da esportare. Non mostra niente da sé: le due
+// interfacce hanno due modi diversi di dire le cose, e una funzione che sa
+// come si chiama il contenitore degli avvisi funziona solo in una delle due.
 
 function seasonLabel() {
   const s = state.seasons.find(x => x.id === state.activeSeasonId);
@@ -22,34 +26,35 @@ function fileFor(what) {
 }
 
 export async function exportRoster() {
-  if (state.roster.length === 0) { toast('Nessun giocatore in rosa'); return; }
+  if (state.roster.length === 0) throw new Error('Nessun giocatore in rosa.');
   downloadCsv(fileFor('rosa'),
     ['Numero', 'Nome', 'Ruolo', 'Data di nascita', 'Codice fiscale', 'Altezza cm', 'Email', 'Telefono tutore'],
     state.roster.map(p => [p.number, p.name, p.role_position, p.birth_date, p.fiscal_code, p.height_cm, p.email, p.guardian_phone]));
-  toast('Rosa esportata');
+  return 'Rosa esportata';
 }
 
 export async function exportSeasonStats() {
   const sport = currentSport();
   const season = computeSeasonStats(state.history, sport);
-  if (season.length === 0) { toast('Nessuna statistica da esportare'); return; }
+  if (season.length === 0) throw new Error('Nessuna statistica da esportare.');
   const cols = sport.seasonColumns;
   downloadCsv(fileFor('statistiche'),
     ['Numero', 'Giocatore', 'Partite'].concat(cols.map(col => col.label)),
     season.map(p => [p.number, p.name, p.games].concat(cols.map(col => p[col.key] || 0))));
-  toast('Statistiche esportate');
+  return 'Statistiche esportate';
 }
 
 export async function exportMatches() {
-  if (state.history.length === 0) { toast('Nessuna partita in archivio'); return; }
+  if (state.history.length === 0) throw new Error('Nessuna partita in archivio.');
   downloadCsv(fileFor('partite'),
-    ['Data', 'Avversario', 'Nostro punteggio', 'Punteggio avversario', 'Esito'],
+    ['Data', 'Avversario', 'Nostro punteggio', 'Punteggio avversario', 'Esito', 'Tipo'],
     state.history.map(g => [
       g.date ? new Date(g.date).toLocaleDateString('it-IT') : '',
       g.oppName, g.teamScore, g.oppScore,
-      g.teamScore > g.oppScore ? 'Vittoria' : (g.teamScore < g.oppScore ? 'Sconfitta' : 'Pareggio')
+      g.teamScore > g.oppScore ? 'Vittoria' : (g.teamScore < g.oppScore ? 'Sconfitta' : 'Pareggio'),
+      g.friendly ? 'Amichevole' : 'Campionato'
     ]));
-  toast('Partite esportate');
+  return 'Partite esportate';
 }
 
 // Le presenze escono come griglia: una riga per giocatore, una colonna per
@@ -57,11 +62,11 @@ export async function exportMatches() {
 export async function exportAttendance() {
   const today = new Date().toISOString().slice(0, 10);
   const done = state.trainings.filter(t => t.date && t.date <= today);
-  if (done.length === 0) { toast('Nessun allenamento svolto'); return; }
+  if (done.length === 0) throw new Error('Nessun allenamento svolto.');
 
   let attendance;
   try { attendance = await fetchAttendanceForTrainings(done.map(t => t.id)); }
-  catch (e) { toast('Impossibile leggere le presenze'); return; }
+  catch (e) { throw new Error('Impossibile leggere le presenze.'); }
 
   const byKey = {};
   attendance.forEach(a => { byKey[a.training_id + '|' + a.player_id] = a.status; });
@@ -76,7 +81,7 @@ export async function exportAttendance() {
       const present = cells.filter(x => x === 'P').length;
       return [p.number, p.name].concat(cells).concat([tracked ? Math.round((present / tracked) * 100) + '%' : '']);
     }));
-  toast('Presenze esportate · P presente, A assente, G giustificato');
+  return 'Presenze esportate · P presente, A assente, G giustificato';
 }
 
 export const EXPORTS = [

@@ -55,3 +55,31 @@ export function passwordProblem(pass, { field = 'La password' } = {}) {
   if (!/[a-zA-Z]/.test(p) || !/[0-9]/.test(p)) return `${field} deve contenere almeno una lettera e un numero.`;
   return null;
 }
+
+/* Cercare un nome italiano.
+ *
+ * Chi cerca scrive di fretta e in minuscolo, e non va a prendere l'accento
+ * giusto sulla tastiera: «nicolo» deve trovare «Nicolò», «DAMBROSIO» deve
+ * trovare «D'Ambrosio». Una ricerca che pretende la grafia esatta e' una
+ * ricerca che non si usa la seconda volta.
+ *
+ * NFD separa la lettera dal suo accento, e togliere i segni diacritici lascia
+ * la lettera nuda: e' il modo piu' corto di far combaciare due grafie della
+ * stessa parola senza tenere una tabella di corrispondenze.
+ */
+export function senzaAccenti(s) {
+  return String(s == null ? '' : s)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u2018\u2019']/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+// Una ricerca vuota trova tutto: il filtro non deve svuotare l'elenco finche'
+// non si e' scritto qualcosa.
+export function contiene(testo, ago) {
+  const a = senzaAccenti(ago);
+  if (!a) return true;
+  return senzaAccenti(testo).indexOf(a) >= 0;
+}

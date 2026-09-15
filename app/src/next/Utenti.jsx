@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
+import { contiene } from '../utils/format.js';
 import {
   ROLES, ASSIGNABLE_ROLES, ADMIN_ROLES, LINKED_ROLES,
   isFinanceAdmin, isAdmin, roleLabel
@@ -10,7 +11,7 @@ import { fetchFamilyLinksForTeam, linkProfileToPlayer, unlinkProfileFromPlayer }
 import { fetchInvites, createInvite, revokeInvite } from '../api/invites.js';
 import { orderedSectors } from '../utils/sectors.js';
 import { inCampione } from './campione.js';
-import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, Avatar, cx } from './ui.jsx';
+import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, Avatar, cx, Cerca, NessunRisultato } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Scelta, Spunta, ErroreCaricamento, useAvviso } from './moduli.jsx';
 
 /* Utenti.
@@ -282,7 +283,14 @@ function ModuloInvito({ onChiudi, onFatto }) {
 function Staff({ avvisa }) {
   const [modifica, setModifica] = useState(null);
   const [daRimuovere, setDaRimuovere] = useState(null);
+  const [cerca, setCerca] = useState('');
   const [, ridisegna] = useState(0);
+
+  // Nome, email e ruolo insieme: si cerca una persona tanto per come si chiama
+  // quanto per cosa fa nella societa'.
+  const visibili = state.staff.filter(u => contiene(
+    (u.display_name || '') + ' ' + (u.email || '') + ' ' + (u.role || ''), cerca
+  ));
 
   function nomiSettori(id) {
     const ids = state.staffSectors[id] || [];
@@ -292,12 +300,24 @@ function Staff({ avvisa }) {
 
   return (
     <div>
-      <Etichetta className="mb-2.5">Staff ({state.staff.length})</Etichetta>
+      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-3">
+        <Etichetta>Staff ({state.staff.length})</Etichetta>
+        {state.staff.length > 8 && (
+          <Cerca
+            valore={cerca}
+            onCambia={setCerca}
+            segnaposto="Cerca una persona"
+            className="order-last w-full sm:order-none sm:w-56"
+          />
+        )}
+      </div>
       {state.staff.length === 0 ? (
         <Vuoto>Nessun membro dello staff registrato.</Vuoto>
+      ) : visibili.length === 0 ? (
+        <NessunRisultato cosa="Nessuna persona" ago={cerca} />
       ) : (
         <Pannello className="overflow-hidden">
-          {state.staff.map((u, i) => {
+          {visibili.map((u, i) => {
             const io = u.id === state.currentUser.id;
             return (
               <div

@@ -181,7 +181,9 @@ function drawExports() {
   holder.querySelectorAll('[data-export]').forEach(btn => {
     btn.onclick = (e) => withButtonLoading(e.currentTarget, async () => {
       const item = EXPORTS.find(x => x.key === btn.dataset.export);
-      if (item) await item.run();
+      if (!item) return;
+      try { toast(await item.run()); }
+      catch (err) { toast((err && err.message) || 'Esportazione non riuscita'); }
     });
   });
 }

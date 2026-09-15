@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
+import { contiene } from '../utils/format.js';
 import { isAdmin } from '../utils/permissions.js';
 import { tipiDocumento } from '../utils/sports/index.js';
 import { fetchDocumentsForPlayers, getDocumentSignedUrl } from '../api/roster.js';
 import { docStatus, DOC_STATE } from '../utils/docStatus.js';
 import { EXPORTS } from '../ui/dataExport.js';
 import { inCampione, DOCUMENTI_CAMPIONE } from './campione.js';
-import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, Avatar, cx } from './ui.jsx';
+import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, Avatar, cx, Cerca, NessunRisultato } from './ui.jsx';
 import { useAvviso } from './moduli.jsx';
 import { Cancellazione } from './Cancellazione.jsx';
 import { SchedaAtleta } from './SchedaAtleta.jsx';
@@ -34,6 +35,7 @@ export function Documenti() {
   const [scheda, setScheda] = useState(null);
   const [documenti, setDocumenti] = useState(null);
   const [tipo, setTipo] = useState(tipiDocumento()[0] ? tipiDocumento()[0].key : null);
+  const [cerca, setCerca] = useState('');
   const avvisa = useAvviso();
 
   const rosa = state.roster;
@@ -62,7 +64,10 @@ export function Documenti() {
       }).sort((a, b) => (DOC_STATE[b.stato].rank - DOC_STATE[a.stato].rank) || a.p.name.localeCompare(b.p.name))
     : [];
 
+  // Il conto dei non in regola resta quello VERO, non quello dei filtrati:
+  // cercare un nome non deve far sembrare che i problemi siano diminuiti.
   const mancanti = righe.filter(r => DOC_STATE[r.stato].tone === 'bad').length;
+  const visibili = righe.filter(r => contiene(r.p.name + ' ' + (r.p.number || ''), cerca));
 
   return (
     <div className="sezioni">
@@ -102,8 +107,18 @@ export function Documenti() {
                 non {mancanti === 1 ? 'può' : 'possono'} scendere in campo.
               </p>
             )}
+            {righe.length > 8 && (
+              <Cerca
+                valore={cerca}
+                onCambia={setCerca}
+                segnaposto="Cerca un atleta"
+                className="mb-2.5 w-full sm:max-w-xs"
+              />
+            )}
+
+            {visibili.length === 0 ? <NessunRisultato cosa="Nessun atleta" ago={cerca} /> : (
             <Pannello className="overflow-hidden">
-              {righe.map((r, i) => (
+              {visibili.map((r, i) => (
                 <div
                   key={r.p.id}
                   onClick={() => setScheda(r.p.id)}
@@ -141,6 +156,7 @@ export function Documenti() {
                 </div>
               ))}
             </Pannello>
+            )}
             <p className="mt-2.5 text-[11.5px] leading-relaxed text-tenue">
               Tocca una riga per aprire la scheda dell’atleta: da lì si carica un documento e,
               se ne hai il permesso, lo si approva o si respinge. I moduli precompilati da far
@@ -168,7 +184,7 @@ export function Documenti() {
                   className="py-1.5 text-[11.5px]"
                   onClick={async () => {
                     if (inCampione()) { avvisa('Nell’anteprima con dati di esempio non c’è niente da esportare.'); return; }
-                    try { await e.run(); avvisa('File scaricato'); }
+                    try { avvisa((await e.run()) || 'File scaricato'); }
                     catch (err) {
                       console.error(err);
                       avvisa((err && err.message) || 'Esportazione non riuscita.', 'errore');

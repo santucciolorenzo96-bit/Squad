@@ -1,7 +1,12 @@
 import { esc } from '../utils/format.js';
 
 export function toast(msg) {
+  // La nuova interfaccia non ha questo nodo: ha i suoi avvisi. Senza questa
+  // riga, ogni funzione condivisa che passa di qui esplodeva appena riusata —
+  // e l'errore arrivava DOPO il lavoro, facendo sembrare fallito qualcosa che
+  // era andato a buon fine.
   const t = document.getElementById('toast');
+  if (!t) return;
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(toast._t);
