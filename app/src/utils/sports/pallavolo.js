@@ -51,7 +51,12 @@ function newStats() {
     // denominatore, cioe' i punti di un'attaccante ma non quanti palloni le
     // sono serviti per farli.
     points: 0, kills: 0, attacks: 0, attackErrors: 0, blocks: 0,
-    aces: 0, serveErrors: 0, digs: 0, receptionErrors: 0, assists: 0, setsPlayed: 0
+    aces: 0, serveErrors: 0, servePos: 0, digs: 0,
+    // La ricezione a tre livelli, che e' come la chiamano in campo: perfetta
+    // (l'alzatrice puo' fare tutto), positiva (opzioni ridotte), slash (resta
+    // solo la palla spinta). L'errore c'era gia'.
+    recPerf: 0, recPos: 0, recNeg: 0, receptionErrors: 0,
+    assists: 0, setsPlayed: 0
   };
 }
 
@@ -82,6 +87,11 @@ export const PALLAVOLO = {
     attackErrors: (p) => (p.stats || {}).attackErrors || 0,
     serveErrors: (p) => (p.stats || {}).serveErrors || 0,
     digs: (p) => (p.stats || {}).digs || 0,
+    servePos: (p) => (p.stats || {}).servePos || 0,
+    recPerf: (p) => (p.stats || {}).recPerf || 0,
+    recPos: (p) => (p.stats || {}).recPos || 0,
+    recNeg: (p) => (p.stats || {}).recNeg || 0,
+    receptionErrors: (p) => (p.stats || {}).receptionErrors || 0,
     assists: (p) => (p.stats || {}).assists || 0,
     setsPlayed: (p) => (p.stats || {}).setsPlayed || 0
   },
@@ -98,6 +108,14 @@ export const PALLAVOLO = {
     { key: 'blocks', short: 'MU', label: 'Muri' },
     { key: 'aces', short: 'ACE', label: 'Ace' },
     { key: 'digs', short: 'DIF', label: 'Difese' },
+    // La positivita' in ricezione: quante palle tornano giocabili sul totale
+    // di quelle ricevute. E' il secondo numero della pallavolo dopo
+    // l'efficienza, e come quello e' un rapporto che si ricalcola.
+    { key: 'ricPos', short: 'RIC', label: 'Positivit\u00e0 in ricezione', suffisso: '%',
+      calc: (r) => {
+        const tot = (r.recPerf || 0) + (r.recPos || 0) + (r.recNeg || 0) + (r.receptionErrors || 0);
+        return tot ? Math.round((((r.recPerf || 0) + (r.recPos || 0)) / tot) * 100) : null;
+      } },
     { key: 'assists', short: 'ALZ', label: 'Alzate vincenti' },
     { key: 'attackErrors', short: 'EA', label: 'Errori in attacco' },
     { key: 'serveErrors', short: 'ES', label: 'Errori al servizio' },
@@ -205,6 +223,25 @@ export const PALLAVOLO = {
       ]},
       { label: 'Difesa', actions: [
         { act: 'dig', label: 'Difesa', tone: 'neutral', apply: { digs: 1 } }
+      ]},
+
+      /* IL DETTAGLIO, SPENTO DI SERIE.
+       *
+       * Segnare la qualita' di ogni ricezione vuol dire un tocco in piu' su
+       * meta' degli scambi. Per un allenatore che sa cosa farsene e' il dato
+       * piu' prezioso della pallavolo; per un genitore che tiene lo scout la
+       * prima volta e' il tocco che fa perdere lo scambio successivo.
+       *
+       * Quindi non si sceglie per tutti: si accende dal pannello quando si
+       * vuole, e la scelta resta sul dispositivo di chi segna — perche' e' una
+       * preferenza di chi tiene lo scout, non una proprieta' della partita. */
+      { label: 'Ricezione', dettaglio: true, actions: [
+        { act: 'rec_perf', label: '# Perfetta', etichettaBreve: 'Ricezione perfetta', tone: 'made', apply: { recPerf: 1 } },
+        { act: 'rec_pos', label: '+ Positiva', etichettaBreve: 'Ricezione positiva', tone: 'neutral', apply: { recPos: 1 } },
+        { act: 'rec_neg', label: '\u2212 Slash', etichettaBreve: 'Ricezione slash', tone: 'warn', apply: { recNeg: 1 } }
+      ]},
+      { label: 'Servizio', dettaglio: true, actions: [
+        { act: 'serve_pos', label: '+ Servizio positivo', etichettaBreve: 'Servizio positivo', tone: 'neutral', apply: { servePos: 1 } }
       ]}
     ],
     chains: {

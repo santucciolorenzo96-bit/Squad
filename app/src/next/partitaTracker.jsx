@@ -77,6 +77,18 @@ function quantiChiusi(g) {
   return Math.max(g.chiusi || 0, Math.max(0, (g.quarter || 1) - 1));
 }
 
+const CHIAVE_DETTAGLIO = 'squad_scout_dettaglio';
+
+function leggiDettaglio() {
+  try { return window.localStorage.getItem(CHIAVE_DETTAGLIO) === '1'; }
+  catch (e) { return false; }
+}
+
+function ricordaDettaglio(v) {
+  try { window.localStorage.setItem(CHIAVE_DETTAGLIO, v ? '1' : '0'); }
+  catch (e) { /* niente */ }
+}
+
 function calcolaPunteggi(g, sport) {
   const conf = sport.scout;
   const periodi = g.periodScores || [];
@@ -103,6 +115,9 @@ export function Tracker({ onFinita, onEsci }) {
   const [lampo, setLampo] = useState(null);        // { id, testo } riscontro dell'ultima azione
   const [catena, setCatena] = useState(null);      // { tipo, autore } la domanda successiva
   const [sostituzione, setSostituzione] = useState(null);
+  // Quanto dettaglio vuole chi sta segnando. E' una preferenza sua, non della
+  // partita: resta sul suo dispositivo e vale anche per la prossima volta.
+  const [dettaglio, setDettaglio] = useState(leggiDettaglio);
   const [chiudiPeriodo, setChiudiPeriodo] = useState(false);
   const [finePartita, setFinePartita] = useState(false);
   const salvataggioRotto = useRef(false);
@@ -766,6 +781,8 @@ export function Tracker({ onFinita, onEsci }) {
           p={giocatoreScelto}
           conf={conf}
           ancora={ancora}
+          dettaglio={dettaglio}
+          onDettaglio={() => setDettaglio(v => { ricordaDettaglio(!v); return !v; })}
           onAzione={(a) => esegui(giocatoreScelto, a)}
           onChiudi={() => { setScelto(null); setAncora(null); }}
         />
@@ -1022,7 +1039,7 @@ function Catena({ conf, catena, giocatori, onScegli, onChiudi }) {
  * partita va avanti. Il pannello si apre accanto al gettone, si ribalta sopra
  * o sotto a seconda dello spazio, e resta dentro i bordi.
  */
-function PannelloAzioni({ p, conf, ancora, onAzione, onChiudi }) {
+function PannelloAzioni({ p, conf, ancora, dettaglio, onDettaglio, onAzione, onChiudi }) {
   const [posa, setPosa] = useState(null);   // { left, top, maxH, origine } oppure null = foglio
   const largo = !!posa;
 
@@ -1084,7 +1101,7 @@ function PannelloAzioni({ p, conf, ancora, onAzione, onChiudi }) {
           azioni in colonna unica il pannello diventa piu' alto dello schermo e
           copre il campo, che e' la cosa che si stava guardando. */}
       <div className={cx(largo ? 'grid grid-cols-2 gap-x-3 gap-y-3' : 'space-y-3')}>
-        {conf.groups.map(gr => (
+        {conf.groups.filter(gr => !gr.dettaglio || dettaglio).map(gr => (
           <div key={gr.label}>
             <Etichetta className="mb-1.5">{gr.label}</Etichetta>
             <div className={cx('grid gap-2', gr.layout === 'pair' ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3')}>
@@ -1104,6 +1121,17 @@ function PannelloAzioni({ p, conf, ancora, onAzione, onChiudi }) {
           </div>
         ))}
       </div>
+
+      {/* L'interruttore sta qui, sotto ai pulsanti: e' guardandoli che viene da
+          chiedersi se ce ne sono altri, non in una schermata di impostazioni. */}
+      {conf.groups.some(gr => gr.dettaglio) && (
+        <button
+          onClick={onDettaglio}
+          className="mt-3.5 w-full rounded-lg py-2 text-[12.5px] font-semibold text-tenue transition-colors hover:text-testo"
+        >
+          {dettaglio ? 'Nascondi ricezione e servizio' : 'Segna anche ricezione e servizio'}
+        </button>
+      )}
     </>
   );
 

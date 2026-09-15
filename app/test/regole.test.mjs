@@ -149,3 +149,41 @@ describe('pallavolo: ogni attacco conta come tentativo', () => {
   });
   test('l’errore conta un attacco', () => is(azioni.find(a => a.act === 'attack_err').apply.attacks, 1));
 });
+
+// La positività in ricezione: quante palle tornano giocabili su quelle
+// ricevute. È il secondo numero della pallavolo dopo l'efficienza.
+describe('pallavolo: positività in ricezione', () => {
+  const pos = PALLAVOLO.seasonColumns.find(c => c.key === 'ricPos').calc;
+
+  test('perfette e positive contano, slash ed errori no', () => {
+    is(pos({ recPerf: 6, recPos: 4, recNeg: 8, receptionErrors: 2 }), 50);
+  });
+
+  test('tutte perfette fanno cento', () => {
+    is(pos({ recPerf: 5, recPos: 0, recNeg: 0, receptionErrors: 0 }), 100);
+  });
+
+  test('solo errori fanno zero, non nulla', () => {
+    is(pos({ recPerf: 0, recPos: 0, recNeg: 0, receptionErrors: 3 }), 0);
+  });
+
+  test('senza ricezioni segnate non si inventa una percentuale', () => {
+    is(pos({}), null);
+  });
+});
+
+// I gruppi facoltativi esistono e sono marcati: e' quella marcatura che il
+// pannello guarda per decidere se mostrarli.
+describe('pallavolo: il dettaglio e’ facoltativo', () => {
+  const g = PALLAVOLO.scout.groups;
+  test('ricezione e servizio sono marcati come dettaglio', () => {
+    ok(g.find(x => x.label === 'Ricezione').dettaglio);
+    ok(g.find(x => x.label === 'Servizio').dettaglio);
+  });
+  test('attacco, errore e difesa no', () => {
+    ['Attacco', 'Errore', 'Difesa'].forEach(l => is(!!g.find(x => x.label === l).dettaglio, false));
+  });
+  test('senza dettaglio restano quattro gruppi', () => {
+    is(g.filter(x => !x.dettaglio).length, 4);
+  });
+});
