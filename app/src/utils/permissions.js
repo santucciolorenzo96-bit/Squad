@@ -78,6 +78,43 @@ export const TABS = [
   { id: 'finanza', label: 'Finanza', group: 'societa', financeGated: true }
 ];
 
+/* ---------------------------------------------------------- macro categorie
+ *
+ * Quindici voci in colonna non sono un menu: sono un elenco, e per trovarne
+ * una si legge tutto. Raggruppate diventano cinque voci di primo livello, e
+ * cinque cose si riconoscono senza leggerle.
+ *
+ * Il criterio non e' il permesso — quello resta su ogni voce — ma la DOMANDA a
+ * cui si sta rispondendo: chi ho in squadra, cosa facciamo in palestra, come
+ * sono andate le partite, come sta la societa'. E' il modo in cui le cose si
+ * cercano davvero, e non coincide con il modo in cui sono fatte.
+ *
+ * `icona` e' il volto della macro: e' l'icona di una delle sue voci, quella
+ * che la rappresenta. Un glifo nuovo per il gruppo vorrebbe dire insegnare
+ * cinque simboli in piu' senza aggiungere niente.
+ */
+export const MACRO = [
+  { id: 'apertura', label: 'Home', icona: 'home', tabs: ['home'] },
+  { id: 'squadra', label: 'Squadra', icona: 'rosa', tabs: ['rosa', 'anagrafica', 'comunicazioni'] },
+  { id: 'palestra', label: 'Allenamenti', icona: 'allenamenti', tabs: ['allenamenti', 'presenze'] },
+  { id: 'gare', label: 'Partite', icona: 'partita', tabs: ['calendario', 'partita', 'classifica', 'statistiche'] },
+  { id: 'societa', label: 'Società', icona: 'squadra', tabs: ['situazione', 'documenti', 'finanza', 'utenti', 'squadra'] }
+];
+
+// Le macro con dentro solo le voci che questo utente puo' vedere, e senza
+// quelle rimaste vuote: a un genitore la colonna non deve raccontare che
+// esistono sezioni che non aprira' mai.
+export function macroConVoci(visibili) {
+  return MACRO
+    .map(m => ({ ...m, voci: m.tabs.map(id => visibili.find(v => v.id === id)).filter(Boolean) }))
+    .filter(m => m.voci.length > 0);
+}
+
+export function macroDiSezione(id) {
+  const m = MACRO.find(x => x.tabs.indexOf(id) >= 0);
+  return m ? m.id : null;
+}
+
 export function canSeeTab(tab, user) {
   if (!user) return false;
   if (tab.financeGated) return !!user.finance_role;

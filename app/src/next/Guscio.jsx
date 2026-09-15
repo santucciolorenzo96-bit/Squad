@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { state } from '../state.js';
-import { TABS, canSeeTab, isAdmin, isLinkedUser } from '../utils/permissions.js';
+import { TABS, canSeeTab, isAdmin, isLinkedUser, macroConVoci, macroDiSezione } from '../utils/permissions.js';
+import { currentSport } from '../utils/sports/index.js';
 import { orderedSectors, sectorFullName } from '../utils/sectors.js';
 import { cx, Avatar, Pannello } from './ui.jsx';
 import { IconaSezione, Chevron, coloreSezione } from './icone.jsx';
@@ -17,7 +18,28 @@ import { Finestra } from './moduli.jsx';
  */
 
 function sezioniVisibili(utente) {
-  return TABS.filter(t => canSeeTab(t, utente));
+  // Senza tabellino dal vivo la voce Partita non ha niente da mostrare: nel
+  // calcio apriva una schermata che diceva solo di non esistere.
+  const sport = currentSport();
+  return TABS
+    .filter(t => canSeeTab(t, utente))
+    .filter(t => t.id !== 'partita' || sport.match.liveTracker);
+}
+
+function gruppiVisibili(utente) {
+  return macroConVoci(sezioniVisibili(utente));
+}
+
+/* Dove si era rimasti dentro ogni macro.
+ *
+ * Toccando «Partite» si torna alla voce che si stava guardando, non sempre alla
+ * prima: chi passa la sera sulle statistiche non vuole ripartire dal calendario
+ * a ogni giro. Vive quanto la scheda aperta — e' una comodita', non un dato. */
+const ultimaDi = {};
+
+function primaDi(g) {
+  const ricordata = ultimaDi[g.id];
+  return (ricordata && g.voci.some(v => v.id === ricordata)) ? ricordata : g.voci[0].id;
 }
 
 function settoriAccessibili() {
@@ -258,46 +280,125 @@ function Testata({ onSezione, sectorId, onSettore, strumenti }) {
 }
 
 /* ------------------------------------------------------- colonna a sinistra */
-const NOMI_GRUPPO = { settore: 'Categoria', societa: 'Società' };
-
+/* Cinque voci, non quindici.
+ *
+ * Aperta resta solo la macro in cui si sta: le altre restano una riga sola. Un
+ * accordion che tiene aperto tutto non ha raggruppato niente — ha solo aggiunto
+ * dei titoli a un elenco lungo uguale.
+ *
+ * Le macro con una voce sola non si aprono: sarebbero un cassetto con dentro
+ * il proprio nome.
+ */
 function Colonna({ sezione, onSezione }) {
-  const voci = sezioniVisibili(state.currentUser);
+  const gruppi = gruppiVisibili(state.currentUser);
+  const attiva = macroDiSezione(sezione);
+
   return (
-    <nav className="hidden w-[13.5rem] shrink-0 flex-col overflow-y-auto px-3 py-5 md:flex lg:w-[248px]">
-      {['settore', 'societa'].map(g => {
-        const dentro = voci.filter(v => v.group === g);
-        if (dentro.length === 0) return null;
-        return (
-          <div key={g} className="mb-7 last:mb-0">
-            <div className="etichetta px-3 pb-2.5">{NOMI_GRUPPO[g]}</div>
-            <div className="space-y-1">
-              {dentro.map(v => {
-                const on = v.id === sezione;
-                return (
-                  <button
-                    key={v.id}
-                    onClick={() => onSezione(v.id)}
-                    className={cx(
-                      'group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left',
-                      'text-[13.5px] transition-all duration-150',
-                      on
-                        ? 'vetro orlo font-bold text-testo shadow-sm'
-                        : 'font-medium text-soffuso hover:bg-pannello/8 hover:text-testo'
-                    )}
-                  >
-                    {/* L'icona a colori resta accesa anche da spenta: è
-                        l'ancora che fa trovare la voce senza leggerla. */}
-                    <IconaSezione id={v.id} dim={34} className={on ? '' : 'opacity-85 group-hover:opacity-100'} />
-                    <span className="min-w-0 flex-1 truncate">{v.label}</span>
-                    {on && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blu shadow-blu" />}
-                  </button>
-                );
-              })}
+    <nav className="hidden w-[13.5rem] shrink-0 flex-col overflow-y-auto px-3 py-5 md:flex lg:w-[248px]" aria-label="Sezioni">
+      <div className="space-y-1">
+        {gruppi.map(g => {
+          const sola = g.voci.length === 1;
+          const aperta = attiva === g.id;
+          const suo = sola && g.voci[0].id === sezione;
+          return (
+            <div key={g.id}>
+              <button
+                onClick={() => onSezione(primaDi(g))}
+                aria-expanded={sola ? undefined : aperta}
+                className={cx(
+                  'group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left',
+                  'text-[13.5px] transition-all duration-150',
+                  (suo || (aperta && !sola))
+                    ? 'vetro orlo font-bold text-testo shadow-sm'
+                    : 'font-medium text-soffuso hover:bg-pannello/8 hover:text-testo'
+                )}
+              >
+                {/* L'icona a colori resta accesa anche da spenta: e'
+                    l'ancora che fa trovare la voce senza leggerla. */}
+                <IconaSezione id={g.icona} dim={34} className={aperta || suo ? '' : 'opacity-85 group-hover:opacity-100'} />
+                <span className="min-w-0 flex-1 truncate">{sola ? g.voci[0].label : g.label}</span>
+                {sola
+                  ? (suo && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blu shadow-blu" />)
+                  : <Chevron dim={14} className={cx('shrink-0 text-tenue transition-transform duration-200', aperta && 'rotate-90')} />}
+              </button>
+
+              {/* Le sottosezioni stanno sotto il nome della macro, non sotto la
+                  sua icona: il filo verticale a sinistra dice dove finisce il
+                  gruppo senza bisogno di una cornice. */}
+              {!sola && aperta && (
+                <div className="ml-[1.55rem] mt-1 space-y-0.5 border-l border-bordo/15 pl-2.5">
+                  {g.voci.map(v => {
+                    const on = v.id === sezione;
+                    return (
+                      <button
+                        key={v.id}
+                        onClick={() => onSezione(v.id)}
+                        aria-current={on ? 'page' : undefined}
+                        className={cx(
+                          'flex w-full items-center gap-2 rounded-md px-2.5 py-[0.44rem] text-left text-[12.5px] transition-all duration-150',
+                          on ? 'bg-pannello/10 font-bold text-testo' : 'font-medium text-tenue hover:bg-pannello/7 hover:text-soffuso'
+                        )}
+                      >
+                        <span className="min-w-0 flex-1 truncate">{v.label}</span>
+                        {on && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blu shadow-blu" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </nav>
+  );
+}
+
+/* --------------------------------------------------- le sottosezioni, sul telefono */
+/* Sul telefono la barra in basso porta alla macro; le sue voci stanno in cima
+ * al contenuto, in fila. Non e' una seconda barra di navigazione: e' il
+ * sommario di dove si e' arrivati, e sparisce dove non c'e' niente da
+ * scegliere. Su schermo largo non serve — la colonna mostra gia' tutto. */
+function SottoBarra({ sezione, onSezione }) {
+  const pista = useRef(null);
+  const attivo = useRef(null);
+
+  // Con cinque voci l'ultima resta fuori: se e' quella aperta, la fila
+  // sembrerebbe indicare qualcos'altro.
+  useEffect(() => {
+    const n = attivo.current, box = pista.current;
+    if (!n || !box || box.scrollWidth <= box.clientWidth) return;
+    const meta = (box.clientWidth - n.offsetWidth) / 2;
+    box.scrollTo({ left: Math.max(0, n.offsetLeft - meta), behavior: menoMovimento() ? 'auto' : 'smooth' });
+  }, [sezione]);
+
+  const gruppi = gruppiVisibili(state.currentUser);
+  const g = gruppi.find(x => x.voci.some(v => v.id === sezione));
+  if (!g || g.voci.length < 2) return null;
+  return (
+    <div ref={pista} className="-mx-4 mb-5 overflow-x-auto px-4 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
+      <div className="flex w-max items-center gap-1.5">
+        {g.voci.map(v => {
+          const on = v.id === sezione;
+          return (
+            <button
+              key={v.id}
+              ref={n => { if (on) attivo.current = n; }}
+              onClick={() => onSezione(v.id)}
+              aria-current={on ? 'page' : undefined}
+              className={cx(
+                'whitespace-nowrap rounded-full px-3.5 py-1.5 text-[12.5px] transition-all duration-150',
+                on
+                  ? 'bg-gradient-to-br from-blu to-blu2 font-bold text-white shadow-blu'
+                  : 'vetro orlo font-semibold text-soffuso hover:text-testo'
+              )}
+            >
+              {v.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -326,16 +427,32 @@ function Colonna({ sezione, onSezione }) {
 // Larghezza di una voce. Con il riempimento laterale a meta' schermo che
 // mettiamo sotto, portare al centro la voce numero i vuol dire esattamente
 // scrollLeft = i * PASSO: e' quello che rende semplice tutto il resto.
-const PASSO = 78;
+const PASSO = 86;
 const COPIE = 3;
 
 function BarraMobile({ sezione, onSezione }) {
   const pista = useRef(null);
   const voci = useRef({});
   const attesa = useRef(null);
-  const ultimo = useRef(sezione);
 
-  const sezioni = sezioniVisibili(state.currentUser);
+  // Nella barra girano le MACRO, non le sezioni: cinque figure che si
+  // riconoscono passandoci sopra, invece di dodici da leggere una per una.
+  // Dentro ognuna si sceglie poi dalla fila in cima al contenuto.
+  const gruppi = gruppiVisibili(state.currentUser);
+  const sezioni = gruppi.map(g => ({
+    id: g.id,
+    label: g.voci.length === 1 ? g.voci[0].label : g.label,
+    icona: g.icona
+  }));
+  const attiva = macroDiSezione(sezione);
+  const ultimo = useRef(attiva);
+
+  // Toccare una macro porta dove si era rimasti dentro di lei.
+  function apri(id) {
+    const g = gruppi.find(x => x.id === id);
+    if (g) onSezione(primaDi(g));
+  }
+
   const quante = sezioni.length;
   const giro = quante * PASSO;               // larghezza di una copia
 
@@ -401,7 +518,7 @@ function BarraMobile({ sezione, onSezione }) {
   useEffect(() => {
     const box = pista.current;
     if (!box) return;
-    const j = sezioni.findIndex(x => x.id === sezione);
+    const j = sezioni.findIndex(x => x.id === attiva);
     box.scrollLeft = ((j < 0 ? 0 : j) + quante) * PASSO;
     misura();
     const t = setTimeout(misura, 60);      // dopo che il carattere ha misurato
@@ -411,10 +528,27 @@ function BarraMobile({ sezione, onSezione }) {
   // Quando la sezione cambia da fuori — un pannello della Home, per dire — la
   // voce aperta si porta al centro.
   useEffect(() => {
-    if (ultimo.current === sezione) return;
-    ultimo.current = sezione;
-    porta(sezione, true);
-  }, [sezione]);
+    if (ultimo.current === attiva) return;
+    ultimo.current = attiva;
+    if (attiva) porta(attiva, true);
+  }, [attiva]);
+
+  // La barra esiste anche su schermo largo, solo nascosta: li' non ha
+  // larghezza, e uno scorrimento scritto su un elemento senza larghezza non
+  // attecchisce. Quando ricompare — si gira il tablet, si stringe la finestra —
+  // va rimessa sulla sezione aperta, altrimenti resta ferma sulla prima.
+  useEffect(() => {
+    const box = pista.current;
+    if (!box || typeof ResizeObserver === 'undefined') return undefined;
+    let largo = box.clientWidth > 0;
+    const o = new ResizeObserver(() => {
+      const ora = box.clientWidth > 0;
+      if (ora && !largo && attiva) porta(attiva, false);
+      largo = ora;
+    });
+    o.observe(box);
+    return () => o.disconnect();
+  }, [attiva, quante]);
 
   useEffect(() => {
     window.addEventListener('resize', misura);
@@ -440,7 +574,7 @@ function BarraMobile({ sezione, onSezione }) {
       const d = Math.abs(el.offsetLeft + el.offsetWidth / 2 - centro);
       if (d < minima) { minima = d; vicina = x.v.id; }
     });
-    if (vicina && vicina !== sezione) { ultimo.current = vicina; onSezione(vicina); }
+    if (vicina && vicina !== attiva) { ultimo.current = vicina; apri(vicina); }
   }
 
   const scattoNativo = useRef(
@@ -472,12 +606,12 @@ function BarraMobile({ sezione, onSezione }) {
         style={{ paddingLeft: 'calc(50% - ' + (PASSO / 2) + 'px)', paddingRight: 'calc(50% - ' + (PASSO / 2) + 'px)' }}
       >
         {catena.map(x => {
-          const aperta = x.v.id === sezione;
+          const aperta = x.v.id === attiva;
           return (
             <button
               key={x.chiave}
               ref={n => { voci.current[x.chiave] = n; }}
-              onClick={() => { porta(x.v.id, true); if (!aperta) onSezione(x.v.id); }}
+              onClick={() => { porta(x.v.id, true); if (!aperta) apri(x.v.id); }}
               onFocus={() => porta(x.v.id, true)}
               aria-current={aperta ? 'page' : undefined}
               style={{ width: PASSO + 'px' }}
@@ -487,9 +621,9 @@ function BarraMobile({ sezione, onSezione }) {
                   appoggia al fondo e cresce verso l'alto, cosi' le etichette
                   restano incolonnate mentre le icone cambiano misura. */}
               <span className="grid h-[2.9rem] w-full place-items-end justify-items-center">
-                <IconaSezione id={x.v.id} dim={40} className="barra-figura" />
+                <IconaSezione id={x.v.icona} dim={40} className="barra-figura" />
               </span>
-              <span className="barra-etichetta w-full truncate text-center text-[9.5px] font-bold uppercase tracking-[0.07em]">
+              <span className="barra-etichetta w-full truncate text-center text-[9.5px] font-bold uppercase tracking-[0.03em]">
                 {x.v.label}
               </span>
             </button>
@@ -506,6 +640,12 @@ export function Guscio({ sezione, onSezione, sectorId, onSettore, nastro, strume
     if (el) el.scrollTop = 0;
   }, [sezione, sectorId]);
 
+  // Si segna dove si e' arrivati dentro la macro, per tornarci la volta dopo.
+  useEffect(() => {
+    const m = macroDiSezione(sezione);
+    if (m) ultimaDi[m] = sezione;
+  }, [sezione]);
+
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden">
       {nastro}
@@ -513,7 +653,10 @@ export function Guscio({ sezione, onSezione, sectorId, onSettore, nastro, strume
       <div className="flex min-h-0 flex-1">
         <Colonna sezione={sezione} onSezione={onSezione} />
         <main id="contenuto" className="min-w-0 flex-1 overflow-y-auto px-4 pb-[calc(6.25rem+env(safe-area-inset-bottom))] pt-6 sm:px-6 sm:pt-7 md:pb-10 md:pr-6 lg:pb-12 lg:pr-8">
-          <div className="mx-auto w-full max-w-[1120px] animate-salita">{children}</div>
+          <div className="mx-auto w-full max-w-[1120px]">
+            <SottoBarra sezione={sezione} onSezione={onSezione} />
+            <div className="animate-salita">{children}</div>
+          </div>
         </main>
       </div>
       <BarraMobile sezione={sezione} onSezione={onSezione} />
