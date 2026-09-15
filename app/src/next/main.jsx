@@ -71,7 +71,7 @@ function Tema({ valore, onCambia }) {
           onClick={() => onCambia(m)}
           title={'Tema ' + m}
           className={
-            'rounded-full px-2.5 py-1 text-[9.5px] font-bold uppercase tracking-etichetta transition-all ' +
+            'rounded-full px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-etichetta transition-all ' +
             (valore === m
               ? 'vivo text-white'
               : 'text-tenue hover:text-testo')
@@ -91,8 +91,8 @@ function Tema({ valore, onCambia }) {
 function Nastro({ onAccesso }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-gradient-to-r from-blu to-blu2 px-4 py-1.5 text-white sm:px-6">
-      <span className="text-[10px] font-bold uppercase tracking-etichetta">Dati di esempio</span>
-      <span className="text-[11.5px] opacity-90">
+      <span className="text-[11px] font-bold uppercase tracking-etichetta">Dati di esempio</span>
+      <span className="text-[12.5px] opacity-90">
         Nessuna sessione aperta: questi non sono i tuoi dati.{' '}
         <button onClick={onAccesso} className="underline">Torna alle schermate d&rsquo;accesso</button>{' '}
         per entrare con il tuo account.

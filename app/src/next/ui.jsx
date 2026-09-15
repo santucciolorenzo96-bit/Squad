@@ -54,7 +54,7 @@ export function Stato({ tono = 'neutro', children, className }) {
     <span
       className={cx(
         'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1',
-        'text-[10.5px] font-bold uppercase tracking-etichetta',
+        'text-[11px] font-bold uppercase tracking-etichetta',
         TONI[tono] || TONI.neutro,
         className
       )}
@@ -112,7 +112,7 @@ export function Dato({ etichetta, valore, sotto, tono, icona }) {
       <div className={cx('mt-3 text-[30px] font-bold leading-none tracking-tight', colore)}>
         {valore}
       </div>
-      {sotto && <div className="mt-1.5 text-[11.5px] leading-snug text-tenue">{sotto}</div>}
+      {sotto && <div className="mt-1.5 text-[12.5px] leading-snug text-tenue">{sotto}</div>}
     </Pannello>
   );
 }
@@ -241,5 +241,37 @@ export function NessunRisultato({ cosa = 'Nessun risultato', ago }) {
     <Vuoto>
       {cosa} per «{ago}».
     </Vuoto>
+  );
+}
+
+/* ------------------------------------------------------------ AzioneRiga */
+/* I comandi in fondo a una riga.
+ *
+ * Erano glifi nudi con il nome solo nel `title`. Sul telefono il `title` non
+ * esiste — non c'e' il passaggio del mouse — quindi non c'era niente da
+ * leggere: restavano due simboli da indovinare, e quello che cancella stava
+ * attaccato a quello che modifica.
+ *
+ * Qui il nome si vede appena c'e' spazio, il bersaglio arriva a quarantaquattro
+ * pixel anche dove il disegno e' piu' piccolo, e quello che distrugge si
+ * riconosce dal colore prima che dalla forma.
+ */
+export function AzioneRiga({ etichetta, pericolo = false, onClick, children, className }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={etichetta}
+      title={etichetta}
+      className={cx(
+        'tocco inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-2.5',
+        'text-[12.5px] font-semibold text-tenue transition-colors',
+        pericolo ? 'hover:bg-rosso/12 hover:text-rosso' : 'hover:bg-pannello/12 hover:text-testo',
+        className
+      )}
+    >
+      {children}
+      <span className="hidden sm:inline">{etichetta}</span>
+    </button>
   );
 }

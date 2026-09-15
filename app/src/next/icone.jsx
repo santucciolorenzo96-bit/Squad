@@ -335,6 +335,28 @@ export function coloreSezione(id) {
 /* Icone di interfaccia: tratto sottile, monocromatiche, prendono il colore del
    testo. Sono un'altra famiglia di proposito — mettere un volume di vetro su
    una freccia farebbe pesare un dettaglio quanto una sezione. */
+// Matita e croce: erano due caratteri di testo, e un carattere di testo
+// dipende dal font di sistema — su Android la croce arrivava piu' sottile e
+// piu' piccola della matita. Disegnate, sono due segni della stessa famiglia.
+export function Matita({ dim = 16, className }) {
+  return (
+    <svg width={dim} height={dim} viewBox="0 0 20 20" fill="none" aria-hidden="true" className={className}
+         stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M13.4 3.3a1.9 1.9 0 0 1 2.7 2.7l-8.6 8.6-3.5.8.8-3.5 8.6-8.6Z" />
+      <path d="m12.2 4.5 3.3 3.3" />
+    </svg>
+  );
+}
+
+export function Croce({ dim = 16, className }) {
+  return (
+    <svg width={dim} height={dim} viewBox="0 0 20 20" fill="none" aria-hidden="true" className={className}
+         stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <path d="m5.6 5.6 8.8 8.8M14.4 5.6l-8.8 8.8" />
+    </svg>
+  );
+}
+
 export function Chevron({ dim = 16, className }) {
   return (
     <svg width={dim} height={dim} viewBox="0 0 20 20" fill="none" aria-hidden="true" className={className}>

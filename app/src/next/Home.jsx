@@ -121,7 +121,7 @@ function Apertura({ partita, onSezione }) {
                 )}
               </Etichetta>
             </div>
-            <div className="mt-2 grid h-9 w-9 shrink-0 place-items-center rounded-full vetro orlo text-[11px] font-bold text-tenue sm:mt-3.5">
+            <div className="mt-2 grid h-9 w-9 shrink-0 place-items-center rounded-full vetro orlo text-[12px] font-bold text-tenue sm:mt-3.5">
               vs
             </div>
             <div className="min-w-0 flex-1 text-center">

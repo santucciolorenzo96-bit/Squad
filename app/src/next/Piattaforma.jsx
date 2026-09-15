@@ -60,7 +60,7 @@ export function PannelloCodici({ avvisa }) {
     <div>
       <div className="mb-2.5 flex items-center justify-between gap-3">
         <Etichetta>Nuove società</Etichetta>
-        <Pulsante variante="primario" className="py-1.5 text-[11.5px]" onClick={() => setModulo(true)}>
+        <Pulsante variante="primario" className="py-1.5 text-[12.5px]" onClick={() => setModulo(true)}>
           + Codice
         </Pulsante>
       </div>
@@ -75,7 +75,7 @@ export function PannelloCodici({ avvisa }) {
               {appena}
             </code>
             <Pulsante
-              className="py-2.5 text-[12px]"
+              className="py-2.5 text-[13px]"
               onClick={async () => {
                 try { await navigator.clipboard.writeText(appena); avvisa('Codice copiato'); }
                 catch (e) { avvisa('Copialo a mano: ' + appena); }
@@ -84,7 +84,7 @@ export function PannelloCodici({ avvisa }) {
               Copia
             </Pulsante>
           </div>
-          <p className="mt-2.5 text-[11.5px] leading-relaxed text-tenue">
+          <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
             Consegnalo a chi deve aprire la società. Lo inserisce dove si inserisce
             un codice qualunque, in fondo alla pagina d'accesso: l'app capisce da sola
             che questo apre una società invece di far entrare in una.
@@ -118,7 +118,7 @@ export function PannelloCodici({ avvisa }) {
         )}
       </Pannello>
 
-      <p className="mt-2.5 text-[11.5px] leading-relaxed text-tenue">
+      <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
         Un codice vale UNA società e poi si consuma. Chi lo usa diventa
         l'amministratore di quella società: non ha nessun potere su questa.
       </p>
@@ -168,7 +168,7 @@ function RigaCodice({ c, primo, avvisa, onRitira }) {
 
       <div className="min-w-0 flex-1">
         {c.label && <div className="truncate text-[12.5px] font-semibold">{c.label}</div>}
-        <div className="text-[11.5px] text-tenue">
+        <div className="text-[12.5px] text-tenue">
           {speso
             ? 'Usato' + (c.used_by_name ? ' da ' + c.used_by_name : '') + ' il ' + fmtData((c.used_at || '').slice(0, 10))
             : scaduto
@@ -186,14 +186,14 @@ function RigaCodice({ c, primo, avvisa, onRitira }) {
               try { await navigator.clipboard.writeText(c.code); avvisa('Codice copiato'); }
               catch (e) { avvisa('Copialo a mano: ' + c.code); }
             }}
-            className="rounded-lg px-2.5 py-1.5 text-[11.5px] font-semibold text-tenue transition-colors hover:bg-pannello/12 hover:text-testo"
+            className="rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold text-tenue transition-colors hover:bg-pannello/12 hover:text-testo"
           >
             Copia
           </button>
           {onRitira && (
             <button
               onClick={onRitira}
-              className="rounded-lg px-2.5 py-1.5 text-[11.5px] font-semibold text-tenue transition-colors hover:bg-rosso/12 hover:text-rosso"
+              className="rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold text-tenue transition-colors hover:bg-rosso/12 hover:text-rosso"
             >
               Ritira
             </button>
@@ -283,7 +283,7 @@ export function PannelloSocieta() {
     <div className="mt-7">
       <div className="mb-2.5 flex items-center justify-between gap-3">
         <Etichetta>Società sulla piattaforma</Etichetta>
-        {righe && <span className="cifra text-[11.5px] text-tenue">{righe.length}</span>}
+        {righe && <span className="cifra text-[12.5px] text-tenue">{righe.length}</span>}
       </div>
 
       {errore ? (
@@ -308,17 +308,17 @@ export function PannelloSocieta() {
             >
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[13.5px] font-semibold">{r.name}</div>
-                <div className="text-[11.5px] text-tenue">
+                <div className="text-[12.5px] text-tenue">
                   {[nomeSport(r.sport), r.city, r.category].filter(Boolean).join(' · ')}
                 </div>
               </div>
               <div className="shrink-0 text-right">
                 <div className="cifra text-[13px] font-semibold">{r.attivi}</div>
-                <div className="text-[10px] font-bold uppercase tracking-etichetta text-tenue">
+                <div className="text-[11px] font-bold uppercase tracking-etichetta text-tenue">
                   {r.attivi === 1 ? 'persona' : 'persone'}
                 </div>
               </div>
-              <div className="w-full text-[11px] text-tenue sm:w-auto sm:pl-3">
+              <div className="w-full text-[12px] text-tenue sm:w-auto sm:pl-3">
                 dal {fmtData((r.created_at || '').slice(0, 10))}
               </div>
             </div>
@@ -326,7 +326,7 @@ export function PannelloSocieta() {
         </Pannello>
       )}
 
-      <p className="mt-2.5 text-[11.5px] leading-relaxed text-tenue">
+      <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
         Solo l’anagrafe: nome, sport, quante persone. Dentro le società non si entra — rose,
         quote e certificati restano di chi ne fa parte, e la funzione del database non li
         restituisce nemmeno volendo.
@@ -363,7 +363,7 @@ function ConsoleDentro({ email, onIscriviti }) {
           <div className="text-[12.5px] font-semibold">{email}</div>
           <button
             onClick={async () => { await logout(); window.location.reload(); }}
-            className="mt-0.5 text-[11.5px] text-tenue transition-colors hover:text-testo"
+            className="mt-0.5 text-[12.5px] text-tenue transition-colors hover:text-testo"
           >
             Esci
           </button>
@@ -384,7 +384,7 @@ function ConsoleDentro({ email, onIscriviti }) {
       {onIscriviti && (
         <button
           onClick={onIscriviti}
-          className="mt-8 w-full py-2 text-[12px] text-tenue transition-colors hover:text-testo"
+          className="mt-8 w-full py-2 text-[13px] text-tenue transition-colors hover:text-testo"
         >
           Ho anche un codice per entrare in una società
         </button>

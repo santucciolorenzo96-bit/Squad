@@ -83,7 +83,7 @@ export function Documenti() {
                 key={t.key}
                 onClick={() => setTipo(t.key)}
                 className={cx(
-                  'rounded-full px-3 py-1.5 text-[11.5px] font-semibold transition-all',
+                  'rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-all',
                   tipo === t.key
                     ? 'vivo text-white'
                     : 'text-tenue hover:text-testo'
@@ -129,7 +129,7 @@ export function Documenti() {
                   <Avatar nome={r.p.name} dim={32} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[13.5px] font-semibold leading-tight">{r.p.name}</div>
-                    <div className="text-[11.5px] text-tenue">
+                    <div className="text-[12.5px] text-tenue">
                       {r.doc && r.doc.expires_at
                         ? (r.doc.expires_at < oggi ? 'scaduto il ' : 'valido fino al ')
                           + new Date(r.doc.expires_at + 'T00:00:00').toLocaleDateString('it-IT')
@@ -139,7 +139,7 @@ export function Documenti() {
                   <Stato tono={TONO[r.stato]}>{DOC_STATE[r.stato].label}</Stato>
                   {r.doc && r.doc.file_path && (
                     <Pulsante
-                      className="shrink-0 py-1.5 text-[11.5px]"
+                      className="shrink-0 py-1.5 text-[12.5px]"
                       onClick={async (ev) => {
                         ev.stopPropagation();
                         try {
@@ -157,7 +157,7 @@ export function Documenti() {
               ))}
             </Pannello>
             )}
-            <p className="mt-2.5 text-[11.5px] leading-relaxed text-tenue">
+            <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
               Tocca una riga per aprire la scheda dell’atleta: da lì si carica un documento e,
               se ne hai il permesso, lo si approva o si respinge. I moduli precompilati da far
               firmare sono ancora sull’app attuale.
@@ -176,12 +176,12 @@ export function Documenti() {
                 <IconaSezione id="documenti" dim={26} />
                 <div className="min-w-0 flex-1">
                   <div className="text-[13.5px] font-semibold leading-tight">{e.label}</div>
-                  <p className="mt-1 text-[11.5px] leading-snug text-tenue">{e.hint}</p>
+                  <p className="mt-1 text-[12.5px] leading-snug text-tenue">{e.hint}</p>
                 </div>
               </div>
               <div className="mt-3 flex justify-end">
                 <Pulsante
-                  className="py-1.5 text-[11.5px]"
+                  className="py-1.5 text-[12.5px]"
                   onClick={async () => {
                     if (inCampione()) { avvisa('Nell’anteprima con dati di esempio non c’è niente da esportare.'); return; }
                     try { avvisa((await e.run()) || 'File scaricato'); }
@@ -197,7 +197,7 @@ export function Documenti() {
             </Pannello>
           ))}
         </div>
-        <p className="mt-2.5 text-[11.5px] leading-relaxed text-tenue">
+        <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
           Sono file CSV: si aprono con qualunque foglio di calcolo. Servono a portare via i dati,
           non a rimettere in piedi il sistema — per quello ci vuole un backup vero.
         </p>
@@ -211,7 +211,7 @@ export function Documenti() {
             l’app conserva su una persona, oppure a una richiesta di cancellazione.
           </p>
           <div className="mt-3 flex justify-end">
-            <Pulsante className="py-1.5 text-[11.5px]" onClick={() => setCancella(true)}>
+            <Pulsante className="py-1.5 text-[12.5px]" onClick={() => setCancella(true)}>
               Apri
             </Pulsante>
           </div>

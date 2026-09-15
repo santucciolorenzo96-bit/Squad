@@ -186,7 +186,7 @@ export function Presenze() {
                   </table>
                 </div>
               </Pannello>
-              <p className="text-[11.5px] leading-relaxed text-tenue">
+              <p className="text-[12.5px] leading-relaxed text-tenue">
                 Contano solo gli allenamenti già svolti per cui è stata fatta la rilevazione.
                 Un allenamento senza rilevazione non è «tutti assenti»: è un dato che non esiste,
                 e contarlo abbasserebbe le percentuali di chi non ha colpe.

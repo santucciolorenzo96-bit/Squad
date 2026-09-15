@@ -136,7 +136,7 @@ export function Anagrafica() {
               <Pulsante
                 variante={soloProblemi ? 'primario' : 'vetro'}
                 onClick={() => setSoloProblemi(v => !v)}
-                className="py-1.5 text-[11.5px]"
+                className="py-1.5 text-[12.5px]"
               >
                 {soloProblemi ? 'Mostra tutti' : `Solo i ${fermi.length + daSeguire.length} da sistemare`}
               </Pulsante>
@@ -182,7 +182,7 @@ export function Anagrafica() {
                           <div className="min-w-0">
                             <div className="truncate text-[13.5px] font-semibold leading-tight">{r.p.name}</div>
                             {r.p.role_position && (
-                              <div className="text-[11px] text-tenue">{r.p.role_position}</div>
+                              <div className="text-[12px] text-tenue">{r.p.role_position}</div>
                             )}
                           </div>
                         </div>
@@ -223,7 +223,7 @@ export function Anagrafica() {
                     <Avatar nome={r.p.name} url={foto[r.p.id]} dim={36} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[14px] font-semibold leading-tight">{r.p.name}</div>
-                      <div className="text-[11.5px] text-tenue">
+                      <div className="text-[12.5px] text-tenue">
                         {r.eta != null && <span className="cifra">{r.eta} anni</span>}
                         {r.eta != null && r.p.role_position && ' · '}
                         {r.p.role_position}

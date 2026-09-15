@@ -89,7 +89,7 @@ export function Cancellazione({ onChiudi }) {
             <Etichetta className="mb-2.5">Cosa conserviamo su {p.name}</Etichetta>
             <Pannello className="pad-pannello-stretto">
               {dati ? (
-                <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-[11.5px] leading-relaxed text-soffuso">
+                <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-[12.5px] leading-relaxed text-soffuso">
                   {JSON.stringify(dati, null, 2)}
                 </pre>
               ) : (
@@ -101,7 +101,7 @@ export function Cancellazione({ onChiudi }) {
               )}
               <div className="mt-3 flex justify-end">
                 <Pulsante
-                  className="py-1.5 text-[11.5px]"
+                  className="py-1.5 text-[12.5px]"
                   disabled={!dati}
                   onClick={() => {
                     // Un file da consegnare, non uno schermo da fotografare:
@@ -114,7 +114,7 @@ export function Cancellazione({ onChiudi }) {
                 </Pulsante>
               </div>
             </Pannello>
-            <p className="mt-2.5 text-[11.5px] leading-relaxed text-tenue">
+            <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
               È tutto ciò che l’app conserva su questa persona, in un colpo solo: cercare tabella
               per tabella è il modo in cui si dimentica qualcosa.
             </p>

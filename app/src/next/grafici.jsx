@@ -102,7 +102,7 @@ export function ColonneAffrontate({ mesi, className }) {
                   style={{ height: Math.max(hOut, m.uscite > 0 ? 2 : 0) }}
                 />
               </div>
-              <div className="mt-1 text-[9px] font-semibold uppercase tracking-etichetta text-tenue">
+              <div className="mt-1 text-[10px] font-semibold uppercase tracking-etichetta text-tenue">
                 {m.etichetta}
               </div>
             </div>

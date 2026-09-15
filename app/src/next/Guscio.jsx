@@ -153,7 +153,7 @@ function Pastiglie({ settori, attiva, onCambia }) {
               title={nomeSettore(s)}
               className={cx(
                 'relative z-[1] shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 transition-colors duration-200',
-                s.parent_id ? 'text-[11.5px]' : 'text-[12.5px]',
+                s.parent_id ? 'text-[12.5px]' : 'text-[12.5px]',
                 on ? 'font-bold text-white' : 'font-semibold text-soffuso hover:text-testo'
               )}
             >
@@ -427,7 +427,7 @@ function SottoBarra({ sezione, onSezione }) {
 // Larghezza di una voce. Con il riempimento laterale a meta' schermo che
 // mettiamo sotto, portare al centro la voce numero i vuol dire esattamente
 // scrollLeft = i * PASSO: e' quello che rende semplice tutto il resto.
-const PASSO = 86;
+const PASSO = 90;
 const COPIE = 3;
 
 function BarraMobile({ sezione, onSezione }) {
@@ -623,7 +623,7 @@ function BarraMobile({ sezione, onSezione }) {
               <span className="grid h-[2.9rem] w-full place-items-end justify-items-center">
                 <IconaSezione id={x.v.icona} dim={40} className="barra-figura" />
               </span>
-              <span className="barra-etichetta w-full truncate text-center text-[9.5px] font-bold uppercase tracking-[0.03em]">
+              <span className="barra-etichetta w-full truncate text-center text-[10.5px] font-bold uppercase tracking-[0.03em]">
                 {x.v.label}
               </span>
               {/* Il punto: dice quale sezione e' APERTA, mentre la misura dice

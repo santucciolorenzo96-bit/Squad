@@ -395,11 +395,11 @@ export function Tracker({ onFinita, onEsci }) {
           <div className="mb-1.5 flex items-center justify-between gap-3 pt-[env(safe-area-inset-top)]">
             <button
               onClick={onEsci}
-              className="-ml-1 rounded-lg px-2 py-1 text-[12px] font-semibold text-tenue transition-colors hover:text-testo"
+              className="-ml-1 rounded-lg px-2 py-1 text-[13px] font-semibold text-tenue transition-colors hover:text-testo"
             >
               ‹ Esci dallo scout
             </button>
-            <span className="truncate text-[11px] text-tenue">
+            <span className="truncate text-[12px] text-tenue">
               Uscire non chiude la partita
             </span>
           </div>
@@ -412,7 +412,7 @@ export function Tracker({ onFinita, onEsci }) {
         <Pannello alto className="mx-auto max-w-[54rem] overflow-hidden">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-3.5 sm:px-4">
             <div className="min-w-0 text-center">
-              <div className="truncate text-[10px] font-bold uppercase tracking-etichetta text-tenue">
+              <div className="truncate text-[11px] font-bold uppercase tracking-etichetta text-tenue">
                 {(state.teamProfile || {}).name}
               </div>
               <div className="mt-1 text-[clamp(30px,9vw,46px)] font-bold leading-none text-verde">
@@ -429,22 +429,22 @@ export function Tracker({ onFinita, onEsci }) {
                 contorno. Qui sta anche il conto dei set vinti — piccolo,
                 perche' e' il riassunto, non il gioco. */}
             <div className="px-1 text-center sm:px-2">
-              <div className="text-[11px] font-bold uppercase tracking-etichetta text-tenue">
+              <div className="text-[12px] font-bold uppercase tracking-etichetta text-tenue">
                 {conf.period.short}{g.quarter}
               </div>
               {perSet && (
-                <div className="mt-1.5 rounded-full bg-pannello/14 px-2.5 py-0.5 text-[11px] font-bold leading-none text-soffuso">
+                <div className="mt-1.5 rounded-full bg-pannello/14 px-2.5 py-0.5 text-[12px] font-bold leading-none text-soffuso">
                   <span className="cifra">{g.teamScore}–{g.oppScore}</span>
-                  <span className="ml-1 text-[9px] font-bold uppercase tracking-etichetta text-tenue">set</span>
+                  <span className="ml-1 text-[10px] font-bold uppercase tracking-etichetta text-tenue">set</span>
                 </div>
               )}
               {g.friendly && (
-                <div className="mt-1.5 rounded-full bg-pannello/14 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-etichetta text-tenue">
+                <div className="mt-1.5 rounded-full bg-pannello/14 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-etichetta text-tenue">
                   amichevole
                 </div>
               )}
               {conf.teamFouls && (
-                <div className={cx('mt-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold',
+                <div className={cx('mt-1.5 rounded-full px-2 py-0.5 text-[11px] font-bold',
                   bonus ? 'bg-rosso/18 text-rosso' : 'bg-pannello/12 text-tenue')}>
                   {falli} falli{bonus ? ' · bonus' : ''}
                 </div>
@@ -452,7 +452,7 @@ export function Tracker({ onFinita, onEsci }) {
             </div>
 
             <div className="min-w-0 text-center">
-              <div className="truncate text-[10px] font-bold uppercase tracking-etichetta text-tenue">
+              <div className="truncate text-[11px] font-bold uppercase tracking-etichetta text-tenue">
                 {g.oppName}
               </div>
               <div className="mt-1 text-[clamp(30px,9vw,46px)] font-bold leading-none">
@@ -471,7 +471,7 @@ export function Tracker({ onFinita, onEsci }) {
               non serve leggere per sapere quale dei due e'. */}
           {avviso && (
             <div className={cx(
-              'border-t px-3 py-1.5 text-center text-[10.5px] font-bold uppercase tracking-etichetta',
+              'border-t px-3 py-1.5 text-center text-[11px] font-bold uppercase tracking-etichetta',
               avviso.finito ? 'border-verde/20 bg-verde/10 text-verde' : 'border-ambra/20 bg-ambra/10 text-ambra'
             )}>
               {avviso.testo}
@@ -483,7 +483,7 @@ export function Tracker({ onFinita, onEsci }) {
               di nessuno spazio. */}
           {parziali && (
             <div className="border-t border-bordo/10 px-3 py-1.5 text-center">
-              <span className="cifra text-[10.5px] font-semibold text-tenue">{parziali}</span>
+              <span className="cifra text-[11px] font-semibold text-tenue">{parziali}</span>
             </div>
           )}
 
@@ -491,7 +491,7 @@ export function Tracker({ onFinita, onEsci }) {
             <button
               onClick={annulla}
               disabled={state.undoStack.length === 0}
-              className="min-w-0 flex-1 bg-fondo/40 px-2 py-2.5 text-[12px] font-semibold text-soffuso transition-colors hover:text-testo disabled:opacity-35"
+              className="min-w-0 flex-1 bg-fondo/40 px-2 py-2.5 text-[13px] font-semibold text-soffuso transition-colors hover:text-testo disabled:opacity-35"
             >
               <span className="block truncate">
                 ↺ Annulla{daAnnullare ? <span className="text-tenue"> · {daAnnullare}</span> : null}
@@ -501,7 +501,7 @@ export function Tracker({ onFinita, onEsci }) {
               <button
                 onClick={() => setChiudiPeriodo(true)}
                 className={cx(
-                  'flex-1 py-2.5 text-[12px] transition-colors',
+                  'flex-1 py-2.5 text-[13px] transition-colors',
                   avviso && avviso.finito
                     ? 'bg-verde/14 font-bold text-verde hover:brightness-110'
                     : 'bg-fondo/40 font-semibold text-soffuso hover:text-testo'
@@ -513,7 +513,7 @@ export function Tracker({ onFinita, onEsci }) {
             <button
               onClick={() => setFinePartita(true)}
               className={cx(
-                'flex-1 py-2.5 text-[12px] transition-all',
+                'flex-1 py-2.5 text-[13px] transition-all',
                 avviso && avviso.chiusa
                   ? 'bg-ambra/16 font-bold text-ambra hover:brightness-110'
                   : 'bg-fondo/40 font-semibold text-ambra hover:brightness-125'
@@ -537,7 +537,7 @@ export function Tracker({ onFinita, onEsci }) {
               <button
                 onClick={ruota}
                 title={conf.rotazione.descrizione}
-                className="flex shrink-0 items-center gap-1.5 rounded-lg vetro orlo px-2.5 py-1.5 text-[11.5px] font-semibold text-soffuso transition-all hover:text-testo active:scale-95"
+                className="flex shrink-0 items-center gap-1.5 rounded-lg vetro orlo px-2.5 py-1.5 text-[12.5px] font-semibold text-soffuso transition-all hover:text-testo active:scale-95"
               >
                 <svg viewBox="0 0 20 20" className="h-[13px] w-[13px]" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M16.5 8.5a6.5 6.5 0 1 0-.7 5" /><path d="M16.8 3.5v5h-5" />
@@ -545,7 +545,7 @@ export function Tracker({ onFinita, onEsci }) {
                 {conf.rotazione.etichetta}
               </button>
             ) : (
-              <span className="text-[11.5px] text-tenue">{inCampo.length} di {sport.match.minOnField}</span>
+              <span className="text-[12.5px] text-tenue">{inCampo.length} di {sport.match.minOnField}</span>
             )}
           </div>
 
@@ -592,7 +592,7 @@ export function Tracker({ onFinita, onEsci }) {
                 )}
               >
                 <div className="text-[15px] font-bold leading-none">{sigla(p)}</div>
-                <div className="mt-1 truncate text-[10.5px] text-tenue">{p.name.split(' ')[0]}</div>
+                <div className="mt-1 truncate text-[11px] text-tenue">{p.name.split(' ')[0]}</div>
               </button>
             ))}
           </div>
@@ -600,7 +600,7 @@ export function Tracker({ onFinita, onEsci }) {
           {sostituzione && (
             <button
               onClick={() => setSostituzione(null)}
-              className="mt-3 w-full rounded-lg vetro orlo py-2 text-[12px] font-semibold text-tenue hover:text-testo"
+              className="mt-3 w-full rounded-lg vetro orlo py-2 text-[13px] font-semibold text-tenue hover:text-testo"
             >
               Annulla la sostituzione
             </button>
@@ -608,7 +608,7 @@ export function Tracker({ onFinita, onEsci }) {
 
           {/* Tre righe, non un foglietto di istruzioni: durante una partita
               nessuno legge, e quello che resta a schermo va guadagnato. */}
-          <ul className="mt-4 space-y-1.5 text-[11.5px] leading-relaxed text-tenue">
+          <ul className="mt-4 space-y-1.5 text-[12.5px] leading-relaxed text-tenue">
             <li>Tocca un giocatore, poi l’azione.</li>
             <li>Le domande che seguono (rimbalzo, assist) si saltano toccando fuori.</li>
             <li>Il ⇄ sul gettone prepara una sostituzione.</li>
@@ -801,7 +801,7 @@ const GettoneCampo = React.memo(function GettoneCampo({
         {/* Il riscontro dell'ultima azione, sopra il gettone di chi l'ha fatta. */}
         {lampo && (
           <span className="pointer-events-none absolute inset-x-0 -top-3 flex justify-center">
-            <span className="animate-salita whitespace-nowrap rounded-full vivo px-2 py-0.5 text-[10px] font-bold text-white">
+            <span className="animate-salita whitespace-nowrap rounded-full vivo px-2 py-0.5 text-[11px] font-bold text-white">
               {lampo}
             </span>
           </span>
@@ -854,7 +854,7 @@ function Catena({ conf, catena, giocatori, onScegli, onChiudi }) {
           <Etichetta>{c.titolo}</Etichetta>
           <button
             onClick={onChiudi}
-            className="shrink-0 rounded-lg px-2.5 py-1 text-[11.5px] font-semibold text-tenue hover:text-testo"
+            className="shrink-0 rounded-lg px-2.5 py-1 text-[12.5px] font-semibold text-tenue hover:text-testo"
           >
             {c.altro}
           </button>
@@ -868,7 +868,7 @@ function Catena({ conf, catena, giocatori, onScegli, onChiudi }) {
               className="rounded-lg vetro orlo px-1 py-2.5 text-center transition-all hover:bg-pannello/16 active:scale-[0.97]"
             >
               <div className="text-[17px] font-bold leading-none">{p.number}</div>
-              <div className="mt-1 truncate text-[10px] text-tenue">{p.name.split(' ')[0]}</div>
+              <div className="mt-1 truncate text-[11px] text-tenue">{p.name.split(' ')[0]}</div>
             </button>
           ))}
         </div>
@@ -938,11 +938,11 @@ function PannelloAzioni({ p, conf, ancora, onAzione, onChiudi }) {
         </span>
         <div className="min-w-0 flex-1">
           <div className="truncate text-[15px] font-bold leading-tight">{p.name}</div>
-          <div className="text-[11.5px] text-tenue">{p.onCourt ? 'in campo' : 'in panchina'}</div>
+          <div className="text-[12.5px] text-tenue">{p.onCourt ? 'in campo' : 'in panchina'}</div>
         </div>
         <button
           onClick={onChiudi}
-          className="shrink-0 rounded-lg px-3 py-2 text-[12px] font-semibold text-tenue hover:text-testo"
+          className="shrink-0 rounded-lg px-3 py-2 text-[13px] font-semibold text-tenue hover:text-testo"
         >
           Chiudi
         </button>
@@ -1111,7 +1111,7 @@ function ChiusuraPeriodo({ g, sport, onChiudi, onFatto }) {
         </Campo>
       </div>
 
-      <p className="text-[11.5px] leading-relaxed text-tenue">
+      <p className="text-[12.5px] leading-relaxed text-tenue">
         Confronta «noi» con il tabellone della palestra: se non coincidono è sfuggito un canestro,
         ed è adesso il momento di accorgersene. Puoi correggerlo annullando le ultime azioni.
       </p>
@@ -1119,7 +1119,7 @@ function ChiusuraPeriodo({ g, sport, onChiudi, onFatto }) {
       {/* Il regolamento detto una volta, dove serve: qui i numeri si scrivono,
           e qui vengono controllati. */}
       {conf.regolamento && (
-        <p className="rounded-lg bg-pannello/8 px-3.5 py-3 text-[11.5px] leading-relaxed text-soffuso">
+        <p className="rounded-lg bg-pannello/8 px-3.5 py-3 text-[12.5px] leading-relaxed text-soffuso">
           Questo {seti} si chiude a <b>{conf.regolamento.sogliaPeriodo(g.quarter)} punti</b> con
           almeno {conf.regolamento.scarto} di scarto. Partita a{' '}
           {conf.regolamento.periodiPerVincere} {seti} vinti
@@ -1128,7 +1128,7 @@ function ChiusuraPeriodo({ g, sport, onChiudi, onFatto }) {
       )}
 
       {ultimo && conf.period.allowExtra && !chiudeLaPartita && (
-        <p className="rounded-lg bg-pannello/8 px-3.5 py-3 text-[12px] leading-relaxed text-soffuso">
+        <p className="rounded-lg bg-pannello/8 px-3.5 py-3 text-[13px] leading-relaxed text-soffuso">
           Era l’ultimo {conf.period.label.toLowerCase()} previsto. Se la partita è in parità,
           continuando si apre un {conf.period.extraLabel.toLowerCase()}; altrimenti chiudi la
           partita dal tabellone.

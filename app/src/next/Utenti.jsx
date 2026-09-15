@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
+import { Matita, Croce } from './icone.jsx';
 import { contiene } from '../utils/format.js';
 import {
   ROLES, ASSIGNABLE_ROLES, ADMIN_ROLES, LINKED_ROLES,
@@ -11,7 +12,7 @@ import { fetchFamilyLinksForTeam, linkProfileToPlayer, unlinkProfileFromPlayer }
 import { fetchInvites, createInvite, revokeInvite } from '../api/invites.js';
 import { orderedSectors } from '../utils/sectors.js';
 import { inCampione } from './campione.js';
-import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, Avatar, cx, Cerca, NessunRisultato } from './ui.jsx';
+import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, Avatar, cx, Cerca, NessunRisultato, AzioneRiga } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Scelta, Spunta, ErroreCaricamento, useAvviso } from './moduli.jsx';
 
 /* Utenti.
@@ -89,7 +90,7 @@ function Inviti({ avvisa }) {
     <div>
       <div className="mb-2.5 flex items-center justify-between gap-3">
         <Etichetta>Inviti</Etichetta>
-        <Pulsante variante="primario" className="py-1.5 text-[11.5px]" onClick={() => setNuovo(true)}>
+        <Pulsante variante="primario" className="py-1.5 text-[12.5px]" onClick={() => setNuovo(true)}>
           + Invita una persona
         </Pulsante>
       </div>
@@ -108,7 +109,7 @@ function Inviti({ avvisa }) {
         <>
           <button
             onClick={() => setStorico(s => !s)}
-            className="mt-3 w-full rounded-lg vetro orlo py-2 text-[12px] font-semibold text-tenue hover:text-testo"
+            className="mt-3 w-full rounded-lg vetro orlo py-2 text-[13px] font-semibold text-tenue hover:text-testo"
           >
             {storico ? 'Nascondi gli inviti passati' : `Inviti passati (${chiusi.length})`}
           </button>
@@ -150,7 +151,7 @@ function RigaInvito({ inv, onRevoca, avvisa }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-[14px] font-semibold">{inv.label || ROLES[inv.role] || inv.role}</div>
-          <div className="mt-1 text-[12px] text-tenue">
+          <div className="mt-1 text-[13px] text-tenue">
             <span className={cx('font-semibold', TONO_RUOLO[inv.role] || '')}>{ROLES[inv.role] || inv.role}</span>
             {settori.length > 0 && ' · ' + settori.join(', ')}
             {inv.players && ' · collegato a ' + inv.players.name}
@@ -168,7 +169,7 @@ function RigaInvito({ inv, onRevoca, avvisa }) {
               {inv.code}
             </code>
             <Pulsante
-              className="py-2 text-[11.5px]"
+              className="py-2 text-[12.5px]"
               onClick={async () => {
                 try { await navigator.clipboard.writeText(inv.code); avvisa('Codice copiato'); }
                 catch (e) { avvisa('Copialo a mano: ' + inv.code); }
@@ -177,21 +178,17 @@ function RigaInvito({ inv, onRevoca, avvisa }) {
               Copia
             </Pulsante>
             {onRevoca && (
-              <button
-                onClick={onRevoca}
-                title="Revoca"
-                className="rounded-lg px-2.5 py-2 text-tenue transition-colors hover:bg-rosso/12 hover:text-rosso"
-              >
-                ✕
-              </button>
+              <AzioneRiga etichetta="Revoca" pericolo onClick={onRevoca}>
+                <Croce />
+              </AzioneRiga>
             )}
           </div>
-          <p className="mt-2 text-[11.5px] text-tenue">
+          <p className="mt-2 text-[12.5px] text-tenue">
             {inv.expires_at ? 'Scade il ' + fmtData(inv.expires_at) : 'Senza scadenza'}
           </p>
         </>
       ) : (
-        <p className="mt-2 text-[11.5px] text-tenue">
+        <p className="mt-2 text-[12.5px] text-tenue">
           {inv.used_at
             ? 'Usato il ' + fmtData(inv.used_at) + (inv.profiles ? ' da ' + inv.profiles.display_name : '')
             : inv.revoked_at ? 'Revocato il ' + fmtData(inv.revoked_at)
@@ -327,30 +324,25 @@ function Staff({ avvisa }) {
                 <Avatar nome={u.display_name} dim={34} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[14px] font-semibold leading-tight">
-                    {u.display_name} {io && <span className="text-[11px] font-normal text-tenue">(tu)</span>}
+                    {u.display_name} {io && <span className="text-[12px] font-normal text-tenue">(tu)</span>}
                   </div>
-                  <div className="truncate text-[11.5px] text-tenue">
+                  <div className="truncate text-[12.5px] text-tenue">
                     {isAdmin(u) ? 'Tutte le categorie' : nomiSettori(u.id)}
                   </div>
                 </div>
-                <span className={cx('shrink-0 text-[11.5px] font-bold', TONO_RUOLO[u.role] || 'text-tenue')}>
+                <span className={cx('shrink-0 text-[12.5px] font-bold', TONO_RUOLO[u.role] || 'text-tenue')}>
                   {roleLabel(u.role)}
                 </span>
-                <button
-                  onClick={() => setModifica(u)}
-                  title="Modifica"
-                  className="shrink-0 rounded-lg px-2.5 py-2 text-tenue hover:bg-pannello/12 hover:text-testo"
-                >
-                  ✎
-                </button>
+                <AzioneRiga etichetta="Modifica" onClick={() => setModifica(u)}>
+                  <Matita />
+                </AzioneRiga>
                 {!io && (
-                  <button
-                    onClick={() => setDaRimuovere(u)}
-                    title="Rimuovi"
-                    className="shrink-0 rounded-lg px-2.5 py-2 text-tenue hover:bg-rosso/12 hover:text-rosso"
-                  >
-                    ✕
-                  </button>
+                  <>
+                    <span className="mx-1 h-5 w-px shrink-0 bg-bordo/12" aria-hidden="true" />
+                    <AzioneRiga etichetta="Rimuovi" pericolo onClick={() => setDaRimuovere(u)}>
+                      <Croce />
+                    </AzioneRiga>
+                  </>
                 )}
               </div>
             );
@@ -504,7 +496,7 @@ function Famiglie({ avvisa }) {
       <div className="mb-2.5 flex flex-wrap items-center justify-between gap-3">
         <Etichetta>Collegamenti agli atleti</Etichetta>
         {collegabili.length > 0 && (
-          <Pulsante className="shrink-0 py-1.5 text-[11.5px]" onClick={() => setAltri(true)}>
+          <Pulsante className="shrink-0 py-1.5 text-[12.5px]" onClick={() => setAltri(true)}>
             Collega un altro account
           </Pulsante>
         )}
@@ -521,18 +513,18 @@ function Famiglie({ avvisa }) {
                 <Avatar nome={f.display_name} dim={34} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[14px] font-semibold leading-tight">{f.display_name}</div>
-                  <div className={cx('text-[11.5px] font-semibold', TONO_RUOLO[f.role] || 'text-tenue')}>
+                  <div className={cx('text-[12.5px] font-semibold', TONO_RUOLO[f.role] || 'text-tenue')}>
                     {roleLabel(f.role)}
                   </div>
                 </div>
-                <Pulsante className="shrink-0 py-1.5 text-[11.5px]" onClick={() => setCollega(f)}>
+                <Pulsante className="shrink-0 py-1.5 text-[12.5px]" onClick={() => setCollega(f)}>
                   Collega
                 </Pulsante>
               </div>
 
               <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {(f.linkedPlayers || []).length === 0 ? (
-                  <span className="text-[11.5px] text-ambra">
+                  <span className="text-[12.5px] text-ambra">
                     {LINKED_ROLES.includes(f.role)
                       ? 'Non collegato a nessun atleta: non vede niente.'
                       : 'Nessun collegamento.'}
@@ -541,7 +533,7 @@ function Famiglie({ avvisa }) {
                   f.linkedPlayers.filter(Boolean).map(p => (
                     <span
                       key={p.id}
-                      className="inline-flex items-center gap-2 rounded-full bg-pannello/12 py-1 pl-3 pr-1.5 text-[12px]"
+                      className="inline-flex items-center gap-2 rounded-full bg-pannello/12 py-1 pl-3 pr-1.5 text-[13px]"
                     >
                       {p.name}
                       <button
@@ -555,9 +547,11 @@ function Famiglie({ avvisa }) {
                             avvisa((e && e.message) || 'Non riuscito.', 'errore');
                           }
                         }}
-                        className="grid h-5 w-5 place-items-center rounded-full text-tenue hover:bg-rosso/16 hover:text-rosso"
+                        aria-label={'Scollega ' + p.name}
+                        title={'Scollega ' + p.name}
+                        className="tocco grid h-5 w-5 shrink-0 place-items-center rounded-full text-tenue hover:bg-rosso/16 hover:text-rosso"
                       >
-                        ✕
+                        <Croce dim={13} />
                       </button>
                     </span>
                   ))

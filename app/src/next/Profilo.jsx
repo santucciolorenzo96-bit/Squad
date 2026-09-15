@@ -90,10 +90,10 @@ export function Profilo({ tema, onTema }) {
         </div>
         {state.myAvatarUrl && (
           <div className="mt-4 flex flex-wrap gap-2">
-            <Pulsante className="py-1.5 text-[11.5px]" onClick={() => setCentro({ esistente: true })}>
+            <Pulsante className="py-1.5 text-[12.5px]" onClick={() => setCentro({ esistente: true })}>
               Sposta il punto
             </Pulsante>
-            <Pulsante variante="nudo" className="py-1.5 text-[11.5px]" onClick={() => setTogli(true)}>
+            <Pulsante variante="nudo" className="py-1.5 text-[12.5px]" onClick={() => setTogli(true)}>
               Togli la fotografia
             </Pulsante>
           </div>
@@ -142,7 +142,7 @@ export function Profilo({ tema, onTema }) {
                   <Avatar nome={p.name} dim={34} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[14px] font-semibold leading-tight">{p.name}</div>
-                    <div className="text-[11.5px] text-tenue">#{p.number}</div>
+                    <div className="text-[12.5px] text-tenue">#{p.number}</div>
                   </div>
                 </div>
               ))
@@ -158,7 +158,7 @@ export function Profilo({ tema, onTema }) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-[13.5px] font-semibold">Tema</div>
-              <p className="mt-0.5 text-[11.5px] text-tenue">
+              <p className="mt-0.5 text-[12.5px] text-tenue">
                 «Sistema» segue l’impostazione del telefono o del computer.
               </p>
             </div>
@@ -168,7 +168,7 @@ export function Profilo({ tema, onTema }) {
                   key={m}
                   onClick={() => onTema(m)}
                   className={cx(
-                    'rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-etichetta transition-all',
+                    'rounded-full px-3 py-1.5 text-[12px] font-bold uppercase tracking-etichetta transition-all',
                     tema === m
                       ? 'vivo text-white'
                       : 'text-tenue hover:text-testo'
@@ -188,7 +188,7 @@ export function Profilo({ tema, onTema }) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-[13.5px] font-semibold">Password</div>
-              <p className="mt-0.5 text-[11.5px] text-tenue">Serve quella attuale per cambiarla.</p>
+              <p className="mt-0.5 text-[12.5px] text-tenue">Serve quella attuale per cambiarla.</p>
             </div>
             <Pulsante onClick={() => setPassword(true)}>Cambia password</Pulsante>
           </div>

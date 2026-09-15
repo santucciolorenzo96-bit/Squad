@@ -4,9 +4,9 @@ import { addTraining, updateTraining, removeTraining, fetchTrainingsForDate } fr
 import { findLocationConflicts } from '../utils/conflicts.js';
 import { canEditHome, managesSector } from '../utils/permissions.js';
 import { inCampione } from './campione.js';
-import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, cx } from './ui.jsx';
+import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, cx, AzioneRiga } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Data, Interruttore, useAvviso } from './moduli.jsx';
-import { IconaSezione, Chevron } from './icone.jsx';
+import { IconaSezione, Chevron, Matita, Croce } from './icone.jsx';
 import { FoglioPresenze } from './FoglioPresenze.jsx';
 
 /* Gli allenamenti.
@@ -48,7 +48,7 @@ function Riquadro({ iso }) {
   return (
     <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg vetro orlo">
       <div className="text-center leading-none">
-        <div className="text-[9px] font-bold uppercase tracking-etichetta text-tenue">
+        <div className="text-[10px] font-bold uppercase tracking-etichetta text-tenue">
           {d.toLocaleDateString('it-IT', { month: 'short' }).replace('.', '')}
         </div>
         <div className="mt-1 text-[16px] font-bold">{d.getDate()}</div>
@@ -115,7 +115,7 @@ function Calendario({ allenamenti, puoiModificare, onApri, onPresenze }) {
         </button>
         <div className="text-center">
           <div className="text-[14.5px] font-semibold leading-tight">{nomeMese(mese)}</div>
-          <div className="text-[11.5px] text-tenue">
+          <div className="text-[12.5px] text-tenue">
             {nelMese === 0 ? 'nessun allenamento' : nelMese === 1 ? '1 allenamento' : nelMese + ' allenamenti'}
           </div>
         </div>
@@ -131,7 +131,7 @@ function Calendario({ allenamenti, puoiModificare, onApri, onPresenze }) {
       <Pannello className="overflow-hidden p-2 sm:p-3">
         <div className="grid grid-cols-7 gap-1">
           {INIZIALI.map((g, i) => (
-            <div key={i} className="pb-1 text-center text-[10px] font-bold uppercase tracking-etichetta text-tenue">
+            <div key={i} className="pb-1 text-center text-[11px] font-bold uppercase tracking-etichetta text-tenue">
               {g}
             </div>
           ))}
@@ -152,14 +152,14 @@ function Calendario({ allenamenti, puoiModificare, onApri, onPresenze }) {
                 <div className="flex items-center justify-between gap-1">
                   <span
                     className={cx(
-                      'cifra text-[11.5px] font-semibold',
+                      'cifra text-[12.5px] font-semibold',
                       oggiQui ? 'grid h-5 w-5 place-items-center rounded-full vivo text-white' : 'text-soffuso'
                     )}
                   >
                     {parseInt(iso.slice(8, 10), 10)}
                   </span>
                   {voci.length > 0 && (
-                    <span className="cifra text-[10px] font-bold text-blu sm:hidden">{voci.length}</span>
+                    <span className="cifra text-[11px] font-bold text-blu sm:hidden">{voci.length}</span>
                   )}
                 </div>
 
@@ -176,13 +176,13 @@ function Calendario({ allenamenti, puoiModificare, onApri, onPresenze }) {
                   {voci.slice(0, 2).map(t => (
                     <div
                       key={t.id}
-                      className="truncate rounded bg-gradient-to-r from-blu/25 to-blu2/25 px-1 py-0.5 text-[10px] font-semibold leading-tight"
+                      className="truncate rounded bg-gradient-to-r from-blu/25 to-blu2/25 px-1 py-0.5 text-[11px] font-semibold leading-tight"
                     >
                       {t.start_time ? t.start_time.slice(0, 5) + ' ' : ''}{t.title}
                     </div>
                   ))}
                   {voci.length > 2 && (
-                    <div className="px-1 text-[10px] text-tenue">+{voci.length - 2}</div>
+                    <div className="px-1 text-[11px] text-tenue">+{voci.length - 2}</div>
                   )}
                 </div>
               </button>
@@ -228,11 +228,11 @@ function Riga({ t, puoiModificare, onApri, onRimuovi, onPresenze }) {
       <Riquadro iso={t.date} />
       <div className="min-w-0 flex-1">
         <div className="truncate text-[14.5px] font-semibold leading-tight">{t.title}</div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12px] text-tenue">
+        <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[13px] text-tenue">
           <span>{dataLunga(t.date)}</span>
           {t.start_time && <span>{t.start_time}{t.end_time ? '–' + t.end_time : ''}</span>}
           {t.recurrence_id && (
-            <span className="rounded-full bg-pannello/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-etichetta">
+            <span className="rounded-full bg-pannello/12 px-2 py-0.5 text-[11px] font-bold uppercase tracking-etichetta">
               fisso
             </span>
           )}
@@ -244,29 +244,23 @@ function Riga({ t, puoiModificare, onApri, onRimuovi, onPresenze }) {
       {puoiModificare && (
         <div className="flex shrink-0 items-center gap-1">
           {onPresenze && (
-            <button
-              onClick={() => onPresenze(t)}
-              title="Presenze"
-              className="rounded-lg px-2.5 py-2 text-tenue transition-colors hover:bg-pannello/12 hover:text-testo"
-            >
+            <AzioneRiga etichetta="Presenze" onClick={() => onPresenze(t)}>
               <IconaPresenze />
-            </button>
+            </AzioneRiga>
           )}
-          <button
-            onClick={() => onApri(t)}
-            title="Modifica"
-            className="rounded-lg px-2.5 py-2 text-tenue transition-colors hover:bg-pannello/12 hover:text-testo"
-          >
-            ✎
-          </button>
+          <AzioneRiga etichetta="Modifica" onClick={() => onApri(t)}>
+            <Matita />
+          </AzioneRiga>
+          {/* Quello che cancella sta staccato, dopo un filo: la distanza e'
+              l'unica cosa che impedisce il tocco sbagliato a chi ha la mano
+              meno ferma, e qui l'errore non si recupera. */}
           {onRimuovi && (
-            <button
-              onClick={() => onRimuovi(t)}
-              title="Rimuovi"
-              className="rounded-lg px-2.5 py-2 text-tenue transition-colors hover:bg-rosso/12 hover:text-rosso"
-            >
-              ✕
-            </button>
+            <>
+              <span className="mx-1 h-5 w-px shrink-0 bg-bordo/12" aria-hidden="true" />
+              <AzioneRiga etichetta="Elimina" pericolo onClick={() => onRimuovi(t)}>
+                <Croce />
+              </AzioneRiga>
+            </>
           )}
         </div>
       )}
@@ -357,7 +351,7 @@ export function Allenamenti() {
                   <div className={cx('flex items-center gap-3', i > 0 && 'pt-4')}>
                     <Etichetta>{nomeMese(meseDi(t.date))}</Etichetta>
                     <span className="h-px flex-1 bg-bordo/10" />
-                    <span className="cifra text-[11.5px] text-tenue">
+                    <span className="cifra text-[12.5px] text-tenue">
                       {elenco.filter(x => meseDi(x.date) === meseDi(t.date)).length}
                     </span>
                   </div>

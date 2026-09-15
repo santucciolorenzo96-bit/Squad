@@ -222,7 +222,7 @@ export function Campo({ etichetta, aiuto, children }) {
     <label className="block">
       {etichetta && <Etichetta className="mb-1.5">{etichetta}</Etichetta>}
       {children}
-      {aiuto && <p className="mt-1.5 text-[11.5px] leading-snug text-tenue">{aiuto}</p>}
+      {aiuto && <p className="mt-1.5 text-[12.5px] leading-snug text-tenue">{aiuto}</p>}
     </label>
   );
 }
@@ -269,7 +269,7 @@ export function Interruttore({ valore, onCambia, voci }) {
           key={v.id}
           onClick={() => onCambia(v.id)}
           className={cx(
-            'rounded-full px-3.5 py-1.5 text-[12px] font-semibold transition-all duration-150',
+            'rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-all duration-150',
             valore === v.id
               ? 'vivo text-white'
               : 'text-tenue hover:text-testo'
@@ -277,7 +277,7 @@ export function Interruttore({ valore, onCambia, voci }) {
         >
           {v.testo}
           {v.conteggio != null && (
-            <span className={cx('ml-1.5 text-[11px]', valore === v.id ? 'opacity-75' : 'opacity-60')}>
+            <span className={cx('ml-1.5 text-[12px]', valore === v.id ? 'opacity-75' : 'opacity-60')}>
               {v.conteggio}
             </span>
           )}
@@ -292,7 +292,7 @@ export function ErroreCaricamento({ cosa, errore, onRiprova }) {
   return (
     <Pannello className="pad-pannello text-center">
       <p className="text-[13.5px] text-testo">Non è stato possibile caricare {cosa}.</p>
-      {errore && <p className="mt-1.5 text-[12px] text-tenue">{errore.message || String(errore)}</p>}
+      {errore && <p className="mt-1.5 text-[13px] text-tenue">{errore.message || String(errore)}</p>}
       {onRiprova && (
         <div className="mt-4 flex justify-center">
           <Pulsante onClick={onRiprova}>Riprova</Pulsante>

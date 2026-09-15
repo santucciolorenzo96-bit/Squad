@@ -80,7 +80,7 @@ function Casella({ nome, totale, critici, attiva, onClick }) {
       >
         {totale}
       </div>
-      <div className="mt-1.5 text-[11.5px] leading-snug text-tenue">
+      <div className="mt-1.5 text-[12.5px] leading-snug text-tenue">
         {critici ? critici + ' da risolvere subito' : 'niente di urgente'}
       </div>
     </button>
@@ -119,7 +119,7 @@ function Gruppo({ problema, mostraCategoria, onSezione }) {
         {vai && (
           <button
             onClick={vai}
-            className="flex shrink-0 items-center gap-1 text-[11.5px] font-semibold text-blu transition-opacity hover:opacity-75"
+            className="flex shrink-0 items-center gap-1 text-[12.5px] font-semibold text-blu transition-opacity hover:opacity-75"
           >
             {problema.action.label}
             <Chevron dim={13} />
@@ -128,7 +128,7 @@ function Gruppo({ problema, mostraCategoria, onSezione }) {
       </div>
 
       {problema.summary && (
-        <p className="text-[12px] leading-relaxed text-tenue">{problema.summary}</p>
+        <p className="text-[13px] leading-relaxed text-tenue">{problema.summary}</p>
       )}
 
       {/* ------------------------------------------------ da tablet in su */}
@@ -156,7 +156,7 @@ function Gruppo({ problema, mostraCategoria, onSezione }) {
                 <td className="px-5 py-3 text-[12.5px] leading-snug text-soffuso">{v.sub || '—'}</td>
                 <td className="px-5 py-3 text-[12.5px]"><Contatto valore={v.contatto} /></td>
                 {mostraCategoria && (
-                  <td className="px-5 py-3 text-[12px] text-tenue">{nomeCategoria(v.sectorId)}</td>
+                  <td className="px-5 py-3 text-[13px] text-tenue">{nomeCategoria(v.sectorId)}</td>
                 )}
               </tr>
             ))}
@@ -179,13 +179,13 @@ function Gruppo({ problema, mostraCategoria, onSezione }) {
             <span className={cx('absolute inset-y-0 left-0 w-0.5', FILO[problema.severity] || 'bg-blu')} />
             <div className="min-w-0 flex-1">
               <div className="text-[13.5px] font-semibold leading-tight">{v.label}</div>
-              {v.sub && <div className="mt-1 text-[12px] leading-snug text-tenue">{v.sub}</div>}
+              {v.sub && <div className="mt-1 text-[13px] leading-snug text-tenue">{v.sub}</div>}
               {v.contatto && (
-                <div className="mt-1 text-[12px]"><Contatto valore={v.contatto} /></div>
+                <div className="mt-1 text-[13px]"><Contatto valore={v.contatto} /></div>
               )}
             </div>
             {mostraCategoria && (
-              <span className="shrink-0 text-[11px] text-tenue">{nomeCategoria(v.sectorId)}</span>
+              <span className="shrink-0 text-[12px] text-tenue">{nomeCategoria(v.sectorId)}</span>
             )}
           </div>
         ))}
@@ -245,7 +245,7 @@ export function Situazione({ onSezione }) {
   if (!dati) {
     return (
       <div className="sezioni">
-        <Titolo sopra="Società">Situazione</Titolo>
+        <Titolo sopra="Società">Gestione</Titolo>
         <Scheletro righe={4} />
       </div>
     );
@@ -294,7 +294,7 @@ export function Situazione({ onSezione }) {
           ? <span className="shrink-0 text-[12.5px] text-tenue">{totale} da sistemare</span>
           : null}
       >
-        Situazione
+        Gestione
       </Titolo>
 
       {categorie.length > 0 && (
@@ -313,7 +313,7 @@ export function Situazione({ onSezione }) {
       )}
 
       {filtroValido && (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-tenue">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-tenue">
           <span>
             Stai guardando solo <b className="text-testo">{nomeCategoria(filtroValido === SOCIETA ? null : filtroValido)}</b>.
           </span>

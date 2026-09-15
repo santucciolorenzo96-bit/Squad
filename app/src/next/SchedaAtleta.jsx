@@ -143,7 +143,7 @@ export function SchedaAtleta({ playerId, onChiudi }) {
             title="Cambia fotografia"
           >
             <Avatar nome={p.name} url={foto} dim={72} />
-            <span className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full vivo text-[12px] text-white">
+            <span className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full vivo text-[13px] text-white">
               ✎
             </span>
           </button>
@@ -171,7 +171,7 @@ export function SchedaAtleta({ playerId, onChiudi }) {
         <div className="mt-6">
           <div className="mb-2.5 flex items-center justify-between gap-3">
             <Etichetta>Anagrafica</Etichetta>
-            <Pulsante className="py-1 text-[11.5px]" onClick={() => setModAnagrafica(true)}>Modifica</Pulsante>
+            <Pulsante className="py-1 text-[12.5px]" onClick={() => setModAnagrafica(true)}>Modifica</Pulsante>
           </div>
           <Pannello className="overflow-hidden">
             {[
@@ -183,7 +183,7 @@ export function SchedaAtleta({ playerId, onChiudi }) {
               ['Altezza', p.height_cm ? p.height_cm + ' cm' : '—']
             ].map(([k, v], i) => (
               <div key={k} className={cx('flex items-baseline gap-3 px-4 py-2.5', i > 0 && 'border-t border-bordo/6')}>
-                <span className="w-32 shrink-0 text-[11.5px] text-tenue">{k}</span>
+                <span className="w-32 shrink-0 text-[12.5px] text-tenue">{k}</span>
                 <span className="min-w-0 flex-1 truncate text-[13px]">{v}</span>
               </div>
             ))}
@@ -204,7 +204,7 @@ export function SchedaAtleta({ playerId, onChiudi }) {
                     <div className="min-w-0">
                       <div className="text-[13.5px] font-semibold leading-tight">{t.label}</div>
                       {suoi[0] && suoi[0].expires_at && (
-                        <div className="mt-1 text-[11.5px] text-tenue">
+                        <div className="mt-1 text-[12.5px] text-tenue">
                           {suoi[0].expires_at < oggi ? 'scaduto il ' : 'valido fino al '}
                           {fmtData(suoi[0].expires_at)}
                         </div>
@@ -228,7 +228,7 @@ export function SchedaAtleta({ playerId, onChiudi }) {
                   )}
 
                   <div className="mt-3 flex justify-end">
-                    <Pulsante className="py-1.5 text-[11.5px]" onClick={() => setCarica({ tipo: t })}>
+                    <Pulsante className="py-1.5 text-[12.5px]" onClick={() => setCarica({ tipo: t })}>
                       Carica {suoi.length > 0 ? 'un nuovo file' : 'il documento'}
                     </Pulsante>
                   </div>
@@ -237,7 +237,7 @@ export function SchedaAtleta({ playerId, onChiudi }) {
             })}
           </div>
           {famiglia && (
-            <p className="mt-2.5 text-[11.5px] leading-relaxed text-tenue">
+            <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
               Dopo il caricamento il documento resta «in verifica» finché la società non lo
               approva: fino a quel momento non copre.
             </p>
@@ -250,7 +250,7 @@ export function SchedaAtleta({ playerId, onChiudi }) {
             <div className="mb-2.5 flex items-center justify-between gap-3">
               <Etichetta>Scheda evolutiva</Etichetta>
               {!famiglia && (
-                <Pulsante className="py-1 text-[11.5px]" onClick={() => setModSviluppo(true)}>Modifica</Pulsante>
+                <Pulsante className="py-1 text-[12.5px]" onClick={() => setModSviluppo(true)}>Modifica</Pulsante>
               )}
             </div>
             <Pannello className="pad-pannello-stretto">
@@ -261,7 +261,7 @@ export function SchedaAtleta({ playerId, onChiudi }) {
                       <Etichetta>Obiettivo</Etichetta>
                       <p className="mt-1.5 text-[13.5px] leading-relaxed">{sviluppo.objective}</p>
                       {sviluppo.objective_set_at && (
-                        <p className="mt-1 text-[11px] text-tenue">
+                        <p className="mt-1 text-[12px] text-tenue">
                           fissato il {fmtData(sviluppo.objective_set_at)}
                         </p>
                       )}
@@ -378,13 +378,13 @@ function RigaDocumento({ d, puoiApprovare, onAggiorna, avvisa }) {
               caricato il {new Date(d.uploaded_at).toLocaleDateString('it-IT')}
             </div>
             {d.review_note && (
-              <div className="mt-1 text-[11.5px] leading-snug text-rosso">{d.review_note}</div>
+              <div className="mt-1 text-[12.5px] leading-snug text-rosso">{d.review_note}</div>
             )}
           </div>
           <Stato tono={TONI[d.status] || 'neutro'}>{ETICHETTE[d.status] || d.status}</Stato>
           <button
             onClick={apri}
-            className="shrink-0 rounded-lg px-2.5 py-1.5 text-[11.5px] font-semibold text-tenue hover:text-testo"
+            className="shrink-0 rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold text-tenue hover:text-testo"
           >
             Apri
           </button>
@@ -398,14 +398,14 @@ function RigaDocumento({ d, puoiApprovare, onAggiorna, avvisa }) {
             <button
               onClick={() => decidi('approved')}
               disabled={lavora}
-              className="flex-1 rounded-lg bg-verde/14 py-2 text-[12px] font-semibold text-verde transition-all hover:bg-verde/22 disabled:opacity-40"
+              className="flex-1 rounded-lg bg-verde/14 py-2 text-[13px] font-semibold text-verde transition-all hover:bg-verde/22 disabled:opacity-40"
             >
               Approva
             </button>
             <button
               onClick={() => setRespingi(true)}
               disabled={lavora}
-              className="flex-1 rounded-lg bg-rosso/12 py-2 text-[12px] font-semibold text-rosso transition-all hover:bg-rosso/20 disabled:opacity-40"
+              className="flex-1 rounded-lg bg-rosso/12 py-2 text-[13px] font-semibold text-rosso transition-all hover:bg-rosso/20 disabled:opacity-40"
             >
               Respingi
             </button>
@@ -504,7 +504,7 @@ function ModuloCaricamento({ p, tipo, onChiudi, onFatto }) {
             <span className="block truncate text-[13px] font-semibold">
               {file ? file.name : 'Scegli una fotografia o un PDF'}
             </span>
-            <span className="mt-0.5 block text-[11.5px] text-tenue">
+            <span className="mt-0.5 block text-[12.5px] text-tenue">
               {file
                 ? Math.round(file.size / 1024) + ' KB'
                 : 'Dalla fotocamera va benissimo, basta che si legga'}

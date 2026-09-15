@@ -100,7 +100,7 @@ export function Accesso({ onEntrato, onCampione }) {
       sotto={onCampione && (
         <button
           onClick={onCampione}
-          className="w-full rounded-lg vetro orlo py-2.5 text-[12px] font-semibold text-tenue transition-colors hover:text-testo"
+          className="w-full rounded-lg vetro orlo py-2.5 text-[13px] font-semibold text-tenue transition-colors hover:text-testo"
         >
           Guarda l’app con dati di esempio
         </button>
@@ -112,7 +112,7 @@ export function Accesso({ onEntrato, onCampione }) {
 
       <div className="my-5 flex items-center gap-3">
         <span className="h-px flex-1 bg-bordo/12" />
-        <span className="text-[11px] font-bold uppercase tracking-etichetta text-tenue">oppure</span>
+        <span className="text-[12px] font-bold uppercase tracking-etichetta text-tenue">oppure</span>
         <span className="h-px flex-1 bg-bordo/12" />
       </div>
 
@@ -138,7 +138,7 @@ function Ingresso({ titolo, nota, tono, onClick }) {
       <span className={cx('h-10 w-1 shrink-0 rounded-full bg-gradient-to-b', tono)} />
       <span className="min-w-0 flex-1">
         <span className="block text-[14px] font-semibold leading-tight">{titolo}</span>
-        <span className="mt-1 block text-[11.5px] leading-snug text-tenue">{nota}</span>
+        <span className="mt-1 block text-[12.5px] leading-snug text-tenue">{nota}</span>
       </span>
       <Chevron dim={16} className="shrink-0 text-tenue" />
     </button>
@@ -203,7 +203,7 @@ function Accedi({ onEntrato, onIndietro, onRecupero }) {
               <button
                 type="button"
                 onClick={() => setMostra(m => !m)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2.5 py-1.5 text-[11.5px] font-semibold text-tenue hover:text-testo"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold text-tenue hover:text-testo"
               >
                 {mostra ? 'Nascondi' : 'Mostra'}
               </button>
@@ -224,7 +224,7 @@ function Accedi({ onEntrato, onIndietro, onRecupero }) {
 
         <button
           onClick={onRecupero}
-          className="mt-3 w-full py-1 text-[12px] text-tenue transition-colors hover:text-testo"
+          className="mt-3 w-full py-1 text-[13px] text-tenue transition-colors hover:text-testo"
         >
           Ho dimenticato la password
         </button>
@@ -389,7 +389,7 @@ function Entra({ onEntrato, onIndietro, onConferma, onAttivazione }) {
           <div key={t} className="flex-1">
             <div className={cx('h-1 rounded-full transition-colors',
               passo > i ? 'bg-gradient-to-r from-blu to-blu2' : 'bg-pannello/16')} />
-            <div className={cx('mt-1.5 text-[10px] font-bold uppercase tracking-etichetta',
+            <div className={cx('mt-1.5 text-[11px] font-bold uppercase tracking-etichetta',
               passo > i ? 'text-soffuso' : 'text-tenue')}>
               {i + 1} · {t}
             </div>
@@ -441,13 +441,13 @@ function Entra({ onEntrato, onIndietro, onConferma, onAttivazione }) {
             </span>
             <div className="min-w-0 flex-1">
               <div className="truncate text-[14px] font-bold leading-tight">{societa.name}</div>
-              <div className="truncate text-[11.5px] text-tenue">
+              <div className="truncate text-[12.5px] text-tenue">
                 {[societa.city, sport && sport.label].filter(Boolean).join(' · ')}
               </div>
             </div>
             <button
               onClick={() => { setPasso(1); setErrore(''); }}
-              className="shrink-0 rounded-lg px-2.5 py-1.5 text-[11.5px] font-semibold text-tenue hover:text-testo"
+              className="shrink-0 rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold text-tenue hover:text-testo"
             >
               Cambia
             </button>
@@ -462,10 +462,10 @@ function Entra({ onEntrato, onIndietro, onConferma, onAttivazione }) {
                 <Etichetta>Entrerai come</Etichetta>
                 <div className="mt-1.5 text-[14px] font-bold">{ROLES[invito.role] || invito.role}</div>
                 {invito.player_name && (
-                  <div className="mt-1 text-[12px] text-tenue">collegato a {invito.player_name}</div>
+                  <div className="mt-1 text-[13px] text-tenue">collegato a {invito.player_name}</div>
                 )}
                 {(invito.sector_names || []).length > 0 && (
-                  <div className="mt-1 text-[12px] text-tenue">
+                  <div className="mt-1 text-[13px] text-tenue">
                     categorie: {invito.sector_names.join(', ')}
                   </div>
                 )}
@@ -477,7 +477,7 @@ function Entra({ onEntrato, onIndietro, onConferma, onAttivazione }) {
                     {SELF_SIGNUP_ROLES.map(r => <option key={r} value={r}>{ROLES[r]}</option>)}
                   </Scelta>
                 </Campo>
-                <p className="mt-1.5 text-[11.5px] leading-snug text-tenue">
+                <p className="mt-1.5 text-[12.5px] leading-snug text-tenue">
                   Ruolo e categorie li sistema poi un amministratore: quello che scegli qui
                   non dà nessun potere da solo.
                 </p>
@@ -503,7 +503,7 @@ function Entra({ onEntrato, onIndietro, onConferma, onAttivazione }) {
                   <button
                     type="button"
                     onClick={() => setMostra(m => !m)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2.5 py-1.5 text-[11.5px] font-semibold text-tenue hover:text-testo"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold text-tenue hover:text-testo"
                   >
                     {mostra ? 'Nascondi' : 'Mostra'}
                   </button>
@@ -516,7 +516,7 @@ function Entra({ onEntrato, onIndietro, onConferma, onAttivazione }) {
                 checked={privacy}
                 onChange={e => setPrivacy(e.target.checked)}
                 etichetta={
-                  <span className="text-[12px] leading-snug">
+                  <span className="text-[13px] leading-snug">
                     Ho letto l’informativa sul trattamento dei dati e acconsento. Se l’atleta è
                     minorenne, dichiaro di esserne il genitore o il tutore.
                   </span>
@@ -580,7 +580,7 @@ function Crea({ codice, onEntrato, onIndietro, onConferma }) {
                   )}
                 >
                   <div className="text-[13.5px] font-semibold leading-tight">{s.label}</div>
-                  <div className="mt-1 text-[11.5px] leading-snug text-tenue">{s.description}</div>
+                  <div className="mt-1 text-[12.5px] leading-snug text-tenue">{s.description}</div>
                 </button>
               ))}
             </div>
@@ -616,7 +616,7 @@ function Crea({ codice, onEntrato, onIndietro, onConferma }) {
               <button
                 type="button"
                 onClick={() => setMostra(m => !m)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2.5 py-1.5 text-[11.5px] font-semibold text-tenue hover:text-testo"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold text-tenue hover:text-testo"
               >
                 {mostra ? 'Nascondi' : 'Mostra'}
               </button>
@@ -629,7 +629,7 @@ function Crea({ codice, onEntrato, onIndietro, onConferma }) {
             checked={privacy}
             onChange={e => setPrivacy(e.target.checked)}
             etichetta={
-              <span className="text-[12px] leading-snug">
+              <span className="text-[13px] leading-snug">
                 Ho letto l’informativa sul trattamento dei dati e acconsento, anche come
                 titolare del trattamento per la mia società.
               </span>
@@ -695,7 +695,7 @@ function ConfermaEmail({ email, onAccedi }) {
         {/* Il consiglio che evita il problema più frequente: aprendo il link
             altrove, l'azione in sospeso resta sul dispositivo di partenza e il
             codice viene richiesto una seconda volta. */}
-        <p className="mt-3 rounded-lg bg-pannello/8 px-3.5 py-3 text-[12px] leading-relaxed text-tenue">
+        <p className="mt-3 rounded-lg bg-pannello/8 px-3.5 py-3 text-[13px] leading-relaxed text-tenue">
           Se non lo trovi, guarda nella posta indesiderata. Conviene aprirlo{' '}
           <b className="text-soffuso">sullo stesso dispositivo</b> da cui ti sei registrato:
           altrove ti verrà richiesto il codice una seconda volta.
@@ -873,7 +873,7 @@ export function CompletaIscrizione({ email, erroreIniziale, onFatto }) {
 
         <button
           onClick={async () => { await logout(); window.location.reload(); }}
-          className="mt-3 w-full py-1 text-[12px] text-tenue transition-colors hover:text-testo"
+          className="mt-3 w-full py-1 text-[13px] text-tenue transition-colors hover:text-testo"
         >
           Esci e usa un altro account
         </button>

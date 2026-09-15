@@ -114,7 +114,7 @@ export function ChiusuraStagione({ stagione, onChiudi, onFatta }) {
             </div>
           )}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="text-[12px] text-tenue">
+            <span className="text-[13px] text-tenue">
               <b className="text-testo">{passano}</b> passano · <b className="text-testo">{restano}</b> restano fuori
             </span>
             <div className="flex gap-2">
@@ -149,7 +149,7 @@ export function ChiusuraStagione({ stagione, onChiudi, onFatta }) {
                   settori.forEach((s, i) => (rose[i] || []).forEach(p => { t[p.id] = s.id; }));
                   setScelte(t);
                 }}
-                className="rounded-lg px-2.5 py-1 text-[11.5px] font-semibold text-tenue hover:text-testo"
+                className="rounded-lg px-2.5 py-1 text-[12.5px] font-semibold text-tenue hover:text-testo"
               >
                 Tutti nella stessa
               </button>
@@ -159,7 +159,7 @@ export function ChiusuraStagione({ stagione, onChiudi, onFatta }) {
                   Object.keys(scelte).forEach(id => { t[id] = FUORI; });
                   setScelte(t);
                 }}
-                className="rounded-lg px-2.5 py-1 text-[11.5px] font-semibold text-tenue hover:text-testo"
+                className="rounded-lg px-2.5 py-1 text-[12.5px] font-semibold text-tenue hover:text-testo"
               >
                 Nessuno
               </button>
@@ -183,7 +183,7 @@ export function ChiusuraStagione({ stagione, onChiudi, onFatta }) {
                 <div key={s.id}>
                   <div className="mb-2 flex items-baseline justify-between gap-3">
                     <span className="text-[12.5px] font-semibold">{sectorFullName(s, state.sectors)}</span>
-                    <span className="text-[11.5px] text-tenue">{rosa.length}</span>
+                    <span className="text-[12.5px] text-tenue">{rosa.length}</span>
                   </div>
                   <Pannello className="overflow-hidden">
                     {rosa.map((p, j) => {
@@ -204,7 +204,7 @@ export function ChiusuraStagione({ stagione, onChiudi, onFatta }) {
                           <Scelta
                             value={dove}
                             onChange={e => setScelte(v => ({ ...v, [p.id]: e.target.value }))}
-                            className="w-auto shrink-0 py-1.5 text-[12px]"
+                            className="w-auto shrink-0 py-1.5 text-[13px]"
                           >
                             {settori.map(d => (
                               <option key={d.id} value={d.id}>{sectorFullName(d, state.sectors)}</option>
@@ -221,7 +221,7 @@ export function ChiusuraStagione({ stagione, onChiudi, onFatta }) {
           </div>
         )}
 
-        <p className="mt-3 text-[11.5px] leading-relaxed text-tenue">
+        <p className="mt-3 text-[12.5px] leading-relaxed text-tenue">
           La destinazione proposta è la stessa categoria, non quella successiva: nessuno sa in
           anticipo chi sale, e indovinare in massa costerebbe più tempo di quanto ne farebbe
           risparmiare. Chi non prosegue resta in anagrafica, nello storico delle partite e nelle

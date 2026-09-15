@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { state } from '../state.js';
+import { Croce } from './icone.jsx';
 import { removePlayerFromSector, fetchPlayerPhotoUrls } from '../api/roster.js';
 import { canEditRoster, managesSector } from '../utils/permissions.js';
 import { computeSeasonStats, findSeasonRow } from '../utils/stats.js';
 import { currentSport } from '../utils/sports/index.js';
 import { inCampione } from './campione.js';
-import { Pannello, Etichetta, Titolo, Vuoto, Scheletro, Avatar, cx } from './ui.jsx';
+import { Pannello, Etichetta, Titolo, Vuoto, Scheletro, Avatar, cx, AzioneRiga } from './ui.jsx';
 import { Conferma, useAvviso } from './moduli.jsx';
 import { SchedaAtleta } from './SchedaAtleta.jsx';
 
@@ -295,7 +296,7 @@ export function Rosa() {
           <Pannello alto className="overflow-hidden">
             <div className="flex items-center justify-between gap-3 border-b border-bordo/10 px-5 py-3">
               <Etichetta>{sport.field.onFieldLabel}</Etichetta>
-              <span className="text-[11.5px] text-tenue">{inCampoP.length} di {inCampo}</span>
+              <span className="text-[12.5px] text-tenue">{inCampoP.length} di {inCampo}</span>
             </div>
 
             {/* Il campo tiene sempre le sue proporzioni vere; a limitarlo e'
@@ -335,7 +336,7 @@ export function Rosa() {
           <div>
             <div className="mb-2.5 flex items-center justify-between gap-3">
               <Etichetta>{sport.field.benchLabel}</Etichetta>
-              <span className="text-[11.5px] text-tenue">{inPanca.length}</span>
+              <span className="text-[12.5px] text-tenue">{inPanca.length}</span>
             </div>
             {inPanca.length === 0 ? (
               <Vuoto>Nessun giocatore in panchina.</Vuoto>
@@ -361,7 +362,7 @@ export function Rosa() {
                 </div>
               </Pannello>
             )}
-            <p className="mt-2.5 text-[11.5px] leading-relaxed text-tenue">
+            <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
               Trascina un giocatore su un altro per scambiarli. Oppure tocca <b className="text-soffuso">⇄</b> su
               uno e poi <b className="text-soffuso">⇄</b> sull’altro. Tocca il volto per le sue statistiche.
               {rosa.length < inCampo && ` Servono almeno ${inCampo} giocatori per comporre la formazione.`}
@@ -384,21 +385,17 @@ export function Rosa() {
                   <Avatar nome={p.name} url={foto[p.id]} dim={36} />
                   <button onClick={() => setScheda(p)} className="min-w-0 flex-1 text-left">
                     <div className="truncate text-[14px] font-semibold leading-tight">{p.name}</div>
-                    {p.role_position && <div className="text-[11.5px] text-tenue">{p.role_position}</div>}
+                    {p.role_position && <div className="text-[12.5px] text-tenue">{p.role_position}</div>}
                   </button>
                   {quintetto.includes(p.id) && (
-                    <span className="shrink-0 rounded-full bg-blu/16 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-etichetta text-blu">
+                    <span className="shrink-0 rounded-full bg-blu/16 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-etichetta text-blu">
                       in campo
                     </span>
                   )}
                   {puoiModificare && (
-                    <button
-                      onClick={() => setDaRimuovere(p)}
-                      title="Togli dalla categoria"
-                      className="shrink-0 rounded-lg px-2 py-2 text-tenue transition-colors hover:bg-rosso/12 hover:text-rosso"
-                    >
-                      ✕
-                    </button>
+                    <AzioneRiga etichetta="Togli" pericolo onClick={() => setDaRimuovere(p)}>
+                      <Croce />
+                    </AzioneRiga>
                   )}
                 </div>
               ))}

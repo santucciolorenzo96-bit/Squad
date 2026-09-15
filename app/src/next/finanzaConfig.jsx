@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
+import { Croce } from './icone.jsx';
 import { createAccount, updateAccount, removeAccount } from '../api/financeAccounts.js';
 import { fetchCategories, createCategory, updateCategory } from '../api/financeCategories.js';
 import { fetchCostCenters, createCostCenter, updateCostCenter } from '../api/financeCostCenters.js';
@@ -8,7 +9,7 @@ import { fetchSponsors, createSponsor } from '../api/financeSponsors.js';
 import { createFiscalYear, closeFiscalYear, reopenFiscalYear } from '../api/financeFiscalYears.js';
 import { canManageFinance } from '../utils/permissions.js';
 import { inCampione } from './campione.js';
-import { Pannello, Etichetta, Pulsante, Vuoto, Scheletro, Stato, cx } from './ui.jsx';
+import { Pannello, Etichetta, Pulsante, Vuoto, Scheletro, Stato, cx, AzioneRiga } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Data, Scelta, useAvviso } from './moduli.jsx';
 import { euro } from './grafici.jsx';
 
@@ -88,9 +89,9 @@ export function Configurazione({ dati, onRicarica }) {
             >
               <div className="min-w-0 flex-1">
                 <div className="text-[14px] font-semibold leading-tight">{s.titolo}</div>
-                <div className="text-[11.5px] text-tenue">{s.nota}</div>
+                <div className="text-[12.5px] text-tenue">{s.nota}</div>
               </div>
-              <span className={cx('shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold',
+              <span className={cx('shrink-0 rounded-full px-2.5 py-1 text-[12.5px] font-bold',
                 s.voci.length === 0 ? 'bg-ambra/16 text-ambra' : 'bg-pannello/12 text-soffuso')}>
                 {s.voci.length}
               </span>
@@ -163,20 +164,20 @@ function Contenuto({ id, voci, saldi, puoiGestire, onRicarica, onExtra, avvisa }
                 </span>
               )}
               {id === 'categorie' && (
-                <span className={cx('shrink-0 text-[11px] font-bold uppercase tracking-etichetta',
+                <span className={cx('shrink-0 text-[12px] font-bold uppercase tracking-etichetta',
                   v.kind === 'income' ? 'text-verde' : 'text-rosso')}>
                   {v.kind === 'income' ? 'entrata' : 'uscita'}
                 </span>
               )}
               {id === 'esercizi' && (
                 <>
-                  <span className="shrink-0 text-[11.5px] text-tenue">
+                  <span className="shrink-0 text-[12.5px] text-tenue">
                     {fmtData(v.start_date)} → {fmtData(v.end_date)}
                   </span>
                   <Stato tono={v.closed ? 'neutro' : 'buono'}>{v.closed ? 'Chiuso' : 'Aperto'}</Stato>
                   {puoiGestire && (
                     <Pulsante
-                      className="shrink-0 py-1 text-[11px]"
+                      className="shrink-0 py-1 text-[12px]"
                       onClick={async () => {
                         try {
                           if (v.closed) await reopenFiscalYear(v.id);
@@ -195,13 +196,9 @@ function Contenuto({ id, voci, saldi, puoiGestire, onRicarica, onExtra, avvisa }
               )}
 
               {id === 'conti' && puoiGestire && (
-                <button
-                  onClick={() => setDaRimuovere(v)}
-                  title="Elimina"
-                  className="shrink-0 rounded-lg px-2 py-1 text-tenue hover:bg-rosso/12 hover:text-rosso"
-                >
-                  ✕
-                </button>
+                <AzioneRiga etichetta="Elimina" pericolo onClick={() => setDaRimuovere(v)}>
+                  <Croce />
+                </AzioneRiga>
               )}
             </div>
           ))}
@@ -210,7 +207,7 @@ function Contenuto({ id, voci, saldi, puoiGestire, onRicarica, onExtra, avvisa }
 
       {puoiGestire && (
         <div className="mt-3 flex justify-end">
-          <Pulsante variante="primario" className="py-1.5 text-[11.5px]" onClick={() => setModulo(true)}>
+          <Pulsante variante="primario" className="py-1.5 text-[12.5px]" onClick={() => setModulo(true)}>
             + Aggiungi
           </Pulsante>
         </div>

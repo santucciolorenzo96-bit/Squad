@@ -85,11 +85,11 @@ export function ScegliCentro({ file, url, iniziale, tondo = true, onChiudi, onCo
                       backgroundPosition: `${punto.x}% ${punto.y}%`
                     }}
                   />
-                  <span className="mt-1.5 block text-[10px] text-tenue">{d}px</span>
+                  <span className="mt-1.5 block text-[11px] text-tenue">{d}px</span>
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-[11.5px] leading-relaxed text-tenue">
+            <p className="mt-3 text-[12.5px] leading-relaxed text-tenue">
               Le tre misure sono quelle in cui compare davvero: nella scheda, negli elenchi e
               nella testata. Se il viso sta dentro tutte e tre, va bene.
             </p>

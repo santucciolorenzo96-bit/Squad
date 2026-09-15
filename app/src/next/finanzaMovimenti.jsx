@@ -4,10 +4,10 @@ import { createEntry, cancelEntry } from '../api/financeEntries.js';
 import { createPayment } from '../api/financePayments.js';
 import { canManageFinance } from '../utils/permissions.js';
 import { inCampione } from './campione.js';
-import { Pannello, Etichetta, Pulsante, Vuoto, Stato, cx } from './ui.jsx';
+import { Pannello, Etichetta, Pulsante, Vuoto, Stato, cx, AzioneRiga } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Data, Scelta, Interruttore, useAvviso } from './moduli.jsx';
 import { euro, euroPreciso, Avanzamento } from './grafici.jsx';
-import { Chevron } from './icone.jsx';
+import { Chevron, Croce } from './icone.jsx';
 
 /* Movimenti.
  *
@@ -217,7 +217,7 @@ function RigaMovimento({ e, primo, mostraScadenza, puoiGestire, onPaga, onAnnull
 
         <div className="min-w-0 flex-1">
           <div className="truncate text-[13.5px] font-semibold leading-tight">{e.description}</div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2.5 text-[11.5px] text-tenue">
+          <div className="mt-1 flex flex-wrap items-center gap-x-2.5 text-[12.5px] text-tenue">
             <span>{(e.finance_categories && e.finance_categories.name) || 'Senza categoria'}</span>
             {e.party_name && <span className="truncate">{e.party_name}</span>}
             {mostraScadenza && e.due_date && (
@@ -234,7 +234,7 @@ function RigaMovimento({ e, primo, mostraScadenza, puoiGestire, onPaga, onAnnull
         <div className="shrink-0 text-right">
           <div className="text-[15px] font-bold leading-none">{euro(totale)}</div>
           {!annullato && pagato > 0 && pagato < totale && (
-            <div className="mt-1 text-[11px] text-tenue">{euro(pagato)} su {euro(totale)}</div>
+            <div className="mt-1 text-[12px] text-tenue">{euro(pagato)} su {euro(totale)}</div>
           )}
         </div>
       </div>
@@ -249,24 +249,20 @@ function RigaMovimento({ e, primo, mostraScadenza, puoiGestire, onPaga, onAnnull
           />
           <Stato tono={stato.tono}>{stato.label}</Stato>
           {puoiGestire && pagato < totale && onPaga && (
-            <Pulsante className="shrink-0 py-1 text-[11px]" onClick={() => onPaga(e)}>
+            <Pulsante className="shrink-0 py-1 text-[12px]" onClick={() => onPaga(e)}>
               {entrata ? 'Incassa' : 'Paga'}
             </Pulsante>
           )}
           {puoiGestire && onAnnulla && (
-            <button
-              onClick={() => onAnnulla(e)}
-              title="Annulla"
-              className="shrink-0 rounded-lg px-2 py-1.5 text-tenue hover:bg-rosso/12 hover:text-rosso"
-            >
-              ✕
-            </button>
+            <AzioneRiga etichetta="Annulla" pericolo onClick={() => onAnnulla(e)}>
+              <Croce />
+            </AzioneRiga>
           )}
         </div>
       )}
 
       {annullato && e.cancelled_reason && (
-        <p className="mt-2 text-[11.5px] text-tenue">Annullato: {e.cancelled_reason}</p>
+        <p className="mt-2 text-[12.5px] text-tenue">Annullato: {e.cancelled_reason}</p>
       )}
     </div>
   );

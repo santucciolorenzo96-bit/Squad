@@ -158,7 +158,7 @@ function Quadro({ dati, onVista }) {
               previstoIn - previstoOut < 0 ? 'text-rosso' : 'text-verde')}>
               {euro(previstoIn - previstoOut, { segno: true })}
             </div>
-            <p className="mt-1 text-[11px] text-tenue">previsto, non ancora tutto movimentato</p>
+            <p className="mt-1 text-[12px] text-tenue">previsto, non ancora tutto movimentato</p>
           </div>
         </div>
 
@@ -192,24 +192,24 @@ function Quadro({ dati, onVista }) {
         <Pannello className="pad-pannello-stretto">
           <div className="flex items-center justify-between gap-3">
             <Etichetta>Entrate</Etichetta>
-            <span className="text-[11.5px] text-tenue">
+            <span className="text-[12.5px] text-tenue">
               {previstoIn > 0 ? Math.round(incassato / previstoIn * 100) : 0}% incassato
             </span>
           </div>
           <div className="mt-2.5 text-[26px] font-bold leading-none text-verde">{euro(incassato)}</div>
-          <p className="mt-1 text-[11.5px] text-tenue">su {euro(previstoIn)} previsti</p>
+          <p className="mt-1 text-[12.5px] text-tenue">su {euro(previstoIn)} previsti</p>
           <Avanzamento fatto={incassato} totale={previstoIn} tono="verde" className="mt-3" />
         </Pannello>
 
         <Pannello className="pad-pannello-stretto">
           <div className="flex items-center justify-between gap-3">
             <Etichetta>Uscite</Etichetta>
-            <span className="text-[11.5px] text-tenue">
+            <span className="text-[12.5px] text-tenue">
               {previstoOut > 0 ? Math.round(pagato / previstoOut * 100) : 0}% pagato
             </span>
           </div>
           <div className="mt-2.5 text-[26px] font-bold leading-none">{euro(pagato)}</div>
-          <p className="mt-1 text-[11.5px] text-tenue">su {euro(previstoOut)} previsti</p>
+          <p className="mt-1 text-[12.5px] text-tenue">su {euro(previstoOut)} previsti</p>
           <Avanzamento fatto={pagato} totale={previstoOut} tono="rosso" className="mt-3" />
         </Pannello>
       </div>
@@ -246,7 +246,7 @@ function Quadro({ dati, onVista }) {
             <Etichetta>Dodici mesi · entrate sopra, uscite sotto</Etichetta>
           </div>
           <ColonneAffrontate mesi={mesi} className="mt-4" />
-          <p className="mt-3 text-[11.5px] leading-relaxed text-tenue">
+          <p className="mt-3 text-[12.5px] leading-relaxed text-tenue">
             Per data di competenza, non di pagamento: dice in quali mesi la società impegna
             e incassa, che è la domanda a cui serve rispondere prima di firmare una spesa.
             Le due metà condividono la scala, quindi le altezze si confrontano davvero.
@@ -264,7 +264,7 @@ function Quadro({ dati, onVista }) {
               centro={
                 <div>
                   <div className="text-[16px] font-bold leading-none">{euro(previstoOut)}</div>
-                  <div className="mt-1 text-[9px] font-bold uppercase tracking-etichetta text-tenue">totale</div>
+                  <div className="mt-1 text-[10px] font-bold uppercase tracking-etichetta text-tenue">totale</div>
                 </div>
               }
             />
@@ -274,7 +274,7 @@ function Quadro({ dati, onVista }) {
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: f.colore }} />
                   <span className="min-w-0 flex-1 truncate text-[12.5px]">{f.nome}</span>
                   <span className="shrink-0 text-[12.5px] font-semibold">{euro(f.valore)}</span>
-                  <span className="w-10 shrink-0 text-right text-[11px] text-tenue">
+                  <span className="w-10 shrink-0 text-right text-[12px] text-tenue">
                     {previstoOut > 0 ? Math.round(f.valore / previstoOut * 100) : 0}%
                   </span>
                 </div>
@@ -294,7 +294,7 @@ function Aperte({ titolo, voci, scadute, totale, scaduto, tono, onApri }) {
     <Pannello className="pad-pannello-stretto">
       <div className="flex items-center justify-between gap-3">
         <Etichetta>{titolo}</Etichetta>
-        <span className="text-[11.5px] text-tenue">{voci.length} {voci.length === 1 ? 'voce' : 'voci'}</span>
+        <span className="text-[12.5px] text-tenue">{voci.length} {voci.length === 1 ? 'voce' : 'voci'}</span>
       </div>
       <div className="mt-2.5 text-[26px] font-bold leading-none">{euro(totale)}</div>
 
@@ -307,7 +307,7 @@ function Aperte({ titolo, voci, scadute, totale, scaduto, tono, onApri }) {
           { nome: 'In arrivo', valore: inArrivo, classe: tono === 'verde' ? 'bg-verde' : 'bg-ambra' }
         ]}
       />
-      <div className="mt-2.5 flex items-center gap-4 text-[11.5px]">
+      <div className="mt-2.5 flex items-center gap-4 text-[12.5px]">
         {scaduto > 0 && (
           <span><b className="text-rosso">{euro(scaduto)}</b> <span className="text-tenue">scaduto</span></span>
         )}

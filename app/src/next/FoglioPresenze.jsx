@@ -135,7 +135,7 @@ export function FoglioPresenze({ allenamento, onChiudi }) {
             {mancanti > 0 && (
               <button
                 onClick={tuttiPresenti}
-                className="shrink-0 rounded-lg bg-verde/14 px-3 py-1.5 text-[11.5px] font-bold text-verde ring-1 ring-verde/30 transition-all hover:bg-verde/22 active:scale-95"
+                className="shrink-0 rounded-lg bg-verde/14 px-3 py-1.5 text-[12.5px] font-bold text-verde ring-1 ring-verde/30 transition-all hover:bg-verde/22 active:scale-95"
               >
                 {mancanti === rosa.length ? 'Tutti presenti' : 'I restanti presenti'}
               </button>
@@ -169,7 +169,7 @@ export function FoglioPresenze({ allenamento, onChiudi }) {
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[13.5px] font-semibold leading-tight">{p.name}</div>
                       {p.number != null && String(p.number).trim() !== '' && (
-                        <div className="text-[11px] text-tenue">#{p.number}</div>
+                        <div className="text-[12px] text-tenue">#{p.number}</div>
                       )}
                     </div>
 
@@ -184,7 +184,7 @@ export function FoglioPresenze({ allenamento, onChiudi }) {
                           aria-pressed={suo === s.key}
                           title={s.label}
                           className={cx(
-                            'min-w-[2.1rem] rounded-lg px-2 py-1.5 text-[11.5px] font-bold ring-1 transition-all active:scale-95 sm:min-w-0 sm:px-3',
+                            'min-w-[2.1rem] rounded-lg px-2 py-1.5 text-[12.5px] font-bold ring-1 transition-all active:scale-95 sm:min-w-0 sm:px-3',
                             suo === s.key
                               ? s.on
                               : 'bg-pannello/8 text-tenue ring-transparent hover:text-soffuso'
@@ -201,7 +201,7 @@ export function FoglioPresenze({ allenamento, onChiudi }) {
             </div>
           )}
 
-          <p className="mt-3.5 text-[11.5px] leading-relaxed text-tenue">
+          <p className="mt-3.5 text-[12.5px] leading-relaxed text-tenue">
             Ogni tocco si salva da solo. Le presenze di tutta la stagione si leggono
             in Allenamenti · Presenze.
           </p>

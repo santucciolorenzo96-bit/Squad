@@ -26,7 +26,9 @@
 
   --testo: 233 239 255;
   --soffuso: 154 170 205;
-  --tenue: 108 124 158;
+  /* 5.2:1 sul fondo. Era 4.52, appena sopra il minimo: appena sopra il minimo
+     vuol dire che a quarantacinque anni non si legge piu'. */
+  --tenue: 117 135 171;
 
   --blu: 56 124 255;
   --blu2: 108 92 255;
@@ -61,7 +63,11 @@
 
   --testo: 15 23 42;
   --soffuso: 82 98 130;
-  --tenue: 128 143 173;
+  /* Era 128 143 173: 2.93:1 sul fondo chiaro, cioe' SOTTO il minimo di legge
+     per il testo normale (4.5) e sotto persino la soglia del testo grande (3).
+     Ed e' la tinta delle date, degli orari e dei numeri di telefono — la riga
+     che serve davvero a chi gestisce. Adesso 4.56:1. */
+  --tenue: 99 111 134;
 
   --blu: 37 99 235;
   --blu2: 99 78 235;
@@ -93,7 +99,7 @@
     --bordo: 12 22 48;
     --testo: 15 23 42;
     --soffuso: 82 98 130;
-    --tenue: 128 143 173;
+    --tenue: 99 111 134;
     --blu: 37 99 235;
     --blu2: 99 78 235;
     --rosa: 226 45 112;
@@ -211,8 +217,11 @@
     }
   }
 
+  /* Undici e non dieci: e' l'etichetta che sta sopra ogni sezione e ogni
+     riquadro, quindi e' il testo piccolo piu' ripetuto dell'app. Un punto in
+     piu' qui si sente ovunque. */
   .etichetta {
-    @apply text-[10px] font-bold uppercase tracking-etichetta text-tenue;
+    @apply text-[11px] font-bold uppercase tracking-etichetta text-tenue;
   }
 
   /* ======================== Spaziature ========================
@@ -269,6 +278,25 @@
       repeating-linear-gradient(90deg,
         rgb(255 255 255 / var(--op-vena)) 0 1px, transparent 1px 6px),
       linear-gradient(160deg, rgb(var(--legno2)), rgb(var(--legno)));
+  }
+
+  /* ==================== Il bersaglio piu' grande del disegno ====================
+
+     Una matita larga ventotto pixel e' un disegno giusto e un bersaglio
+     sbagliato: la raccomandazione e' quarantaquattro, ed e' una misura che
+     viene dal polpastrello, non dal gusto. Ma ingrandire il disegno fino a
+     quarantaquattro riempirebbe la riga di pulsanti grossi.
+
+     Allora si separano le due cose: il disegno resta quello, il bersaglio si
+     allarga di quattro pixel per lato con uno pseudo-elemento invisibile.
+     Quattro e non otto, perche' due bersagli affiancati non devono
+     sovrapporsi: quando quello che cancella si prende un pezzo di quello che
+     modifica, l'errore non e' recuperabile. */
+  .tocco { position: relative; }
+  .tocco::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
   }
 
   /* ============ La superficie viva: i pulsanti nella lingua delle icone ============

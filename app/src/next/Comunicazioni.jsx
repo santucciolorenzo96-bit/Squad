@@ -132,7 +132,7 @@ function VistaFamiglia() {
                   </div>
                 )}
                 {c.requires_response && c.respond_by && r.status === 'pending' && !passata && (
-                  <p className="mt-2 text-[11.5px] text-ambra">
+                  <p className="mt-2 text-[12.5px] text-ambra">
                     Rispondi entro il {new Date(c.respond_by + 'T00:00:00').toLocaleDateString('it-IT')}
                   </p>
                 )}
@@ -223,7 +223,7 @@ function VistaStaff() {
                       <b className={attesa && !passata ? 'text-ambra' : 'text-tenue'}>{attesa}</b>{' '}
                       <span className="text-tenue">in attesa</span>
                     </span>
-                    <span className="ml-auto text-[11.5px] text-tenue">dettaglio ›</span>
+                    <span className="ml-auto text-[12.5px] text-tenue">dettaglio ›</span>
                   </button>
                 )}
 
@@ -232,7 +232,7 @@ function VistaStaff() {
                     {!c.closed_at && (
                       <Pulsante
                         variante="nudo"
-                        className="py-1.5 text-[11.5px]"
+                        className="py-1.5 text-[12.5px]"
                         onClick={async () => {
                           try {
                             await closeCommunication(c.id);
@@ -247,7 +247,7 @@ function VistaStaff() {
                         Chiudi
                       </Pulsante>
                     )}
-                    <Pulsante variante="nudo" className="py-1.5 text-[11.5px]" onClick={() => setDaRimuovere(c)}>
+                    <Pulsante variante="nudo" className="py-1.5 text-[12.5px]" onClick={() => setDaRimuovere(c)}>
                       Elimina
                     </Pulsante>
                   </div>
@@ -315,7 +315,7 @@ function DettaglioRisposte({ c, onChiudi }) {
               <Avatar nome={p ? p.name : '?'} dim={30} />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[13.5px] font-semibold">{p ? p.name : 'Giocatore rimosso'}</div>
-                {d.note && <div className="text-[11.5px] text-tenue">{d.note}</div>}
+                {d.note && <div className="text-[12.5px] text-tenue">{d.note}</div>}
               </div>
               <Stato tono={(RISPOSTE[d.status] || RISPOSTE.pending).tono}>
                 {(RISPOSTE[d.status] || RISPOSTE.pending).label}
@@ -450,7 +450,7 @@ function ModuloComunicazione({ onChiudi, onFatto }) {
         <div className="mb-2 flex justify-end">
           <Pulsante
             variante="nudo"
-            className="py-1 text-[11.5px]"
+            className="py-1 text-[12.5px]"
             onClick={() => setScelti(s => (s.length === state.roster.length ? [] : state.roster.map(p => p.id)))}
           >
             {scelti.length === state.roster.length ? 'Nessuno' : 'Tutti'}

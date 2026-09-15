@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { state } from '../state.js';
+import { Matita, Croce } from './icone.jsx';
 import { updateCalendarMatch, removeCalendarMatch } from '../api/calendar.js';
 import { canEditHome, managesSector } from '../utils/permissions.js';
-import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Stato, cx } from './ui.jsx';
+import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Stato, cx, AzioneRiga } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Data, Scelta, Interruttore, useAvviso } from './moduli.jsx';
 
 /* Il calendario.
@@ -80,7 +81,7 @@ export function Calendario() {
                 <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg vetro orlo">
                   {m.giornata ? (
                     <div className="text-center leading-none">
-                      <div className="text-[9px] font-bold uppercase tracking-etichetta text-tenue">gg</div>
+                      <div className="text-[10px] font-bold uppercase tracking-etichetta text-tenue">gg</div>
                       <div className="mt-1 text-[16px] font-bold">{m.giornata}</div>
                     </div>
                   ) : (
@@ -91,14 +92,14 @@ export function Calendario() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className={cx(
-                      'shrink-0 rounded-full px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-etichetta',
+                      'shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-etichetta',
                       m.home === false ? 'bg-pannello/12 text-tenue' : 'bg-blu/16 text-blu'
                     )}>
                       {m.home === false ? 'fuori' : 'casa'}
                     </span>
                     <span className="truncate text-[14.5px] font-semibold leading-tight">{m.opponent}</span>
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-2.5 text-[12px] text-tenue">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2.5 text-[13px] text-tenue">
                     <span>{fmtData(m.date)}</span>
                     {m.time && <span>{m.time}</span>}
                     {m.location && <span className="truncate">{m.location}</span>}
@@ -115,27 +116,20 @@ export function Calendario() {
                     {m.team_score ?? '?'}<span className="mx-1 text-tenue">–</span>{m.opp_score ?? '?'}
                   </div>
                 ) : puoiModificare ? (
-                  <Pulsante onClick={() => setRisultato(m)} className="shrink-0 py-1.5 text-[11.5px]">
+                  <Pulsante onClick={() => setRisultato(m)} className="shrink-0 py-1.5 text-[12.5px]">
                     Segna
                   </Pulsante>
                 ) : null}
 
                 {puoiModificare && (
                   <div className="flex shrink-0 items-center gap-1">
-                    <button
-                      onClick={() => setModulo(m)}
-                      title="Modifica"
-                      className="rounded-lg px-2.5 py-2 text-tenue transition-colors hover:bg-pannello/12 hover:text-testo"
-                    >
-                      ✎
-                    </button>
-                    <button
-                      onClick={() => setDaRimuovere(m)}
-                      title="Rimuovi"
-                      className="rounded-lg px-2.5 py-2 text-tenue transition-colors hover:bg-rosso/12 hover:text-rosso"
-                    >
-                      ✕
-                    </button>
+                    <AzioneRiga etichetta="Modifica" onClick={() => setModulo(m)}>
+                      <Matita />
+                    </AzioneRiga>
+                    <span className="mx-1 h-5 w-px shrink-0 bg-bordo/12" aria-hidden="true" />
+                    <AzioneRiga etichetta="Elimina" pericolo onClick={() => setDaRimuovere(m)}>
+                      <Croce />
+                    </AzioneRiga>
                   </div>
                 )}
               </Pannello>

@@ -130,13 +130,13 @@ export function AvvioPartita({ onAvviata }) {
                 )}
               >
                 <span className={cx(
-                  'shrink-0 rounded-full px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-etichetta',
+                  'shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-etichetta',
                   m.home === false ? 'bg-pannello/14 text-tenue' : 'bg-blu/16 text-blu'
                 )}>
                   {m.home === false ? 'fuori' : 'casa'}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{m.opponent}</span>
-                <span className="shrink-0 text-[12px] text-tenue">
+                <span className="shrink-0 text-[13px] text-tenue">
                   {m.date === oggi ? 'oggi' : 'domani'}{m.time ? ' · ' + m.time : ''}
                 </span>
               </button>
@@ -166,7 +166,7 @@ export function AvvioPartita({ onAvviata }) {
         )}
 
         {scelta && (
-          <p className="mt-3 text-[11.5px] leading-relaxed text-tenue">
+          <p className="mt-3 text-[12.5px] leading-relaxed text-tenue">
             A fine partita il risultato torna da solo su questa riga di calendario e in classifica:
             non va riscritto a mano.
           </p>
@@ -197,7 +197,7 @@ export function AvvioPartita({ onAvviata }) {
             </button>
           ))}
         </div>
-        <p className="mt-3 text-[11.5px] leading-relaxed text-tenue">
+        <p className="mt-3 text-[12.5px] leading-relaxed text-tenue">
           {amichevole
             ? 'Resta nello storico e nel tabellino, ma segnata come amichevole: il risultato non va in classifica.'
             : 'Vale per il campionato: a fine partita il risultato conta nel bilancio della stagione.'}
@@ -227,7 +227,7 @@ export function AvvioPartita({ onAvviata }) {
               </button>
             ))}
           </div>
-          <p className="mt-3 text-[11.5px] leading-relaxed text-tenue">
+          <p className="mt-3 text-[12.5px] leading-relaxed text-tenue">
             Niente cronometro: si ferma troppo spesso perché inseguirlo valga la pena, e i minuti
             in campo si contano male più che non contarli.
             {conf.period.allowExtra && ' I supplementari si aggiungono in corsa, quando servono.'}

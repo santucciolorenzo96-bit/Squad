@@ -71,7 +71,9 @@ export const TABS = [
   { id: 'classifica', label: 'Classifica', group: 'settore', roles: [...MANAGER_ROLES, 'segnapunti', ...LINKED_ROLES] },
   { id: 'statistiche', label: 'Statistiche', group: 'settore', roles: [...ROSTER_ROLES, 'segnapunti'] },
   { id: 'calendario', label: 'Calendario', group: 'settore', roles: [...MANAGER_ROLES, ...LINKED_ROLES], primary: true },
-  { id: 'situazione', label: 'Situazione', group: 'societa', roles: MANAGER_ROLES },
+  // «Gestione» e non «Situazione»: la vecchia parola non diceva cosa ci trovi
+  // dentro. Qui c'e' l'elenco di quello che manca e di chi va sistemato.
+  { id: 'situazione', label: 'Gestione', group: 'societa', roles: MANAGER_ROLES },
   { id: 'documenti', label: 'Documenti', group: 'societa', roles: MANAGER_ROLES },
   { id: 'utenti', label: 'Utenti', group: 'societa', roles: ADMIN_ROLES },
   // «Impostazioni» e non «Squadra»: dentro ci sono identita' della societa',

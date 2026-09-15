@@ -44,14 +44,14 @@ function PartitaInCorso({ sport, onRientra }) {
               <div className="truncate text-[15px] font-bold">
                 {(state.teamProfile || {}).name} – {g.oppName}
               </div>
-              <div className="mt-0.5 text-[11.5px] text-tenue">
+              <div className="mt-0.5 text-[12.5px] text-tenue">
                 {conf.period.label} {g.quarter}{g.friendly ? ' · amichevole' : ''}
               </div>
             </div>
             <div className="shrink-0 text-right">
               <div className="cifra text-[24px] font-bold leading-none">{nostri}–{loro}</div>
               {perSet && (
-                <div className="mt-1 text-[10px] font-bold uppercase tracking-etichetta text-tenue">
+                <div className="mt-1 text-[11px] font-bold uppercase tracking-etichetta text-tenue">
                   set {g.teamScore}–{g.oppScore}
                 </div>
               )}
@@ -60,7 +60,7 @@ function PartitaInCorso({ sport, onRientra }) {
           <Pulsante variante="primario" className="mt-4 w-full" onClick={onRientra}>
             Torna allo scout
           </Pulsante>
-          <p className="mt-3 text-[11.5px] leading-relaxed text-tenue">
+          <p className="mt-3 text-[12.5px] leading-relaxed text-tenue">
             Finché non chiudi la partita dallo scout, il tabellino resta aperto e questa
             categoria non ne può iniziare un’altra.
           </p>
@@ -142,7 +142,7 @@ export function Partita() {
               <b>{recupero.gioco.oppName}</b>, aggiornata {daQuanto(recupero)}
               {recupero.sincronizzata ? '' : ' e non ancora spedita'}.
             </p>
-            <p className="mt-2 text-[11.5px] leading-relaxed text-tenue">
+            <p className="mt-2 text-[12.5px] leading-relaxed text-tenue">
               Puoi continuare a segnare da qui: quando la rete torna, il tabellino riparte da solo.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -189,17 +189,17 @@ export function Partita() {
                     <div className="truncate text-[13px] font-semibold">
                       {(a.sectors && a.sectors.name) || 'Altra categoria'} · {a.opp_name}
                     </div>
-                    <div className="text-[11.5px] text-tenue">
+                    <div className="text-[12.5px] text-tenue">
                       aperta il {new Date(a.started_at).toLocaleDateString('it-IT')}
                     </div>
                   </div>
-                  <Pulsante className="shrink-0 py-1.5 text-[11.5px]" onClick={() => setDaScartare(a)}>
+                  <Pulsante className="shrink-0 py-1.5 text-[12.5px]" onClick={() => setDaScartare(a)}>
                     Scarta
                   </Pulsante>
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-[11.5px] leading-relaxed text-tenue">
+            <p className="mt-3 text-[12.5px] leading-relaxed text-tenue">
               Finché restano aperte, quelle categorie non possono aprire un tabellino nuovo.
               Scartarle cancella il tabellino: se la partita è stata giocata davvero, il
               risultato si scrive dal Calendario.

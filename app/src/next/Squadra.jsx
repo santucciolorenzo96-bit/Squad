@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { state } from '../state.js';
+import { Matita, Croce } from './icone.jsx';
 import { updateTeam, uploadTeamLogo, regenerateInviteCode } from '../api/teams.js';
 import { resizeImageFile, resizeLogoWithTransparency, imageHasAlpha } from '../utils/image.js';
 import { createSector, renameSector, removeSector } from '../api/sectors.js';
@@ -8,7 +9,7 @@ import { orderedSectors, hasChildren } from '../utils/sectors.js';
 import { isAdmin } from '../utils/permissions.js';
 import { SPORT_LIST } from '../utils/sports/index.js';
 import { inCampione } from './campione.js';
-import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, cx } from './ui.jsx';
+import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, cx, AzioneRiga } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Data, Spunta, ErroreCaricamento, useAvviso } from './moduli.jsx';
 import { ChiusuraStagione } from './ChiusuraStagione.jsx';
 import { PannelloCodici, PannelloSocieta } from './Piattaforma.jsx';
@@ -270,28 +271,17 @@ function Categorie({ avvisa }) {
               {s.parent_id && <span className="shrink-0 text-tenue">└</span>}
               <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{s.name}</span>
               {!s.parent_id && (
-                <button
-                  onClick={() => setModulo({ padre: s })}
-                  title="Aggiungi sottocategoria"
-                  className="shrink-0 rounded-lg px-2.5 py-2 text-tenue hover:bg-pannello/12 hover:text-testo"
-                >
-                  +
-                </button>
+                <AzioneRiga etichetta="Sottocategoria" onClick={() => setModulo({ padre: s })}>
+                  <span className="text-[16px] font-bold leading-none">+</span>
+                </AzioneRiga>
               )}
-              <button
-                onClick={() => setModulo({ sector: s })}
-                title="Rinomina"
-                className="shrink-0 rounded-lg px-2.5 py-2 text-tenue hover:bg-pannello/12 hover:text-testo"
-              >
-                ✎
-              </button>
-              <button
-                onClick={() => setDaRimuovere(s)}
-                title="Elimina"
-                className="shrink-0 rounded-lg px-2.5 py-2 text-tenue hover:bg-rosso/12 hover:text-rosso"
-              >
-                ✕
-              </button>
+              <AzioneRiga etichetta="Rinomina" onClick={() => setModulo({ sector: s })}>
+                <Matita />
+              </AzioneRiga>
+              <span className="mx-1 h-5 w-px shrink-0 bg-bordo/12" aria-hidden="true" />
+              <AzioneRiga etichetta="Elimina" pericolo onClick={() => setDaRimuovere(s)}>
+                <Croce />
+              </AzioneRiga>
             </div>
           ))}
         </Pannello>
@@ -428,13 +418,10 @@ function Stagioni({ avvisa }) {
                   Riapri
                 </Pulsante>
               )}
-              <button
-                onClick={() => setDaRimuovere(s)}
-                title="Elimina"
-                className="shrink-0 rounded-lg px-2.5 py-2 text-tenue hover:bg-rosso/12 hover:text-rosso"
-              >
-                ✕
-              </button>
+              <span className="mx-1 h-5 w-px shrink-0 bg-bordo/12" aria-hidden="true" />
+              <AzioneRiga etichetta="Elimina" pericolo onClick={() => setDaRimuovere(s)}>
+                <Croce />
+              </AzioneRiga>
             </div>
           ))}
         </Pannello>

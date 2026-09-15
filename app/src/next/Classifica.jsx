@@ -141,11 +141,11 @@ function Tabellone({ puoiModificare, onModifica, onAggiungi }) {
 
       {puoiModificare && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-bordo/10 px-4 py-3">
-          <span className="text-[11.5px] text-tenue">
+          <span className="text-[12.5px] text-tenue">
             Le medie si calcolano da {fatti ? fatti.label.toLowerCase() : 'segnati'} e{' '}
             {subiti ? subiti.label.toLowerCase() : 'subiti'} totali: si inseriscono modificando la riga.
           </span>
-          <Pulsante className="py-1.5 text-[11.5px]" onClick={onAggiungi}>+ Squadra</Pulsante>
+          <Pulsante className="py-1.5 text-[12.5px]" onClick={onAggiungi}>+ Squadra</Pulsante>
         </div>
       )}
     </Pannello>
@@ -182,7 +182,7 @@ function ModuloSquadra({ riga, onChiudi, onFatto, onRimuovi }) {
         <button
           type="button"
           onClick={onRimuovi}
-          className="text-[12px] font-semibold text-rosso transition-opacity hover:opacity-75"
+          className="text-[13px] font-semibold text-rosso transition-opacity hover:opacity-75"
         >
           Rimuovi
         </button>
@@ -238,7 +238,7 @@ function ModuloSquadra({ riga, onChiudi, onFatto, onRimuovi }) {
         </Campo>
       </div>
 
-      <p className="!mt-2 text-[11.5px] leading-relaxed text-tenue">
+      <p className="!mt-2 text-[12.5px] leading-relaxed text-tenue">
         Totali di tutto il campionato, non della singola partita: la media a partita la calcola l’app.
       </p>
 
@@ -276,12 +276,12 @@ function Storico() {
               <div className="flex items-center gap-2">
                 <span className="truncate text-[13.5px] font-semibold">{g.oppName || 'Avversari'}</span>
                 {g.friendly && (
-                  <span className="shrink-0 rounded-full bg-pannello/14 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-etichetta text-tenue">
+                  <span className="shrink-0 rounded-full bg-pannello/14 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-etichetta text-tenue">
                     amichevole
                   </span>
                 )}
               </div>
-              {g.date && <div className="text-[11.5px] text-tenue">{fmtData(g.date)}</div>}
+              {g.date && <div className="text-[12.5px] text-tenue">{fmtData(g.date)}</div>}
             </div>
             <div className="shrink-0 text-[16px] font-bold">
               {g.teamScore}<span className="mx-1 text-tenue">–</span>{g.oppScore}

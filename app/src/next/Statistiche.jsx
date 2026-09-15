@@ -53,7 +53,7 @@ export function Statistiche() {
           <span className="shrink-0 text-right text-[12.5px] leading-tight text-tenue">
             {ufficiali.length} partite
             {amichevoli > 0 && (
-              <span className="block text-[11px]">
+              <span className="block text-[12px]">
                 {amichevoli === 1 ? "un'amichevole esclusa" : amichevoli + ' amichevoli escluse'}
               </span>
             )}
@@ -109,7 +109,7 @@ export function Statistiche() {
                           numero che si confronta fra giocatori che hanno
                           giocato un numero diverso di partite. */}
                       {c.avg && r.games > 0 && (
-                        <span className="ml-1.5 text-[11px] text-tenue">
+                        <span className="ml-1.5 text-[12px] text-tenue">
                           {(r[c.key] / r.games).toFixed(1)}
                         </span>
                       )}
@@ -123,7 +123,7 @@ export function Statistiche() {
       </Pannello>
 
       {sport.seasonLegend && (
-        <p className="text-[11.5px] leading-relaxed text-tenue">{sport.seasonLegend}</p>
+        <p className="text-[12.5px] leading-relaxed text-tenue">{sport.seasonLegend}</p>
       )}
     </div>
   );
