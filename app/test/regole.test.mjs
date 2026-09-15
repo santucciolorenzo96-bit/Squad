@@ -114,3 +114,38 @@ describe('pallavolo: punteggi che non possono esistere', () => {
   test('25-20 nel quinto non esiste', () => ok(/primo scarto/.test(perche(5, 25, 20))));
   test('13-11 non chiude nemmeno il quinto', () => ok(/15 punti/.test(perche(5, 13, 11))));
 });
+
+// L'efficienza e' il numero con cui si giudica un'attaccante ovunque, ed e' un
+// RAPPORTO: non si somma fra partite, si ricalcola dai totali.
+describe('pallavolo: efficienza in attacco', () => {
+  const eff = PALLAVOLO.seasonColumns.find(c => c.key === 'eff').calc;
+
+  test('dieci punti e due errori su venticinque palloni fanno 32%', () => {
+    is(eff({ kills: 10, attackErrors: 2, attacks: 25 }), 32);
+  });
+
+  test('gli stessi dieci punti su sessanta palloni fanno molto meno', () => {
+    is(eff({ kills: 10, attackErrors: 2, attacks: 60 }), 13);
+  });
+
+  test('più errori che punti danno un numero negativo', () => {
+    is(eff({ kills: 2, attackErrors: 6, attacks: 20 }), -20);
+  });
+
+  test('senza palloni attaccati non c’è efficienza, e non è zero', () => {
+    is(eff({ kills: 0, attackErrors: 0, attacks: 0 }), null);
+  });
+});
+
+// Ogni attacco alza il totale: e' l'unico modo perche' il denominatore esista.
+describe('pallavolo: ogni attacco conta come tentativo', () => {
+  const azioni = PALLAVOLO.scout.groups.find(g => g.label === 'Attacco').actions;
+  test('i tre esiti stanno nello stesso gruppo', () => is(azioni.length, 3));
+  test('il punto conta un attacco', () => is(azioni.find(a => a.act === 'kill').apply.attacks, 1));
+  test('il ripreso conta un attacco e nient’altro', () => {
+    const a = azioni.find(x => x.act === 'attack_ok');
+    is(a.apply.attacks, 1);
+    is(a.apply.points, undefined);
+  });
+  test('l’errore conta un attacco', () => is(azioni.find(a => a.act === 'attack_err').apply.attacks, 1));
+});

@@ -46,7 +46,11 @@ const FIELD_SVG = `
 
 function newStats() {
   return {
-    points: 0, kills: 0, attackErrors: 0, blocks: 0,
+    // `attacks` sono gli attacchi TENTATI, vincenti ed errori compresi. Senza
+    // di loro l'efficienza non esiste: si avrebbero i numeratori e non il
+    // denominatore, cioe' i punti di un'attaccante ma non quanti palloni le
+    // sono serviti per farli.
+    points: 0, kills: 0, attacks: 0, attackErrors: 0, blocks: 0,
     aces: 0, serveErrors: 0, digs: 0, receptionErrors: 0, assists: 0, setsPlayed: 0
   };
 }
@@ -72,6 +76,7 @@ export const PALLAVOLO = {
   aggregate: {
     points: (p) => (p.stats || {}).points || 0,
     kills: (p) => (p.stats || {}).kills || 0,
+    attacks: (p) => (p.stats || {}).attacks || 0,
     blocks: (p) => (p.stats || {}).blocks || 0,
     aces: (p) => (p.stats || {}).aces || 0,
     attackErrors: (p) => (p.stats || {}).attackErrors || 0,
@@ -84,6 +89,12 @@ export const PALLAVOLO = {
   seasonColumns: [
     { key: 'points', short: 'PT', label: 'Punti', avg: 'P/S' },
     { key: 'kills', short: 'AT', label: 'Attacchi vincenti' },
+    { key: 'attacks', short: 'TOT', label: 'Attacchi tentati' },
+    // L'efficienza non si somma, si ricalcola: e' un rapporto, e sommare due
+    // percentuali di due partite diverse non vuol dire niente. Per questo ha
+    // una funzione al posto di una chiave.
+    { key: 'eff', short: 'EFF', label: 'Efficienza in attacco', suffisso: '%',
+      calc: (r) => (r.attacks ? Math.round(((r.kills - r.attackErrors) / r.attacks) * 100) : null) },
     { key: 'blocks', short: 'MU', label: 'Muri' },
     { key: 'aces', short: 'ACE', label: 'Ace' },
     { key: 'digs', short: 'DIF', label: 'Difese' },
@@ -92,7 +103,7 @@ export const PALLAVOLO = {
     { key: 'serveErrors', short: 'ES', label: 'Errori al servizio' },
     { key: 'setsPlayed', short: 'SET', label: 'Set giocati' }
   ],
-  seasonLegend: 'PG = partite giocate · P/S = punti a partita · ALZ = alzate che hanno prodotto un punto · EA/ES = errori in attacco e al servizio',
+  seasonLegend: 'PG = partite giocate · P/S = punti a partita · TOT = palloni attaccati · EFF = (vincenti meno errori) diviso gli attacchi · ALZ = alzate che hanno prodotto un punto · EA/ES = errori in attacco e al servizio',
   showMinutes: false,
 
   ratingLabel: 'Efficienza',
@@ -140,20 +151,38 @@ export const PALLAVOLO = {
     scoreDisplay: 'setsWon',
     trackSeconds: false,
     teamFouls: false,
-    periodPrompt: 'Come \u00e8 finito questo set?',
+    periodPrompt: 'Come è finito questo set?',
     groups: [
-      { label: 'Punto fatto', actions: [
+      /* I TRE ESITI DELL'ATTACCO, VICINI.
+       *
+       * Un attacco finisce in tre modi: punto, ripreso, errore. Prima ne
+       * registravamo due — il punto e l'errore — in due gruppi lontani, e il
+       * terzo non esisteva affatto. Mancando quello mancava il totale degli
+       * attacchi, e senza il totale non c'e' l'efficienza: (vincenti - errori)
+       * diviso i palloni attaccati. E' il numero con cui si giudica
+       * un'attaccante in tutto il mondo, e ci mancava per un pulsante.
+       *
+       * Adesso i tre stanno insieme perche' sono la stessa domanda — «com'e'
+       * finito quell'attacco?» — e chi segna la risposta ce l'ha gia' in testa. */
+      { label: 'Attacco', actions: [
         // Dopo un attacco vincente la domanda successiva e' sempre la stessa, e
-        // in panchina la fanno ad alta voce: chi ha alzato. Un muro punto e un
-        // ace non hanno alzata, e infatti non la chiedono.
-        { act: 'kill', label: 'Attacco vincente', tone: 'made', apply: { points: 1, kills: 1 }, poi: 'alzata' },
+        // in panchina la fanno ad alta voce: chi ha alzato.
+        { act: 'kill', label: '✓ Punto', etichettaBreve: 'Attacco vincente', tone: 'made',
+          apply: { points: 1, kills: 1, attacks: 1 }, poi: 'alzata' },
+        // Attaccato, non chiuso: la difesa avversaria l'ha tenuto su e lo
+        // scambio continua. Non da' punti a nessuno, e conta eccome.
+        { act: 'attack_ok', label: '↺ Ripreso', etichettaBreve: 'Attacco ripreso', tone: 'neutral',
+          apply: { attacks: 1 } },
+        { act: 'attack_err', label: '✗ Errore', etichettaBreve: 'Errore in attacco', tone: 'miss',
+          apply: { attackErrors: 1, attacks: 1 } }
+      ]},
+      { label: 'Punto diretto', layout: 'pair', actions: [
         { act: 'block', label: 'Muro punto', tone: 'made', apply: { points: 1, blocks: 1 } },
         { act: 'ace', label: 'Ace', tone: 'made', apply: { points: 1, aces: 1 } }
       ]},
-      { label: 'Errore', actions: [
-        { act: 'attack_err', label: 'In attacco', tone: 'warn', apply: { attackErrors: 1 } },
-        { act: 'serve_err', label: 'Al servizio', tone: 'warn', apply: { serveErrors: 1 } },
-        { act: 'recept_err', label: 'In ricezione', tone: 'warn', apply: { receptionErrors: 1 } }
+      { label: 'Errore', layout: 'pair', actions: [
+        { act: 'serve_err', label: 'Al servizio', etichettaBreve: 'Errore al servizio', tone: 'warn', apply: { serveErrors: 1 } },
+        { act: 'recept_err', label: 'In ricezione', etichettaBreve: 'Errore in ricezione', tone: 'warn', apply: { receptionErrors: 1 } }
       ]},
       { label: 'Difesa', actions: [
         { act: 'dig', label: 'Difesa', tone: 'neutral', apply: { digs: 1 } }

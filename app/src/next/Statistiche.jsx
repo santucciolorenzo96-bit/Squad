@@ -17,6 +17,18 @@ import { Pannello, Etichetta, Titolo, Vuoto, cx } from './ui.jsx';
  * a destra si nascondeva se un atleta può giocare o no.
  */
 
+/* Il valore di una colonna per una riga.
+ *
+ * Quasi tutte le colonne sono totali da sommare, e il totale sta gia' nella
+ * riga. Alcune pero' sono RAPPORTI — l'efficienza in attacco, per dirne una —
+ * e un rapporto non si somma: due partite al 40% non fanno l'80%. Quelle si
+ * ricalcolano dai totali, e lo dichiarano con una funzione al posto della
+ * chiave.
+ */
+function valore(c, r) {
+  return c.calc ? c.calc(r) : (r[c.key] || 0);
+}
+
 export function Statistiche() {
   const sport = currentSport();
   const colonne = sport.seasonColumns;
@@ -30,7 +42,12 @@ export function Statistiche() {
 
   const righe = computeSeasonStats(state.history, sport)
     .slice()
-    .sort((a, b) => (b[ordine] || 0) - (a[ordine] || 0));
+    .sort((a, b) => {
+      const c = colonne.find(x => x.key === ordine);
+      const va = c ? valore(c, a) : (a[ordine] || 0);
+      const vb = c ? valore(c, b) : (b[ordine] || 0);
+      return (vb == null ? -Infinity : vb) - (va == null ? -Infinity : va);
+    });
 
   if (ufficiali.length === 0) {
     return (
@@ -104,11 +121,14 @@ export function Statistiche() {
                       className={cx('px-3 py-3 text-right text-[13.5px]',
                         ordine === c.key ? 'font-bold text-testo' : 'text-soffuso')}
                     >
-                      {r[c.key] || 0}
+                      {valore(c, r) == null ? '—' : valore(c, r)}
+                      {c.suffisso && valore(c, r) != null && (
+                        <span className="text-[12px] text-tenue">{c.suffisso}</span>
+                      )}
                       {/* La media a partita accanto al totale, piccola: è il
                           numero che si confronta fra giocatori che hanno
                           giocato un numero diverso di partite. */}
-                      {c.avg && r.games > 0 && (
+                      {c.avg && !c.calc && r.games > 0 && (
                         <span className="ml-1.5 text-[12px] text-tenue">
                           {(r[c.key] / r.games).toFixed(1)}
                         </span>
