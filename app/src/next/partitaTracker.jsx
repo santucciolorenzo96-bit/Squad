@@ -4,9 +4,14 @@ import { state } from '../state.js';
 import { saveLiveGame, endGame } from '../api/games.js';
 import { updateCalendarMatch } from '../api/calendar.js';
 import { currentSport } from '../utils/sports/index.js';
+import {
+  situazionePeriodo, etichettaPalla, partitaDecisa, periodiMassimi,
+  perchePunteggioImpossibile
+} from '../utils/regole.js';
 import { Pannello, Etichetta, Pulsante, Stato, cx } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, useAvviso } from './moduli.jsx';
 import { inCampione } from './campione.js';
+import { scriviCopia, segnaSincronizzata, cancellaCopia } from './partitaLocale.js';
 
 /* Lo scout dal vivo.
  *
@@ -62,11 +67,21 @@ function sigla(p) {
   return (parti.length > 1 ? primo + parti[parti.length - 1][0] : primo).toUpperCase();
 }
 
+// Quanti periodi sono FINITI.
+//
+// Di solito sono quelli prima di quello in corso. Ma l'ultimo set di una
+// partita gia' decisa si chiude senza aprirne un altro — il sesto set non
+// esiste — e allora il numero del set in corso non basta piu' a dirlo: senza
+// questo, una partita vinta 3-0 mostrava 2-0.
+function quantiChiusi(g) {
+  return Math.max(g.chiusi || 0, Math.max(0, (g.quarter || 1) - 1));
+}
+
 function calcolaPunteggi(g, sport) {
   const conf = sport.scout;
   const periodi = g.periodScores || [];
   if (conf.scoreDisplay === 'setsWon') {
-    const chiusi = periodi.slice(0, Math.max(0, (g.quarter || 1) - 1));
+    const chiusi = periodi.slice(0, quantiChiusi(g));
     g.teamScore = chiusi.filter(x => x && x.us > x.them).length;
     g.oppScore = chiusi.filter(x => x && x.them > x.us).length;
     return;
@@ -91,6 +106,30 @@ export function Tracker({ onFinita, onEsci }) {
   const [chiudiPeriodo, setChiudiPeriodo] = useState(false);
   const [finePartita, setFinePartita] = useState(false);
   const salvataggioRotto = useRef(false);
+  const riprova = useRef(null);
+
+  // Chiudere la scheda con del lavoro non ancora spedito e' l'unico momento in
+  // cui l'app puo' ancora avvisare. Il browser mostra il suo avviso, non il
+  // nostro: e' poco, ma e' l'unica cosa che passa.
+  useEffect(() => {
+    const chiede = (e) => {
+      if (!salvataggioRotto.current) return undefined;
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    };
+    window.addEventListener('beforeunload', chiede);
+    return () => {
+      window.removeEventListener('beforeunload', chiede);
+      clearTimeout(riprova.current);
+    };
+  }, []);
+
+  // Si riapre una partita ripresa dalla copia locale: il primo tentativo di
+  // rimetterla in rete parte subito, senza aspettare la prossima azione.
+  useEffect(() => {
+    if (g && g.daRisincronizzare) { delete g.daRisincronizzare; salva(); }
+  }, []);
 
   // A schermo intero la pagina sotto non deve scorrere: due superfici che
   // scorrono una dentro l'altra, su un tablet tenuto in mano, vuol dire
@@ -109,13 +148,23 @@ export function Tracker({ onFinita, onEsci }) {
 
   const aggiorna = () => ridisegna(n => n + 1);
 
-  // Il salvataggio gira a ogni azione senza bloccare niente. Ma se fallisce va
-  // detto: durante una partita si continuerebbe a segnare per un'ora credendo
-  // che tutto stia andando in archivio. Si avvisa una volta sola, e si torna a
-  // tacere appena riprende.
+  // Il salvataggio gira a ogni azione senza bloccare niente.
+  //
+  // PRIMA in locale, POI in rete. La scrittura nel browser e' immediata e non
+  // dipende dal segnale: quando la rete manca — ed e' la regola, in palestra —
+  // la partita smette di esistere solo in memoria. Il server resta la verita'
+  // condivisa, ma non e' piu' l'unico posto dove il lavoro esiste.
+  //
+  // Se la rete non risponde si avvisa una volta sola e si riprova da soli ogni
+  // dieci secondi: chi sta segnando non deve ricordarsi di riprovare, e se si
+  // ferma a guardare la partita senza toccare niente non ci sarebbe nessuna
+  // azione a fare da innesco.
   function salva() {
+    const timbro = scriviCopia(g);
     if (inCampione()) return;   // niente database dietro: non c'e' dove salvare
+    clearTimeout(riprova.current);
     saveLiveGame(g.id, g).then(() => {
+      segnaSincronizzata(g.sectorId, timbro);
       if (salvataggioRotto.current) {
         salvataggioRotto.current = false;
         avvisa('Salvataggio ripreso');
@@ -124,8 +173,9 @@ export function Tracker({ onFinita, onEsci }) {
       console.error(e);
       if (!salvataggioRotto.current) {
         salvataggioRotto.current = true;
-        avvisa('Il salvataggio non riesce: continua pure, ma controlla la connessione.', 'errore');
+        avvisa('Rete assente: la partita e’ al sicuro su questo dispositivo e riparte da sola.', 'errore');
       }
+      riprova.current = setTimeout(() => { if (salvataggioRotto.current) salva(); }, 10000);
     });
   }
 
@@ -265,13 +315,45 @@ export function Tracker({ onFinita, onEsci }) {
 
   // I periodi gia' chiusi, in riga e in piccolo: il parziale quarto per quarto
   // (o set per set) e' la cosa che si guarda dopo il punteggio, mai prima.
-  const chiusi = (g.periodScores || []).slice(0, Math.max(0, (g.quarter || 1) - 1));
+  const chiusi = (g.periodScores || []).slice(0, quantiChiusi(g));
   const parziali = chiusi.filter(Boolean).map(x => x.us + '-' + x.them).join('  ·  ');
+
+  // DOVE STA IL SET, secondo il regolamento dello sport.
+  //
+  // Nella pallavolo il set finisce quando lo dicono i numeri, non quando
+  // finisce un tempo: l'app puo' saperlo, e saperlo cambia due cose in
+  // panchina — si sa che si e' a un punto dalla fine, e non si continua a
+  // segnare per tre scambi dentro un set gia' chiuso. Nel basket non c'e'
+  // nessuna regola da sapere, e qui non compare niente.
+  const decisa = partitaDecisa(conf, chiusi);
+  const inCorsoDaChiudere = quantiChiusi(g) < (g.quarter || 1);
+  const situazione = inCorsoDaChiudere
+    ? situazionePeriodo(conf, g.quarter || 1, inCorso.us, inCorso.them)
+    : null;
+  const nostroNome = (state.teamProfile || {}).name || 'Noi';
+  let avviso = null;
+  if (decisa && decisa.finita) {
+    // Non c'e' piu' niente da segnare: l'unica cosa che resta da fare e'
+    // archiviare, e va detto invece di lasciare un tabellone che sembra vivo.
+    avviso = { finito: true, chiusa: true, testo: 'Partita finita ' + decisa.us + '–' + decisa.them };
+  } else if (situazione && situazione.stato === 'palla') {
+    avviso = {
+      finito: false,
+      testo: etichettaPalla(conf, situazione, chiusi)
+        + ' · ' + (situazione.chi === 'us' ? nostroNome : g.oppName)
+    };
+  } else if (situazione && situazione.stato === 'chiuso') {
+    avviso = {
+      finito: true,
+      testo: conf.period.label + ' finito ' + inCorso.us + '–' + inCorso.them
+    };
+  }
   // I nostri punti si possono aggiungere a mano solo dove NON appartengono a
   // un giocatore: nella pallavolo un errore avversario e' un punto nostro che
   // non ha autore. Nel basket ogni punto ha un autore, e una mano libera sul
   // punteggio sarebbe solo un modo per falsare il tabellino.
-  const manoNostra = conf.ourScore === 'perPeriod';
+  const manoNostra = conf.ourScore === 'perPeriod' && !(decisa && decisa.finita);
+  const manoLoro = !(decisa && decisa.finita);
 
   const corpo = (
     <div className="relative pb-4">
@@ -353,12 +435,24 @@ export function Tracker({ onFinita, onEsci }) {
                 {grandeLoro}
               </div>
               <ManoPunteggio
-                attiva
+                attiva={manoLoro}
                 onPiu={() => manoPunteggio('them', 1)}
                 onMeno={() => manoPunteggio('them', -1)}
               />
             </div>
           </div>
+
+          {/* Il regolamento che parla. Ambra quando manca un punto alla fine,
+              verde quando il set e' finito davvero: due stati, due colori, e
+              non serve leggere per sapere quale dei due e'. */}
+          {avviso && (
+            <div className={cx(
+              'border-t px-3 py-1.5 text-center text-[10.5px] font-bold uppercase tracking-etichetta',
+              avviso.finito ? 'border-verde/20 bg-verde/10 text-verde' : 'border-ambra/20 bg-ambra/10 text-ambra'
+            )}>
+              {avviso.testo}
+            </div>
+          )}
 
           {/* I parziali chiusi, in fondo e in mezzo. Non c'e' riga finche' non
               si chiude il primo periodo: uno spazio vuoto che aspetta e' peggio
@@ -379,15 +473,27 @@ export function Tracker({ onFinita, onEsci }) {
                 ↺ Annulla{daAnnullare ? <span className="text-tenue"> · {daAnnullare}</span> : null}
               </span>
             </button>
-            <button
-              onClick={() => setChiudiPeriodo(true)}
-              className="flex-1 bg-fondo/40 py-2.5 text-[12px] font-semibold text-soffuso transition-colors hover:text-testo"
-            >
-              Chiudi {conf.period.label.toLowerCase()}
-            </button>
+            {!(avviso && avviso.chiusa) && (
+              <button
+                onClick={() => setChiudiPeriodo(true)}
+                className={cx(
+                  'flex-1 py-2.5 text-[12px] transition-colors',
+                  avviso && avviso.finito
+                    ? 'bg-verde/14 font-bold text-verde hover:brightness-110'
+                    : 'bg-fondo/40 font-semibold text-soffuso hover:text-testo'
+                )}
+              >
+                Chiudi {conf.period.label.toLowerCase()}
+              </button>
+            )}
             <button
               onClick={() => setFinePartita(true)}
-              className="flex-1 bg-fondo/40 py-2.5 text-[12px] font-semibold text-ambra transition-colors hover:brightness-125"
+              className={cx(
+                'flex-1 py-2.5 text-[12px] transition-all',
+                avviso && avviso.chiusa
+                  ? 'bg-ambra/16 font-bold text-ambra hover:brightness-110'
+                  : 'bg-fondo/40 font-semibold text-ambra hover:brightness-125'
+              )}
             >
               Fine partita
             </button>
@@ -526,6 +632,7 @@ export function Tracker({ onFinita, onEsci }) {
                 });
               } catch (e) { console.error(e); }
             }
+            cancellaCopia(g.sectorId);
             state.liveGame = null;
             state.undoStack = [];
             state.undoTesti = [];
@@ -896,24 +1003,59 @@ function ChiusuraPeriodo({ g, sport, onChiudi, onFatto }) {
   const [loro, setLoro] = useState(esistente ? String(esistente.them) : '');
   const ultimo = g.quarter >= g.numQuarters;
 
+  // Con un regolamento alle spalle il pulsante puo' dire cosa succede DOPO,
+  // mentre si scrive: se questi numeri chiudono la partita, si legge prima di
+  // premere invece di scoprirlo dopo.
+  const nLoro = parseInt(loro, 10);
+  const conQuesti = isNaN(nLoro)
+    ? (g.periodScores || []).slice(0, idx)
+    : [...(g.periodScores || []).slice(0, idx), { us: nostriOra, them: nLoro }];
+  const esito = partitaDecisa(conf, conQuesti);
+  const chiudeLaPartita = !!(esito && esito.finita);
+  const massimi = periodiMassimi(conf);
+  const seti = conf.period.label.toLowerCase();
+
   return (
     <Modulo
       titolo={`Chiudi ${conf.period.label.toLowerCase()} ${g.quarter}`}
       sotto={conf.periodPrompt}
-      etichettaInvia={ultimo && !conf.period.allowExtra ? 'Salva' : `Vai al ${conf.period.label.toLowerCase()} ${g.quarter + 1}`}
+      etichettaInvia={
+        chiudeLaPartita
+          ? 'Salva: la partita finisce qui'
+          : (ultimo && !conf.period.allowExtra ? 'Salva' : `Vai al ${seti} ${g.quarter + 1}`)
+      }
       onChiudi={onChiudi}
       onInvia={async () => {
         if (loro === '') return 'Scrivi quanti punti ha segnato l’avversario.';
         const n = parseInt(loro, 10);
         if (isNaN(n) || n < 0) return 'Il punteggio non può essere negativo.';
+
+        // Il regolamento come rete. Un punteggio impossibile non e' un
+        // capriccio dell'app: vuol dire che un punto non e' stato segnato, e
+        // questo e' l'ultimo momento in cui ce ne si accorge guardando ancora
+        // il tabellone della palestra.
+        const impossibile = perchePunteggioImpossibile(conf, g.quarter, nostriOra, n, conf.period.label);
+        if (impossibile) return impossibile + ' Confronta col tabellone e correggi i punti prima di chiudere.';
+
         g.periodScores = g.periodScores || [];
         g.periodScores[idx] = { us: nostriOra, them: n };
-        if (g.quarter < g.numQuarters || conf.period.allowExtra) {
+        g.chiusi = Math.max(g.chiusi || 0, idx + 1);
+
+        const deciso = partitaDecisa(conf, g.periodScores.slice(0, idx + 1));
+        // Non si apre un set che non si giochera' mai: ne' il sesto, ne' quello
+        // dopo una partita gia' vinta.
+        const altroPeriodo = (!deciso || !deciso.finita)
+          && (massimi ? g.quarter < massimi : (g.quarter < g.numQuarters || conf.period.allowExtra));
+
+        if (altroPeriodo) {
           g.quarter += 1;
           if (g.quarter > g.numQuarters) g.numQuarters = g.quarter;
           if (conf.teamFouls) g.quarterFouls[g.quarter] = 0;
         }
-        onFatto(`${conf.period.label} ${idx + 1} chiuso`);
+
+        onFatto(deciso && deciso.finita
+          ? `Partita finita ${deciso.us}–${deciso.them}: chiudila dal tabellone`
+          : `${conf.period.label} ${idx + 1} chiuso`);
       }}
     >
       <div className="grid grid-cols-2 gap-3">
@@ -937,7 +1079,18 @@ function ChiusuraPeriodo({ g, sport, onChiudi, onFatto }) {
         ed è adesso il momento di accorgersene. Puoi correggerlo annullando le ultime azioni.
       </p>
 
-      {ultimo && conf.period.allowExtra && (
+      {/* Il regolamento detto una volta, dove serve: qui i numeri si scrivono,
+          e qui vengono controllati. */}
+      {conf.regolamento && (
+        <p className="rounded-lg bg-pannello/8 px-3.5 py-3 text-[11.5px] leading-relaxed text-soffuso">
+          Questo {seti} si chiude a <b>{conf.regolamento.sogliaPeriodo(g.quarter)} punti</b> con
+          almeno {conf.regolamento.scarto} di scarto. Partita a{' '}
+          {conf.regolamento.periodiPerVincere} {seti} vinti
+          {esito ? <> · ora {esito.us}–{esito.them}</> : null}.
+        </p>
+      )}
+
+      {ultimo && conf.period.allowExtra && !chiudeLaPartita && (
         <p className="rounded-lg bg-pannello/8 px-3.5 py-3 text-[12px] leading-relaxed text-soffuso">
           Era l’ultimo {conf.period.label.toLowerCase()} previsto. Se la partita è in parità,
           continuando si apre un {conf.period.extraLabel.toLowerCase()}; altrimenti chiudi la

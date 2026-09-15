@@ -117,6 +117,22 @@ export const PALLAVOLO = {
       askCount: false,
       allowExtra: true, extraLabel: 'Set'
     },
+    /* Il regolamento FIPAV, ridotto a quello che serve a chi segna.
+     *
+     * Un set a 25 con due punti di scarto; il quinto — quello che si gioca solo
+     * se si è 2-2 — a 15, sempre con due di scarto. Vince chi arriva a tre set.
+     *
+     * Scritto qui e non nel tracker perché è una regola di QUESTO sport: il
+     * basket non ce l'ha, e il giorno che si aggiunge un altro sport che ce
+     * l'ha, si aggiunge qui. */
+    regolamento: {
+      periodiPerVincere: 3,
+      periodiMassimi: 5,
+      scarto: 2,
+      sogliaPeriodo: (n) => (n >= 5 ? 15 : 25),
+      etichettaPalla: 'set point',
+      etichettaMatch: 'match point'
+    },
     ourScore: 'perPeriod',
     opponentScore: 'perPeriod',
     scoreDisplay: 'setsWon',

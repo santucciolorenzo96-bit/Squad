@@ -27,10 +27,24 @@ function seasonKey(p) {
   return p.id ? 'id:' + p.id : 'nm:' + (p.name || '?');
 }
 
+/* Le amichevoli non fanno statistica.
+ *
+ * Si giocano per provare: quintetti nuovi, gente fuori ruolo, minuti a chi di
+ * solito non ne ha. Mescolarle alle partite vere non aggiunge dati — ne toglie,
+ * perché sposta medie, record e serie di numeri che nessuno ha voluto dire.
+ *
+ * Restano nello storico, visibili e apribili una per una: semplicemente non
+ * entrano in nessun totale. Chi vuole sapere com'è andata l'amichevole di
+ * martedì la apre, e la trova intatta.
+ */
+export function officialGames(history) {
+  return (history || []).filter(g => !g.friendly);
+}
+
 export function computeSeasonStats(history, sport = BASKET) {
   const keys = Object.keys(sport.aggregate);
   const totals = {};
-  history.forEach(g => {
+  officialGames(history).forEach(g => {
     (g.players || []).forEach(p => {
       const k = seasonKey(p);
       if (!totals[k]) {
@@ -70,7 +84,7 @@ export function standingsPosition(standings, teamName) {
 // una partita di basket non finisce mai in parità.
 export function computeRecord(history) {
   let w = 0, d = 0, l = 0;
-  history.forEach(g => {
+  officialGames(history).forEach(g => {
     if (g.teamScore > g.oppScore) w++;
     else if (g.teamScore < g.oppScore) l++;
     else d++;
@@ -79,9 +93,10 @@ export function computeRecord(history) {
 }
 
 export function computeStreak(history) {
+  const partite = officialGames(history);
   let streak = 0, type = null;
-  for (let i = history.length - 1; i >= 0; i--) {
-    const g = history[i];
+  for (let i = partite.length - 1; i >= 0; i--) {
+    const g = partite[i];
     const outcome = g.teamScore > g.oppScore ? 'V' : (g.teamScore < g.oppScore ? 'S' : 'N');
     if (type === null) { type = outcome; streak = 1; }
     else if (outcome === type) { streak++; }
@@ -91,8 +106,9 @@ export function computeStreak(history) {
 }
 
 export function computeTeamPPG(history) {
-  if (history.length === 0) return null;
-  return history.reduce((a, g) => a + g.teamScore, 0) / history.length;
+  const partite = officialGames(history);
+  if (partite.length === 0) return null;
+  return partite.reduce((a, g) => a + g.teamScore, 0) / partite.length;
 }
 
 // Valutazione cestistica: resta esportata con il vecchio nome perché il

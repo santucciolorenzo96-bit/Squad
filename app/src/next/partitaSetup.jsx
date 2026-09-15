@@ -279,7 +279,7 @@ export function AvvioPartita({ onAvviata }) {
         disabled={lavora}
         className="w-full py-4 text-[15px] font-bold"
       >
-        {lavora ? 'Avvio…' : `Palla a due contro ${avversario.trim() || 'Avversari'}`}
+        {lavora ? 'Avvio…' : `Inizia contro ${avversario.trim() || 'Avversari'}`}
       </Pulsante>
     </div>
   );

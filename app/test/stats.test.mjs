@@ -1,6 +1,7 @@
 import { describe, test, is, ok } from './run.mjs';
 import {
-  computeSeasonStats, findSeasonRow, computeRecord, computeStreak, playerPtsOf
+  computeSeasonStats, findSeasonRow, computeRecord, computeStreak, playerPtsOf,
+  computeTeamPPG, officialGames
 } from '../src/utils/stats.js';
 import { BASKET } from '../src/utils/sports/basket.js';
 import { CALCIO } from '../src/utils/sports/calcio.js';
@@ -100,5 +101,45 @@ describe('record e serie', () => {
 
   test('senza partite non inventa una serie', () => {
     is(computeStreak([]), 'Nessuna partita');
+  });
+});
+
+// Le amichevoli si giocano per provare cose, e quello che si prova non deve
+// spostare le medie di chi le ha giocate. Restano nello storico; non nei conti.
+describe('le amichevoli non fanno statistica', () => {
+  const amichevole = (players, us, them) => ({ players, teamScore: us, oppScore: them, friendly: true });
+
+  test('non entrano nel record', () => {
+    const r = computeRecord([gara([], 3, 1), amichevole([], 0, 9)]);
+    is(r.w, 1); is(r.l, 0);
+  });
+
+  test('non spezzano la serie', () => {
+    const s = computeStreak([gara([], 3, 0), amichevole([], 0, 9), gara([], 4, 1)]);
+    is(s, '2V di fila');
+  });
+
+  test('non entrano nella media punti', () => {
+    is(computeTeamPPG([gara([], 60, 50), amichevole([], 100, 0)]), 60);
+  });
+
+  test('non entrano nelle statistiche dei giocatori', () => {
+    const rows = computeSeasonStats([
+      gara([{ id: 'a', name: 'Rossi', number: '4', stats: bStats({ fgm2: 5 }) }], 10, 8),
+      amichevole([{ id: 'a', name: 'Rossi', number: '4', stats: bStats({ fgm2: 50 }) }], 100, 0)
+    ], BASKET);
+    is(rows.length, 1);
+    is(rows[0].games, 1);
+    is(rows[0].pts, 10);
+  });
+
+  test('una stagione di sole amichevoli non ha medie', () => {
+    is(computeTeamPPG([amichevole([], 50, 40)]), null);
+  });
+
+  test('lo storico resta intero', () => {
+    const storia = [gara([], 1, 0), amichevole([], 2, 0)];
+    is(storia.length, 2);
+    is(officialGames(storia).length, 1);
   });
 });

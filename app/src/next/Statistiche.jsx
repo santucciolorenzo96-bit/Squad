@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { state } from '../state.js';
-import { computeSeasonStats } from '../utils/stats.js';
+import { computeSeasonStats, officialGames } from '../utils/stats.js';
 import { currentSport } from '../utils/sports/index.js';
 import { Pannello, Etichetta, Titolo, Vuoto, cx } from './ui.jsx';
 
@@ -22,17 +22,24 @@ export function Statistiche() {
   const colonne = sport.seasonColumns;
   const [ordine, setOrdine] = useState(colonne[0] ? colonne[0].key : 'games');
 
+  // Le amichevoli restano nello storico ma non fanno statistica: qui si conta
+  // solo quello che entra davvero in tabella, altrimenti l'intestazione
+  // dichiarerebbe piu' partite di quante ne siano state sommate.
+  const ufficiali = officialGames(state.history);
+  const amichevoli = state.history.length - ufficiali.length;
+
   const righe = computeSeasonStats(state.history, sport)
     .slice()
     .sort((a, b) => (b[ordine] || 0) - (a[ordine] || 0));
 
-  if (state.history.length === 0) {
+  if (ufficiali.length === 0) {
     return (
       <div className="sezioni">
         <Titolo sopra="Categoria">Statistiche</Titolo>
         <Vuoto>
-          Nessuna partita giocata in questa stagione. Le statistiche si riempiono da sole
-          man mano che i tabellini vengono chiusi.
+          {amichevoli > 0
+            ? 'In questa stagione ci sono solo amichevoli, e le amichevoli non fanno statistica. La tabella si riempie dalla prima partita di campionato.'
+            : 'Nessuna partita giocata in questa stagione. Le statistiche si riempiono da sole man mano che i tabellini vengono chiusi.'}
         </Vuoto>
       </div>
     );
@@ -42,7 +49,16 @@ export function Statistiche() {
     <div className="sezioni">
       <Titolo
         sopra="Categoria"
-        azione={<span className="shrink-0 text-[12.5px] text-tenue">{state.history.length} partite</span>}
+        azione={
+          <span className="shrink-0 text-right text-[12.5px] leading-tight text-tenue">
+            {ufficiali.length} partite
+            {amichevoli > 0 && (
+              <span className="block text-[11px]">
+                {amichevoli === 1 ? "un'amichevole esclusa" : amichevoli + ' amichevoli escluse'}
+              </span>
+            )}
+          </span>
+        }
       >
         Statistiche
       </Titolo>

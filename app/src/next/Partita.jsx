@@ -3,6 +3,7 @@ import { state } from '../state.js';
 import { fetchLiveGame, fetchOpenGames, discardGame } from '../api/games.js';
 import { currentSport } from '../utils/sports/index.js';
 import { inCampione } from './campione.js';
+import { leggiCopia, cancellaCopia, daQuanto } from './partitaLocale.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, cx } from './ui.jsx';
 import { Conferma, ErroreCaricamento, useAvviso } from './moduli.jsx';
 import { AvvioPartita } from './partitaSetup.jsx';
@@ -70,7 +71,8 @@ function PartitaInCorso({ sport, onRientra }) {
 
 export function Partita() {
   const sport = currentSport();
-  const [fase, setFase] = useState('carico');   // carico | vuoto | live
+  const [fase, setFase] = useState('carico');   // carico | vuoto | live | recupero
+  const [recupero, setRecupero] = useState(null);
   const [scout, setScout] = useState(true);    // lo scout occupa tutta la finestra
   const [errore, setErrore] = useState(null);
   const [aperte, setAperte] = useState([]);
@@ -85,13 +87,33 @@ export function Partita() {
       fetchLiveGame(state.activeSectorId),
       fetchOpenGames(state.teamProfile.id).catch(() => [])
     ]).then(([viva, tutte]) => {
+      const locale = leggiCopia(state.activeSectorId);
+
+      if (viva && locale && locale.gameId === viva.id && !locale.sincronizzata) {
+        // La copia di qui non era ancora arrivata al server: e' quella avanti,
+        // e riparte lei. La `daRisincronizzare` fa spedire subito il recupero.
+        viva = { ...locale.gioco, daRisincronizzare: true };
+        avvisa('Ripresa dalla copia salvata su questo dispositivo');
+      } else if (!viva && locale) {
+        // Il server dice che non c'e' nessuna partita aperta: e' stata chiusa
+        // o scartata altrove. La copia qui non serve piu', e tenerla vorrebbe
+        // dire riproporre un fantasma a ogni apertura.
+        cancellaCopia(state.activeSectorId);
+      }
+
       state.liveGame = viva;
       setAperte((tutte || []).filter(x => x.sector_id !== state.activeSectorId));
       // Se una partita e' aperta si entra dritti nello scout: chi apre questa
       // sezione durante una partita non ci arriva per curiosare.
       setScout(true);
       setFase(viva ? 'live' : 'vuoto');
-    }).catch(setErrore);
+    }).catch(e => {
+      // Server irraggiungibile. Se qui c'e' una partita salvata, questo e'
+      // esattamente il momento per cui l'abbiamo scritta.
+      const locale = leggiCopia(state.activeSectorId);
+      if (locale) { setRecupero(locale); setFase('recupero'); return; }
+      setErrore(e);
+    });
   }
   useEffect(carica, [state.activeSectorId]);
 
@@ -105,6 +127,41 @@ export function Partita() {
   }
 
   if (errore) return <ErroreCaricamento cosa="la partita" errore={errore} onRiprova={carica} />;
+
+  // Senza rete, ma con una partita sul dispositivo: si riparte da li'.
+  if (fase === 'recupero' && recupero) {
+    return (
+      <>
+        <Titolo sopra="Categoria">Partita</Titolo>
+        <div className="mt-5">
+          <Pannello alto className="pad-pannello-stretto">
+            <Etichetta className="!text-ambra">Server non raggiungibile</Etichetta>
+            <p className="mt-3 text-[13.5px] leading-relaxed">
+              Su questo dispositivo c’è una partita contro{' '}
+              <b>{recupero.gioco.oppName}</b>, aggiornata {daQuanto(recupero)}
+              {recupero.sincronizzata ? '' : ' e non ancora spedita'}.
+            </p>
+            <p className="mt-2 text-[11.5px] leading-relaxed text-tenue">
+              Puoi continuare a segnare da qui: quando la rete torna, il tabellino riparte da solo.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Pulsante
+                variante="primario"
+                onClick={() => {
+                  state.liveGame = { ...recupero.gioco, daRisincronizzare: true };
+                  setScout(true);
+                  setFase('live');
+                }}
+              >
+                Continua da qui
+              </Pulsante>
+              <Pulsante onClick={carica}>Riprova a collegarti</Pulsante>
+            </div>
+          </Pannello>
+        </div>
+      </>
+    );
+  }
 
   if (fase === 'carico') {
     return <><Titolo sopra="Categoria">Partita</Titolo><div className="mt-5"><Scheletro righe={3} /></div></>;
