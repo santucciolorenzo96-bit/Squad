@@ -31,14 +31,14 @@ export function Squadra() {
   if (!isAdmin(state.currentUser)) {
     return (
       <div className="sezioni">
-        <Titolo sopra="Società">Squadra</Titolo>
+        <Titolo sopra="Società">Impostazioni</Titolo>
         <Vuoto>Solo un amministratore può cambiare le impostazioni della società.</Vuoto>
       </div>
     );
   }
   return (
     <div className="sezioni">
-      <Titolo sopra="Società">Squadra</Titolo>
+      <Titolo sopra="Società">Impostazioni</Titolo>
       <Identita avvisa={avvisa} />
       <Categorie avvisa={avvisa} />
       <Stagioni avvisa={avvisa} />

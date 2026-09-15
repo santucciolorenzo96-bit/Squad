@@ -74,7 +74,10 @@ export const TABS = [
   { id: 'situazione', label: 'Situazione', group: 'societa', roles: MANAGER_ROLES },
   { id: 'documenti', label: 'Documenti', group: 'societa', roles: MANAGER_ROLES },
   { id: 'utenti', label: 'Utenti', group: 'societa', roles: ADMIN_ROLES },
-  { id: 'squadra', label: 'Squadra', group: 'societa', roles: ADMIN_ROLES },
+  // «Impostazioni» e non «Squadra»: dentro ci sono identita' della societa',
+  // categorie, stagioni e codice d'ingresso. Chiamarla Squadra la confondeva
+  // con la macro Squadra, che sono le persone.
+  { id: 'squadra', label: 'Impostazioni', group: 'societa', roles: ADMIN_ROLES },
   { id: 'finanza', label: 'Finanza', group: 'societa', financeGated: true }
 ];
 
