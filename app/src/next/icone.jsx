@@ -1,53 +1,59 @@
 import React, { useId } from 'react';
 
-/* Icone di vetro.
+/* Icone Gradient Glow.
  *
- * Il riferimento e' materiale, non colore: oggetti di vetro traslucido con uno
- * SPESSORE vero, una lastra di luce che ci passa sopra e un riflesso dove
- * batte. Il colore invece resta quello di ogni sezione — e' la cosa che si
- * impara prima del nome, e renderle tutte verdi vorrebbe dire buttarla via.
+ * Una piastrella morbida con dentro una sfumatura viva, un alone dello stesso
+ * colore che la stacca dal fondo, e il glifo bianco sopra. E' il pacchetto che
+ * la societa' ha scelto, e qui e' ricostruito in SVG invece che importato come
+ * immagine: cosi' pesa zero, resta nitido a ogni misura, segue il tema e i
+ * colori si cambiano in una riga.
  *
  * Costruzione, dal fondo alla superficie:
  *
- *   1. lo SPESSORE: la stessa sagoma spostata in basso a destra, in tinta piu'
- *      scura. Non e' una seconda icona ruotata — quella leggeva come una forma
- *      sdoppiata appena si ingrandiva — e' il fianco dell'oggetto, cioe' la
- *      cosa che gli da' volume;
- *   2. il CORPO, in sfumatura dal chiaro in alto a sinistra allo scuro in
- *      basso a destra: la luce viene sempre da li', per tutte;
- *   3. la LASTRA di vetro, una fascia obliqua bianca al 12% ritagliata dentro
- *      il corpo: e' quella che fa sembrare la superficie trasparente invece
- *      che verniciata;
- *   4. il RIFLESSO: un'ellisse morbida in alto a sinistra e un filo di luce
- *      sul bordo alto, dove il vetro incontra l'aria;
+ *   1. l'ALONE: la stessa sagoma, sfocata, nel colore dell'icona. E' quello
+ *      che rende «glow» un'icona piatta. Tenuto basso — sfocatura corta e
+ *      meno di meta' opacita' — perche' un alone largo su cinque icone
+ *      affiancate diventa una nebbia colorata e si smette di distinguerle;
+ *   2. il CORPO, in sfumatura obliqua: colore chiaro in alto a sinistra,
+ *      colore caldo in basso a destra. La luce viene sempre da li', per tutte;
+ *   3. la CUPOLA: un bagliore bianco che si spegne verso il basso. E' la
+ *      lucidita' della plastica, ed e' quello che distingue queste icone da
+ *      una semplice campitura sfumata;
+ *   4. il BORDO: bianco acceso sul filo alto, quasi spento in basso — il
+ *      punto dove la superficie incontra la luce;
  *   5. il GLIFO, bianco, sopra tutto.
  *
- * Tutto in SVG e senza immagini: a 24 pixel un rendering 3D vero e a questa
- * costruzione si assomigliano, a 48 la differenza la nota solo chi cerca, e in
- * cambio le icone pesano zero, seguono il tema e si colorano da sole.
+ * Il glifo occupa poco piu' di meta' della piastrella: e' la proporzione del
+ * pacchetto, e a venti pixel e' anche quella che resta leggibile.
  */
 
+// Le coppie del pacchetto per le cinque macro, e coppie della stessa famiglia
+// per tutto il resto. Prima e' il colore in alto a sinistra, poi quello in
+// basso a destra.
 const TONI = {
-  blu: ['#5B9BFF', '#1E5BE0'],
-  rosa: ['#FF7FB0', '#E01E6E'],
-  verde: ['#5FE3A6', '#12A868'],
-  corallo: ['#FF9A7A', '#E24A22'],
-  viola: ['#B39BFF', '#6D3FE0'],
-  ambra: ['#FFC271', '#E08A15'],
-  ciano: ['#63DCF0', '#128FA8']
+  blu: ['#3B82F6', '#A855F7'],        // Home
+  verde: ['#10B981', '#06B6D4'],      // Allenamenti
+  rosa: ['#8B5CF6', '#EC4899'],       // Squadra
+  corallo: ['#F59E0B', '#EF4444'],    // Partite
+  indaco: ['#6366F1', '#06B6D4'],     // Societa'
+  viola: ['#8B5CF6', '#6366F1'],
+  ciano: ['#06B6D4', '#3B82F6'],
+  ambra: ['#F59E0B', '#EC4899'],
+  fucsia: ['#EC4899', '#8B5CF6'],
+  smeraldo: ['#34D399', '#059669'],
+  rosso: ['#EF4444', '#EC4899']
 };
 
-
-
-// `glifo` disegna dentro un riquadro 0 0 24 24 centrato sul corpo.
+// `glifo` disegna dentro un riquadro 0 0 24 24, poi rimpicciolito e centrato.
 export function Icona({ tono = 'blu', dim = 26, glifo, className }) {
   const [chiaro, scuro] = TONI[tono] || TONI.blu;
   // Stabile per istanza: non cambia a ogni ridisegno, quindi il DOM non viene
   // toccato per niente quando la schermata si aggiorna.
   const n = useId().replace(/:/g, '');
   const gCorpo = 'ic' + n + 'c';
-  const gFianco = 'ic' + n + 'f';
-  const gVetro = 'ic' + n + 'v';
+  const gCupola = 'ic' + n + 'd';
+  const gBordo = 'ic' + n + 'b';
+  const gAlone = 'ic' + n + 'a';
   const rit = 'ic' + n + 'r';
 
   return (
@@ -60,40 +66,63 @@ export function Icona({ tono = 'blu', dim = 26, glifo, className }) {
       className={className}
     >
       <defs>
-        <linearGradient id={gCorpo} x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id={gCorpo} x1="0.12" y1="0" x2="0.88" y2="1">
           <stop offset="0" stopColor={chiaro} />
           <stop offset="1" stopColor={scuro} />
         </linearGradient>
-        {/* Il fianco e' la stessa tinta scura, piu' spenta: e' la parte che la
-            luce non prende. */}
-        <linearGradient id={gFianco} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor={scuro} stopOpacity="0.9" />
-          <stop offset="1" stopColor={scuro} stopOpacity="0.6" />
+
+        {/* La cupola parte dall'alto e si spegne a meta': piu' in basso
+            resterebbe una velatura lattiginosa sul colore pieno. */}
+        <radialGradient id={gCupola} cx="0.5" cy="-0.05" r="0.9">
+          <stop offset="0" stopColor="#fff" stopOpacity="0.5" />
+          <stop offset="0.45" stopColor="#fff" stopOpacity="0.14" />
+          <stop offset="1" stopColor="#fff" stopOpacity="0" />
+        </radialGradient>
+
+        <linearGradient id={gBordo} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#fff" stopOpacity="0.62" />
+          <stop offset="0.45" stopColor="#fff" stopOpacity="0.06" />
+          <stop offset="1" stopColor="#fff" stopOpacity="0.22" />
         </linearGradient>
-        <linearGradient id={gVetro} x1="0" y1="1" x2="1" y2="0">
-          <stop offset="0" stopColor="#fff" stopOpacity="0.02" />
-          <stop offset="1" stopColor="#fff" stopOpacity="0.26" />
-        </linearGradient>
+
+        {/* L'alone e' una sfumatura, non una sfocatura.
+
+            Una feGaussianBlur darebbe lo stesso risultato, ma nella barra in
+            basso le icone cambiano misura fotogramma per fotogramma mentre si
+            scorre, e un filtro va ricalcolato a ogni misura: e' il modo piu'
+            sicuro di rendere legnoso l'unico posto dell'app che deve sembrare
+            fluido. Una sfumatura radiale non costa niente e a questa misura
+            non si distingue. */}
+        <radialGradient id={gAlone} cx="0.5" cy="0.56" r="0.5">
+          <stop offset="0.42" stopColor={scuro} stopOpacity="0.5" />
+          <stop offset="0.7" stopColor={scuro} stopOpacity="0.2" />
+          <stop offset="1" stopColor={scuro} stopOpacity="0" />
+        </radialGradient>
+
         <clipPath id={rit}>
-          <rect x="5" y="6" width="27" height="27" rx="9.5" />
+          <rect x="5" y="4.6" width="30" height="30" rx="10.2" />
         </clipPath>
       </defs>
 
-      {/* 1. lo spessore */}
-      <rect className="icona-spessore" x="8" y="9" width="27" height="27" rx="9.5" fill={`url(#${gFianco})`} />
+      {/* 1. l'alone */}
+      <rect x="0" y="0" width="40" height="40" fill={`url(#${gAlone})`} />
 
       {/* 2. il corpo */}
-      <rect className="icona-volume" x="5" y="6" width="27" height="27" rx="9.5" fill={`url(#${gCorpo})`} />
+      <rect x="5" y="4.6" width="30" height="30" rx="10.2" fill={`url(#${gCorpo})`} />
 
-      {/* 3-4. la lastra e i riflessi, ritagliati dentro il corpo */}
+      {/* 3. la cupola, ritagliata dentro il corpo */}
       <g clipPath={`url(#${rit})`}>
-        <path d="M5 27 L34 5 L34 13 L13 33 Z" fill={`url(#${gVetro})`} />
-        <ellipse cx="14" cy="13" rx="9" ry="5.6" fill="#fff" opacity="0.15" transform="rotate(-30 14 13)" />
-        <path d="M7.5 12.5A8 8 0 0 1 15.5 7H22" stroke="#fff" strokeOpacity="0.34" strokeWidth="1.1" strokeLinecap="round" fill="none" />
+        <rect x="5" y="4.6" width="30" height="30" fill={`url(#${gCupola})`} />
       </g>
 
+      {/* 4. il bordo */}
+      <rect
+        x="5.5" y="5.1" width="29" height="29" rx="9.7"
+        fill="none" stroke={`url(#${gBordo})`} strokeWidth="1"
+      />
+
       {/* 5. il glifo */}
-      <g transform="translate(6.5 7.5)" fill="#fff" fillOpacity="0.95">
+      <g transform="translate(10.9 10.55) scale(0.76)" fill="#fff" fillOpacity="0.97">
         {glifo}
       </g>
     </svg>
@@ -104,13 +133,17 @@ const G = {
   // Casa
   home: <path d="M12 4.4 4.2 10.6v8.2c0 .7.6 1.2 1.2 1.2h3.4v-5.1h6.4V20h3.4c.7 0 1.2-.5 1.2-1.2v-8.2L12 4.4Z" />,
 
-  // Rosa: tre figure, la squadra
+  // Squadra: tre figure, una davanti e due ai lati. Il gruppo si legge dal
+  // profilo d'insieme prima che dalle singole teste: per questo le due dietro
+  // sono piu' piccole e leggermente in ombra, e quella centrale piu' alta.
   rosa: (
     <>
-      <circle cx="8.4" cy="8.6" r="2.9" />
-      <circle cx="16.2" cy="9.4" r="2.3" fillOpacity="0.72" />
-      <path d="M3.2 19.2c0-2.9 2.3-4.7 5.2-4.7s5.2 1.8 5.2 4.7c0 .5-.4.8-.8.8H4c-.5 0-.8-.3-.8-.8Z" />
-      <path d="M15.1 14.8c2.6 0 4.6 1.5 4.6 4 0 .6-.3 1.2-.9 1.2h-3.3c.2-2-.4-3.9-1.6-5.1a5 5 0 0 1 1.2-.1Z" fillOpacity="0.72" />
+      <circle cx="4.6" cy="8.9" r="2.9" fillOpacity="0.72" />
+      <path d="M.6 18.1c0-2.7 2-4.4 4.6-4.4.7 0 1.35.12 1.94.35-1.5 1.15-2.4 2.8-2.5 4.85H1.4a.8.8 0 0 1-.8-.8Z" fillOpacity="0.72" />
+      <circle cx="19.4" cy="8.9" r="2.9" fillOpacity="0.72" />
+      <path d="M23.4 18.1c0-2.7-2-4.4-4.6-4.4-.7 0-1.35.12-1.94.35 1.5 1.15 2.4 2.8 2.5 4.85h3.24a.8.8 0 0 0 .8-.8Z" fillOpacity="0.72" />
+      <circle cx="12" cy="7.1" r="4" />
+      <path d="M4.6 20.1c0-3.9 3.3-6.1 7.4-6.1s7.4 2.2 7.4 6.1c0 .72-.55 1.3-1.25 1.3H5.85c-.7 0-1.25-.58-1.25-1.3Z" />
     </>
   ),
 
@@ -229,11 +262,16 @@ const G = {
     </>
   ),
 
-  // Squadra: lo scudetto
+  // Societa': l'edificio con le colonne. Non e' la squadra — quella sono le
+  // persone — e' l'istituzione: la sede, i conti, le carte. Due cose diverse
+  // meritano due simboli diversi, altrimenti nel menu si scelgono a caso.
   squadra: (
     <>
-      <path d="M12 2.6 4.4 5.4v6.2c0 4.3 3.1 8.2 7.6 9.8 4.5-1.6 7.6-5.5 7.6-9.8V5.4L12 2.6Z" fillOpacity="0.62" />
-      <path d="m12 7.4 1.6 3.2 3.5.5-2.6 2.5.6 3.5-3.1-1.7-3.1 1.7.6-3.5-2.6-2.5 3.5-.5L12 7.4Z" />
+      <path d="M11.5 2.55a1.1 1.1 0 0 1 1 0l9.3 4.6c.42.2.66.66.58 1.12-.08.46-.48.79-.95.79H2.57a.96.96 0 0 1-.95-.79c-.08-.46.16-.91.58-1.12l9.3-4.6Z" />
+      <rect x="4.1" y="10.9" width="3.3" height="7.6" rx="1.3" fillOpacity="0.92" />
+      <rect x="10.35" y="10.9" width="3.3" height="7.6" rx="1.3" fillOpacity="0.92" />
+      <rect x="16.6" y="10.9" width="3.3" height="7.6" rx="1.3" fillOpacity="0.92" />
+      <rect x="2.2" y="19.7" width="19.6" height="2.7" rx="1.35" />
     </>
   ),
 
@@ -257,22 +295,29 @@ const G = {
 
 /* Colore e glifo per sezione. Una tabella sola: se il colore di una sezione
    cambia, cambia in un posto. */
+/* Colore e glifo per sezione. Una tabella sola: se il colore di una sezione
+   cambia, cambia in un posto.
+
+   Le cinque macro portano le coppie del pacchetto, esattamente quelle: sono
+   quelle che si imparano, perche' stanno nella barra in basso e si vedono
+   tutto il giorno. Le altre sezioni prendono coppie della stessa famiglia,
+   scelte in modo che dentro una macro le sorelle non si confondano. */
 export const SEZIONI = {
-  home: { tono: 'blu', glifo: G.home },
-  rosa: { tono: 'ciano', glifo: G.rosa },
+  home: { tono: 'blu', glifo: G.home },                 // macro Home
+  rosa: { tono: 'rosa', glifo: G.rosa },                // macro Squadra
   anagrafica: { tono: 'viola', glifo: G.anagrafica },
-  partita: { tono: 'corallo', glifo: G.partita },
-  allenamenti: { tono: 'verde', glifo: G.allenamenti },
-  presenze: { tono: 'ciano', glifo: G.presenze },
-  comunicazioni: { tono: 'viola', glifo: G.comunicazioni },
+  comunicazioni: { tono: 'fucsia', glifo: G.comunicazioni },
+  allenamenti: { tono: 'verde', glifo: G.allenamenti }, // macro Allenamenti
+  presenze: { tono: 'smeraldo', glifo: G.presenze },
+  partita: { tono: 'corallo', glifo: G.partita },       // macro Partite
+  calendario: { tono: 'ciano', glifo: G.calendario },
   classifica: { tono: 'ambra', glifo: G.classifica },
-  statistiche: { tono: 'blu', glifo: G.statistiche },
-  calendario: { tono: 'ambra', glifo: G.calendario },
-  situazione: { tono: 'rosa', glifo: G.situazione },
-  documenti: { tono: 'blu', glifo: G.documenti },
+  statistiche: { tono: 'indaco', glifo: G.statistiche },
+  squadra: { tono: 'indaco', glifo: G.squadra },        // macro Societa'
+  situazione: { tono: 'rosso', glifo: G.situazione },
+  documenti: { tono: 'viola', glifo: G.documenti },
+  finanza: { tono: 'smeraldo', glifo: G.finanza },
   utenti: { tono: 'ciano', glifo: G.utenti },
-  squadra: { tono: 'rosa', glifo: G.squadra },
-  finanza: { tono: 'verde', glifo: G.finanza },
   profilo: { tono: 'viola', glifo: G.profilo }
 };
 
