@@ -26,7 +26,7 @@ import { Finanza } from './Finanza.jsx';
 import { Partita } from './Partita.jsx';
 import { Accesso, CompletaIscrizione } from './Accesso.jsx';
 import { ConsoleSuperAdmin } from './Piattaforma.jsx';
-import { amIPlatformOwner } from '../api/platform.js';
+import { amIPlatformOwner, currentSociety, leaveSociety, segnoOspite } from '../api/platform.js';
 import { supabase } from '../supabaseClient.js';
 import { getPendingAction, runPendingAction, clearPendingAction } from '../auth.js';
 import { Etichetta, Vuoto, Scheletro, Titolo } from './ui.jsx';
@@ -101,6 +101,38 @@ function Nastro({ onAccesso }) {
   );
 }
 
+/* Il nastro di chi sta guardando la societa' di qualcun altro.
+ *
+ * Sta in cima a OGNI schermata, non solo alla prima, e non si chiude. Il
+ * potere di un SuperAdmin dentro una societa' e' lo stesso di un suo
+ * amministratore: la cosa piu' pericolosa che puo' capitare e' dimenticarsi
+ * dove si e', e scrivere qualcosa credendo di essere a casa propria.
+ *
+ * Ambra e non blu: non e' un'informazione, e' un avvertimento. */
+function NastroOspite({ societa }) {
+  const [esco, setEsco] = useState(false);
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-gradient-to-r from-ambra to-corallo px-4 py-1.5 text-white sm:px-6">
+      <span className="text-[11px] font-bold uppercase tracking-etichetta">SuperAdmin</span>
+      <span className="text-[12.5px] opacity-95">
+        Stai guardando <b>{societa.name}</b>{societa.city ? ' \u00b7 ' + societa.city : ''}. Quello che cambi
+        qui lo cambi a loro.
+      </span>
+      <button
+        onClick={async () => {
+          if (esco) return;
+          setEsco(true);
+          try { await leaveSociety(); } catch (e) { /* si esce comunque */ }
+          window.location.reload();
+        }}
+        className="ml-auto shrink-0 rounded-lg bg-white/20 px-3 py-1 text-[12.5px] font-bold underline-offset-2 hover:bg-white/30"
+      >
+        {esco ? 'Esco\u2026' : 'Esci dalla societ\u00e0'}
+      </button>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------- ignota */
 // Rete di sicurezza: una voce di menu senza schermata. Non dovrebbe capitare,
 // e se capita e' meglio dirlo che mostrare una pagina bianca.
@@ -154,6 +186,7 @@ function App() {
   const [lento, setLento] = useState(false);   // l'avvio sta durando troppo
   const [campione, setCampione] = useState(false);
   const [recupero, setRecupero] = useState(null);   // { email, errore }
+  const [ospite, setOspite] = useState(null);      // la societa' in cui il SuperAdmin e' entrato
   const [sezione, setSezione] = useState(() => leggiIndirizzo().sezione || 'home');
   const [sectorId, setSectorId] = useState(null);
   const [tema, setTema] = useState(temaIniziale);
@@ -222,11 +255,45 @@ function App() {
             // deve fare.
             const piattaforma = await amIPlatformOwner().catch(() => false);
             if (!vivo) return;
-            setRecupero({ email: auth.session.user.email, errore: erroreSospeso });
-            setFase(piattaforma ? 'console' : 'completa');
-            return;
+
+            // Ma se ci e' gia' ENTRATO, l'app non e' la console: e' quella
+            // societa'. Il profilo che manca se lo costruisce qui, con i dati
+            // che il database gli sta gia' riconoscendo.
+            if (piattaforma) {
+              const dentro = await currentSociety().catch(() => null);
+              if (!vivo) return;
+              if (dentro && dentro.team_id) {
+                setOspite(dentro);
+                profilo = {
+                  id: auth.session.user.id,
+                  team_id: dentro.team_id,
+                  display_name: 'SuperAdmin',
+                  role: 'admin',
+                  active: true,
+                  email: auth.session.user.email,
+                  daPiattaforma: true
+                };
+              }
+            }
+
+            if (!profilo) {
+              setRecupero({ email: auth.session.user.email, errore: erroreSospeso });
+              setFase(piattaforma ? 'console' : 'completa');
+              return;
+            }
           }
           if (!profilo) { setFase('accesso'); return; }
+        }
+
+        // Un SuperAdmin con una societa' propria che e' entrato altrove: il
+        // database gli sta gia' rispondendo con l'altra, e l'app deve saperlo.
+        if (profilo && !profilo.daPiattaforma && segnoOspite()) {
+          const dentro = await currentSociety().catch(() => null);
+          if (!vivo) return;
+          if (dentro && dentro.team_id && dentro.team_id !== profilo.team_id) {
+            setOspite(dentro);
+            profilo = { ...profilo, team_id: dentro.team_id, role: 'admin', daPiattaforma: true };
+          }
         }
 
         state.currentUser = profilo;
@@ -395,7 +462,11 @@ function App() {
         onSezione={setSezione}
         sectorId={sectorId}
         onSettore={cambiaSettore}
-        nastro={campione ? <Nastro onAccesso={() => { setCampione(false); setFase('accesso'); }} /> : null}
+        nastro={
+          ospite
+            ? <NastroOspite societa={ospite} />
+            : (campione ? <Nastro onAccesso={() => { setCampione(false); setFase('accesso'); }} /> : null)
+        }
         strumenti={<Tema valore={tema} onCambia={setTema} />}
       >
         {contenuto}

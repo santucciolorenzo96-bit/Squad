@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { logout } from '../auth.js';
-import { amIPlatformOwner, createActivationCode, listActivationCodes, revokeActivationCode, listSocieties } from '../api/platform.js';
+import { amIPlatformOwner, createActivationCode, listActivationCodes, revokeActivationCode, listSocieties, enterSociety } from '../api/platform.js';
 import { SPORT_LIST } from '../utils/sports/index.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Pulsante, Scheletro, cx } from './ui.jsx';
@@ -257,6 +257,22 @@ export function PannelloSocieta() {
   const [abilitato, setAbilitato] = useState(null);
   const [righe, setRighe] = useState(null);
   const [errore, setErrore] = useState(null);
+  const [entrando, setEntrando] = useState(null);   // id della societa' in cui si sta entrando
+
+  async function entra(r) {
+    if (entrando) return;
+    setEntrando(r.id);
+    try {
+      await enterSociety(r.id);
+      // Si ricarica invece di aggiornare lo stato: la societa' viene letta
+      // all'avvio e sta in dieci posti diversi. Ricaricare e' l'unico modo
+      // onesto di cambiarla tutta insieme.
+      window.location.reload();
+    } catch (e) {
+      setEntrando(null);
+      setErrore(e);
+    }
+  }
 
   // Il pannello si chiede da solo se tocca a lui: cosi funziona sia nella
   // console — dove ci arriva solo un SuperAdmin — sia dentro Squadra, dove
@@ -321,16 +337,25 @@ export function PannelloSocieta() {
               <div className="w-full text-[12px] text-tenue sm:w-auto sm:pl-3">
                 dal {fmtData((r.created_at || '').slice(0, 10))}
               </div>
+              <Pulsante
+                variante="primario"
+                className="shrink-0 py-1.5 text-[12.5px]"
+                disabled={!!entrando}
+                onClick={() => entra(r)}
+              >
+                {entrando === r.id ? 'Entro\u2026' : 'Entra'}
+              </Pulsante>
             </div>
           ))}
         </Pannello>
       )}
 
       <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
-        Solo l’anagrafe: nome, sport, quante persone. Dentro le società non si entra — rose,
-        quote e certificati restano di chi ne fa parte, e la funzione del database non li
-        restituisce nemmeno volendo.
+        «Entra» ti fa vedere la società come la vede un suo amministratore, e ti lascia
+        cambiare quello che può cambiare lui. Ogni ingresso resta scritto, e finché sei
+        dentro te lo ricorda un nastro in cima a ogni schermata.
       </p>
+
     </div>
   );
 }
