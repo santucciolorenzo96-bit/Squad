@@ -146,6 +146,23 @@ export const PALLAVOLO = {
       etichettaPalla: 'set point',
       etichettaMatch: 'match point'
     },
+    /* OGNI PUNTO CHIUDE UNO SCAMBIO, E OGNI SCAMBIO HA UN BATTITORE.
+     *
+     * E' la regola che il basket non ha, ed e' quella da cui discende meta'
+     * della statistica della pallavolo. Sapendo chi serviva si sa se un punto
+     * e' un cambio palla o un break; sommandoli si ha il sideout, che e' il
+     * numero con cui si vincono i campionati; e si sa quando girare, perche' si
+     * gira esattamente quando si conquista il servizio.
+     *
+     * Una domanda sola a inizio set — chi batte — e il resto lo deduce l'app:
+     * chi vince lo scambio serve il successivo. */
+    scambi: {
+      domanda: 'Chi batte?',
+      noi: 'Noi',
+      loro: 'Loro',
+      etichettaCambioPalla: 'Cambio palla',
+      etichettaBreak: 'Break'
+    },
     ourScore: 'perPeriod',
     opponentScore: 'perPeriod',
     scoreDisplay: 'setsWon',
@@ -174,15 +191,17 @@ export const PALLAVOLO = {
         { act: 'attack_ok', label: '↺ Ripreso', etichettaBreve: 'Attacco ripreso', tone: 'neutral',
           apply: { attacks: 1 } },
         { act: 'attack_err', label: '✗ Errore', etichettaBreve: 'Errore in attacco', tone: 'miss',
-          apply: { attackErrors: 1, attacks: 1 } }
+          apply: { attackErrors: 1, attacks: 1 }, puntoLoro: true }
       ]},
       { label: 'Punto diretto', layout: 'pair', actions: [
         { act: 'block', label: 'Muro punto', tone: 'made', apply: { points: 1, blocks: 1 } },
         { act: 'ace', label: 'Ace', tone: 'made', apply: { points: 1, aces: 1 } }
       ]},
       { label: 'Errore', layout: 'pair', actions: [
-        { act: 'serve_err', label: 'Al servizio', etichettaBreve: 'Errore al servizio', tone: 'warn', apply: { serveErrors: 1 } },
-        { act: 'recept_err', label: 'In ricezione', etichettaBreve: 'Errore in ricezione', tone: 'warn', apply: { receptionErrors: 1 } }
+        { act: 'serve_err', label: 'Al servizio', etichettaBreve: 'Errore al servizio', tone: 'warn',
+          apply: { serveErrors: 1 }, puntoLoro: true },
+        { act: 'recept_err', label: 'In ricezione', etichettaBreve: 'Errore in ricezione', tone: 'warn',
+          apply: { receptionErrors: 1 }, puntoLoro: true }
       ]},
       { label: 'Difesa', actions: [
         { act: 'dig', label: 'Difesa', tone: 'neutral', apply: { digs: 1 } }

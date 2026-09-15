@@ -6,7 +6,7 @@ import { updateCalendarMatch } from '../api/calendar.js';
 import { currentSport } from '../utils/sports/index.js';
 import {
   situazionePeriodo, etichettaPalla, partitaDecisa, periodiMassimi,
-  perchePunteggioImpossibile
+  perchePunteggioImpossibile, scambioFinito
 } from '../utils/regole.js';
 import { Pannello, Etichetta, Pulsante, Stato, cx } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, useAvviso } from './moduli.jsx';
@@ -224,7 +224,18 @@ export function Tracker({ onFinita, onEsci }) {
     // segna confronta col tabellone della palestra, e un numero che si aggiorna
     // solo a fine set non serve a confrontare niente.
     const guadagnati = sport.score(s || {}) - primaPunti;
-    if (guadagnati) segnaPeriodo('us', guadagnati);
+    if (guadagnati) {
+      segnaPeriodo('us', guadagnati);
+      chiudiScambio('us');
+    }
+
+    // I nostri errori sono punti loro: e' la regola del gioco, e finora la
+    // doveva applicare a mano chi segnava — due tocchi per un evento solo, e
+    // quello dimenticato falsava il punteggio senza dirlo.
+    if (azione.puntoLoro) {
+      segnaPeriodo('them', 1);
+      chiudiScambio('them');
+    }
 
     calcolaPunteggi(g, sport);
 
@@ -260,23 +271,27 @@ export function Tracker({ onFinita, onEsci }) {
   // pallavolo, i punti che prendiamo NOI per un errore avversario, che non si
   // possono assegnare a nessun giocatore. Senza questo, quel punteggio
   // resterebbe fermo per tutto il set.
-  function segnaPeriodo(lato, delta, conAnnulla) {
+  function segnaPeriodo(lato, delta) {
     const idx = (g.quarter || 1) - 1;
     g.periodScores = g.periodScores || [];
     const riga = g.periodScores[idx] || { us: 0, them: 0 };
     const nuovo = Math.max(0, (riga[lato] || 0) + delta);
     if (nuovo === riga[lato] && delta < 0) return;      // gia' a zero: niente da togliere
+    // Si copia la riga invece di rifarla: dentro ci sono anche chi batte, la
+    // rotazione e i conti delle fasi, e riscriverla da zero li cancellerebbe.
     g.periodScores[idx] = { ...riga, [lato]: nuovo };
-    if (conAnnulla) {
-      calcolaPunteggi(g, sport);
-      aggiorna();
-      salva();
-    }
   }
 
   function manoPunteggio(lato, delta) {
     memorizza((lato === 'us' ? 'Noi' : g.oppName) + ' ' + (delta > 0 ? '+1' : '−1'));
-    segnaPeriodo(lato, delta, true);
+    segnaPeriodo(lato, delta);
+    // Solo il piu' chiude uno scambio. Il meno e' una correzione, e una
+    // correzione non ha una fase ne' una rotazione: per disfare uno scambio
+    // c'e' l'Annulla, che rimette indietro tutto insieme.
+    if (delta > 0) chiudiScambio(lato);
+    calcolaPunteggi(g, sport);
+    aggiorna();
+    salva();
     if (navigator.vibrate) navigator.vibrate(8);
   }
 
@@ -292,16 +307,53 @@ export function Tracker({ onFinita, onEsci }) {
    * e sei fino alla fine, in silenzio. Chi segna sa quando si gira, e girare
    * costa un tocco.
    */
-  function ruota() {
+  // Lo spostamento vero: chi era in zona 1 va in fondo. Staccato dal pulsante
+  // perche' adesso lo chiama anche il motore degli scambi.
+  function giraSestetto() {
     const campo = g.players.filter(p => p.onCourt);
-    if (campo.length < 2) return;
-    memorizza('Rotazione');
+    if (campo.length < 2) return false;
     const girati = campo.slice(1).concat([campo[0]]);
     let k = 0;
     g.players = g.players.map(p => (p.onCourt ? girati[k++] : p));
+    return true;
+  }
+
+  function ruota() {
+    if (!giraSestetto()) return;
+    memorizza('Rotazione');
+    const idx = (g.quarter || 1) - 1;
+    g.periodScores = g.periodScores || [];
+    const riga = g.periodScores[idx] || { us: 0, them: 0 };
+    g.periodScores[idx] = { ...riga, rot: ((riga.rot || 1) % 6) + 1 };
     aggiorna();
     salva();
     if (navigator.vibrate) navigator.vibrate(8);
+  }
+
+  // Lo scambio finito: la regola sta in regole.js, qui si applica. Chiudere
+  // uno scambio vuol dire tre cose insieme — la fase, la rotazione, e chi
+  // battera' il prossimo — e sono tre cose che val la pena poter provare da
+  // sole, senza una partita intorno.
+  function chiudiScambio(lato) {
+    if (!conf.scambi) return;
+    const idx = (g.quarter || 1) - 1;
+    g.periodScores = g.periodScores || [];
+    const esito = scambioFinito(g.periodScores[idx] || { us: 0, them: 0 }, lato);
+    if (!esito) return;                 // non sappiamo chi batteva: non si conta
+    if (esito.gira) giraSestetto();
+    g.periodScores[idx] = esito.riga;
+  }
+
+  // La risposta alla domanda di inizio set. Da qui in poi non si chiede piu'
+  // niente: chi vince lo scambio serve il successivo.
+  function iniziaServizio(lato) {
+    memorizza(lato === 'us' ? 'Battiamo noi' : 'Battono loro');
+    const idx = (g.quarter || 1) - 1;
+    g.periodScores = g.periodScores || [];
+    const riga = g.periodScores[idx] || { us: 0, them: 0 };
+    g.periodScores[idx] = { ...riga, serve: lato, rot: riga.rot || 1 };
+    aggiorna();
+    salva();
   }
 
   function sostituisci(entrante) {
@@ -349,6 +401,17 @@ export function Tracker({ onFinita, onEsci }) {
   // panchina — si sa che si e' a un punto dalla fine, e non si continua a
   // segnare per tre scambi dentro un set gia' chiuso. Nel basket non c'e'
   // nessuna regola da sapere, e qui non compare niente.
+  // Lo scambio in corso: chi batte, in che rotazione siamo, come stanno le due
+  // fasi. Vale solo dove ogni punto chiude uno scambio — nel basket e' null e
+  // dalla testata non compare niente.
+  const scambi = conf.scambi ? {
+    serve: inCorso.serve || null,
+    rot: inCorso.rot || 1,
+    so: { v: inCorso.soV || 0, t: inCorso.soT || 0 },
+    bp: { v: inCorso.bpV || 0, t: inCorso.bpT || 0 }
+  } : null;
+  const pct = (x) => (x.t ? Math.round((x.v / x.t) * 100) : null);
+
   const decisa = partitaDecisa(conf, chiusi);
   const inCorsoDaChiudere = quantiChiusi(g) < (g.quarter || 1);
   const situazione = inCorsoDaChiudere
@@ -412,8 +475,16 @@ export function Tracker({ onFinita, onEsci }) {
         <Pannello alto className="mx-auto max-w-[54rem] overflow-hidden">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-3.5 sm:px-4">
             <div className="min-w-0 text-center">
-              <div className="truncate text-[11px] font-bold uppercase tracking-etichetta text-tenue">
-                {(state.teamProfile || {}).name}
+              <div className="flex items-center justify-center gap-1.5">
+                {/* Chi ha il servizio, detto come lo direbbe un tabellone: un
+                    pallino acceso accanto al nome. Guardando il punteggio si
+                    vede anche di chi e' la battuta, senza un secondo sguardo. */}
+                {scambi && scambi.serve === 'us' && (
+                  <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-verde shadow-blu" aria-label="al servizio" />
+                )}
+                <span className="truncate text-[11px] font-bold uppercase tracking-etichetta text-tenue">
+                  {(state.teamProfile || {}).name}
+                </span>
               </div>
               <div className="mt-1 text-[clamp(30px,9vw,46px)] font-bold leading-none text-verde">
                 {grandeNostro}
@@ -452,8 +523,13 @@ export function Tracker({ onFinita, onEsci }) {
             </div>
 
             <div className="min-w-0 text-center">
-              <div className="truncate text-[11px] font-bold uppercase tracking-etichetta text-tenue">
-                {g.oppName}
+              <div className="flex items-center justify-center gap-1.5">
+                {scambi && scambi.serve === 'them' && (
+                  <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-ambra" aria-label="al servizio" />
+                )}
+                <span className="truncate text-[11px] font-bold uppercase tracking-etichetta text-tenue">
+                  {g.oppName}
+                </span>
               </div>
               <div className="mt-1 text-[clamp(30px,9vw,46px)] font-bold leading-none">
                 {grandeLoro}
@@ -465,6 +541,55 @@ export function Tracker({ onFinita, onEsci }) {
               />
             </div>
           </div>
+
+          {/* LA DOMANDA DI INIZIO SET.
+              Una sola, e poi mai piu': da li' in avanti chi vince lo scambio
+              serve il successivo, e l'app se lo tiene da sola. Non blocca
+              niente — si puo' segnare lo stesso e rispondere dopo, perdendo
+              solo i conti delle fasi di quel set. */}
+          {scambi && !scambi.serve && !(avviso && avviso.chiusa) && (
+            <div className="flex flex-wrap items-center justify-center gap-2 border-t border-bordo/10 bg-blu/8 px-3 py-2">
+              <span className="text-[12.5px] font-semibold text-soffuso">
+                {conf.scambi.domanda}
+              </span>
+              <button
+                onClick={() => iniziaServizio('us')}
+                className="rounded-lg bg-verde/16 px-3 py-1.5 text-[12.5px] font-bold text-verde ring-1 ring-verde/30 transition-all hover:bg-verde/24 active:scale-95"
+              >
+                {conf.scambi.noi}
+              </button>
+              <button
+                onClick={() => iniziaServizio('them')}
+                className="rounded-lg bg-ambra/16 px-3 py-1.5 text-[12.5px] font-bold text-ambra ring-1 ring-ambra/30 transition-all hover:bg-ambra/24 active:scale-95"
+              >
+                {conf.scambi.loro}
+              </button>
+            </div>
+          )}
+
+          {/* LE DUE FASI, DAL VIVO.
+              Cambio palla e break sono i due numeri che in panchina si
+              chiedono ad alta voce, e finora non li avevamo affatto. Compaiono
+              appena c'e' qualcosa da dire: prima del primo scambio sarebbero
+              due trattini che occupano una riga. */}
+          {scambi && (scambi.so.t > 0 || scambi.bp.t > 0) && (
+            <div className="flex items-center justify-center gap-5 border-t border-bordo/10 px-3 py-1.5">
+              {scambi.so.t > 0 && (
+                <span className="text-[11.5px] text-tenue">
+                  {conf.scambi.etichettaCambioPalla}{' '}
+                  <b className="cifra text-[13px] text-testo">{pct(scambi.so)}%</b>
+                  <span className="cifra ml-1">({scambi.so.v}/{scambi.so.t})</span>
+                </span>
+              )}
+              {scambi.bp.t > 0 && (
+                <span className="text-[11.5px] text-tenue">
+                  {conf.scambi.etichettaBreak}{' '}
+                  <b className="cifra text-[13px] text-testo">{pct(scambi.bp)}%</b>
+                  <span className="cifra ml-1">({scambi.bp.v}/{scambi.bp.t})</span>
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Il regolamento che parla. Ambra quando manca un punto alla fine,
               verde quando il set e' finito davvero: due stati, due colori, e
@@ -534,6 +659,12 @@ export function Tracker({ onFinita, onEsci }) {
           <div className="mb-2.5 flex items-center justify-between gap-3">
             <Etichetta>{sport.field.onFieldLabel} · tocca per assegnare</Etichetta>
             {conf.rotazione ? (
+              <div className="flex shrink-0 items-center gap-2">
+                {scambi && (
+                  <span className="rounded-lg bg-pannello/12 px-2 py-1 text-[11.5px] font-bold text-soffuso">
+                    R{scambi.rot}
+                  </span>
+                )}
               <button
                 onClick={ruota}
                 title={conf.rotazione.descrizione}
@@ -544,6 +675,7 @@ export function Tracker({ onFinita, onEsci }) {
                 </svg>
                 {conf.rotazione.etichetta}
               </button>
+              </div>
             ) : (
               <span className="text-[12.5px] text-tenue">{inCampo.length} di {sport.match.minOnField}</span>
             )}
@@ -1075,7 +1207,9 @@ function ChiusuraPeriodo({ g, sport, onChiudi, onFatto }) {
         if (impossibile) return impossibile + ' Confronta col tabellone e correggi i punti prima di chiudere.';
 
         g.periodScores = g.periodScores || [];
-        g.periodScores[idx] = { us: nostriOra, them: n };
+        // Si scrivono i due numeri e basta: chi batteva, la rotazione e i conti
+        // delle fasi restano dov'erano, perche' sono la storia di quel set.
+        g.periodScores[idx] = { ...(g.periodScores[idx] || {}), us: nostriOra, them: n };
         g.chiusi = Math.max(g.chiusi || 0, idx + 1);
 
         const deciso = partitaDecisa(conf, g.periodScores.slice(0, idx + 1));

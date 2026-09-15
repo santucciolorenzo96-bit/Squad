@@ -109,3 +109,60 @@ export function periodiMassimi(conf) {
   const r = conf && conf.regolamento;
   return r ? r.periodiMassimi : null;
 }
+
+/* LO SCAMBIO FINITO.
+ *
+ * Prende la riga del set — dentro ci sono i punti, chi batte, la rotazione e i
+ * conti delle due fasi — e chi ha vinto lo scambio. Restituisce la riga nuova e
+ * se il sestetto deve girare.
+ *
+ * Tre regole, tutte del regolamento e nessuna inventata:
+ *
+ *   1. il punto appartiene alla FASE in cui si stava giocando: se battevamo noi
+ *      e' un break, se battevano loro e' un cambio palla. Sommati, danno i due
+ *      numeri con cui in panchina si capisce una partita di pallavolo;
+ *   2. il punto appartiene alla ROTAZIONE in cui si stava giocando, non a
+ *      quella in cui si finisce: si attribuisce prima, si gira dopo;
+ *   3. si gira quando si CONQUISTA il servizio — cioe' si vince uno scambio che
+ *      serviva l'avversario — e mai altrimenti.
+ *
+ * Senza sapere chi batteva non si conta niente e si restituisce null: un
+ * sideout calcolato su meta' degli scambi e' peggio di nessun sideout, perche'
+ * sembra un dato.
+ */
+export function scambioFinito(riga, lato) {
+  if (!riga || !riga.serve) return null;
+
+  const n = { ...riga };
+  if (riga.serve === 'us') {
+    n.bpT = (n.bpT || 0) + 1;
+    if (lato === 'us') n.bpV = (n.bpV || 0) + 1;
+  } else {
+    n.soT = (n.soT || 0) + 1;
+    if (lato === 'us') n.soV = (n.soV || 0) + 1;
+  }
+
+  const rot = n.rot || 1;
+  const per = { ...(n.perRot || {}) };
+  const cella = per[rot] || { f: 0, s: 0 };
+  per[rot] = lato === 'us'
+    ? { ...cella, f: (cella.f || 0) + 1 }
+    : { ...cella, s: (cella.s || 0) + 1 };
+  n.perRot = per;
+
+  const gira = lato === 'us' && riga.serve === 'them';
+  if (gira) n.rot = (rot % 6) + 1;
+  n.serve = lato;
+
+  return { riga: n, gira };
+}
+
+// I due numeri in percentuale, o null dove non c'e' ancora niente da dire.
+export function percentualiFase(riga) {
+  if (!riga) return { so: null, bp: null };
+  const q = (v, t) => (t ? Math.round((v / t) * 100) : null);
+  return {
+    so: q(riga.soV || 0, riga.soT || 0),
+    bp: q(riga.bpV || 0, riga.bpT || 0)
+  };
+}
