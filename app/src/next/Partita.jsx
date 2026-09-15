@@ -35,7 +35,7 @@ function PartitaInCorso({ sport, onRientra }) {
   const loro = perSet ? vivo.them : g.oppScore;
   return (
     <>
-      <Titolo sopra="Categoria">Partita</Titolo>
+      <Titolo sopra="Categoria">Scout</Titolo>
       <div className="mt-5">
         <Pannello alto className="pad-pannello-stretto">
           <Etichetta className="!text-verde">Partita in corso</Etichetta>
@@ -121,7 +121,7 @@ export function Partita() {
   if (!sport.match.liveTracker) {
     return (
       <div className="sezioni">
-        <Titolo sopra="Categoria">Partita</Titolo>
+        <Titolo sopra="Categoria">Scout</Titolo>
         <Vuoto>Per {sport.label.toLowerCase()} il tabellino dal vivo non è previsto.</Vuoto>
       </div>
     );
@@ -133,7 +133,7 @@ export function Partita() {
   if (fase === 'recupero' && recupero) {
     return (
       <>
-        <Titolo sopra="Categoria">Partita</Titolo>
+        <Titolo sopra="Categoria">Scout</Titolo>
         <div className="mt-5">
           <Pannello alto className="pad-pannello-stretto">
             <Etichetta className="!text-ambra">Server non raggiungibile</Etichetta>
@@ -165,7 +165,7 @@ export function Partita() {
   }
 
   if (fase === 'carico') {
-    return <><Titolo sopra="Categoria">Partita</Titolo><div className="mt-5"><Scheletro righe={3} /></div></>;
+    return <><Titolo sopra="Categoria">Scout</Titolo><div className="mt-5"><Scheletro righe={3} /></div></>;
   }
 
   if (fase === 'live') {

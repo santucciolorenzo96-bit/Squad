@@ -101,7 +101,7 @@ export function AvvioPartita({ onAvviata }) {
   if (state.roster.length < inCampo) {
     return (
       <div className="sezioni">
-        <Titolo sopra="Categoria">Partita</Titolo>
+        <Titolo sopra="Categoria">Scout</Titolo>
         <Vuoto>
           Servono almeno {inCampo} giocatori in rosa per aprire un tabellino, e adesso
           ce ne sono {state.roster.length}. Si aggiungono dall’Anagrafica.
@@ -112,11 +112,11 @@ export function AvvioPartita({ onAvviata }) {
 
   return (
     <div className="sezioni">
-      <Titolo sopra="Categoria">Nuova partita</Titolo>
+      <Titolo sopra="Categoria">Scout</Titolo>
 
       {/* ------------------------------------------------- chi affrontiamo */}
       <Pannello className="pad-pannello-stretto">
-        <Etichetta>Contro chi</Etichetta>
+        <Etichetta>Nuova partita · contro chi</Etichetta>
 
         {candidate.length > 0 && (
           <div className="mt-3 space-y-2">

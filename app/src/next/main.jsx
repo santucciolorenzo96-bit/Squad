@@ -271,6 +271,12 @@ function App() {
                   role: 'admin',
                   active: true,
                   email: auth.session.user.email,
+                  // La finanza e' l'unica sezione che non dipende dal ruolo ma
+                  // da un permesso a parte: senza, un SuperAdmin entrava in
+                  // una societa' e la sezione Finanza spariva dal menu.
+                  finance_role: 'admin',
+                  can_upload_documents: true,
+                  can_score_matches: true,
                   daPiattaforma: true
                 };
               }
@@ -292,7 +298,15 @@ function App() {
           if (!vivo) return;
           if (dentro && dentro.team_id && dentro.team_id !== profilo.team_id) {
             setOspite(dentro);
-            profilo = { ...profilo, team_id: dentro.team_id, role: 'admin', daPiattaforma: true };
+            profilo = {
+              ...profilo,
+              team_id: dentro.team_id,
+              role: 'admin',
+              finance_role: 'admin',
+              can_upload_documents: true,
+              can_score_matches: true,
+              daPiattaforma: true
+            };
           }
         }
 

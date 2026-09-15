@@ -64,7 +64,10 @@ export const TABS = [
   { id: 'rosa', label: 'Rosa', group: 'settore', roles: [...ROSTER_ROLES, ...LINKED_ROLES] },
   { id: 'anagrafica', label: 'Anagrafica', group: 'settore', roles: [...MANAGER_ROLES, ...LINKED_ROLES] },
   // alsoIf: visibile anche a chi ha quel permesso, oltre ai ruoli elencati
-  { id: 'partita', label: 'Partita', group: 'settore', roles: [...ROSTER_ROLES, 'segnapunti'], alsoIf: 'can_score_matches', primary: true },
+  // «Scout» e non «Partita»: dentro la macro Partite, «Partite > Partita» non
+  // diceva cosa fosse. Scout e' anche la parola che si usa in palestra — «chi
+  // tiene lo scout stasera?» — e il ruolo nell'app si chiama gia' cosi'.
+  { id: 'partita', label: 'Scout', group: 'settore', roles: [...ROSTER_ROLES, 'segnapunti'], alsoIf: 'can_score_matches', primary: true },
   { id: 'allenamenti', label: 'Allenamenti', group: 'settore', roles: [...MANAGER_ROLES, 'segnapunti', ...LINKED_ROLES], primary: true },
   { id: 'presenze', label: 'Presenze', group: 'settore', roles: MANAGER_ROLES },
   { id: 'comunicazioni', label: 'Comunicazioni', group: 'settore', roles: [...MANAGER_ROLES, ...LINKED_ROLES] },
