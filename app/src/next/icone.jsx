@@ -330,6 +330,16 @@ export function coloreSezione(id) {
   return (SEZIONI[id] || SEZIONI.home).tono;
 }
 
+/* Il colore di una sezione scritto come lo vuole una variabile CSS: «56 124
+   255», tre numeri senza virgole, da usare dentro rgb(var(--x) / 0.2).
+   E' il primo dei due della coppia — quello con cui la sezione si riconosce —
+   non il secondo, che serve solo a chiudere la sfumatura. */
+export function tintaSezione(id) {
+  const [chiaro] = TONI[(SEZIONI[id] || SEZIONI.home).tono] || TONI.blu;
+  const n = parseInt(chiaro.slice(1), 16);
+  return ((n >> 16) & 255) + ' ' + ((n >> 8) & 255) + ' ' + (n & 255);
+}
+
 
 
 /* Icone di interfaccia: tratto sottile, monocromatiche, prendono il colore del

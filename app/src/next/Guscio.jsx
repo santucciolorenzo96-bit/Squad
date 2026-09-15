@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { state } from '../state.js';
 import { TABS, canSeeTab, isAdmin, isLinkedUser, macroConVoci, macroDiSezione } from '../utils/permissions.js';
 import { currentSport } from '../utils/sports/index.js';
 import { orderedSectors, sectorFullName, sectorIdsFor } from '../utils/sectors.js';
 import { cx, Avatar, Pannello } from './ui.jsx';
-import { IconaSezione, Chevron, coloreSezione } from './icone.jsx';
+import { IconaSezione, Chevron, coloreSezione, tintaSezione } from './icone.jsx';
 import { Finestra } from './moduli.jsx';
 
 /* Il guscio.
@@ -403,232 +403,78 @@ function SottoBarra({ sezione, onSezione }) {
 }
 
 /* ------------------------------------------------------------- barra mobile */
-/* ----------------------------------------------- la barra sul telefono */
-/* Un carosello continuo, non cinque caselle piu' un cassetto.
+/* Cinque caselle ferme, e basta.
  *
- * La regola e' una sola: la voce piu' vicina al centro E' la sezione aperta.
- * Non esiste una voce speciale — Home lo sembrava solo perche' stava al centro
- * per prima, e al centro ci sta chiunque ci arrivi.
+ * Il carosello serviva quando le voci erano dodici: girava perche' non ci
+ * stavano. Adesso sono cinque e ci stanno tutte, e allora ogni ragione per
+ * farlo scorrere e' sparita — ne restavano solo gli effetti collaterali. Una
+ * barra che si muove sotto il dito e' una barra dove si puo' sbagliare tocco,
+ * dove la voce che cercavi non e' dove l'avevi lasciata, e dove per capire
+ * cos'e' aperto bisogna guardare cosa e' finito al centro.
  *
- * PERCHE' L'ELENCO GIRA. Con una pista che comincia e finisce, la prima voce
- * al centro ha il vuoto alla sua sinistra e l'ultima ha il vuoto alla sua
- * destra: la barra sembra rotta proprio nei due punti in cui si apre l'app.
- * Qui l'elenco e' ripetuto tre volte e lo scorrimento si riporta di nascosto
- * nella copia di mezzo quando esce: le copie sono larghe un multiplo esatto
- * del passo, quindi i punti di aggancio coincidono e il salto non si vede.
- * Cosi' OGNI voce ha lo stesso numero di sezioni a destra e a sinistra.
+ * Ferma, ogni sezione ha il SUO posto: si impara dove sta e ci si arriva senza
+ * guardare. E' la differenza fra un menu e un nastro trasportatore.
  *
- * Il movimento e' lo scorrimento nativo con lo scatto e l'inerzia del sistema:
- * un carosello scritto a mano con i pointer event si riconosce sempre, perche'
- * la fisica non e' mai quella del telefono su cui gira. Quello che aggiungo io
- * e' solo la misura della distanza dal centro, che diventa --v su ogni voce.
+ * HOME STA IN MEZZO. Non e' simmetria: e' il posto dove arriva il pollice
+ * quando si prende il telefono, ed e' la voce da cui si riparte.
+ *
+ * IL FARO. La sezione aperta non e' segnata da un puntino ma da un alone del
+ * SUO colore — blu per Home, verde per Allenamenti, viola per Squadra, ambra
+ * per Partite, indaco per Societa' — che scivola da una casella all'altra e
+ * cambia tinta strada facendo. Il colore lo si impara senza accorgersene, ed e'
+ * l'unico segnale che funziona anche con la coda dell'occhio.
+ *
+ * Nessuna misura presa in JavaScript: le caselle sono larghe uguali, quindi
+ * l'alone si sposta di «una casella per indice» e lo puo' dire il CSS da solo.
  */
-
-// Larghezza di una voce. Con il riempimento laterale a meta' schermo che
-// mettiamo sotto, portare al centro la voce numero i vuol dire esattamente
-// scrollLeft = i * PASSO: e' quello che rende semplice tutto il resto.
-const PASSO = 90;
-const COPIE = 3;
-
 function BarraMobile({ sezione, onSezione }) {
-  const pista = useRef(null);
-  const voci = useRef({});
-  const attesa = useRef(null);
-
-  // Nella barra girano le MACRO, non le sezioni: cinque figure che si
-  // riconoscono passandoci sopra, invece di dodici da leggere una per una.
-  // Dentro ognuna si sceglie poi dalla fila in cima al contenuto.
   const gruppi = gruppiVisibili(state.currentUser);
-  const sezioni = gruppi.map(g => ({
-    id: g.id,
-    label: g.voci.length === 1 ? g.voci[0].label : g.label,
-    icona: g.icona
-  }));
+
+  // Home al centro. Con cinque voci finisce terza; con tre, seconda. Si toglie
+  // dalla fila e si rimette in mezzo, cosi' la regola vale a qualunque numero.
+  const voci = (() => {
+    const altre = gruppi.filter(g => g.id !== 'apertura');
+    const casa = gruppi.find(g => g.id === 'apertura');
+    if (!casa) return gruppi;
+    const fuori = altre.slice();
+    fuori.splice(Math.floor(gruppi.length / 2), 0, casa);
+    return fuori;
+  })();
+
   const attiva = macroDiSezione(sezione);
-  const ultimo = useRef(attiva);
-
-  // Toccare una macro porta dove si era rimasti dentro di lei.
-  function apri(id) {
-    const g = gruppi.find(x => x.id === id);
-    if (g) onSezione(primaDi(g));
-  }
-
-  const quante = sezioni.length;
-  const giro = quante * PASSO;               // larghezza di una copia
-
-  // Tre copie di fila. La chiave porta la copia, il valore no: due voci in
-  // copie diverse sono la stessa sezione.
-  const catena = [];
-  for (let c = 0; c < COPIE; c++) {
-    sezioni.forEach((v, j) => catena.push({ v, chiave: c + '-' + v.id, indice: c * quante + j }));
-  }
-
-  const fermo = () => {
-    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
-    catch (e) { return false; }
-  };
-
-  // La distanza dal centro, tradotta in --v. Si scrive direttamente nel DOM:
-  // passare da uno stato React vorrebbe dire ridisegnare quarantacinque voci a
-  // ogni fotogramma di scorrimento.
-  const misura = useCallback(() => {
-    const box = pista.current;
-    if (!box) return;
-    const centro = box.scrollLeft + box.clientWidth / 2;
-    catena.forEach(x => {
-      const el = voci.current[x.chiave];
-      if (!el) return;
-      const suo = el.offsetLeft + el.offsetWidth / 2;
-      // La sfumatura si estende oltre il singolo posto: le voci accanto stanno
-      // a meta' strada invece di essere spente come quelle lontane, ed e'
-      // quello che fa sembrare la barra una cosa sola che si muove.
-      const d = Math.min(Math.abs(suo - centro) / (PASSO * 1.7), 1);
-      const t = 1 - d;
-      el.style.setProperty('--v', (t * t * (3 - 2 * t)).toFixed(3));
-    });
-  }, [quante]);
-
-  // Il rientro nella copia di mezzo. Distanza esatta di un giro, quindi lo
-  // scatto resta agganciato dov'era e il salto non si percepisce.
-  function rientra() {
-    const box = pista.current;
-    if (!box || !giro) return;
-    if (box.scrollLeft < giro * 0.5) box.scrollLeft += giro;
-    else if (box.scrollLeft > giro * 1.5) box.scrollLeft -= giro;
-  }
-
-  // Porta una sezione al centro scegliendo la copia piu' vicina: se la voce
-  // sta a un passo alla mia sinistra, non deve attraversare tutto l'elenco per
-  // arrivare al centro.
-  function porta(id, morbido) {
-    const box = pista.current;
-    if (!box) return;
-    const j = sezioni.findIndex(x => x.id === id);
-    if (j < 0) return;
-    const ora = box.scrollLeft;
-    let meta = null;
-    for (let c = 0; c < COPIE; c++) {
-      const cand = (c * quante + j) * PASSO;
-      if (meta === null || Math.abs(cand - ora) < Math.abs(meta - ora)) meta = cand;
-    }
-    box.scrollTo({ left: meta, behavior: morbido && !fermo() ? 'smooth' : 'auto' });
-  }
-
-  // All'apertura ci si posiziona nella copia di mezzo, sulla sezione aperta.
-  useEffect(() => {
-    const box = pista.current;
-    if (!box) return;
-    const j = sezioni.findIndex(x => x.id === attiva);
-    box.scrollLeft = ((j < 0 ? 0 : j) + quante) * PASSO;
-    misura();
-    const t = setTimeout(misura, 60);      // dopo che il carattere ha misurato
-    return () => clearTimeout(t);
-  }, []);
-
-  // Quando la sezione cambia da fuori — un pannello della Home, per dire — la
-  // voce aperta si porta al centro.
-  useEffect(() => {
-    if (ultimo.current === attiva) return;
-    ultimo.current = attiva;
-    if (attiva) porta(attiva, true);
-  }, [attiva]);
-
-  // La barra esiste anche su schermo largo, solo nascosta: li' non ha
-  // larghezza, e uno scorrimento scritto su un elemento senza larghezza non
-  // attecchisce. Quando ricompare — si gira il tablet, si stringe la finestra —
-  // va rimessa sulla sezione aperta, altrimenti resta ferma sulla prima.
-  useEffect(() => {
-    const box = pista.current;
-    if (!box || typeof ResizeObserver === 'undefined') return undefined;
-    let largo = box.clientWidth > 0;
-    const o = new ResizeObserver(() => {
-      const ora = box.clientWidth > 0;
-      if (ora && !largo && attiva) porta(attiva, false);
-      largo = ora;
-    });
-    o.observe(box);
-    return () => o.disconnect();
-  }, [attiva, quante]);
-
-  useEffect(() => {
-    window.addEventListener('resize', misura);
-    const box = pista.current;
-    if (box && scattoNativo.current) box.addEventListener('scrollend', fineScorrimento);
-    return () => {
-      window.removeEventListener('resize', misura);
-      if (box && scattoNativo.current) box.removeEventListener('scrollend', fineScorrimento);
-    };
-  });
-
-  // Fine dello scorrimento: si guarda chi e' rimasto al centro e si apre quella
-  // sezione. `scrollend` non c'e' ovunque, quindi il ritardo fa da rete.
-  function fineScorrimento() {
-    const box = pista.current;
-    if (!box) return;
-    rientra();
-    const centro = box.scrollLeft + box.clientWidth / 2;
-    let vicina = null, minima = Infinity;
-    catena.forEach(x => {
-      const el = voci.current[x.chiave];
-      if (!el) return;
-      const d = Math.abs(el.offsetLeft + el.offsetWidth / 2 - centro);
-      if (d < minima) { minima = d; vicina = x.v.id; }
-    });
-    if (vicina && vicina !== attiva) { ultimo.current = vicina; apri(vicina); }
-  }
-
-  const scattoNativo = useRef(
-    typeof window !== 'undefined' && typeof window.onscrollend !== 'undefined'
-  );
-
-  function scorre() {
-    misura();
-    // Con `scrollend` e' il browser a dire quando lo scatto e' finito: e'
-    // esatto, e toglie l'attesa a vuoto di chi si e' gia' fermato. Dove non
-    // c'e' — Safari, per ora — il ritardo resta come rete.
-    if (scattoNativo.current) return;
-    clearTimeout(attesa.current);
-    attesa.current = setTimeout(fineScorrimento, 130);
-  }
+  const indice = voci.findIndex(v => v.id === attiva);
+  const acceso = indice >= 0 ? voci[indice] : null;
 
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-50 vetro-alto border-t border-bordo/12 md:hidden"
       aria-label="Sezioni"
+      style={{
+        '--n': voci.length,
+        '--i': indice < 0 ? 0 : indice,
+        '--faro': acceso ? tintaSezione(acceso.icona) : '0 0 0'
+      }}
     >
-      {/* Nessun fondale separato e nessuna conca: senza un oggetto che esce
-          dalla barra, la barra torna a essere una superficie sola con il suo
-          filo in cima — la cosa piu' semplice che faccia il lavoro. */}
-      <div
-        ref={pista}
-        onScroll={scorre}
-        className="barra-pista flex overflow-x-auto pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2.5"
-        style={{ paddingLeft: 'calc(50% - ' + (PASSO / 2) + 'px)', paddingRight: 'calc(50% - ' + (PASSO / 2) + 'px)' }}
-      >
-        {catena.map(x => {
-          const aperta = x.v.id === attiva;
+      <div className="relative flex pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2.5">
+        {/* L'alone sta prima delle caselle nel DOM, quindi resta dietro. */}
+        {acceso && (
+          <span className="barra-faro" aria-hidden="true"><i /></span>
+        )}
+
+        {voci.map(v => {
+          const aperta = v.id === attiva;
+          const g = gruppi.find(x => x.id === v.id);
           return (
             <button
-              key={x.chiave}
-              ref={n => { voci.current[x.chiave] = n; }}
-              onClick={() => { porta(x.v.id, true); if (!aperta) apri(x.v.id); }}
-              onFocus={() => porta(x.v.id, true)}
+              key={v.id}
+              onClick={() => { if (!aperta && g) onSezione(primaDi(g)); }}
               aria-current={aperta ? 'page' : undefined}
-              style={{ width: PASSO + 'px' }}
-              className="barra-voce flex shrink-0 flex-col items-center gap-1.5 px-1 pb-0.5"
+              className="barra-voce relative flex flex-1 flex-col items-center gap-1.5 px-1 pb-0.5"
             >
-              {/* La colonna e' alta quanto l'icona cresciuta: l'oggetto si
-                  appoggia al fondo e cresce verso l'alto, cosi' le etichette
-                  restano incolonnate mentre le icone cambiano misura. */}
-              <span className="grid h-[2.9rem] w-full place-items-end justify-items-center">
-                <IconaSezione id={x.v.icona} dim={40} className="barra-figura" />
-              </span>
+              <IconaSezione id={v.icona} dim={40} className="barra-figura" />
               <span className="barra-etichetta w-full truncate text-center text-[10.5px] font-bold uppercase tracking-[0.03em]">
-                {x.v.label}
+                {v.label}
               </span>
-              {/* Il punto: dice quale sezione e' APERTA, mentre la misura dice
-                  solo dove si sta guardando. Due domande diverse, due segni. */}
-              <span className="barra-punto" aria-hidden="true" />
             </button>
           );
         })}

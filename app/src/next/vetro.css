@@ -431,88 +431,80 @@
   .cifra { font-variant-numeric: tabular-nums; }
 
   /* ==================== La barra di navigazione, sul telefono ====================
-     Una sola idea, dichiarata in una variabile: --v vale 1 quando la voce e'
-     esattamente al centro e 0 quando e' lontana un posto e mezzo. Misura,
-     altezza, forma e colore sono tutti scritti in funzione di quella.
 
-     Il valore lo aggiorna lo scorrimento, fotogramma per fotogramma: NON c'e'
-     nessuna transizione qui dentro, perche' l'animazione e' il dito.
+     Cinque caselle larghe uguali e ferme. Niente scorrimento, niente scatto,
+     niente misure prese in JavaScript: se le caselle sono larghe uguali,
+     spostarsi di una casella vuol dire spostarsi del 100% della propria
+     larghezza, e questo il CSS lo sa fare da solo.
 
-     Cosi' nessuna sezione e' privilegiata nel foglio di stile: privilegiato e'
-     il centro, e chi ci arriva prende il trattamento. */
+     IL FARO e' l'alone che sta dietro alla sezione aperta. Scivola da una
+     casella all'altra e CAMBIA COLORE strada facendo, prendendo quello della
+     sezione dove arriva: e' il segnale che funziona con la coda dell'occhio,
+     prima ancora di leggere il nome.
 
-  .barra-pista {
-    scroll-snap-type: x mandatory;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
-  .barra-pista::-webkit-scrollbar { display: none; }
-
-  .barra-voce {
-    --v: 0;
-    scroll-snap-align: center;
-    scroll-snap-stop: always;
-  }
-
-  /* L'oggetto cresce, e basta.
-     Niente metamorfosi in cerchio, niente sollevamento fuori dalla barra,
-     niente colore spento ai lati: l'icona nella barra e' LA STESSA icona che
-     si vede nella colonna su schermo grande, nella Home, in Situazione. Stessa
-     forma, stesso spessore, stessi riflessi.
-
-     E' la ragione per cui le versioni precedenti non tenevano: un'icona che
-     cambia natura entrando in un contenitore insegna che quel contenitore e'
-     un posto a parte, e non lo e' — e' la stessa app. La gerarchia la fanno
-     due cose sole, la misura e il nome, e bastano perche' agiscono insieme. */
-  .barra-figura {
-    transform: scale(calc(0.84 + 0.30 * var(--v)));
-    transform-origin: center bottom;
+     Due elementi invece di uno: quello esterno e' largo quanto una casella e
+     si sposta con una trasformazione — che la scheda video sa fare senza
+     ridisegnare niente — e quello interno e' la pastiglia vera, ferma al suo
+     centro. Muovere direttamente la pastiglia vorrebbe dire animare la sua
+     posizione, cioe' rifare il calcolo del disegno a ogni fotogramma. */
+  .barra-faro {
+    position: absolute;
+    top: 0.3rem;
+    bottom: calc(0.3rem + env(safe-area-inset-bottom));
+    left: 0;
+    width: calc(100% / var(--n, 5));
+    transform: translateX(calc(var(--i, 0) * 100%));
+    transition: transform 380ms cubic-bezier(.22, 1, .36, 1);
+    pointer-events: none;
+    display: grid;
+    place-items: start center;
   }
 
-  /* Il nome compare solo dove si sta guardando. E' il secondo segnale, ed e'
-     quello che regge anche senza colore: chi non distingue le tinte legge
-     comunque quale sezione e' aperta. */
-  .barra-etichetta {
-    opacity: calc(0.28 + 0.72 * var(--v));
-  }
-
-  /* IL SEGNO DELLA SEZIONE APERTA.
-
-     La misura e il nome dicono dove si sta GUARDANDO — seguono il dito mentre
-     si scorre, ed e' quello che li rende utili durante lo scorrimento. Ma
-     quando la barra sta ferma, e con cinque voci sta ferma quasi sempre, non
-     dicono piu' quale sezione e' APERTA: la voce piu' grande e' semplicemente
-     quella al centro.
-
-     Servono due segni diversi per due cose diverse. Questo e' il secondo, e
-     non dipende dalla posizione: un punto sotto il nome, e il nome nel colore
-     dell'app. Sta sulla voce aperta e su nessun'altra, che la barra si muova o
-     no. */
-  .barra-punto {
+  .barra-faro i {
     display: block;
-    height: 3px;
-    width: 3px;
-    margin: 0 auto;   /* la distanza la da' gia' il gap della colonna */
-    border-radius: 9999px;
-    background: rgb(var(--blu));
-    opacity: 0;
-    transform: scale(0.4);
-    transition: opacity 180ms ease, transform 180ms cubic-bezier(.22,1,.36,1);
+    height: 2.9rem;
+    width: 3.4rem;
+    border-radius: 1.15rem;
+    background-color: rgb(var(--faro) / 0.15);
+    box-shadow: 0 10px 22px -12px rgb(var(--faro) / 0.95);
+    /* Il colore cambia piu' in fretta di quanto l'alone si sposti: cosi' si
+       arriva gia' della tinta giusta invece di tingersi dopo essere arrivati. */
+    transition: background-color 260ms ease, box-shadow 260ms ease;
   }
 
-  .barra-voce[aria-current='page'] .barra-punto {
-    opacity: 1;
-    transform: scale(1);
+  /* L'icona aperta e' piu' grande e sollevata di un pelo; le altre stanno un
+     gradino sotto. Due stati, non una sfumatura continua: la barra e' ferma,
+     quindi non c'e' piu' niente da seguire con lo sguardo. */
+  .barra-figura {
+    transform: scale(0.86);
+    transform-origin: center bottom;
+    transition: transform 260ms cubic-bezier(.22, 1, .36, 1);
+  }
+
+  .barra-voce[aria-current='page'] .barra-figura {
+    transform: scale(1.06) translateY(-1px);
+  }
+
+  /* Il nome: spento sulle altre, acceso e nel colore della sezione su quella
+     aperta. Regge anche senza colore — chi non distingue le tinte vede
+     comunque un nome pieno in mezzo a quattro sbiaditi. */
+  .barra-etichetta {
+    /* Spento, non illeggibile: a meta' opacita' il nome scendeva sotto il
+       contrasto minimo, e un menu si guarda anche di sfuggita. */
+    opacity: 0.62;
+    transition: opacity 220ms ease, color 260ms ease;
   }
 
   .barra-voce[aria-current='page'] .barra-etichetta {
-    color: rgb(var(--blu));
     opacity: 1;
+    color: rgb(var(--faro));
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .barra-punto { transition: none; }
+    .barra-faro,
+    .barra-faro i,
+    .barra-figura,
+    .barra-etichetta { transition: none; }
   }
 
   /* Il pannello che nasce dal gettone: parte piccolo dal punto toccato e si
