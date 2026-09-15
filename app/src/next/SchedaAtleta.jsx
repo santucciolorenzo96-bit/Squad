@@ -6,7 +6,7 @@ import {
   uploadPlayerPhoto, getPlayerPhotoSignedUrl
 } from '../api/roster.js';
 import { fetchDevelopment, saveDevelopment } from '../api/development.js';
-import { canReviewDocuments, isLinkedUser, canEditHome } from '../utils/permissions.js';
+import { canReviewDocuments, isLinkedUser, canEditHome, managesSector } from '../utils/permissions.js';
 import { tipiDocumento } from '../utils/sports/index.js';
 import { docStatus, DOC_STATE, ageFrom } from '../utils/docStatus.js';
 import { resizeImageFile } from '../utils/image.js';
@@ -61,7 +61,7 @@ export function SchedaAtleta({ playerId, onChiudi }) {
   const inputFoto = useRef(null);
 
   const famiglia = isLinkedUser(state.currentUser);
-  const puoiApprovare = canReviewDocuments(state.currentUser);
+  const puoiApprovare = canReviewDocuments(state.currentUser) && managesSector(state.currentUser, state.activeSectorId, state.staffSectors);
   const puoiVedereSviluppo = famiglia
     ? state.linkedPlayers.some(lp => lp.id === playerId)
     : canEditHome(state.currentUser);

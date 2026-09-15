@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { state } from '../state.js';
 import { TABS, canSeeTab, isAdmin, isLinkedUser, macroConVoci, macroDiSezione } from '../utils/permissions.js';
 import { currentSport } from '../utils/sports/index.js';
-import { orderedSectors, sectorFullName } from '../utils/sectors.js';
+import { orderedSectors, sectorFullName, sectorIdsFor } from '../utils/sectors.js';
 import { cx, Avatar, Pannello } from './ui.jsx';
 import { IconaSezione, Chevron, coloreSezione } from './icone.jsx';
 import { Finestra } from './moduli.jsx';
@@ -43,11 +43,11 @@ function primaDi(g) {
 }
 
 function settoriAccessibili() {
-  if (isAdmin(state.currentUser)) return orderedSectors(state.sectors);
-  if (isLinkedUser(state.currentUser)) {
-    return orderedSectors(state.sectors.filter(s => state.familySectorIds.includes(s.id)));
-  }
-  const ids = state.staffSectors[state.currentUser.id] || [];
+  const ids = sectorIdsFor(state.currentUser, {
+    staffSectors: state.staffSectors,
+    familySectorIds: state.familySectorIds,
+    sectors: state.sectors
+  });
   return orderedSectors(state.sectors.filter(s => ids.includes(s.id)));
 }
 

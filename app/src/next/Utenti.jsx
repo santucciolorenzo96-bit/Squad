@@ -481,6 +481,14 @@ function Famiglie({ avvisa }) {
   const [dati, setDati] = useState(null);
   const [errore, setErrore] = useState(null);
   const [collega, setCollega] = useState(null);
+  const [altri, setAltri] = useState(false);   // il foglio per collegare uno staff
+
+  // In elenco vanno i genitori e gli atleti — per loro il collegamento E' la
+  // ragione dell'account — piu' chiunque altro ne abbia gia' uno. Gli altri
+  // account restano fuori finche' non si chiede di collegarne uno: uno staff
+  // senza collegamenti non e' un problema da segnalare.
+  const inElenco = (dati || []).filter(f => LINKED_ROLES.includes(f.role) || (f.linkedPlayers || []).length > 0);
+  const collegabili = (dati || []).filter(f => !inElenco.some(x => x.id === f.id));
 
   function carica() {
     if (inCampione()) { setDati([]); return; }
@@ -493,14 +501,21 @@ function Famiglie({ avvisa }) {
 
   return (
     <div>
-      <Etichetta className="mb-2.5">Giocatori e genitori</Etichetta>
+      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-3">
+        <Etichetta>Collegamenti agli atleti</Etichetta>
+        {collegabili.length > 0 && (
+          <Pulsante className="shrink-0 py-1.5 text-[11.5px]" onClick={() => setAltri(true)}>
+            Collega un altro account
+          </Pulsante>
+        )}
+      </div>
       {!dati ? (
         <Scheletro righe={2} />
-      ) : dati.length === 0 ? (
-        <Vuoto>Nessun account giocatore o genitore registrato.</Vuoto>
+      ) : inElenco.length === 0 ? (
+        <Vuoto>Nessun account collegato a una scheda atleta.</Vuoto>
       ) : (
         <Pannello className="overflow-hidden">
-          {dati.map((f, i) => (
+          {inElenco.map((f, i) => (
             <div key={f.id} className={cx('px-4 py-3 sm:px-5', i > 0 && 'border-t border-bordo/6')}>
               <div className="flex items-center gap-3.5">
                 <Avatar nome={f.display_name} dim={34} />
@@ -517,7 +532,11 @@ function Famiglie({ avvisa }) {
 
               <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {(f.linkedPlayers || []).length === 0 ? (
-                  <span className="text-[11.5px] text-ambra">Non collegato a nessun atleta: non vede niente.</span>
+                  <span className="text-[11.5px] text-ambra">
+                    {LINKED_ROLES.includes(f.role)
+                      ? 'Non collegato a nessun atleta: non vede niente.'
+                      : 'Nessun collegamento.'}
+                  </span>
                 ) : (
                   f.linkedPlayers.filter(Boolean).map(p => (
                     <span
@@ -556,7 +575,46 @@ function Famiglie({ avvisa }) {
           onFatto={() => { carica(); avvisa('Account collegato'); }}
         />
       )}
+
+      {altri && (
+        <ModuloScegliAccount
+          candidati={collegabili}
+          onChiudi={() => setAltri(false)}
+          onScelto={(f) => { setAltri(false); setCollega(f); }}
+        />
+      )}
     </div>
+  );
+}
+
+/* Collegare qualcuno che non e' ne' genitore ne' atleta.
+ *
+ * E' il caso di chi nella societa' fa due cose. Il ruolo NON cambia: resta
+ * quello che e'. Cambia solo cosa vede — la categoria dove c'e' la sua scheda —
+ * e la vede da giocatore, senza poterci mettere mano.
+ */
+function ModuloScegliAccount({ candidati, onChiudi, onScelto }) {
+  const [chi, setChi] = useState('');
+  return (
+    <Modulo
+      titolo="Collega un altro account"
+      sotto="Serve a chi nella società fa due cose: allena una categoria e gioca in un’altra. Il ruolo resta quello che è — la categoria collegata la vedrà da giocatore."
+      etichettaInvia="Avanti"
+      onChiudi={onChiudi}
+      onInvia={async () => {
+        if (!chi) return 'Scegli un account.';
+        onScelto(candidati.find(x => x.id === chi));
+      }}
+    >
+      <Campo etichetta="Account">
+        <Scelta value={chi} onChange={e => setChi(e.target.value)}>
+          <option value="">Scegli…</option>
+          {candidati.slice().sort((a, b) => a.display_name.localeCompare(b.display_name)).map(c => (
+            <option key={c.id} value={c.id}>{c.display_name} — {roleLabel(c.role)}</option>
+          ))}
+        </Scelta>
+      </Campo>
+    </Modulo>
   );
 }
 
@@ -571,7 +629,7 @@ function ModuloCollega({ f, onChiudi, onFatto }) {
   return (
     <Modulo
       titolo={'Collega ' + f.display_name}
-      sotto="Vedrà convocazioni, quote e documenti dell’atleta collegato. Un genitore con due figli si collega due volte."
+      sotto={'Atleti della categoria aperta. Se la scheda sta in un’altra categoria, aprila prima dal selettore in alto. Un genitore con due figli si collega due volte.'}
       etichettaInvia="Collega"
       onChiudi={onChiudi}
       onInvia={async () => {

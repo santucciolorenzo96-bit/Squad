@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { state } from '../state.js';
 import { updateCalendarMatch, removeCalendarMatch } from '../api/calendar.js';
-import { canEditHome } from '../utils/permissions.js';
+import { canEditHome, managesSector } from '../utils/permissions.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Stato, cx } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Data, Scelta, Interruttore, useAvviso } from './moduli.jsx';
 
@@ -33,7 +33,7 @@ export function Calendario() {
   const [, ridisegna] = useState(0);
   const avvisa = useAvviso();
 
-  const puoiModificare = canEditHome(state.currentUser);
+  const puoiModificare = canEditHome(state.currentUser) && managesSector(state.currentUser, state.activeSectorId, state.staffSectors);
   const oggi = oggiISO();
 
   const prossime = state.calendar.filter(m => !m.played)

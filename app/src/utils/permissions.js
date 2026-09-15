@@ -125,6 +125,25 @@ export function canSeeTab(tab, user) {
   return tab.roles.includes(user.role);
 }
 
+/* Gestire UNA categoria.
+ *
+ * Il ruolo dice cosa sai fare; l'assegnazione dice dove. Servono tutti e due.
+ *
+ * Serve da quando una persona puo' vedere una categoria per due motivi diversi:
+ * perche' gliel'ha assegnata un amministratore, o perche' li' dentro c'e' una
+ * scheda atleta collegata al suo account. Nel secondo caso guarda e basta —
+ * anche se il suo ruolo, altrove, e' Allenatore.
+ *
+ * Non e' l'unica difesa: il database rifiuta comunque la scrittura, perche'
+ * can_manage_sector() guarda le assegnazioni e non il ruolo. Questa serve a non
+ * mostrare pulsanti che poi non funzionano.
+ */
+export function managesSector(user, sectorId, staffSectors) {
+  if (!user || !sectorId) return false;
+  if (ADMIN_ROLES.includes(user.role)) return true;
+  return ((staffSectors || {})[user.id] || []).indexOf(sectorId) >= 0;
+}
+
 export function canManageFinance(user) {
   return !!user && (user.finance_role === 'admin' || user.finance_role === 'manager');
 }

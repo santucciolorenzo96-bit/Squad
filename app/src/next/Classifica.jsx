@@ -3,7 +3,7 @@ import { state } from '../state.js';
 import { computeRecord, computeStreak } from '../utils/stats.js';
 import { fetchStandings, upsertStanding, removeStanding } from '../api/standings.js';
 import { currentSport } from '../utils/sports/index.js';
-import { canEditHome } from '../utils/permissions.js';
+import { canEditHome, managesSector } from '../utils/permissions.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, cx } from './ui.jsx';
 import { Interruttore, Modulo, Conferma, Campo, Testo, Spunta, useAvviso } from './moduli.jsx';
@@ -301,7 +301,7 @@ export function Classifica() {
   const [, ridisegna] = useState(0);
   const avvisa = useAvviso();
 
-  const puoiModificare = canEditHome(state.currentUser);
+  const puoiModificare = canEditHome(state.currentUser) && managesSector(state.currentUser, state.activeSectorId, state.staffSectors);
   const record = computeRecord(state.history);
   const serie = computeStreak(state.history);
 

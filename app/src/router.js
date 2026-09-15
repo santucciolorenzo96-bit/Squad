@@ -6,6 +6,7 @@ import { fetchHistory, fetchLiveGame } from './api/games.js';
 import { fetchNextMatch } from './api/nextMatch.js';
 import { fetchStandings } from './api/standings.js';
 import { fetchSectors, fetchStaffSectors, fetchPlayerSectorIds } from './api/sectors.js';
+import { sectorIdsFor } from './utils/sectors.js';
 import { fetchSeasons, storedSeasonId } from './api/seasons.js';
 import { fetchTrainings } from './api/trainings.js';
 import { fetchRecurrences } from './api/trainingRecurrences.js';
@@ -146,9 +147,11 @@ export async function loadFamilyLinks() {
 }
 
 function accessibleSectorIds() {
-  if (isAdmin(state.currentUser)) return state.sectors.map(s => s.id);
-  if (isLinkedUser(state.currentUser)) return state.familySectorIds;
-  return state.staffSectors[state.currentUser.id] || [];
+  return sectorIdsFor(state.currentUser, {
+    staffSectors: state.staffSectors,
+    familySectorIds: state.familySectorIds,
+    sectors: state.sectors
+  });
 }
 
 function pickDefaultSectorId() {
@@ -238,7 +241,9 @@ export async function boot() {
     state.myAvatarUrl = await getAvatarUrl(profile.avatar_path).catch(() => null);
   }
   await loadTeamWideData();
-  if (isLinkedUser(profile)) await loadFamilyLinks();
+  // Per chiunque, non solo per genitori e atleti: il collegamento a una scheda
+  // e' quello che fa vedere a un allenatore la categoria in cui gioca.
+  await loadFamilyLinks().catch(() => { state.familySectorIds = []; });
   state.activeSectorId = pickDefaultSectorId();
   await loadSectorData(state.activeSectorId);
   const { renderApp } = await import('./ui/layout.js');

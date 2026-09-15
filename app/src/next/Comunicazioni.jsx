@@ -4,7 +4,7 @@ import {
   fetchCommunications, fetchMyCommunications, createCommunication,
   closeCommunication, removeCommunication, respondToCommunication
 } from '../api/communications.js';
-import { canEditHome, isLinkedUser } from '../utils/permissions.js';
+import { canEditHome, isLinkedUser, managesSector } from '../utils/permissions.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, Avatar, cx } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Data, Scelta, Spunta, ErroreCaricamento, useAvviso } from './moduli.jsx';
@@ -155,7 +155,7 @@ function VistaStaff() {
   const [, ridisegna] = useState(0);
   const avvisa = useAvviso();
 
-  const puoiScrivere = canEditHome(state.currentUser);
+  const puoiScrivere = canEditHome(state.currentUser) && managesSector(state.currentUser, state.activeSectorId, state.staffSectors);
 
   function carica() {
     if (inCampione()) { setDati([]); return; }

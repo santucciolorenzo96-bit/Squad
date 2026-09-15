@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { state } from '../state.js';
 import { removePlayerFromSector, fetchPlayerPhotoUrls } from '../api/roster.js';
-import { canEditRoster } from '../utils/permissions.js';
+import { canEditRoster, managesSector } from '../utils/permissions.js';
 import { computeSeasonStats, findSeasonRow } from '../utils/stats.js';
 import { currentSport } from '../utils/sports/index.js';
 import { inCampione } from './campione.js';
@@ -177,7 +177,7 @@ export function Rosa() {
   const avvisa = useAvviso();
 
   const partenza = useRef(null);
-  const puoiModificare = canEditRoster(state.currentUser);
+  const puoiModificare = canEditRoster(state.currentUser) && managesSector(state.currentUser, state.activeSectorId, state.staffSectors);
   const rosa = state.roster;
 
   useEffect(() => {

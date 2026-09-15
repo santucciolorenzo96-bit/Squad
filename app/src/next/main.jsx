@@ -6,6 +6,7 @@ import { state } from '../state.js';
 import { fetchMyProfile } from '../api/profiles.js';
 import { loadTeamCore, loadTeamExtras, loadFamilyLinks, loadSectorData } from '../router.js';
 import { isLinkedUser, isAdmin, TABS } from '../utils/permissions.js';
+import { sectorIdsFor } from '../utils/sectors.js';
 import { Guscio } from './Guscio.jsx';
 import { Home } from './Home.jsx';
 import { Anagrafica } from './Anagrafica.jsx';
@@ -231,16 +232,24 @@ function App() {
         state.currentUser = profilo;
         // Solo il nucleo: nome della societa', categorie, permessi, stagione.
         // E' tutto quello che serve per disegnare il guscio.
-        await loadTeamCore();
-        if (isLinkedUser(profilo)) await loadFamilyLinks();
+        // I collegamenti alle schede si chiedono per chiunque, in parallelo:
+        // sono quelli che fanno vedere a un allenatore anche la categoria in
+        // cui gioca. Un account senza collegamenti li risolve a vuoto, e una
+        // richiesta a vuoto in parallelo non rallenta l'avvio.
+        await Promise.all([
+          loadTeamCore(),
+          isAdmin(profilo)
+            ? Promise.resolve()
+            : loadFamilyLinks().catch(() => { state.familySectorIds = []; })
+        ]);
 
         // Stessa preferenza dell'app: se non c'è, la prima categoria
         // accessibile in ordine.
-        const accessibili = isAdmin(profilo)
-          ? state.sectors.map(s => s.id)
-          : isLinkedUser(profilo)
-            ? state.familySectorIds
-            : (state.staffSectors[profilo.id] || []);
+        const accessibili = sectorIdsFor(profilo, {
+          staffSectors: state.staffSectors,
+          familySectorIds: state.familySectorIds,
+          sectors: state.sectors
+        });
         const ultimo = (() => { try { return localStorage.getItem('bbapp_last_sector'); } catch (e) { return null; } })();
         const scelto = (ultimo && accessibili.includes(ultimo))
           ? ultimo

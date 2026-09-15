@@ -1,7 +1,7 @@
 import React from 'react';
 import { state } from '../state.js';
 import { standingsPosition, computeRecord, computeTeamPPG } from '../utils/stats.js';
-import { canEditHome } from '../utils/permissions.js';
+import { canEditHome, managesSector } from '../utils/permissions.js';
 import { teamInitials } from '../utils/theme.js';
 import { Pannello, Etichetta, Stato, Vuoto, Titolo, Pulsante, cx } from './ui.jsx';
 import { IconaSezione, Chevron } from './icone.jsx';
@@ -282,7 +282,7 @@ export function Home({ onSezione }) {
       <div className="grid schede md:grid-cols-2">
         <ProssimoAllenamento onSezione={onSezione} />
         <Stagione />
-        {canEditHome(utente) && <DaSistemare onSezione={onSezione} />}
+        {canEditHome(utente) && managesSector(state.currentUser, state.activeSectorId, state.staffSectors) && <DaSistemare onSezione={onSezione} />}
       </div>
     </div>
   );

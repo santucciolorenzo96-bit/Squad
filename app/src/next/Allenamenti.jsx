@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { state } from '../state.js';
 import { addTraining, updateTraining, removeTraining, fetchTrainingsForDate } from '../api/trainings.js';
 import { findLocationConflicts } from '../utils/conflicts.js';
-import { canEditHome } from '../utils/permissions.js';
+import { canEditHome, managesSector } from '../utils/permissions.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, cx } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Data, Interruttore, useAvviso } from './moduli.jsx';
@@ -258,7 +258,9 @@ export function Allenamenti() {
   const [, ridisegna] = useState(0);
   const avvisa = useAvviso();
 
-  const puoiModificare = canEditHome(state.currentUser);
+  // Il ruolo non basta: si modifica solo la categoria che ti e' stata
+  // assegnata. Chi vede questa categoria perche' ci gioca la guarda e basta.
+  const puoiModificare = canEditHome(state.currentUser) && managesSector(state.currentUser, state.activeSectorId, state.staffSectors);
   const oggi = oggiISO();
 
   const futuri = state.trainings.filter(t => t.date >= oggi)

@@ -1,3 +1,5 @@
+import { isAdmin } from './permissions.js';
+
 // Gerarchia delle categorie.
 //
 // Una sottocategoria è un settore con un genitore: rosa, allenamenti, partite e
@@ -34,4 +36,27 @@ export function sectorFullName(sector, sectors) {
 
 export function hasChildren(sector, sectors) {
   return (sectors || []).some(s => s.parent_id === sector.id);
+}
+
+/* Le categorie che un account puo' aprire.
+ *
+ * Due strade, e SI SOMMANO: quelle assegnate come staff, e quelle dove c'e' una
+ * scheda atleta collegata al suo account.
+ *
+ * Sommarle e' quello che serve a chi nella societa' fa due cose — l'allenatore
+ * dell'Open A che gioca in Prima Squadra, il genitore che allena un'altra
+ * categoria. Prima se ne vedeva una sola delle due, e quale dipendeva dal ruolo
+ * scritto sull'account: un allenatore non vedeva la categoria di suo figlio,
+ * un genitore non vedeva quella che allenava.
+ *
+ * Dice cosa si VEDE, mai cosa si puo' cambiare: per quello c'e' managesSector,
+ * e comunque il database non lascerebbe passare la scrittura.
+ */
+export function sectorIdsFor(user, { staffSectors, familySectorIds, sectors }) {
+  if (isAdmin(user)) return (sectors || []).map(s => s.id);
+  const dentro = [];
+  const aggiungi = (id) => { if (id && dentro.indexOf(id) < 0) dentro.push(id); };
+  (((staffSectors || {})[user && user.id]) || []).forEach(aggiungi);
+  (familySectorIds || []).forEach(aggiungi);
+  return dentro;
 }

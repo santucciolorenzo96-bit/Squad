@@ -3,7 +3,7 @@ import { state } from '../state.js';
 import { contiene } from '../utils/format.js';
 import { tipiDocumento } from '../utils/sports/index.js';
 import { fetchPlayerPhotoUrls, fetchDocumentsForPlayers, addPlayer } from '../api/roster.js';
-import { canEditRoster } from '../utils/permissions.js';
+import { canEditRoster, managesSector } from '../utils/permissions.js';
 import { docStatus, worstStatus, ageFrom, DOC_STATE } from '../utils/docStatus.js';
 import { inCampione, DOCUMENTI_CAMPIONE } from './campione.js';
 import { Pannello, Etichetta, Stato, Dato, Vuoto, Scheletro, Avatar, Pulsante, Titolo, Cerca, NessunRisultato, cx } from './ui.jsx';
@@ -43,7 +43,7 @@ export function Anagrafica() {
   const [, ridisegna] = useState(0);
   const avvisa = useAvviso();
 
-  const puoiModificare = canEditRoster(state.currentUser);
+  const puoiModificare = canEditRoster(state.currentUser) && managesSector(state.currentUser, state.activeSectorId, state.staffSectors);
   const rosa = state.roster;
 
   useEffect(() => {

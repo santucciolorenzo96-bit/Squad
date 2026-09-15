@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
 import { fetchLiveGame, fetchOpenGames, discardGame } from '../api/games.js';
 import { currentSport } from '../utils/sports/index.js';
+import { managesSector } from '../utils/permissions.js';
 import { inCampione } from './campione.js';
 import { leggiCopia, cancellaCopia, daQuanto } from './partitaLocale.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, cx } from './ui.jsx';
@@ -207,7 +208,20 @@ export function Partita() {
         </div>
       )}
 
-      <AvvioPartita onAvviata={() => { setScout(true); setFase('live'); avvisa('Partita avviata'); }} />
+      {/* Chi vede questa categoria perche' ci gioca non ci apre tabellini: il
+          database rifiuterebbe comunque la scrittura, e un modulo che si
+          compila per poi fallire e' peggio di un modulo che non c'e'. Fa
+          eccezione chi ha il permesso di segnare, che esiste apposta per il
+          genitore a bordo campo. */}
+      {(managesSector(state.currentUser, state.activeSectorId, state.staffSectors)
+        || state.currentUser.can_score_matches) ? (
+        <AvvioPartita onAvviata={() => { setScout(true); setFase('live'); avvisa('Partita avviata'); }} />
+      ) : (
+        <Vuoto>
+          Qui non apri tabellini: questa categoria la vedi perché c’è una scheda atleta
+          collegata al tuo account. Il tabellino lo tiene chi la allena.
+        </Vuoto>
+      )}
 
       {daScartare && (
         <Conferma
