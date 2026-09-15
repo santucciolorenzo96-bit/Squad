@@ -289,9 +289,12 @@ begin
     (v_team, v_serie, v_stagione, 7, 'Pallavolo Savignano',      v_oggi + 11, '20:30', 'PalaSavignano',                 false, false, null, null),
     (v_team, v_serie, v_stagione, 8, 'Riccione Volley',          v_oggi + 18, '20:30', 'PalaRiccione',                  false, false, null, null);
 
-  insert into next_match (team_id, opponent, date, time, location, home)
-  values (v_team, 'Volley Club Rimini', to_char(v_oggi + 4, 'YYYY-MM-DD'), '18:00', 'Palestra Comunale via Marconi', true)
-  on conflict (team_id) do update
+  -- La prossima partita e' per CATEGORIA, non per societa': dalla migrazione
+  -- 002 la chiave di next_match e' sector_id. Ogni categoria ha la sua.
+  insert into next_match (team_id, sector_id, opponent, date, time, location, home)
+  values (v_team, v_serie, 'Volley Club Rimini', to_char(v_oggi + 4, 'YYYY-MM-DD'),
+          '18:00', 'Palestra Comunale via Marconi', true)
+  on conflict (sector_id) do update
     set opponent = excluded.opponent, date = excluded.date, time = excluded.time,
         location = excluded.location, home = excluded.home;
 
@@ -393,6 +396,12 @@ begin
     (v_team, v_under, 'avviso', 'Palestra chiusa giovedì',
      'Giovedì la palestra è occupata dal torneo scolastico: allenamento spostato a venerdì, stessa ora.',
      v_oggi + 2, null, null, null, false, null);
+
+  -- I trigger delle notifiche hanno fatto il loro mestiere mentre inserivamo:
+  -- una per ogni allenamento, una per ogni documento, una per la prossima
+  -- partita. Sono corrette, ma quaranta avvisi non letti in una societa' appena
+  -- nata sono solo rumore davanti a chi la guarda per la prima volta.
+  delete from notifications where team_id = v_team;
 
   raise notice 'Società demo creata: Volley Demo Aurora (codice DEMOVB). Entraci dalla console SuperAdmin.';
 end
