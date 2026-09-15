@@ -195,7 +195,9 @@ begin
   -- Il mazzo che fa esistere la schermata Gestione. Niente file veri: conta la
   -- riga, ed è quella che l'app legge per dire chi può scendere in campo.
   for r in (
-    select p.id, row_number() over (order by p.created_at) as n
+    -- ::int perche' row_number() restituisce un bigint, e «data + bigint»
+    -- non e' un'operazione che Postgres conosce: solo «data + integer».
+    select p.id, (row_number() over (order by p.created_at))::int as n
     from players p
     join player_sectors ps on ps.player_id = p.id
     where p.team_id = v_team and ps.sector_id = v_serie
@@ -250,7 +252,7 @@ begin
   -- delle presenze non dimostra niente.
   for r in (
     select t.id as tid, q.id as pid, t.date,
-           row_number() over (partition by t.id order by q.created_at) as n
+           (row_number() over (partition by t.id order by q.created_at))::int as n
     from trainings t
     cross join (
       select pl.* from players pl
