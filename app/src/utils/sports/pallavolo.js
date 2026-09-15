@@ -47,7 +47,7 @@ const FIELD_SVG = `
 function newStats() {
   return {
     points: 0, kills: 0, attackErrors: 0, blocks: 0,
-    aces: 0, serveErrors: 0, digs: 0, receptionErrors: 0, setsPlayed: 0
+    aces: 0, serveErrors: 0, digs: 0, receptionErrors: 0, assists: 0, setsPlayed: 0
   };
 }
 
@@ -77,6 +77,7 @@ export const PALLAVOLO = {
     attackErrors: (p) => (p.stats || {}).attackErrors || 0,
     serveErrors: (p) => (p.stats || {}).serveErrors || 0,
     digs: (p) => (p.stats || {}).digs || 0,
+    assists: (p) => (p.stats || {}).assists || 0,
     setsPlayed: (p) => (p.stats || {}).setsPlayed || 0
   },
 
@@ -86,11 +87,12 @@ export const PALLAVOLO = {
     { key: 'blocks', short: 'MU', label: 'Muri' },
     { key: 'aces', short: 'ACE', label: 'Ace' },
     { key: 'digs', short: 'DIF', label: 'Difese' },
+    { key: 'assists', short: 'ALZ', label: 'Alzate vincenti' },
     { key: 'attackErrors', short: 'EA', label: 'Errori in attacco' },
     { key: 'serveErrors', short: 'ES', label: 'Errori al servizio' },
     { key: 'setsPlayed', short: 'SET', label: 'Set giocati' }
   ],
-  seasonLegend: 'PG = partite giocate · P/S = punti a partita · EA/ES = errori in attacco e al servizio',
+  seasonLegend: 'PG = partite giocate · P/S = punti a partita · ALZ = alzate che hanno prodotto un punto · EA/ES = errori in attacco e al servizio',
   showMinutes: false,
 
   ratingLabel: 'Efficienza',
@@ -141,7 +143,10 @@ export const PALLAVOLO = {
     periodPrompt: 'Come \u00e8 finito questo set?',
     groups: [
       { label: 'Punto fatto', actions: [
-        { act: 'kill', label: 'Attacco vincente', tone: 'made', apply: { points: 1, kills: 1 } },
+        // Dopo un attacco vincente la domanda successiva e' sempre la stessa, e
+        // in panchina la fanno ad alta voce: chi ha alzato. Un muro punto e un
+        // ace non hanno alzata, e infatti non la chiedono.
+        { act: 'kill', label: 'Attacco vincente', tone: 'made', apply: { points: 1, kills: 1 }, poi: 'alzata' },
         { act: 'block', label: 'Muro punto', tone: 'made', apply: { points: 1, blocks: 1 } },
         { act: 'ace', label: 'Ace', tone: 'made', apply: { points: 1, aces: 1 } }
       ]},
@@ -154,6 +159,20 @@ export const PALLAVOLO = {
         { act: 'dig', label: 'Difesa', tone: 'neutral', apply: { digs: 1 } }
       ]}
     ],
+    chains: {
+      alzata: {
+        titolo: 'Chi ha alzato?',
+        azione: { act: 'assist', label: 'Alzata', apply: { assists: 1 } },
+        altro: 'Nessuna alzata',
+        // Chi ha attaccato non puo' essersi alzato la palla da solo.
+        includiAutore: false
+      }
+    },
+    // La rotazione e' un gesto solo, e va fatto a mano: la si fa quando si
+    // conquista il servizio, e chi segna lo sa prima dell'app. Automatizzarla
+    // vorrebbe dire dedurre chi serviva, e un errore di deduzione a inizio set
+    // sposta tutti i sei per tutto il set senza che nessuno se ne accorga.
+    rotazione: { etichetta: 'Ruota', descrizione: 'Zona 1 va in 6, e tutti girano' },
     tileStat: { key: 'points', short: 'PT' }
   },
 

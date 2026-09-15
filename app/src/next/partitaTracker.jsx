@@ -280,6 +280,30 @@ export function Tracker({ onFinita, onEsci }) {
     if (navigator.vibrate) navigator.vibrate(8);
   }
 
+  /* La rotazione.
+   *
+   * Nella pallavolo si gira di un posto quando si conquista il servizio: chi
+   * stava in zona 1 va in 6, e tutti gli altri avanzano. Le posizioni qui sono
+   * l'ORDINE dei giocatori in campo — il primo sta in zona 1 — quindi girare
+   * vuol dire spostare il primo in fondo.
+   *
+   * A mano e non da sola: l'app potrebbe dedurre il cambio di servizio dal
+   * punto precedente, ma basta un punto sfuggito a inizio set per sfasare tutti
+   * e sei fino alla fine, in silenzio. Chi segna sa quando si gira, e girare
+   * costa un tocco.
+   */
+  function ruota() {
+    const campo = g.players.filter(p => p.onCourt);
+    if (campo.length < 2) return;
+    memorizza('Rotazione');
+    const girati = campo.slice(1).concat([campo[0]]);
+    let k = 0;
+    g.players = g.players.map(p => (p.onCourt ? girati[k++] : p));
+    aggiorna();
+    salva();
+    if (navigator.vibrate) navigator.vibrate(8);
+  }
+
   function sostituisci(entrante) {
     const uscente = g.players.find(p => p.id === sostituzione);
     if (!uscente || !entrante) return;
@@ -509,7 +533,20 @@ export function Tracker({ onFinita, onEsci }) {
         <div className="campo-cornice" style={{ '--proporzione': sport.field.ratio }}>
           <div className="mb-2.5 flex items-center justify-between gap-3">
             <Etichetta>{sport.field.onFieldLabel} · tocca per assegnare</Etichetta>
-            <span className="text-[11.5px] text-tenue">{inCampo.length} di {sport.match.minOnField}</span>
+            {conf.rotazione ? (
+              <button
+                onClick={ruota}
+                title={conf.rotazione.descrizione}
+                className="flex shrink-0 items-center gap-1.5 rounded-lg vetro orlo px-2.5 py-1.5 text-[11.5px] font-semibold text-soffuso transition-all hover:text-testo active:scale-95"
+              >
+                <svg viewBox="0 0 20 20" className="h-[13px] w-[13px]" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M16.5 8.5a6.5 6.5 0 1 0-.7 5" /><path d="M16.8 3.5v5h-5" />
+                </svg>
+                {conf.rotazione.etichetta}
+              </button>
+            ) : (
+              <span className="text-[11.5px] text-tenue">{inCampo.length} di {sport.match.minOnField}</span>
+            )}
           </div>
 
           <Pannello alto className="overflow-hidden">
