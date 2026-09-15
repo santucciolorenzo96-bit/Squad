@@ -86,7 +86,7 @@ function Identita({ avvisa }) {
           {t.logo_url ? (
             <img src={t.logo_url} alt="" className="h-16 w-16 shrink-0 rounded-lg object-contain" />
           ) : (
-            <span className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-blu to-blu2 text-[20px] font-bold text-white shadow-blu">
+            <span className="grid h-16 w-16 shrink-0 place-items-center rounded-lg vivo text-[20px] font-bold text-white">
               {(t.name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()}
             </span>
           )}

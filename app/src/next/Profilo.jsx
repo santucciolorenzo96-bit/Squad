@@ -64,7 +64,7 @@ export function Profilo({ tema, onTema }) {
             title={state.myAvatarUrl ? 'Cambia fotografia' : 'Carica una fotografia'}
           >
             <Avatar nome={u.display_name} url={state.myAvatarUrl} dim={80} />
-            <span className="absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-blu to-blu2 text-white shadow-blu">
+            <span className="absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full vivo text-white">
               {/* Una macchina fotografica, non una matita: il gesto è caricare
                   una foto. Disegnata qui invece che in icone.jsx perché è
                   l'unico punto dell'app che ne ha bisogno. */}
@@ -170,7 +170,7 @@ export function Profilo({ tema, onTema }) {
                   className={cx(
                     'rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-etichetta transition-all',
                     tema === m
-                      ? 'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu'
+                      ? 'vivo text-white'
                       : 'text-tenue hover:text-testo'
                   )}
                 >

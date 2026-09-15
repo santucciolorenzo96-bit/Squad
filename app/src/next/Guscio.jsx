@@ -137,7 +137,7 @@ function Pastiglie({ settori, attiva, onCambia }) {
           <span
             aria-hidden="true"
             className={cx(
-              'absolute inset-y-1 left-0 rounded-full bg-gradient-to-br from-blu to-blu2',
+              'absolute inset-y-1 left-0 rounded-full vivo',
               animato && 'transition-[transform,width] duration-[320ms] ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none'
             )}
             style={{ transform: 'translateX(' + indicatore.x + 'px)', width: indicatore.w + 'px' }}
@@ -389,7 +389,7 @@ function SottoBarra({ sezione, onSezione }) {
               className={cx(
                 'whitespace-nowrap rounded-full px-3.5 py-1.5 text-[12.5px] transition-all duration-150',
                 on
-                  ? 'bg-gradient-to-br from-blu to-blu2 font-bold text-white shadow-blu'
+                  ? 'vivo font-bold text-white'
                   : 'vetro orlo font-semibold text-soffuso hover:text-testo'
               )}
             >

@@ -790,7 +790,7 @@ const GettoneCampo = React.memo(function GettoneCampo({
           className={cx(
             'absolute -right-0.5 -top-0.5 grid place-items-center rounded-full font-bold transition-all',
             inSostituzione
-              ? 'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu'
+              ? 'vivo text-white'
               : 'su-legno text-white/80 ring-1 ring-white/40 hover:text-white'
           )}
           style={{ width: 'var(--scambio)', height: 'var(--scambio)', fontSize: 'calc(var(--scambio) * 0.52)' }}
@@ -801,7 +801,7 @@ const GettoneCampo = React.memo(function GettoneCampo({
         {/* Il riscontro dell'ultima azione, sopra il gettone di chi l'ha fatta. */}
         {lampo && (
           <span className="pointer-events-none absolute inset-x-0 -top-3 flex justify-center">
-            <span className="animate-salita whitespace-nowrap rounded-full bg-gradient-to-br from-blu to-blu2 px-2 py-0.5 text-[10px] font-bold text-white shadow-blu">
+            <span className="animate-salita whitespace-nowrap rounded-full vivo px-2 py-0.5 text-[10px] font-bold text-white">
               {lampo}
             </span>
           </span>
@@ -933,7 +933,7 @@ function PannelloAzioni({ p, conf, ancora, onAzione, onChiudi }) {
   const corpo = (
     <>
       <div className="mb-3.5 flex items-center gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-blu to-blu2 text-[16px] font-bold text-white shadow-blu">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg vivo text-[16px] font-bold text-white">
           {sigla(p)}
         </span>
         <div className="min-w-0 flex-1">

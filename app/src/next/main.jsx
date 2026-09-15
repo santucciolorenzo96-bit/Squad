@@ -73,7 +73,7 @@ function Tema({ valore, onCambia }) {
           className={
             'rounded-full px-2.5 py-1 text-[9.5px] font-bold uppercase tracking-etichetta transition-all ' +
             (valore === m
-              ? 'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu'
+              ? 'vivo text-white'
               : 'text-tenue hover:text-testo')
           }
         >

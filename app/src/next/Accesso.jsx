@@ -436,7 +436,7 @@ function Entra({ onEntrato, onIndietro, onConferma, onAttivazione }) {
               dato: è l'unico momento in cui si può accorgersi di un codice
               sbagliato senza aver già compilato tutto. */}
           <Pannello className="mb-3 flex items-center gap-3 px-4 py-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-blu to-blu2 text-[15px] font-bold text-white shadow-blu">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg vivo text-[15px] font-bold text-white">
               {(societa.name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()}
             </span>
             <div className="min-w-0 flex-1">

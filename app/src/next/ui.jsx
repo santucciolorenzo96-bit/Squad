@@ -69,7 +69,7 @@ const VARIANTI = {
   // Il primario è l'unico oggetto con una sfumatura piena e un alone: è così
   // che si vede da lontano qual è l'azione della schermata.
   primario:
-    'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu hover:brightness-110 active:brightness-95',
+    'vivo text-white hover:brightness-110 active:brightness-95',
   vetro:
     'vetro orlo text-testo hover:bg-pannello/12 active:brightness-95',
   nudo:

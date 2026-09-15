@@ -189,7 +189,7 @@ export function AvvioPartita({ onAvviata }) {
               className={cx(
                 'rounded-lg py-3 text-[13.5px] font-semibold transition-all orlo',
                 amichevole === v
-                  ? 'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu'
+                  ? 'vivo text-white'
                   : 'vetro text-soffuso hover:text-testo'
               )}
             >
@@ -219,7 +219,7 @@ export function AvvioPartita({ onAvviata }) {
                 className={cx(
                   'h-11 w-11 rounded-lg text-[15px] font-bold transition-all orlo',
                   periodi === String(n)
-                    ? 'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu'
+                    ? 'vivo text-white'
                     : 'vetro text-soffuso hover:text-testo'
                 )}
               >

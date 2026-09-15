@@ -135,7 +135,7 @@ function Gettone({
           className={cx(
             'absolute -right-1 -top-1 grid place-items-center rounded-full font-bold transition-all',
             armato
-              ? 'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu'
+              ? 'vivo text-white'
               : suParquet
                 ? 'su-legno text-white/85 hover:text-white'
                 : 'vetro-alto orlo text-soffuso hover:text-testo'

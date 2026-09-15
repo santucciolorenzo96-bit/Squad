@@ -153,7 +153,7 @@ function Calendario({ allenamenti, puoiModificare, onApri, onPresenze }) {
                   <span
                     className={cx(
                       'cifra text-[11.5px] font-semibold',
-                      oggiQui ? 'grid h-5 w-5 place-items-center rounded-full bg-gradient-to-br from-blu to-blu2 text-white' : 'text-soffuso'
+                      oggiQui ? 'grid h-5 w-5 place-items-center rounded-full vivo text-white' : 'text-soffuso'
                     )}
                   >
                     {parseInt(iso.slice(8, 10), 10)}

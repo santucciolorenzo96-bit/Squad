@@ -143,7 +143,7 @@ export function SchedaAtleta({ playerId, onChiudi }) {
             title="Cambia fotografia"
           >
             <Avatar nome={p.name} url={foto} dim={72} />
-            <span className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-blu to-blu2 text-[12px] text-white shadow-blu">
+            <span className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full vivo text-[12px] text-white">
               ✎
             </span>
           </button>

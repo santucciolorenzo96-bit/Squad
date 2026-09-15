@@ -85,7 +85,7 @@ export function Documenti() {
                 className={cx(
                   'rounded-full px-3 py-1.5 text-[11.5px] font-semibold transition-all',
                   tipo === t.key
-                    ? 'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu'
+                    ? 'vivo text-white'
                     : 'text-tenue hover:text-testo'
                 )}
               >

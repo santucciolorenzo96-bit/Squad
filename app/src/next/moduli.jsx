@@ -198,7 +198,7 @@ export function Conferma({ titolo, testo, etichetta = 'Conferma', pericolo = tru
                 'transition-all duration-150 disabled:opacity-40',
                 pericolo
                   ? 'bg-rosso text-white hover:brightness-110'
-                  : 'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu'
+                  : 'vivo text-white'
               )}
             >
               {lavora ? 'Attendi…' : etichetta}
@@ -271,7 +271,7 @@ export function Interruttore({ valore, onCambia, voci }) {
           className={cx(
             'rounded-full px-3.5 py-1.5 text-[12px] font-semibold transition-all duration-150',
             valore === v.id
-              ? 'bg-gradient-to-br from-blu to-blu2 text-white shadow-blu'
+              ? 'vivo text-white'
               : 'text-tenue hover:text-testo'
           )}
         >
