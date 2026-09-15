@@ -89,3 +89,25 @@ export async function societyVisits(teamId) {
   if (error) throw error;
   return data || [];
 }
+
+/* Gli account della piattaforma.
+ *
+ * `auth.users` dal client non si raggiunge in nessun altro modo: passa tutto
+ * da due funzioni che controllano chi chiama prima di rispondere.
+ */
+export async function listAccounts() {
+  const { data, error } = await supabase.rpc('list_accounts');
+  if (error) throw error;
+  return data || [];
+}
+
+// `ancheOwner` e' la seconda conferma per cancellare un altro amministratore
+// di piattaforma: senza, il database si rifiuta.
+export async function deleteAccount(userId, ancheOwner) {
+  const { data, error } = await supabase.rpc('delete_account', {
+    p_user_id: userId,
+    p_anche_owner: !!ancheOwner
+  });
+  if (error) throw error;
+  return data;
+}

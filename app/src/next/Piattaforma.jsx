@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { logout } from '../auth.js';
-import { amIPlatformOwner, createActivationCode, listActivationCodes, revokeActivationCode, listSocieties, enterSociety } from '../api/platform.js';
+import { state } from '../state.js';
+import { amIPlatformOwner, createActivationCode, listActivationCodes, revokeActivationCode, listSocieties, enterSociety, listAccounts, deleteAccount } from '../api/platform.js';
 import { SPORT_LIST } from '../utils/sports/index.js';
 import { inCampione } from './campione.js';
-import { Pannello, Etichetta, Pulsante, Scheletro, cx } from './ui.jsx';
-import { Modulo, Conferma, Campo, Testo, useAvviso, ProvvederAvvisi } from './moduli.jsx';
+import { Pannello, Etichetta, Pulsante, Scheletro, cx, Vuoto, Stato, Cerca, NessunRisultato } from './ui.jsx';
+import { Modulo, Conferma, Campo, Testo, useAvviso, ProvvederAvvisi  } from './moduli.jsx';
 
 /* La piattaforma.
  *
@@ -343,7 +344,7 @@ export function PannelloSocieta() {
                 disabled={!!entrando}
                 onClick={() => entra(r)}
               >
-                {entrando === r.id ? 'Entro\u2026' : 'Entra'}
+                {entrando === r.id ? 'Entro…' : 'Entra'}
               </Pulsante>
             </div>
           ))}
@@ -406,6 +407,8 @@ function ConsoleDentro({ email, onIscriviti }) {
       <PannelloCodici avvisa={avvisa} />
       <PannelloSocieta />
 
+      <PannelloAccount />
+
       {onIscriviti && (
         <button
           onClick={onIscriviti}
@@ -413,6 +416,158 @@ function ConsoleDentro({ email, onIscriviti }) {
         >
           Ho anche un codice per entrare in una società
         </button>
+      )}
+    </div>
+  );
+}
+
+/* ================================================================= account */
+/* Chi ha un accesso, su tutta la piattaforma.
+ *
+ * Non e' la schermata Utenti di una societa': quella elenca chi lavora in
+ * QUELLA societa' e sa disattivarlo. Qui si vedono tutti gli account che
+ * esistono, anche quelli rimasti senza societa' — una registrazione lasciata a
+ * meta', un indirizzo scritto male, la prova di due mesi fa — e si cancellano.
+ *
+ * Cancellare e' diverso da disattivare, e la differenza va detta dove si
+ * clicca, non in un manuale: disattivare toglie l'accesso e lascia il nome
+ * accanto a quello che la persona ha fatto; cancellare libera l'indirizzo
+ * email e lascia quel lavoro senza autore.
+ */
+export function PannelloAccount() {
+  const [abilitato, setAbilitato] = useState(null);
+  const [righe, setRighe] = useState(null);
+  const [errore, setErrore] = useState(null);
+  const [cerca, setCerca] = useState('');
+  const [daCancellare, setDaCancellare] = useState(null);
+  const avvisa = useAvviso();
+
+  function carica() {
+    setErrore(null);
+    listAccounts().then(setRighe).catch(setErrore);
+  }
+
+  useEffect(() => {
+    let vivo = true;
+    if (inCampione()) { setAbilitato(false); return; }
+    amIPlatformOwner().then(ok => {
+      if (!vivo) return;
+      setAbilitato(ok);
+      if (ok) carica();
+    });
+    return () => { vivo = false; };
+  }, []);
+
+  if (!abilitato) return null;
+
+  const visibili = (righe || []).filter(r => contiene(
+    (r.email || '') + ' ' + (r.display_name || '') + ' ' + (r.team_name || ''), cerca
+  ));
+
+  const senzaSocieta = (righe || []).filter(r => !r.team_name).length;
+
+  return (
+    <div className="mt-7">
+      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-3">
+        <Etichetta>Account sulla piattaforma</Etichetta>
+        {righe && righe.length > 8 && (
+          <Cerca
+            valore={cerca}
+            onCambia={setCerca}
+            segnaposto="Cerca per email, nome o società"
+            className="order-last w-full sm:order-none sm:w-64"
+          />
+        )}
+        {righe && <span className="cifra text-[13px] text-tenue">{righe.length}</span>}
+      </div>
+
+      {errore ? (
+        <Pannello className="pad-pannello-stretto">
+          <p className="text-[13px] leading-relaxed text-ambra">
+            L’elenco non si legge: {(errore && errore.message) || 'errore sconosciuto'}. Se la
+            migrazione 032 non è ancora stata eseguita, questa funzione non esiste ancora.
+          </p>
+        </Pannello>
+      ) : righe === null ? (
+        <Pannello className="pad-pannello-stretto"><Scheletro righe={3} /></Pannello>
+      ) : visibili.length === 0 ? (
+        cerca ? <NessunRisultato cosa="Nessun account" ago={cerca} />
+              : <Vuoto>Nessun account registrato.</Vuoto>
+      ) : (
+        <Pannello className="overflow-hidden">
+          {visibili.map((r, i) => {
+            const io = r.user_id === (state.currentUser || {}).id;
+            return (
+              <div
+                key={r.user_id}
+                className={cx('flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-3 sm:px-5',
+                  i > 0 && 'border-t border-bordo/6')}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="truncate text-[13.5px] font-semibold">{r.email}</span>
+                    {r.is_owner && <Stato tono="buono">SuperAdmin</Stato>}
+                    {io && <span className="text-[12px] text-tenue">(tu)</span>}
+                    {!r.confirmed && <Stato tono="attesa">email non confermata</Stato>}
+                    {r.active === false && <Stato tono="fermo">disattivato</Stato>}
+                  </div>
+                  <div className="mt-0.5 truncate text-[12.5px] text-tenue">
+                    {r.team_name
+                      ? [r.display_name, r.team_name, r.role].filter(Boolean).join(' · ')
+                      : 'Nessuna società'}
+                  </div>
+                </div>
+
+                <div className="shrink-0 text-right text-[12px] text-tenue">
+                  <div>iscritto il {fmtData((r.created_at || '').slice(0, 10))}</div>
+                  <div>
+                    {r.last_sign_in_at
+                      ? 'ultimo accesso ' + fmtData(r.last_sign_in_at.slice(0, 10))
+                      : 'mai entrato'}
+                  </div>
+                </div>
+
+                {!io && (
+                  <Pulsante
+                    className="shrink-0 py-1.5 text-[12.5px] !text-rosso"
+                    onClick={() => setDaCancellare(r)}
+                  >
+                    Cancella
+                  </Pulsante>
+                )}
+              </div>
+            );
+          })}
+        </Pannello>
+      )}
+
+      <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
+        Cancellare un account libera il suo indirizzo email e toglie il profilo dalla sua
+        società. Quello che la persona ha inserito — allenamenti, documenti approvati,
+        movimenti di cassa — resta dov’è e perde solo il nome dell’autore.
+        {senzaSocieta > 0 && ' ' + senzaSocieta + (senzaSocieta === 1
+          ? ' account non appartiene a nessuna società.'
+          : ' account non appartengono a nessuna società.')}
+      </p>
+
+      {daCancellare && (
+        <Conferma
+          titolo="Cancellare questo account?"
+          testo={
+            daCancellare.email
+            + (daCancellare.team_name ? ' — ' + daCancellare.team_name : ' — nessuna società')
+            + '. L’indirizzo torna libero e il profilo sparisce. I dati che ha inserito nella '
+            + 'società restano, senza più il suo nome. Non si annulla.'
+            + (daCancellare.is_owner ? ' ATTENZIONE: è un amministratore di piattaforma.' : '')
+          }
+          etichetta="Cancella l’account"
+          onChiudi={() => setDaCancellare(null)}
+          onConferma={async () => {
+            await deleteAccount(daCancellare.user_id, daCancellare.is_owner);
+            setRighe(v => (v || []).filter(x => x.user_id !== daCancellare.user_id));
+            avvisa('Account cancellato');
+          }}
+        />
       )}
     </div>
   );
