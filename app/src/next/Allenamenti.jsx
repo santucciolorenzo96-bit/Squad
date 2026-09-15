@@ -7,6 +7,7 @@ import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, cx } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Data, Interruttore, useAvviso } from './moduli.jsx';
 import { IconaSezione, Chevron } from './icone.jsx';
+import { FoglioPresenze } from './FoglioPresenze.jsx';
 
 /* Gli allenamenti.
  *
@@ -67,7 +68,7 @@ function Riquadro({ iso }) {
  * da un mese all'altro avanti e indietro, e una vista che si rifiuta di
  * mostrare il mese scorso non è un calendario.
  */
-function Calendario({ allenamenti, puoiModificare, onApri }) {
+function Calendario({ allenamenti, puoiModificare, onApri, onPresenze }) {
   const oggi = oggiISO();
   const [mese, setMese] = useState(meseDi(oggi));
   const [giorno, setGiorno] = useState(null);
@@ -197,7 +198,7 @@ function Calendario({ allenamenti, puoiModificare, onApri }) {
             <Vuoto>Nessun allenamento in questo giorno.</Vuoto>
           ) : (
             scelti.map(t => (
-              <Riga key={t.id} t={t} puoiModificare={puoiModificare} onApri={onApri} />
+              <Riga key={t.id} t={t} puoiModificare={puoiModificare} onApri={onApri} onPresenze={onPresenze} />
             ))
           )}
         </div>
@@ -206,8 +207,22 @@ function Calendario({ allenamenti, puoiModificare, onApri }) {
   );
 }
 
+// La spunta su un elenco: monocromatica come la matita e la croce accanto,
+// perche' sono tre gesti della stessa famiglia. L'icona a colori delle sezioni
+// qui peserebbe come un titolo.
+function IconaPresenze({ dim = 17 }) {
+  return (
+    <svg width={dim} height={dim} viewBox="0 0 20 20" fill="none" aria-hidden="true"
+         stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 5.5h6M3 10h6M3 14.5h6" />
+      <path d="m12.2 5.6 1.9 1.9 3.4-3.6" />
+      <path d="m12.2 14.1 1.9 1.9 3.4-3.6" />
+    </svg>
+  );
+}
+
 /* ------------------------------------------------------------------ la riga */
-function Riga({ t, puoiModificare, onApri, onRimuovi }) {
+function Riga({ t, puoiModificare, onApri, onRimuovi, onPresenze }) {
   return (
     <Pannello className="flex items-center gap-3.5 px-4 py-3.5 sm:px-5">
       <Riquadro iso={t.date} />
@@ -228,6 +243,15 @@ function Riga({ t, puoiModificare, onApri, onRimuovi }) {
       </div>
       {puoiModificare && (
         <div className="flex shrink-0 items-center gap-1">
+          {onPresenze && (
+            <button
+              onClick={() => onPresenze(t)}
+              title="Presenze"
+              className="rounded-lg px-2.5 py-2 text-tenue transition-colors hover:bg-pannello/12 hover:text-testo"
+            >
+              <IconaPresenze />
+            </button>
+          )}
           <button
             onClick={() => onApri(t)}
             title="Modifica"
@@ -254,6 +278,7 @@ export function Allenamenti() {
   const [vista, setVista] = useState('futuri');
   const [modo, setModo] = useState('elenco');        // elenco | calendario
   const [modulo, setModulo] = useState(null);        // null | {} | allenamento
+  const [presenze, setPresenze] = useState(null);    // l'allenamento di cui si segnano le presenze
   const [daRimuovere, setDaRimuovere] = useState(null);
   const [, ridisegna] = useState(0);
   const avvisa = useAvviso();
@@ -311,6 +336,7 @@ export function Allenamenti() {
           allenamenti={state.trainings}
           puoiModificare={puoiModificare}
           onApri={(t) => setModulo(t)}
+          onPresenze={(t) => setPresenze(t)}
         />
       ) : elenco.length === 0 ? (
         <Vuoto>
@@ -340,12 +366,17 @@ export function Allenamenti() {
                   t={t}
                   puoiModificare={puoiModificare}
                   onApri={(x) => setModulo(x)}
+                  onPresenze={(x) => setPresenze(x)}
                   onRimuovi={(x) => setDaRimuovere(x)}
                 />
               </React.Fragment>
             );
           })}
         </div>
+      )}
+
+      {presenze && (
+        <FoglioPresenze allenamento={presenze} onChiudi={() => setPresenze(null)} />
       )}
 
       {modulo && (

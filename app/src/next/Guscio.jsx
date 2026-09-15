@@ -626,6 +626,9 @@ function BarraMobile({ sezione, onSezione }) {
               <span className="barra-etichetta w-full truncate text-center text-[9.5px] font-bold uppercase tracking-[0.03em]">
                 {x.v.label}
               </span>
+              {/* Il punto: dice quale sezione e' APERTA, mentre la misura dice
+                  solo dove si sta guardando. Due domande diverse, due segni. */}
+              <span className="barra-punto" aria-hidden="true" />
             </button>
           );
         })}

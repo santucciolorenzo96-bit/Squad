@@ -410,6 +410,44 @@
     opacity: calc(0.28 + 0.72 * var(--v));
   }
 
+  /* IL SEGNO DELLA SEZIONE APERTA.
+
+     La misura e il nome dicono dove si sta GUARDANDO — seguono il dito mentre
+     si scorre, ed e' quello che li rende utili durante lo scorrimento. Ma
+     quando la barra sta ferma, e con cinque voci sta ferma quasi sempre, non
+     dicono piu' quale sezione e' APERTA: la voce piu' grande e' semplicemente
+     quella al centro.
+
+     Servono due segni diversi per due cose diverse. Questo e' il secondo, e
+     non dipende dalla posizione: un punto sotto il nome, e il nome nel colore
+     dell'app. Sta sulla voce aperta e su nessun'altra, che la barra si muova o
+     no. */
+  .barra-punto {
+    display: block;
+    height: 3px;
+    width: 3px;
+    margin: 0 auto;   /* la distanza la da' gia' il gap della colonna */
+    border-radius: 9999px;
+    background: rgb(var(--blu));
+    opacity: 0;
+    transform: scale(0.4);
+    transition: opacity 180ms ease, transform 180ms cubic-bezier(.22,1,.36,1);
+  }
+
+  .barra-voce[aria-current='page'] .barra-punto {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .barra-voce[aria-current='page'] .barra-etichetta {
+    color: rgb(var(--blu));
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .barra-punto { transition: none; }
+  }
+
   /* Il pannello che nasce dal gettone: parte piccolo dal punto toccato e si
      apre in un soffio. Centosessanta millisecondi — piu' lento si sente come
      attesa, mentre la partita va avanti. */
