@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { stagioneAttiva } from './stagione.js';
 
 function fromDbGame(row) {
   if (!row) return null;
@@ -75,6 +76,10 @@ export async function startGame(teamId, sectorId, liveGame, startedByProfileId) 
   const { data, error } = await supabase.from('games').insert({
     team_id: teamId,
     sector_id: sectorId,
+    // Senza stagione la partita spariva dallo storico appena finita:
+    // `fetchHistory` filtra per stagione, e una riga senza non la trova
+    // nessuna stagione. Vedi api/stagione.js.
+    season_id: stagioneAttiva(),
     status: 'live',
     ...toDbPatch(liveGame),
     started_by: startedByProfileId

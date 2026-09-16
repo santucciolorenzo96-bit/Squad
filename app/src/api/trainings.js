@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { stagioneAttiva } from './stagione.js';
 
 export async function fetchTrainings(sectorId, seasonId) {
   let q = supabase.from('trainings').select('*').eq('sector_id', sectorId);
@@ -36,7 +37,13 @@ export async function fetchKnownLocations(teamId) {
   return [...visti.values()].sort((x, y) => x.localeCompare(y));
 }
 
-export async function addTraining(teamId, sectorId, training, seasonId) {
+/* La stagione ha un valore predefinito, e non e' una comodita'.
+ *
+ * Questo allenamento veniva salvato senza: la riga finiva nel database con
+ * `season_id` vuoto, e `fetchTrainings` — che filtra per stagione — non la
+ * restituiva piu'. L'allenamento c'era, non si vedeva, e sembrava che il
+ * salvataggio non fosse avvenuto. Vedi api/stagione.js. */
+export async function addTraining(teamId, sectorId, training, seasonId = stagioneAttiva()) {
   const { data, error } = await supabase.from('trainings')
     .insert({ team_id: teamId, sector_id: sectorId, season_id: seasonId || null, ...training })
     .select().single();

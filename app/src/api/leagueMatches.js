@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { stagioneAttiva } from './stagione.js';
 
 // Risultati del girone: tutte le partite del campionato, comprese le nostre.
 // È da qui che si calcola la classifica, invece di digitarla riga per riga.
@@ -12,7 +13,7 @@ export async function fetchLeagueMatches(sectorId, seasonId) {
   return data;
 }
 
-export async function saveLeagueMatch(teamId, sectorId, row, seasonId) {
+export async function saveLeagueMatch(teamId, sectorId, row, seasonId = stagioneAttiva()) {
   const patch = {
     giornata: row.giornata ?? null,
     date: row.date || null,
@@ -46,7 +47,7 @@ export async function removeLeagueMatch(id) {
 // se in quella giornata esiste già la riga di quell'accoppiamento la si
 // aggiorna, altrimenti la si crea. Così il risultato entra in classifica una
 // volta sola, da qualunque strada arrivi.
-export async function upsertOurLeagueMatch(teamId, sectorId, { giornata, date, ourName, opponent, isHome, ourScore, oppScore, seasonId, phase, roundLabel }) {
+export async function upsertOurLeagueMatch(teamId, sectorId, { giornata, date, ourName, opponent, isHome, ourScore, oppScore, seasonId = stagioneAttiva(), phase, roundLabel }) {
   const home_team = isHome ? ourName : opponent;
   const away_team = isHome ? opponent : ourName;
   const home_score = isHome ? ourScore : oppScore;

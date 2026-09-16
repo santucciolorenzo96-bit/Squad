@@ -195,7 +195,22 @@ export function caricaCampione(state) {
     { id: 't2', sector_id: 's-u15-blu', title: 'Situazioni di gara', date: fra(4), start_time: '19:00', end_time: '20:30', location: 'Palestra Comunale' }
   ];
   state.trainingRecurrences = [];
-  state.notifications = [];
+  // Qualche notifica vera: una campanella vuota durante una dimostrazione non
+  // mostra la funzione, mostra solo che c'e' un'icona.
+  state.notifications = [
+    { id: 'n1', type: 'training_changed', sector_id: 's-u15-blu', actor_id: 'altro',
+      title: 'Situazioni di gara', body: 'Orario: 19:00 \u2192 19:30 \u00b7 Luogo: Palestra Comunale \u2192 PalaRuggi',
+      link_tab: 'allenamenti', read: false, created_at: new Date(oggi.getTime() - 2 * 3600000).toISOString() },
+    { id: 'n2', type: 'document_uploaded', sector_id: 's-u15-blu', actor_id: 'altro',
+      title: 'Certificato medico di Giulia Baroncini', body: 'Caricato dalla famiglia, in attesa di verifica',
+      link_tab: 'anagrafica', read: false, created_at: new Date(oggi.getTime() - 6 * 3600000).toISOString() },
+    { id: 'n3', type: 'comunicazione', sector_id: 's-u15-blu', actor_id: 'altro',
+      title: 'Trasferta di domenica: ritrovo alle 14:00', body: 'Richiede conferma entro il 20/09',
+      link_tab: 'comunicazioni', read: true, created_at: new Date(oggi.getTime() - 26 * 3600000).toISOString() },
+    { id: 'n4', type: 'training_created', sector_id: 's-u15-blu', actor_id: 'altro',
+      title: 'Tecnica individuale', body: 'domani \u00b7 ore 19:00 \u00b7 Palestra Comunale',
+      link_tab: 'allenamenti', read: true, created_at: new Date(oggi.getTime() - 50 * 3600000).toISOString() }
+  ];
   state.pendingDocsCount = 1;
   state.expiringDocsCount = 2;
   state.financeAccounts = [];

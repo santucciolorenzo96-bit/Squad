@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { stagioneAttiva } from './stagione.js';
 
 export async function fetchStandings(sectorId, seasonId) {
   let q = supabase.from('standings').select('*').eq('sector_id', sectorId);
@@ -8,7 +9,7 @@ export async function fetchStandings(sectorId, seasonId) {
   return data;
 }
 
-export async function upsertStanding(teamId, sectorId, row, seasonId) {
+export async function upsertStanding(teamId, sectorId, row, seasonId = stagioneAttiva()) {
   if (row.is_us) {
     await supabase.from('standings').update({ is_us: false }).eq('sector_id', sectorId).eq('is_us', true);
   }

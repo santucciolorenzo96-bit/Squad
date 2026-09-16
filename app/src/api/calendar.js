@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { stagioneAttiva } from './stagione.js';
 
 export async function fetchCalendar(sectorId, seasonId) {
   let q = supabase.from('calendar').select('*').eq('sector_id', sectorId);
@@ -8,7 +9,7 @@ export async function fetchCalendar(sectorId, seasonId) {
   return data;
 }
 
-export async function bulkInsertMatches(teamId, sectorId, rows, seasonId) {
+export async function bulkInsertMatches(teamId, sectorId, rows, seasonId = stagioneAttiva()) {
   const existing = await fetchCalendar(sectorId, seasonId);
   const existingKeys = new Set(existing.map(m => `${m.date}|${(m.opponent || '').trim().toLowerCase()}`));
   const toInsert = rows

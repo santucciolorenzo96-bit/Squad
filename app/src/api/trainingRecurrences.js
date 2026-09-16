@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { stagioneAttiva } from './stagione.js';
 
 export const WEEKDAY_LABELS = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
 const WEEKS_AHEAD = 8;
@@ -57,6 +58,9 @@ export async function ensureOccurrencesGenerated(teamId, sectorId, recurrences, 
       if (already.has(date)) return;
       rows.push({
         team_id: teamId, sector_id: sectorId, recurrence_id: r.id,
+        // Come per gli allenamenti singoli: senza stagione le occorrenze
+        // generate non sarebbero mai state rilette. Vedi api/stagione.js.
+        season_id: stagioneAttiva(),
         title: 'Allenamento', date, start_time: r.start_time, end_time: r.end_time, location: r.location
       });
     });

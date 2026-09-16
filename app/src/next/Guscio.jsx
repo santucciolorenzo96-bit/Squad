@@ -6,6 +6,7 @@ import { orderedSectors, sectorFullName, sectorIdsFor } from '../utils/sectors.j
 import { cx, Avatar, Pannello } from './ui.jsx';
 import { IconaSezione, Chevron, coloreSezione, tintaSezione } from './icone.jsx';
 import { Finestra } from './moduli.jsx';
+import { Campanella } from './Notifiche.jsx';
 
 /* Il guscio.
  *
@@ -260,6 +261,9 @@ function Testata({ onSezione, sectorId, onSettore, strumenti }) {
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {strumenti}
+          {/* La campanella era rimasta fuori dal ridisegno: il database
+              continuava a scrivere le notifiche e nessuno poteva leggerle. */}
+          <Campanella onSezione={onSezione} />
           <button
             onClick={() => onSezione('profilo')}
             className="flex items-center gap-2 rounded-full vetro orlo py-1 pl-1 pr-1 sm:pr-3 transition-colors hover:bg-pannello/12"

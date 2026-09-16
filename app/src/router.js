@@ -8,6 +8,7 @@ import { fetchStandings } from './api/standings.js';
 import { fetchSectors, fetchStaffSectors, fetchPlayerSectorIds } from './api/sectors.js';
 import { sectorIdsFor } from './utils/sectors.js';
 import { fetchSeasons, storedSeasonId } from './api/seasons.js';
+import { collegaStagione } from './api/stagione.js';
 import { fetchTrainings } from './api/trainings.js';
 import { fetchRecurrences } from './api/trainingRecurrences.js';
 import { fetchCalendar } from './api/calendar.js';
@@ -20,6 +21,15 @@ import { fetchAccounts, fetchAccountBalances } from './api/financeAccounts.js';
 import { fetchSuppliers } from './api/financeSuppliers.js';
 import { fetchSponsors } from './api/financeSponsors.js';
 import { isAdmin, isLinkedUser } from './utils/permissions.js';
+import { daLeggere } from './utils/notifiche.js';
+
+/* Lo strato delle API non conosce lo `state`, e non deve: e' quello che
+   permette di provarlo senza montare mezza applicazione. Ma DEVE sapere in
+   che stagione siamo, altrimenti ogni scrittura che se la dimentica salva una
+   riga che poi nessuna lettura ritrova. Gliela si collega qui, una volta, e
+   come funzione: cosi' non puo' diventare vecchia quando si cambia stagione a
+   meta' sessione. */
+collegaStagione(() => state.activeSeasonId);
 
 const LAST_SECTOR_KEY = 'bbapp_active_sector';
 
@@ -133,7 +143,7 @@ export async function refreshNotifications() {
 // Le proprie azioni non si notificano da sole: chi ha creato l'allenamento
 // sa di averlo creato.
 export function unseenNotificationsCount() {
-  return state.notifications.filter(n => !n.read && n.actor_id !== state.currentUser.id).length;
+  return daLeggere(state.notifications, (state.currentUser || {}).id);
 }
 
 export async function loadFamilyLinks() {
