@@ -5,8 +5,11 @@ import { refertoPartita, tabellaTabellino, quota } from '../utils/referto.js';
 import { generaRefertoPdf } from '../utils/refertoPdf.js';
 import { downloadCsv, safeName } from '../utils/csv.js';
 import { sectorFullName } from '../utils/sectors.js';
+import { canDeleteGame } from '../utils/permissions.js';
+import { deleteGame } from '../api/games.js';
+import { inCampione } from './campione.js';
 import { Etichetta, Pannello, Pulsante, Vuoto, cx } from './ui.jsx';
-import { Finestra, useAvviso } from './moduli.jsx';
+import { Finestra, Conferma, useAvviso } from './moduli.jsx';
 
 /* Il referto di una partita archiviata.
  *
@@ -29,10 +32,25 @@ function nomeCategoria() {
   return s ? sectorFullName(s, state.sectors) : '';
 }
 
-export function Referto({ partita, onChiudi }) {
+export function Referto({ partita, onChiudi, onEliminata }) {
   const sport = currentSport();
   const [lavora, setLavora] = useState(null);
+  const [daEliminare, setDaEliminare] = useState(false);
   const avvisa = useAvviso();
+
+  /* La cancellazione sta QUI e non nell'elenco, di proposito.
+   *
+   * Una partita sbagliata — un tabellino aperto per prova, un 8-0 rimasto da
+   * una partita mai giocata — sporca il record, la media punti e le
+   * statistiche di ogni giocatrice. Va tolta. Ma è anche l'unica cosa in
+   * questa schermata che non si può rifare: il tabellino non si ricostruisce
+   * a memoria.
+   *
+   * Per questo il pulsante è dove la partita si vede per intero. Si guarda il
+   * risultato, si guardano i set, si guarda chi ha giocato, e solo allora si
+   * decide. Una piccola icona in un elenco si tocca per sbaglio. */
+  const puoiEliminare = !!onEliminata
+    && canDeleteGame(state.currentUser, state.activeSectorId, state.staffSectors);
 
   const conf = sport.scout;
   // «set» nella pallavolo, «periodo» nel basket: la parola la dice lo sport.
@@ -76,12 +94,25 @@ export function Referto({ partita, onChiudi }) {
       sotto={[fmtData(partita.date), partita.friendly ? 'amichevole' : 'campionato'].filter(Boolean).join(' · ')}
       onChiudi={onChiudi}
       azioni={
-        <div className="flex flex-wrap gap-2">
-          <Pulsante variante="primario" className="flex-1" disabled={!!lavora} onClick={scaricaPdf}>
-            {lavora === 'pdf' ? 'Preparo…' : 'Scarica il referto in PDF'}
-          </Pulsante>
-          <Pulsante className="shrink-0" onClick={scaricaCsv}>CSV</Pulsante>
-        </div>
+        <>
+          <div className="flex flex-wrap gap-2">
+            <Pulsante variante="primario" className="flex-1" disabled={!!lavora} onClick={scaricaPdf}>
+              {lavora === 'pdf' ? 'Preparo…' : 'Scarica il referto in PDF'}
+            </Pulsante>
+            <Pulsante className="shrink-0" onClick={scaricaCsv}>CSV</Pulsante>
+          </div>
+          {puoiEliminare && (
+            // Lontano dagli altri due e senza colore: si trova quando la si
+            // cerca, e non si incontra quando si voleva il PDF.
+            <button
+              type="button"
+              onClick={() => setDaEliminare(true)}
+              className="mt-3 w-full rounded-lg py-2 text-[12.5px] font-semibold text-rosso transition-colors hover:bg-rosso/10"
+            >
+              Elimina questa partita dallo storico
+            </button>
+          )}
+        </>
       }
     >
       {/* Il risultato, grande: è quello che si cerca per primo. */}
@@ -212,6 +243,26 @@ export function Referto({ partita, onChiudi }) {
 
       {sport.seasonLegend && (
         <p className="mt-2.5 text-[12px] leading-relaxed text-tenue">{sport.seasonLegend}</p>
+      )}
+
+      {daEliminare && (
+        <Conferma
+          titolo="Eliminare questa partita?"
+          testo={
+            `${nostri} – ${partita.oppName || 'Avversari'} ${partita.teamScore ?? 0}–${partita.oppScore ?? 0}`
+            + ' sparisce dallo storico, e con lei il tabellino di tutti i giocatori.'
+            + ' Record, media punti e statistiche si ricalcolano senza. Non si recupera.'
+          }
+          etichetta="Elimina"
+          onChiudi={() => setDaEliminare(false)}
+          onConferma={async () => {
+            if (inCampione()) {
+              throw new Error('Nell’anteprima con dati di esempio non si cancella niente.');
+            }
+            await deleteGame(partita.id);
+            onEliminata(partita);
+          }}
+        />
       )}
     </Finestra>
   );

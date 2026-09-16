@@ -2,7 +2,7 @@ import { state } from '../../../state.js';
 import { esc, clamp } from '../../../utils/format.js';
 import { currentSport } from '../../../utils/sports/index.js';
 import { toast, withButtonLoading, confirmModal } from '../../modal.js';
-import { startGame, fetchOpenGames, discardGame } from '../../../api/games.js';
+import { startGame, fetchOpenGames, deleteGame } from '../../../api/games.js';
 import { fetchPlayerPhotoUrls } from '../../../api/roster.js';
 import { avatarHtml, wireAvatarClicks } from '../../playerAvatar.js';
 import { renderLiveMatch } from './tracker.js';
@@ -212,7 +212,7 @@ async function loadOpenGames(c) {
     btn.onclick = () => confirmModal('Scartare la partita aperta?',
       'Il tabellino raccolto finora verrà eliminato e non finirà nello storico. Usalo solo se era una prova.',
       async () => {
-        await discardGame(btn.dataset.discard);
+        await deleteGame(btn.dataset.discard);
         toast('Partita scartata');
         renderMatchSetup(c);
       }, 'Scarta');

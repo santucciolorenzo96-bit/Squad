@@ -171,6 +171,27 @@ export function canEditRoster(user) {
   return !!user && ROSTER_ROLES.includes(user.role);
 }
 
+/* Cancellare una partita: due casi, due rischi, due regole.
+ *
+ * Un tabellino ancora APERTO è un errore in corso — aperto per sbaglio, o su
+ * una partita che poi non si è giocata. Lo scarta chi lo stava tenendo: stessa
+ * persona, stesso momento, niente da perdere.
+ *
+ * Una partita CHIUSA è storia. Dentro ci sono il risultato, il tabellino, e
+ * tutto quello che quei numeri hanno prodotto in statistiche e in record.
+ * Quella la toglie solo un amministratore — non perché gli altri siano meno
+ * affidabili, ma perché è l'unica cosa qui dentro che non si può rifare.
+ *
+ * Deve dire la stessa cosa della policy `games_delete` (migrazione 035): se le
+ * due si scollano, l'app mostra un pulsante che il database poi rifiuta.
+ */
+export function canDeleteGame(user, sectorId, staffSectors, { aperta = false } = {}) {
+  if (!user) return false;
+  if (isAdmin(user)) return true;
+  if (!aperta) return false;
+  return managesSector(user, sectorId, staffSectors) || !!user.can_score_matches;
+}
+
 export function canReviewDocuments(user) {
   return !!user && MANAGER_ROLES.includes(user.role);
 }

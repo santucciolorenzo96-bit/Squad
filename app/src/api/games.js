@@ -123,7 +123,24 @@ export async function fetchOpenGames(teamId) {
   return data;
 }
 
-export async function discardGame(gameId) {
-  const { error } = await supabase.from('games').delete().eq('id', gameId);
+/* Cancellare una partita, e ACCORGERSI se non è successo.
+ *
+ * Prima era una delete e basta. Con la sicurezza a livello di riga, una
+ * cancellazione che il database non permette non è un errore: è una
+ * cancellazione di zero righe, che torna indietro senza dire niente. L'app
+ * annunciava «tabellino scartato» e il tabellino restava dov'era.
+ *
+ * È lo stesso modo di fallire dell'allenamento senza stagione — in silenzio,
+ * sembrando riuscito — e la risposta è la stessa: farsi restituire quello che
+ * si è cancellato, e non fidarsi dell'assenza di errori.
+ */
+export async function deleteGame(gameId) {
+  const { data, error } = await supabase.from('games').delete().eq('id', gameId).select('id');
   if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error(
+      'La partita non è stata cancellata: il database ha rifiutato in silenzio. '
+      + 'Serve la migrazione 035 (policy games_delete), oppure non hai il permesso di cancellarla.'
+    );
+  }
 }

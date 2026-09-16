@@ -253,7 +253,7 @@ function ModuloSquadra({ riga, onChiudi, onFatto, onRimuovi }) {
 }
 
 /* ----------------------------------------------------------------- lo storico */
-function Storico() {
+function Storico({ onCambiato }) {
   const [referto, setReferto] = useState(null);
   const partite = [...state.history].reverse();   // la più recente per prima
   if (partite.length === 0) {
@@ -300,7 +300,19 @@ function Storico() {
         );
       })}
 
-      {referto && <Referto partita={referto} onChiudi={() => setReferto(null)} />}
+      {referto && (
+        <Referto
+          partita={referto}
+          onChiudi={() => setReferto(null)}
+          onEliminata={(g) => {
+            // Via dallo storico in memoria: senza, la riga resterebbe finché
+            // non si ricarica, e il record continuerebbe a contarla.
+            state.history = state.history.filter(x => x !== g);
+            setReferto(null);
+            onCambiato('Partita eliminata');
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -357,7 +369,7 @@ export function Classifica() {
           onModifica={(r) => setModulo(r)}
           onAggiungi={() => setModulo({})}
         />
-      ) : <Storico />}
+      ) : <Storico onCambiato={(msg) => { ridisegna(n => n + 1); avvisa(msg); }} />}
 
       {modulo && (
         <ModuloSquadra

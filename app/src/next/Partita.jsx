@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
-import { fetchLiveGame, fetchOpenGames, discardGame } from '../api/games.js';
+import { fetchLiveGame, fetchOpenGames, deleteGame } from '../api/games.js';
 import { currentSport } from '../utils/sports/index.js';
 import { managesSector } from '../utils/permissions.js';
 import { inCampione } from './campione.js';
@@ -230,7 +230,7 @@ export function Partita() {
           etichetta="Scarta"
           onChiudi={() => setDaScartare(null)}
           onConferma={async () => {
-            await discardGame(daScartare.id);
+            await deleteGame(daScartare.id);
             setAperte(v => v.filter(x => x.id !== daScartare.id));
             avvisa('Tabellino scartato');
           }}
