@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './vetro.css';
 
@@ -29,7 +29,7 @@ import { ConsoleSuperAdmin } from './Piattaforma.jsx';
 import { amIPlatformOwner, currentSociety, leaveSociety, segnoOspite } from '../api/platform.js';
 import { supabase } from '../supabaseClient.js';
 import { getPendingAction, runPendingAction, clearPendingAction } from '../auth.js';
-import { Etichetta, Vuoto, Scheletro, Titolo } from './ui.jsx';
+import { Etichetta, Vuoto, Scheletro, Titolo, cx } from './ui.jsx';
 import { ProvvederAvvisi } from './moduli.jsx';
 import { caricaCampione } from './campione.js';
 
@@ -189,6 +189,15 @@ function App() {
   const [ospite, setOspite] = useState(null);      // la societa' in cui il SuperAdmin e' entrato
   const [sezione, setSezione] = useState(() => leggiIndirizzo().sezione || 'home');
   const [sectorId, setSectorId] = useState(null);
+  // I dati della categoria stanno arrivando. Non svuota niente: il contenuto
+  // di prima resta a schermo, smorzato, e non si puo' toccare.
+  const [scambioCategoria, setScambioCategoria] = useState(false);
+  const [attesaLunga, setAttesaLunga] = useState(false);
+  // La categoria di cui i dati sono DAVVERO a schermo. Diversa da `sectorId`
+  // per tutta la durata del caricamento: quella e' la scelta, questa e' cosa
+  // si sta guardando, e la schermata si rimonta sulla seconda.
+  const [categoriaResa, setCategoriaResa] = useState(null);
+  const richiestaCategoria = useRef(0);
   const [tema, setTema] = useState(temaIniziale);
 
   useEffect(() => { applicaTema(tema); }, [tema]);
@@ -349,10 +358,11 @@ function App() {
         loadTeamExtras().catch(e => console.error(e));
         if (scelto) {
           loadSectorData(scelto)
-            .then(() => { if (vivo) setSectorId(scelto); })
-            .catch(e => { console.error(e); if (vivo) setSectorId(scelto); });
+            .then(() => { if (vivo) { setSectorId(scelto); setCategoriaResa(scelto); } })
+            .catch(e => { console.error(e); if (vivo) { setSectorId(scelto); setCategoriaResa(scelto); } });
         } else {
           setSectorId(null);
+          setCategoriaResa(null);
         }
       } catch (e) {
         // Senza sessione, offline, o con Supabase irraggiungibile si finisce
@@ -369,13 +379,43 @@ function App() {
     return () => { vivo = false; clearTimeout(orologio); };
   }, []);
 
+  /* Cambiare categoria.
+   *
+   * La pastiglia si muove SUBITO: quello e' il tocco, e un comando che aspetta
+   * la rete prima di rispondere sembra rotto. Quello che aspetta sono i dati,
+   * e mentre aspettano il contenuto di prima resta dov'e', smorzato.
+   *
+   * Prima veniva svuotato e al suo posto compariva lo scheletro — un lampo
+   * bianco e un salto di altezza anche quando i dati arrivavano in duecento
+   * millisecondi, cioe' quasi sempre.
+   */
   async function cambiaSettore(id) {
     state.activeSectorId = id;
-    if (campione) { setSectorId(id); return; }   // non c'è niente da ricaricare
-    setSectorId(null);                 // vuota la schermata: mostrare la rosa
-    try { localStorage.setItem('bbapp_last_sector', id); } catch (e) { /* niente */ }
-    await loadSectorData(id);
     setSectorId(id);
+    if (campione) { setCategoriaResa(id); return; }   // non c'è niente da ricaricare
+    try { localStorage.setItem('bbapp_last_sector', id); } catch (e) { /* niente */ }
+
+    const mia = ++richiestaCategoria.current;
+    setScambioCategoria(true);
+    // L'avviso di attesa solo se tarda davvero: sotto il mezzo secondo si
+    // legge dopo che e' gia' sparito, ed e' piu' disturbo che informazione.
+    const lento = setTimeout(() => {
+      if (richiestaCategoria.current === mia) setAttesaLunga(true);
+    }, 550);
+    try {
+      await loadSectorData(id);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      clearTimeout(lento);
+      // Se nel frattempo se n'e' scelta un'altra, questa risposta non comanda
+      // piu': a spegnere l'attesa ci pensa l'ultima arrivata.
+      if (richiestaCategoria.current === mia) {
+        setCategoriaResa(id);
+        setScambioCategoria(false);
+        setAttesaLunga(false);
+      }
+    }
   }
 
   if (fase === 'console') {
@@ -407,6 +447,7 @@ function App() {
           onCampione={() => {
             caricaCampione(state);
             setSectorId(state.activeSectorId);
+            setCategoriaResa(state.activeSectorId);
             setCampione(true);
             setFase('dentro');
           }}
@@ -464,6 +505,9 @@ function App() {
   // niente.
   const dipendeDallaCategoria = !['situazione', 'documenti', 'utenti', 'squadra', 'finanza', 'profilo'].includes(sezione);
   const disegna = SCHERMATE[sezione];
+  // Lo scheletro resta per il PRIMO caricamento, dove non c'e' ancora niente
+  // da smorzare. Nei cambi successivi non serve piu': c'e' la schermata di
+  // prima, ed e' un'informazione migliore di quattro rettangoli vuoti.
   const contenuto = (sectorId === null && dipendeDallaCategoria)
     ? <Scheletro righe={4} />
     : disegna ? disegna()
@@ -481,10 +525,25 @@ function App() {
             ? <NastroOspite societa={ospite} />
             : (campione ? <Nastro onAccesso={() => { setCampione(false); setFase('accesso'); }} /> : null)
         }
+        chiaveContenuto={sezione + '|' + (categoriaResa || '')}
         strumenti={<Tema valore={tema} onCambia={setTema} />}
       >
-        {contenuto}
+        {/* Il riquadro c'e' sempre, anche quando non si aspetta niente:
+            farlo comparire e sparire rimonterebbe la schermata dentro, che e'
+            esattamente quello che questa modifica serve a evitare. */}
+        <div
+          className={cx('scambio-categoria', scambioCategoria && 'in-attesa')}
+          aria-busy={scambioCategoria || undefined}
+        >
+          {contenuto}
+        </div>
       </Guscio>
+
+      {attesaLunga && (
+        <div className="pillola-attesa rounded-full vetro-alto orlo px-4 py-2 text-[12.5px] font-semibold text-soffuso shadow-lg animate-salita">
+          Carico la categoria…
+        </div>
+      )}
     </ProvvederAvvisi>
   );
 }

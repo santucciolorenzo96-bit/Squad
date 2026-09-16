@@ -487,7 +487,7 @@ function BarraMobile({ sezione, onSezione }) {
   );
 }
 
-export function Guscio({ sezione, onSezione, sectorId, onSettore, nastro, strumenti, children }) {
+export function Guscio({ sezione, onSezione, sectorId, onSettore, chiaveContenuto, nastro, strumenti, children }) {
   useEffect(() => {
     const el = document.getElementById('contenuto');
     if (el) el.scrollTop = 0;
@@ -508,7 +508,20 @@ export function Guscio({ sezione, onSezione, sectorId, onSettore, nastro, strume
         <main id="contenuto" className="min-w-0 flex-1 overflow-y-auto px-4 pb-[calc(6.25rem+env(safe-area-inset-bottom))] pt-6 sm:px-6 sm:pt-7 md:pb-10 md:pr-6 lg:pb-12 lg:pr-8">
           <div className="mx-auto w-full max-w-[1120px]">
             <SottoBarra sezione={sezione} onSezione={onSezione} />
-            <div className="animate-salita">{children}</div>
+            {/* LA CHIAVE E' TUTTA LA TRANSIZIONE.
+                Questo riquadro aveva gia' l'animazione, e non si e' mai vista:
+                senza una chiave React riusa lo stesso elemento fra una sezione
+                e l'altra, e un'animazione di entrata su un elemento che non
+                entra non parte mai. Girava solo al primo disegno dell'app.
+                Con la chiave, ogni sezione e' un elemento nuovo e il contenuto
+                respira a ogni cambio.
+
+                Nella chiave c'e' anche la CATEGORIA GIA' CARICATA, non quella
+                appena scelta: cosi' la schermata si rimonta quando i dati
+                nuovi sono arrivati — non prima, mentre a schermo c'e' ancora
+                quella di prima — e nessuno stato interno (un filtro, una
+                ricerca) sopravvive al passaggio da una categoria all'altra. */}
+            <div key={chiaveContenuto || sezione} className="animate-respiro">{children}</div>
           </div>
         </main>
       </div>

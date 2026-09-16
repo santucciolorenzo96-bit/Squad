@@ -96,7 +96,17 @@ module.exports = {
           to: { opacity: '1', transform: 'none' }
         }
       },
-      animation: { salita: 'salita .35s cubic-bezier(.22,1,.36,1) both' }
+      animation: {
+        // La salita dei fogli: parte dal bordo dello schermo, quindi ha
+        // bisogno di tempo per leggersi come un foglio che arriva.
+        salita: 'salita .35s cubic-bezier(.22,1,.36,1) both',
+        // Il respiro del contenuto quando si cambia sezione. Stesso movimento,
+        // meta' del tempo: qui non arriva niente da fuori, e' la stessa pagina
+        // che si ricompone. Oltre i duecento millisecondi il cambio sezione
+        // smette di sembrare istantaneo, e quello e' il momento in cui una
+        // transizione da bella diventa un'attesa.
+        respiro: 'salita .2s cubic-bezier(.22,1,.36,1) both'
+      }
     }
   },
   plugins: []

@@ -516,9 +516,33 @@
   }
   .animate-nascita { animation: nascita 160ms cubic-bezier(.22,1,.36,1); }
 
+  /* IL CAMBIO CATEGORIA, SENZA IL LAMPO.
+     Prima il contenuto veniva svuotato e al suo posto compariva lo scheletro,
+     anche quando i dati arrivavano in duecento millisecondi: un lampo bianco
+     e un salto di altezza per niente. Adesso resta dov'e' e si smorza, e non
+     si puo' toccare finche' i dati nuovi non sono arrivati — quello che si
+     vede e' ancora la categoria di prima, e toccarlo sarebbe un equivoco.
+     Lo scheletro resta per il primo caricamento, dove non c'e' niente da
+     smorzare. */
+  .scambio-categoria { transition: opacity 180ms ease; }
+  .scambio-categoria.in-attesa { opacity: 0.45; pointer-events: none; }
+
+  /* Solo se tarda davvero. Sotto il mezzo secondo un avviso di caricamento e'
+     piu' disturbo che informazione: si e' gia' visto tutto prima di leggerlo. */
+  .pillola-attesa {
+    position: fixed;
+    left: 50%;
+    bottom: calc(6.5rem + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    z-index: 40;
+  }
+  @media (min-width: 768px) { .pillola-attesa { bottom: 2rem; } }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-salita { animation: none !important; }
+    .animate-respiro { animation: none !important; }
     .animate-nascita { animation: none !important; }
+    .scambio-categoria { transition: none; }
     /* Lo scorrimento resta, ed e' giusto: e' il dito. Si accorcia il salto di
        misura, che e' quello che da' il senso di movimento. */
     .barra-figura { transform: scale(calc(0.9 + 0.14 * var(--v))); }
