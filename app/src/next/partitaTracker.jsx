@@ -6,7 +6,8 @@ import { updateCalendarMatch } from '../api/calendar.js';
 import { currentSport } from '../utils/sports/index.js';
 import {
   situazionePeriodo, etichettaPalla, partitaDecisa, periodiMassimi,
-  perchePunteggioImpossibile, scambioFinito
+  perchePunteggioImpossibile, scambioFinito,
+  saldoTurno, sommaQuintetto
 } from '../utils/regole.js';
 import { Pannello, Etichetta, Pulsante, Stato, cx } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, useAvviso } from './moduli.jsx';
@@ -298,7 +299,7 @@ export function Tracker({ onFinita, onEsci }) {
   }
 
   function manoPunteggio(lato, delta) {
-    memorizza((lato === 'us' ? 'Noi' : g.oppName) + ' ' + (delta > 0 ? '+1' : '−1'));
+    memorizza((lato === 'us' ? 'Noi' : g.oppName) + ' ' + (delta > 0 ? '+' + delta : '−' + Math.abs(delta)));
     segnaPeriodo(lato, delta);
     // Solo il piu' chiude uno scambio. Il meno e' una correzione, e una
     // correzione non ha una fase ne' una rotazione: per disfare uno scambio
@@ -371,12 +372,64 @@ export function Tracker({ onFinita, onEsci }) {
     salva();
   }
 
+  /* IL REGISTRO DEI QUINTETTI.
+   *
+   * La domanda che un allenatore si fa a fine partita non e' quanto ha segnato
+   * Rossi: e' con quali cinque in campo siamo andati meglio. E' l'unica
+   * statistica che parla del gioco invece delle prestazioni, ed e' quella su
+   * cui si decide chi entra nel finale punto a punto.
+   *
+   * Non costa un tocco in piu'. I cambi si segnano gia' e il punteggio si
+   * muove gia': basta ricordare com'era il tabellone quando quei cinque sono
+   * entrati. La differenza, quando uno esce, e' il loro saldo.
+   *
+   * Un turno si chiude a ogni cambio, a fine periodo e a fine partita. */
+  function apriTurno() {
+    if (!conf.quintetti) return;
+    g.turno = {
+      ids: g.players.filter(p => p.onCourt).map(p => p.id),
+      us: g.teamScore || 0,
+      them: g.oppScore || 0
+    };
+  }
+
+  function chiudiTurno() {
+    if (!conf.quintetti) return;
+    calcolaPunteggi(g, sport);
+    const esito = saldoTurno(g.turno, g.teamScore, g.oppScore);
+    if (esito) {
+      g.quintetti = sommaQuintetto(g.quintetti, esito);
+      // Lo stesso saldo va anche sulle cinque persone: e' il loro piu'/meno.
+      esito.ids.forEach(id => {
+        const p = g.players.find(x => x.id === id);
+        if (p) p.stats = { ...(p.stats || {}), plusMinus: ((p.stats || {}).plusMinus || 0) + esito.saldo };
+      });
+    }
+    g.turno = null;
+  }
+
+  // All'apertura dello scout il quintetto e' gia' in campo da prima: se non
+  // c'e' un turno aperto se ne apre uno adesso, altrimenti i primi canestri
+  // non sarebbero di nessuno.
+  useEffect(() => {
+    if (!conf.quintetti || g.turno) return;
+    calcolaPunteggi(g, sport);
+    apriTurno();
+    salva();
+    // Una volta sola, all'apertura: dopo ci pensano i cambi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function sostituisci(entrante) {
     const uscente = g.players.find(p => p.id === sostituzione);
     if (!uscente || !entrante) return;
     memorizza();
+    // Prima si chiude il conto dei cinque che c'erano, poi si cambia: al
+    // contrario, i punti appena fatti finirebbero a chi e' appena entrato.
+    chiudiTurno();
     uscente.onCourt = false;
     entrante.onCourt = true;
+    apriTurno();
     setSostituzione(null);
     aggiorna();
     salva();
@@ -506,7 +559,7 @@ export function Tracker({ onFinita, onEsci }) {
               </div>
               <ManoPunteggio
                 attiva={manoNostra}
-                onPiu={() => manoPunteggio('us', 1)}
+                onPiu={(n) => manoPunteggio('us', n)}
                 onMeno={() => manoPunteggio('us', -1)}
               />
             </div>
@@ -551,7 +604,8 @@ export function Tracker({ onFinita, onEsci }) {
               </div>
               <ManoPunteggio
                 attiva={manoLoro}
-                onPiu={() => manoPunteggio('them', 1)}
+                valori={conf.manoPunti || [1]}
+                onPiu={(n) => manoPunteggio('them', n)}
                 onMeno={() => manoPunteggio('them', -1)}
               />
             </div>
@@ -793,7 +847,15 @@ export function Tracker({ onFinita, onEsci }) {
           g={g}
           sport={sport}
           onChiudi={() => setChiudiPeriodo(false)}
-          onFatto={(msg) => { aggiorna(); salva(); avvisa(msg); }}
+          onFatto={(msg) => {
+            // Qui il punteggio avversario e' appena stato corretto sul
+            // tabellone della palestra: il turno si chiude su quel numero,
+            // che e' l'unico vero. Poi se ne apre uno nuovo per il periodo
+            // che comincia.
+            chiudiTurno();
+            apriTurno();
+            aggiorna(); salva(); avvisa(msg);
+          }}
         />
       )}
 
@@ -806,6 +868,10 @@ export function Tracker({ onFinita, onEsci }) {
           pericolo={false}
           onChiudi={() => setFinePartita(false)}
           onConferma={async () => {
+            calcolaPunteggi(g, sport);
+            // L'ultimo turno si chiude qui: senza, i cinque che hanno giocato
+            // il finale sarebbero gli unici a non avere un piu'/meno.
+            chiudiTurno();
             calcolaPunteggi(g, sport);
             if (!inCampione()) await endGame(g.id, g);
             if (g.calendarMatchId && !inCampione()) {
@@ -859,24 +925,48 @@ export function Tracker({ onFinita, onEsci }) {
 // Dove i punti appartengono sempre a un giocatore (i nostri, nel basket) la
 // mano non c'e': lo spazio pero' resta, cosi' i due numeri grandi restano
 // sulla stessa riga invece di sfalsarsi.
-function ManoPunteggio({ attiva, onPiu, onMeno }) {
+/* I punti che segna l'avversario.
+ *
+ * C'era un solo pulsante, «+1». Nella pallavolo e' giusto — un punto e' un
+ * punto — ma nel basket una tripla avversaria voleva TRE tocchi, e il
+ * segnapunti li faceva mentre il gioco era gia' ripartito. Tre tocchi per un
+ * evento solo sono anche tre occasioni di perderne uno.
+ *
+ * Adesso i valori li dichiara lo sport. E non e' una comodita': senza un
+ * punteggio avversario che si muove in tempo reale e giusto, il piu'/meno dei
+ * quintetti non esisterebbe, perche' non si saprebbe mai quanti punti ha
+ * preso un quintetto mentre era in campo.
+ */
+function ManoPunteggio({ attiva, valori = [1], onPiu, onMeno }) {
   if (!attiva) return <div className="mt-2 h-8" aria-hidden="true" />;
+  const largo = valori.length > 1;
   return (
-    <div className="mt-2 flex items-center justify-center gap-2">
+    <div className={cx('mt-2 flex items-center justify-center', largo ? 'gap-1.5' : 'gap-2')}>
       <button
         onClick={onMeno}
         aria-label="Togli un punto"
-        className="grid h-8 w-11 shrink-0 place-items-center rounded-lg bg-rosso/16 text-[16px] font-bold leading-none text-rosso ring-1 ring-rosso/35 transition-all hover:bg-rosso/26 active:scale-95"
+        className={cx(
+          'grid h-8 shrink-0 place-items-center rounded-lg bg-rosso/16 text-[16px] font-bold leading-none',
+          'text-rosso ring-1 ring-rosso/35 transition-all hover:bg-rosso/26 active:scale-95',
+          largo ? 'w-9' : 'w-11'
+        )}
       >
         −
       </button>
-      <button
-        onClick={onPiu}
-        aria-label="Aggiungi un punto"
-        className="grid h-8 w-11 shrink-0 place-items-center rounded-lg bg-verde/18 text-[16px] font-bold leading-none text-verde ring-1 ring-verde/35 transition-all hover:bg-verde/28 active:scale-95"
-      >
-        +
-      </button>
+      {valori.map(n => (
+        <button
+          key={n}
+          onClick={() => onPiu(n)}
+          aria-label={'Aggiungi ' + n + (n === 1 ? ' punto' : ' punti')}
+          className={cx(
+            'grid h-8 shrink-0 place-items-center rounded-lg bg-verde/18 text-[15px] font-bold leading-none',
+            'text-verde ring-1 ring-verde/35 transition-all hover:bg-verde/28 active:scale-95',
+            largo ? 'w-9' : 'w-11'
+          )}
+        >
+          +{largo ? n : ''}
+        </button>
+      ))}
     </div>
   );
 }

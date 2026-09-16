@@ -93,7 +93,10 @@ export const BASKET = {
     // due gesti diversi, e il tabellino federale li tiene separati.
     orb: (p) => (p.stats || {}).orb || 0,
     drb: (p) => (p.stats || {}).drb || 0,
-    pf: (p) => (p.stats || {}).pf || 0
+    pf: (p) => (p.stats || {}).pf || 0,
+    // Il piu'/meno: quanti punti di scarto ha prodotto la squadra mentre lui
+    // era in campo. Lo scrive il registro dei quintetti, a ogni cambio.
+    plusMinus: (p) => (p.stats || {}).plusMinus || 0
   },
 
   /* Le colonne della tabella Statistiche. `avg` aggiunge la media a partita.
@@ -133,9 +136,23 @@ export const BASKET = {
     { key: 'tov', short: 'PP', label: 'Palle perse' },
     { key: 'stl', short: 'ST', label: 'Palle rubate' },
     { key: 'blk', short: 'STP', label: 'Stoppate fatte' },
-    { key: 'pf', short: 'F', label: 'Falli commessi' }
+    { key: 'pf', short: 'F', label: 'Falli commessi' },
+    // Il piu'/meno non e' una prestazione, e' un effetto: dice come e' andata
+    // la squadra mentre c'era lui. Un ragazzo che segna poco e ha il miglior
+    // piu'/meno della squadra sta facendo qualcosa che le altre colonne non
+    // vedono, e questa e' l'unica che glielo riconosce.
+    //
+    // `segno` lo fa scrivere con il piu' davanti quando e' positivo: +6 e 6
+    // si leggono in due modi diversi, e qui il segno E' l'informazione.
+    //
+    // `nonSommare` lo tiene fuori dalla riga della squadra: sommare il
+    // piu'/meno di dodici giocatori darebbe cinque volte lo scarto vero,
+    // perche' ogni punto e' contato una volta per ciascuno dei cinque in
+    // campo. Lo scarto della squadra e' il risultato, ed e' gia' in cima.
+    { key: 'plusMinus', short: '+/−', label: 'Scarto prodotto dalla squadra mentre era in campo',
+      segno: true, nonSommare: true }
   ],
-  seasonLegend: 'PG = partite giocate · PPG/RPG/APG = medie a partita · 2P/3P/TL = percentuali al tiro, con segnati su tentati · eFG = percentuale effettiva, conta il canestro da tre una volta e mezza · PP = palle perse · ST = palle rubate · STP = stoppate fatte · F = falli commessi',
+  seasonLegend: 'PG = partite giocate · PPG/RPG/APG = medie a partita · 2P/3P/TL = percentuali al tiro, con segnati su tentati · eFG = percentuale effettiva, conta il canestro da tre una volta e mezza · PP = palle perse · ST = palle rubate · STP = stoppate fatte · F = falli commessi · +/− = punti di scarto prodotti dalla squadra mentre era in campo',
   showMinutes: false,
 
   ratingLabel: 'Valutazione',
@@ -174,6 +191,17 @@ export const BASKET = {
     trackSeconds: false,
     teamFouls: true,
     teamFoulBonus: 5,
+
+    /* Una tripla avversaria costava tre tocchi, e il segnapunti li faceva
+     * mentre il gioco era gia' ripartito. Uno, due o tre: come li fanno. */
+    manoPunti: [1, 2, 3],
+
+    /* Il registro dei quintetti. I cambi si segnano gia' e il punteggio si
+     * muove gia': ricordare com'era il tabellone quando quei cinque sono
+     * entrati non costa nessun tocco in piu', e risponde alla domanda che un
+     * allenatore si fa davvero a fine partita. Non nella pallavolo, dove la
+     * struttura del gioco e' la rotazione e i cambi sono un'altra cosa. */
+    quintetti: true,
     periodPrompt: 'Quanti punti ha segnato l\u2019avversario in questo periodo?',
     groups: [
       { label: 'Tiro da 2', layout: 'pair', actions: [

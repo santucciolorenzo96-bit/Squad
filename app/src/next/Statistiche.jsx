@@ -121,7 +121,9 @@ export function Statistiche() {
                       className={cx('px-3 py-3 text-right text-[13.5px]',
                         ordine === c.key ? 'font-bold text-testo' : 'text-soffuso')}
                     >
-                      {valore(c, r) == null ? '—' : valore(c, r)}
+                      {valore(c, r) == null
+                        ? '—'
+                        : (c.segno && valore(c, r) > 0 ? '+' : '') + valore(c, r)}
                       {c.suffisso && valore(c, r) != null && (
                         <span className="text-[12px] text-tenue">{c.suffisso}</span>
                       )}

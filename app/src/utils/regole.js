@@ -166,3 +166,62 @@ export function percentualiFase(riga) {
     bp: q(riga.bpV || 0, riga.bpT || 0)
   };
 }
+
+/* ======================================================================== */
+/* I QUINTETTI                                                              */
+/* ======================================================================== */
+/*
+ * Nel basket la domanda che un allenatore si fa a fine partita non e' «quanto
+ * ha segnato Rossi»: e' «con quali cinque in campo siamo andati meglio». E'
+ * l'unica statistica che riguarda il gioco invece delle prestazioni, ed e'
+ * quella su cui si decide chi entra nel finale punto a punto.
+ *
+ * Non costa nessun tocco in piu'. I cambi si segnano gia', il punteggio si
+ * muove gia': basta ricordare com'era il tabellone quando quei cinque sono
+ * entrati, e guardarlo di nuovo quando uno esce. La differenza e' il loro
+ * saldo, e si divide anche fra i cinque come piu'/meno personale.
+ *
+ * Qui c'e' solo il conto. Quando aprire e chiudere un turno lo decide il
+ * tracker — a ogni cambio, a fine periodo, a fine partita.
+ */
+
+// Cinque persone non sono un ordine: sono un insieme. Ordinati, lo stesso
+// quintetto si riconosce anche se i cambi lo hanno ricomposto al contrario.
+export function chiaveQuintetto(ids) {
+  return [...(ids || [])].map(String).sort().join('|');
+}
+
+/* Il saldo di un turno che si chiude.
+ *
+ * Restituisce null per un turno a zero punti: succede quando si fanno due o
+ * tre cambi di fila a un time out, e ne nascono quintetti che non hanno mai
+ * visto un pallone. Contarli riempirebbe la tabella di righe 0-0 che non
+ * dicono niente su nessuno.
+ */
+export function saldoTurno(turno, us, them) {
+  if (!turno || !turno.ids || turno.ids.length === 0) return null;
+  const f = (us || 0) - (turno.us || 0);
+  const s = (them || 0) - (turno.them || 0);
+  if (f === 0 && s === 0) return null;
+  return { chiave: chiaveQuintetto(turno.ids), ids: [...turno.ids], f, s, saldo: f - s };
+}
+
+// Il saldo appena chiuso si aggiunge a quello che quel quintetto aveva gia'
+// fatto: gli stessi cinque tornano in campo piu' volte in una partita, e i
+// loro turni sono la stessa storia.
+export function sommaQuintetto(quintetti, saldo) {
+  if (!saldo) return quintetti || {};
+  const q = { ...(quintetti || {}) };
+  const c = q[saldo.chiave] || { f: 0, s: 0, turni: 0 };
+  q[saldo.chiave] = { f: c.f + saldo.f, s: c.s + saldo.s, turni: c.turni + 1 };
+  return q;
+}
+
+// I quintetti in tabella: dal migliore al peggiore, che e' l'ordine in cui si
+// cerca. A parita' di saldo prima chi ha giocato di piu': un +6 in quattro
+// turni pesa piu' di un +6 capitato una volta sola.
+export function quintettiOrdinati(quintetti) {
+  return Object.entries(quintetti || {})
+    .map(([chiave, v]) => ({ chiave, ids: chiave.split('|'), ...v, saldo: v.f - v.s }))
+    .sort((a, b) => (b.saldo - a.saldo) || (b.turni - a.turni));
+}

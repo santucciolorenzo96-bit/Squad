@@ -1,4 +1,5 @@
 import { computeSeasonStats } from './stats.js';
+import { quintettiOrdinati } from './regole.js';
 
 /* Il referto di una partita.
  *
@@ -60,7 +61,23 @@ export function refertoPartita(g, sport) {
   const tabellino = computeSeasonStats([{ ...g, friendly: false }], sport)
     .sort((a, b) => (b.points || 0) - (a.points || 0));
 
-  return { set, fasi, rotazioni, tabellino, chiusi: chiusi.length };
+  /* I quintetti.
+   *
+   * Nel basket è la riga che si cerca per prima a mente fredda: con quali
+   * cinque in campo la squadra ha guadagnato, e con quali ha perso terreno.
+   * Il registro lo tiene lo scout a ogni cambio, qui si mettono i nomi al
+   * posto degli identificativi e si ordina dal migliore.
+   *
+   * Solo i quintetti che hanno visto almeno un punto: gli altri nascono dai
+   * cambi in serie a un time out e non raccontano niente di nessuno. */
+  const nomi = {};
+  (g.players || []).forEach(p => { nomi[p.id] = p.number ? '#' + p.number : (p.name || ''); });
+  const quintetti = quintettiOrdinati(g.quintetti).map(q => ({
+    ...q,
+    nomi: q.ids.map(id => nomi[id] || '?')
+  }));
+
+  return { set, fasi, rotazioni, quintetti, tabellino, chiusi: chiusi.length };
 }
 
 /* La riga della squadra.
@@ -102,7 +119,9 @@ export function tabellaTabellino(referto, sport) {
       label: c.short || c.label,
       calc: c.calc,
       suffisso: c.suffisso,
-      frazione: c.frazione
+      frazione: c.frazione,
+      segno: c.segno,
+      nonSommare: c.nonSommare
     }))
   ];
 
@@ -119,14 +138,17 @@ export function tabellaTabellino(referto, sport) {
     }
     const v = c.calc ? c.calc(r) : (r[c.k] || 0);
     if (v == null) return '—';
-    return String(v) + (c.suffisso || '');
+    return (c.segno && v > 0 ? '+' : '') + String(v) + (c.suffisso || '');
   };
 
   const righe = referto.tabellino.map(r => colonne.map(c => cella(c, r)));
   // Fuori da `righe` di proposito: chi disegna la tabella la mette in fondo
   // con un tratto sopra, non come una tredicesima giocatrice.
-  const totale = referto.tabellino.length
-    ? colonne.map(c => cella(c, totaleTabellino(referto.tabellino)))
+  const somma = referto.tabellino.length ? totaleTabellino(referto.tabellino) : null;
+  const totale = somma
+    // Alcune colonne nella riga squadra non hanno senso e restano vuote: il
+    // piu'/meno sommato fra dodici giocatori darebbe cinque volte lo scarto.
+    ? colonne.map(c => (c.nonSommare ? '' : cella(c, somma)))
     : null;
 
   return { intestazioni: colonne.map(c => c.label), righe, totale };

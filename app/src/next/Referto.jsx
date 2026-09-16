@@ -204,6 +204,31 @@ export function Referto({ partita, onChiudi, onEliminata }) {
         </div>
       )}
 
+      {/* ----------------------------------------------------- i quintetti */}
+      {r.quintetti.length > 0 && (
+        <div className="mb-6">
+          <Etichetta className="mb-2.5">I quintetti</Etichetta>
+          <div className="space-y-2">
+            {r.quintetti.map(q => (
+              <Pannello key={q.chiave} className="flex items-center gap-3 px-4 py-2.5">
+                <span className={cx('cifra w-11 shrink-0 text-center text-[17px] font-bold leading-none',
+                  q.saldo > 0 ? 'text-verde' : q.saldo < 0 ? 'text-rosso' : 'text-soffuso')}>
+                  {q.saldo > 0 ? '+' : ''}{q.saldo}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-soffuso">
+                  {q.nomi.join(' · ')}
+                </span>
+                <span className="cifra shrink-0 text-[12px] text-tenue">{q.f}–{q.s}</span>
+              </Pannello>
+            ))}
+          </div>
+          <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
+            Punti fatti e subiti dalla squadra con quei cinque in campo. È la riga su cui si
+            decide chi entra in un finale punto a punto.
+          </p>
+        </div>
+      )}
+
       {/* ------------------------------------------------------ il tabellino */}
       <Etichetta className="mb-2.5">Il tabellino</Etichetta>
       {t.righe.length === 0 ? (

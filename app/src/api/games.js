@@ -18,6 +18,11 @@ function fromDbGame(row) {
     periodScores: row.period_scores || [],
     calendarMatchId: row.calendar_match_id || null,
     friendly: !!row.friendly,
+    // Il registro dei quintetti e il turno aperto: senza di loro il piu'/meno
+    // si azzererebbe a ogni ricaricamento della pagina, e il tabellino
+    // tornerebbe indietro senza dire niente.
+    quintetti: row.quintetti || {},
+    turno: row.turno || null,
     players: row.players || [],
     startedBy: row.started_by,
     startedAt: row.started_at,
@@ -39,6 +44,8 @@ function toDbPatch(g) {
   if ('periodScores' in g) patch.period_scores = g.periodScores;
   if ('calendarMatchId' in g) patch.calendar_match_id = g.calendarMatchId;
   if ('friendly' in g) patch.friendly = !!g.friendly;
+  if ('quintetti' in g) patch.quintetti = g.quintetti || {};
+  if ('turno' in g) patch.turno = g.turno || null;
   if ('players' in g) patch.players = g.players;
   return patch;
 }
@@ -50,6 +57,9 @@ function describeWriteError(error) {
   const msg = (error && error.message) || '';
   if (/period_scores/.test(msg)) {
     return new Error('Manca la colonna period_scores sulla tabella games: esegui la migrazione 017 su Supabase, poi riprova.');
+  }
+  if (/quintetti|turno/.test(msg)) {
+    return new Error('Mancano le colonne quintetti e turno sulla tabella games: esegui la migrazione 036 su Supabase, poi riprova.');
   }
   return error;
 }

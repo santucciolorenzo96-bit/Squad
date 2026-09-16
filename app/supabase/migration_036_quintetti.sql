@@ -1,0 +1,33 @@
+-- ============================================================================
+-- SQUAD — migrazione 036
+-- I quintetti: due colonne perché il più/meno sopravviva alla partita
+-- ============================================================================
+-- Esegui UNA VOLTA nel SQL Editor di Supabase, dopo la 035.
+-- È idempotente: rieseguirla non fa danni.
+--
+-- COSA SONO
+--
+-- Nel basket la domanda che un allenatore si fa a fine partita non è quanto ha
+-- segnato Rossi: è con quali cinque in campo la squadra è andata meglio. È
+-- l'unica statistica che parla del gioco invece delle prestazioni, ed è quella
+-- su cui si decide chi entra in un finale punto a punto.
+--
+-- Non costa nessun tocco in più a chi segna. I cambi si registrano già e il
+-- punteggio si muove già: basta ricordare com'era il tabellone quando quei
+-- cinque sono entrati, e riguardarlo quando uno esce.
+--
+--   `turno`      il quintetto in campo adesso, con il punteggio di quando è
+--                entrato. Uno solo per volta, e a partita finita è nullo.
+--
+--   `quintetti`  il registro di tutti i turni già chiusi, raccolti per
+--                quintetto: { "id|id|id|id|id": { f, s, turni } }.
+--
+-- Stanno sulla riga della partita e non in una tabella a parte perché sono la
+-- partita: nascono con lei, si leggono con lei e non servono a nient'altro.
+-- Lo stesso ragionamento che vale già per `players` e `period_scores`.
+--
+-- La pallavolo non le usa: lì la struttura del gioco è la rotazione, che ha
+-- già il suo posto dentro period_scores.
+
+alter table games add column if not exists quintetti jsonb not null default '{}'::jsonb;
+alter table games add column if not exists turno jsonb;
