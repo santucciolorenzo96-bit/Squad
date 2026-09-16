@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
 import { fetchLiveGame, fetchOpenGames, deleteGame } from '../api/games.js';
 import { currentSport } from '../utils/sports/index.js';
-import { managesSector } from '../utils/permissions.js';
+import { managesSector, canDeleteGame } from '../utils/permissions.js';
 import { inCampione } from './campione.js';
 import { leggiCopia, cancellaCopia, daQuanto } from './partitaLocale.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, cx } from './ui.jsx';
@@ -23,7 +23,7 @@ import { Tracker } from './partitaTracker.jsx';
  * Non e' una schermata di lavoro: e' un cartello che dice dove si era rimasti e
  * come tornarci. Il punteggio si vede perche' e' l'unica cosa che serve
  * sapere da fuori. */
-function PartitaInCorso({ sport, onRientra }) {
+function PartitaInCorso({ sport, onRientra, onScarta }) {
   const g = state.liveGame || {};
   const conf = sport.scout;
   // Lo stesso numero che si vede nello scout: quello vivo. Nella pallavolo
@@ -64,6 +64,22 @@ function PartitaInCorso({ sport, onRientra }) {
             Finché non chiudi la partita dallo scout, il tabellino resta aperto e questa
             categoria non ne può iniziare un’altra.
           </p>
+
+          {/* LA VIA D'USCITA CHE MANCAVA.
+              Un tabellino aperto per sbaglio — o su una partita poi non
+              giocata — si poteva soltanto CHIUDERE, e chiuderlo vuol dire
+              mandarlo in archivio: da li' e' finito nello storico, con il suo
+              punteggio finto, a sporcare record e statistiche. Scartare una
+              partita mai giocata e archiviarla sono due cose diverse, e
+              finora ce n'era una sola. */}
+          {onScarta && (
+            <button
+              onClick={onScarta}
+              className="mt-3 w-full rounded-lg py-2 text-[12.5px] font-semibold text-rosso transition-colors hover:bg-rosso/10"
+            >
+              Scarta il tabellino: questa partita non si è giocata
+            </button>
+          )}
         </Pannello>
       </div>
     </>
@@ -164,14 +180,67 @@ export function Partita() {
     );
   }
 
+  /* La conferma sta fuori dai rami perche' serve in due: nell'elenco delle
+     partite rimaste aperte altrove, e sul cartello della partita di qui. */
+  const puoiScartare = canDeleteGame(
+    state.currentUser, state.activeSectorId, state.staffSectors, { aperta: true }
+  );
+
+  const confermaScarto = daScartare ? (
+    <Conferma
+      titolo="Scartare il tabellino?"
+      testo={`${daScartare.opp_name}: il tabellino aperto viene cancellato e non si recupera.`
+        + (daScartare.corrente ? ' Non finisce nello storico, perche’ non e’ stata giocata.' : '')}
+      etichetta="Scarta"
+      onChiudi={() => setDaScartare(null)}
+      onConferma={async () => {
+        await deleteGame(daScartare.id);
+        cancellaCopia(daScartare.sector_id || state.activeSectorId);
+        if (daScartare.corrente) {
+          state.liveGame = null;
+          state.undoStack = [];
+          state.undoTesti = [];
+          avvisa('Tabellino scartato');
+          carica();
+          return;
+        }
+        setAperte(v => v.filter(x => x.id !== daScartare.id));
+        avvisa('Tabellino scartato');
+      }}
+    />
+  ) : null;
+
   if (fase === 'carico') {
     return <><Titolo sopra="Categoria">Scout</Titolo><div className="mt-5"><Scheletro righe={3} /></div></>;
   }
 
   if (fase === 'live') {
     const finita = () => { avvisa('Partita archiviata'); carica(); };
-    if (scout) return <Tracker onEsci={() => setScout(false)} onFinita={finita} />;
-    return <PartitaInCorso sport={sport} onRientra={() => setScout(true)} />;
+    if (scout) {
+      return (
+        <>
+          <Tracker onEsci={() => setScout(false)} onFinita={finita} />
+          {confermaScarto}
+        </>
+      );
+    }
+    return (
+      <>
+        <PartitaInCorso
+          sport={sport}
+          onRientra={() => setScout(true)}
+          onScarta={puoiScartare && !inCampione()
+            ? () => setDaScartare({
+                id: state.liveGame.id,
+                opp_name: state.liveGame.oppName,
+                sector_id: state.liveGame.sectorId,
+                corrente: true
+              })
+            : null}
+        />
+        {confermaScarto}
+      </>
+    );
   }
 
   return (
@@ -223,19 +292,7 @@ export function Partita() {
         </Vuoto>
       )}
 
-      {daScartare && (
-        <Conferma
-          titolo="Scartare il tabellino?"
-          testo={`${daScartare.opp_name}: il tabellino aperto viene cancellato e non si recupera.`}
-          etichetta="Scarta"
-          onChiudi={() => setDaScartare(null)}
-          onConferma={async () => {
-            await deleteGame(daScartare.id);
-            setAperte(v => v.filter(x => x.id !== daScartare.id));
-            avvisa('Tabellino scartato');
-          }}
-        />
-      )}
+      {confermaScarto}
     </>
   );
 }
