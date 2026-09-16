@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { state } from '../state.js';
 import { refreshNotifications } from '../router.js';
 import { markNotificationsRead } from '../api/notifications.js';
+import { inCampione } from './campione.js';
 import { descriviNotifica, daLeggere, raggruppaPerGiorno } from '../utils/notifiche.js';
 import { IconaSezione } from './icone.jsx';
 import { Etichetta, Vuoto, cx } from './ui.jsx';
@@ -45,7 +46,7 @@ function Riga({ n, ultima, onVai }) {
   function tocca() {
     if (!n.read) {
       n.read = true;
-      markNotificationsRead([n.id]).catch(() => { /* la riga resta segnata qui */ });
+      if (!inCampione()) markNotificationsRead([n.id]).catch(() => { /* la riga resta segnata qui */ });
     }
     if (d.destinazione) onVai(d.destinazione);
   }
@@ -99,6 +100,9 @@ export function Campanella({ onSezione }) {
 
   async function apri() {
     setAperto(true);
+    // Nei dati di esempio non c'è niente da richiedere, e chiedere comunque
+    // svuoterebbe la campanella proprio mentre la si sta mostrando a qualcuno.
+    if (inCampione()) return;
     // Le notifiche arrivano all'avvio e poi stanno ferme. Chi apre la
     // campanella sta chiedendo proprio «c'è qualcosa di nuovo?»: è il momento
     // esatto in cui vale la pena richiederle.
@@ -114,7 +118,7 @@ export function Campanella({ onSezione }) {
   function segnaTutte() {
     (state.notifications || []).forEach(n => { n.read = true; });
     ridisegna(x => x + 1);
-    markNotificationsRead(null).catch(() => { /* restano segnate qui */ });
+    if (!inCampione()) markNotificationsRead(null).catch(() => { /* restano segnate qui */ });
   }
 
   function vai(sezione) {
