@@ -236,6 +236,25 @@ export function Referto({ partita, onChiudi, onEliminata }) {
                   </tr>
                 ))}
               </tbody>
+
+              {/* La riga della squadra: in fondo, con un tratto sopra, come su
+                  qualunque tabellino di carta. E' da li' che si legge com'e'
+                  andata la partita, senza sommare a mente dodici righe. */}
+              {t.totale && (
+                <tfoot>
+                  <tr className="border-t border-bordo/20">
+                    {t.totale.map((cella, j) => (
+                      <td
+                        key={j}
+                        className={cx('px-3 py-2.5 text-[13px] font-bold',
+                          j > 1 && 'cifra text-right')}
+                      >
+                        {j === 0 ? '' : cella}
+                      </td>
+                    ))}
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </Pannello>

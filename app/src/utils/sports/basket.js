@@ -72,19 +72,70 @@ export const BASKET = {
     stl: (p) => (p.stats || {}).stl || 0,
     blk: (p) => (p.stats || {}).blk || 0,
     tov: (p) => (p.stats || {}).tov || 0,
-    seconds: (p) => (p.stats || {}).seconds || 0
+    seconds: (p) => (p.stats || {}).seconds || 0,
+
+    /* I TIRI: SEGNATI E TENTATI.
+     *
+     * Erano gia' tutti nel tabellino — ogni tocco su "Canestro" e ogni tocco
+     * su "Errore" li scrive da sempre — e finivano solo dentro la valutazione,
+     * che li mescola a tutto il resto. Fuori di li' non li vedeva nessuno.
+     *
+     * Cosi' l'app raccoglieva l'unica cosa che nel basket si guarda per prima
+     * — quanto tira bene una squadra — e non la diceva mai. Qui tentati e
+     * segnati diventano totali di stagione, e da loro nascono le percentuali. */
+    fgm2: (p) => (p.stats || {}).fgm2 || 0,
+    fga2: (p) => (p.stats || {}).fga2 || 0,
+    fgm3: (p) => (p.stats || {}).fgm3 || 0,
+    fga3: (p) => (p.stats || {}).fga3 || 0,
+    ftm: (p) => (p.stats || {}).ftm || 0,
+    fta: (p) => (p.stats || {}).fta || 0,
+    // Rimbalzi divisi: `reb` resta il totale, ma offensivi e difensivi sono
+    // due gesti diversi, e il tabellino federale li tiene separati.
+    orb: (p) => (p.stats || {}).orb || 0,
+    drb: (p) => (p.stats || {}).drb || 0,
+    pf: (p) => (p.stats || {}).pf || 0
   },
 
-  // Colonne della tabella Statistiche stagionali. `avg` aggiunge la media a partita.
+  /* Le colonne della tabella Statistiche. `avg` aggiunge la media a partita.
+   *
+   * Sono nell'ordine in cui si legge un tabellino di carta: quanto ha
+   * fatto, come ha tirato, e poi tutto il resto.
+   *
+   * Le tre percentuali e la percentuale effettiva sono RAPPORTI: non si
+   * sommano, si ricalcolano dai totali. Due partite al 40% non fanno l'80%,
+   * e per questo hanno una funzione al posto di una chiave. `frazione` e' il
+   * "5/12" che va letto accanto: senza, un 100% tirato una volta sola sembra
+   * una serata memorabile. */
   seasonColumns: [
     { key: 'pts', short: 'PT', label: 'Punti', avg: 'PPG' },
+    { key: 't2', short: '2P', label: 'Tiri da due', suffisso: '%',
+      calc: (r) => (r.fga2 ? Math.round((r.fgm2 / r.fga2) * 100) : null),
+      frazione: (r) => (r.fga2 ? r.fgm2 + '/' + r.fga2 : null) },
+    { key: 't3', short: '3P', label: 'Tiri da tre', suffisso: '%',
+      calc: (r) => (r.fga3 ? Math.round((r.fgm3 / r.fga3) * 100) : null),
+      frazione: (r) => (r.fga3 ? r.fgm3 + '/' + r.fga3 : null) },
+    { key: 'tl', short: 'TL', label: 'Tiri liberi', suffisso: '%',
+      calc: (r) => (r.fta ? Math.round((r.ftm / r.fta) * 100) : null),
+      frazione: (r) => (r.fta ? r.ftm + '/' + r.fta : null) },
+    // La percentuale effettiva tiene conto che un canestro da tre vale una
+    // volta e mezza uno da due. E' il modo giusto di confrontare chi tira da
+    // fuori con chi gioca sotto canestro: con la percentuale secca, l'ala che
+    // mette 4 triple su 10 risulta peggiore del centro che ne segna 5 su 10
+    // da sotto, e in realta' ha prodotto piu' punti con gli stessi palloni.
+    { key: 'efg', short: 'eFG', label: 'Percentuale effettiva al tiro', suffisso: '%',
+      calc: (r) => {
+        const tentati = (r.fga2 || 0) + (r.fga3 || 0);
+        if (!tentati) return null;
+        return Math.round((((r.fgm2 || 0) + (r.fgm3 || 0) + 0.5 * (r.fgm3 || 0)) / tentati) * 100);
+      } },
     { key: 'reb', short: 'REB', label: 'Rimbalzi', avg: 'RPG' },
     { key: 'ast', short: 'AST', label: 'Assist', avg: 'APG' },
+    { key: 'tov', short: 'PP', label: 'Palle perse' },
     { key: 'stl', short: 'ST', label: 'Palle rubate' },
     { key: 'blk', short: 'STP', label: 'Stoppate fatte' },
-    { key: 'tov', short: 'PP', label: 'Palle perse' }
+    { key: 'pf', short: 'F', label: 'Falli commessi' }
   ],
-  seasonLegend: 'PG = partite giocate · PPG/RPG/APG = medie a partita · STP = stoppate fatte · PP = palle perse',
+  seasonLegend: 'PG = partite giocate · PPG/RPG/APG = medie a partita · 2P/3P/TL = percentuali al tiro, con segnati su tentati · eFG = percentuale effettiva, conta il canestro da tre una volta e mezza · PP = palle perse · ST = palle rubate · STP = stoppate fatte · F = falli commessi',
   showMinutes: false,
 
   ratingLabel: 'Valutazione',

@@ -125,6 +125,13 @@ export function Statistiche() {
                       {c.suffisso && valore(c, r) != null && (
                         <span className="text-[12px] text-tenue">{c.suffisso}</span>
                       )}
+                      {/* Il "5/12" accanto alla percentuale. Una percentuale
+                          da sola mente sui numeri piccoli: 100% e' una serata
+                          memorabile o un solo tiro preso, e le due cose non
+                          si distinguono finche' non si vede su quanti. */}
+                      {c.frazione && c.frazione(r) && (
+                        <span className="ml-1.5 text-[12px] text-tenue">{c.frazione(r)}</span>
+                      )}
                       {/* La media a partita accanto al totale, piccola: è il
                           numero che si confronta fra giocatori che hanno
                           giocato un numero diverso di partite. */}

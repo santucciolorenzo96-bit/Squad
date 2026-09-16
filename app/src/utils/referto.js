@@ -63,6 +63,27 @@ export function refertoPartita(g, sport) {
   return { set, fasi, rotazioni, tabellino, chiusi: chiusi.length };
 }
 
+/* La riga della squadra.
+ *
+ * In fondo a ogni tabellino di carta c'è, e non è un ornamento: è la riga da
+ * cui si capisce com'è andata la partita. Quaranta su novanta al tiro si
+ * legge lì, non sommando a mente dodici righe.
+ *
+ * Si sommano solo i CONTEGGI. Le percentuali della riga squadra si
+ * ricalcolano dai totali con la stessa funzione delle altre righe: sommare
+ * dodici percentuali darebbe un numero che non vuol dire niente.
+ */
+export function totaleTabellino(righe) {
+  const t = { id: null, name: 'Squadra', number: '', games: righe.length ? 1 : 0 };
+  righe.forEach(r => {
+    Object.keys(r).forEach(k => {
+      if (k === 'games' || typeof r[k] !== 'number') return;
+      t[k] = (t[k] || 0) + r[k];
+    });
+  });
+  return t;
+}
+
 // Percentuale, o null dove non c'è ancora niente da dire. Uno zero inventato
 // su zero scambi è un dato falso che sembra vero.
 export function quota(x) {
@@ -80,16 +101,33 @@ export function tabellaTabellino(referto, sport) {
       k: c.key,
       label: c.short || c.label,
       calc: c.calc,
-      suffisso: c.suffisso
+      suffisso: c.suffisso,
+      frazione: c.frazione
     }))
   ];
 
-  const righe = referto.tabellino.map(r => colonne.map(c => {
+  // Su carta e in un foglio di calcolo il "5/12" è quello che si legge: la
+  // percentuale si ricava, la frazione no. Sullo schermo è il contrario —
+  // lì si ordina per percentuale — e infatti le due viste scelgono da sé.
+  const cella = (c, r) => {
     if (c.k === 'number' || c.k === 'name') return r[c.k] == null ? '' : String(r[c.k]);
+    if (c.frazione) {
+      const f = c.frazione(r);
+      if (!f) return '—';
+      const q = c.calc ? c.calc(r) : null;
+      return q == null ? f : f + ' (' + q + '%)';
+    }
     const v = c.calc ? c.calc(r) : (r[c.k] || 0);
     if (v == null) return '—';
     return String(v) + (c.suffisso || '');
-  }));
+  };
 
-  return { intestazioni: colonne.map(c => c.label), righe };
+  const righe = referto.tabellino.map(r => colonne.map(c => cella(c, r)));
+  // Fuori da `righe` di proposito: chi disegna la tabella la mette in fondo
+  // con un tratto sopra, non come una tredicesima giocatrice.
+  const totale = referto.tabellino.length
+    ? colonne.map(c => cella(c, totaleTabellino(referto.tabellino)))
+    : null;
+
+  return { intestazioni: colonne.map(c => c.label), righe, totale };
 }

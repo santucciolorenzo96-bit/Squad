@@ -93,9 +93,21 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
   doc.text('Il tabellino', 20, y); y += 6;
   doc.setFont('helvetica', 'normal').setFontSize(10);
 
-  // La prima colonna stretta, il nome largo, il resto diviso in parti uguali.
-  const larghezze = t.intestazioni.map((_, i) => (i === 0 ? 9 : i === 1 ? 44 : 15));
-  y = drawTable(doc, t.intestazioni, t.righe, larghezze, y);
+  /* Le larghezze si calcolano, non si scrivono a mano.
+   *
+   * Ogni sport dichiara le sue colonne, e la pallacanestro ne ha il doppio
+   * della pallavolo: con larghezze fisse il tabellino del basket usciva dal
+   * foglio, e le ultime colonne finivano stampate nel nulla. Qui la prima
+   * resta stretta, il nome prende quello che gli serve, e il resto si divide
+   * in parti uguali dentro il margine. */
+  const DISPONIBILE = 170;             // A4 meno i due margini da 20
+  const nStat = Math.max(1, t.intestazioni.length - 2);
+  const nome = nStat > 8 ? 34 : 44;
+  const larghezze = t.intestazioni.map((_, i) =>
+    i === 0 ? 9 : i === 1 ? nome : (DISPONIBILE - 9 - nome) / nStat
+  );
+  const righe = t.totale ? [...t.righe, t.totale] : t.righe;
+  y = drawTable(doc, t.intestazioni, righe, larghezze, y);
 
   if (sport.seasonLegend) {
     y += 3;
