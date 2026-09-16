@@ -21,6 +21,22 @@ import { Finestra, Conferma, useAvviso } from './moduli.jsx';
  * L'ordine è quello in cui lo si legge: prima com'è finita, poi perché.
  */
 
+/* Un numero grande con la sua etichetta sotto. Quattro in fila: si leggono
+   come si legge un cruscotto, non come una frase. */
+function Numero({ valore, etichetta, tono }) {
+  return (
+    <div>
+      <div className={cx('cifra text-[22px] font-bold leading-none',
+        tono === 'rosso' ? 'text-rosso' : 'text-testo')}>
+        {valore}
+      </div>
+      <div className="mt-1.5 text-[11px] font-bold uppercase leading-tight tracking-etichetta text-tenue">
+        {etichetta}
+      </div>
+    </div>
+  );
+}
+
 function fmtData(d) {
   if (!d) return '';
   const x = new Date(d);
@@ -200,6 +216,36 @@ export function Referto({ partita, onChiudi, onEliminata }) {
           <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
             Punti fatti e subiti in ciascuna rotazione. È da qui che si decide da quale far
             partire il sestetto la prossima volta.
+          </p>
+        </div>
+      )}
+
+      {/* -------------------------------------------- come abbiamo attaccato */}
+      {conf.possessi && r.attacco && (
+        <div className="mb-6">
+          <Etichetta className="mb-2.5">Come abbiamo attaccato</Etichetta>
+          <Pannello className="px-4 py-3.5">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4">
+              <Numero
+                valore={r.attacco.ppp.toFixed(2).replace('.', ',')}
+                etichetta="Punti per possesso"
+              />
+              <Numero valore={r.attacco.possessi} etichetta="Possessi giocati" />
+              <Numero
+                valore={r.attacco.perse == null ? '—' : r.attacco.perse + '%'}
+                etichetta="Possessi persi"
+                tono={r.attacco.perse != null && r.attacco.perse > 20 ? 'rosso' : null}
+              />
+              <Numero
+                valore={r.attacco.liberi == null ? '—' : r.attacco.liberi + '%'}
+                etichetta="Liberi per 100 tiri"
+              />
+            </div>
+          </Pannello>
+          <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
+            Un possesso finisce con un tiro, con una palla persa o in lunetta. È l’unità che
+            rende confrontabili due partite giocate a ritmi diversi: sessantotto punti in
+            cinquanta possessi sono un’altra cosa da sessantotto in settanta.
           </p>
         </div>
       )}

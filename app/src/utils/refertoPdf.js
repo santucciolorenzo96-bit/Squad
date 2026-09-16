@@ -87,6 +87,40 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
     y += 6;
   }
 
+  // ------------------------------------------------ come abbiamo attaccato
+  if (sport.scout.possessi && r.attacco) {
+    doc.setFont('helvetica', 'bold').setFontSize(11);
+    doc.text('Come abbiamo attaccato', 20, y); y += 6;
+    doc.setFont('helvetica', 'normal').setFontSize(10);
+    y = drawParagraph(doc,
+      `${r.attacco.possessi} possessi giocati, `
+      + `${r.attacco.ppp.toFixed(2).replace('.', ',')} punti per possesso. `
+      + (r.attacco.perse != null ? `Palla persa nel ${r.attacco.perse}% dei possessi. ` : '')
+      + (r.attacco.liberi != null ? `${r.attacco.liberi} tiri liberi ogni 100 tiri dal campo.` : ''),
+      y);
+    y += 4;
+  }
+
+  // ------------------------------------------------------- i quintetti
+  if (r.quintetti.length > 0) {
+    doc.setFont('helvetica', 'bold').setFontSize(11);
+    doc.text('I quintetti', 20, y); y += 6;
+    doc.setFont('helvetica', 'normal').setFontSize(10);
+    y = drawTable(
+      doc,
+      ['Saldo', 'Cinque in campo', 'Fatti', 'Subiti'],
+      r.quintetti.map(q => [
+        (q.saldo > 0 ? '+' : '') + q.saldo,
+        q.nomi.join(' '),
+        String(q.f),
+        String(q.s)
+      ]),
+      [18, 104, 24, 24],
+      y
+    );
+    y += 6;
+  }
+
   // ------------------------------------------------------------ il tabellino
   const t = tabellaTabellino(r, sport);
   doc.setFont('helvetica', 'bold').setFontSize(11);

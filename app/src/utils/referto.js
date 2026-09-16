@@ -77,7 +77,11 @@ export function refertoPartita(g, sport) {
     nomi: q.ids.map(id => nomi[id] || '?')
   }));
 
-  return { set, fasi, rotazioni, quintetti, tabellino, chiusi: chiusi.length };
+  // Come ha attaccato la squadra: si calcola sui totali di tutti, quindi
+  // sulla stessa riga che il tabellino mette in fondo.
+  const attacco = tabellino.length ? attaccoSquadra(totaleTabellino(tabellino)) : null;
+
+  return { set, fasi, rotazioni, quintetti, attacco, tabellino, chiusi: chiusi.length };
 }
 
 /* La riga della squadra.
@@ -99,6 +103,50 @@ export function totaleTabellino(righe) {
     });
   });
   return t;
+}
+
+/* COME ABBIAMO ATTACCATO.
+ *
+ * Nel basket due partite non si confrontano sui totali, perché non si gioca
+ * lo stesso numero di palloni: una squadra che corre ne gioca settanta, una
+ * che controlla cinquantacinque. Sessantotto punti sono una prestazione
+ * mediocre nella prima e ottima nella seconda, e guardando solo il punteggio
+ * le due sembrano la stessa cosa.
+ *
+ * Il POSSESSO è l'unità che le rende confrontabili: quante volte abbiamo
+ * avuto la palla. Non si conta, si ricava — un possesso finisce con un tiro,
+ * con una palla persa o in lunetta, e un rimbalzo offensivo non ne apre uno
+ * nuovo perché è lo stesso che continua.
+ *
+ *     possessi = tiri dal campo − rimbalzi offensivi + palle perse + 0,44 × tiri liberi
+ *
+ * Il 44% è la stima con cui si convertono i tiri liberi in possessi, ed è la
+ * stessa che usano la FIBA e la NBA: non tutti i viaggi in lunetta chiudono un
+ * possesso (un fallio in tiro da tre ne vale tre, un 1+1 dipende).
+ *
+ * Da qui tre dei quattro fattori con cui si vincono le partite. Il quarto —
+ * il rimbalzo offensivo — richiede i rimbalzi difensivi AVVERSARI, che non
+ * raccogliamo: meglio non averlo che inventarlo.
+ */
+export function attaccoSquadra(t) {
+  if (!t) return null;
+  const tiri = (t.fga2 || 0) + (t.fga3 || 0);
+  const possessi = tiri - (t.orb || 0) + (t.tov || 0) + 0.44 * (t.fta || 0);
+  if (possessi <= 0) return null;
+  const q = (v, d) => (d ? Math.round((v / d) * 100) : null);
+  return {
+    possessi: Math.round(possessi),
+    // Punti per possesso, con due decimali: fra 0,85 e 1,10 c'è tutta la
+    // differenza fra un attacco che fatica e uno che funziona, e arrotondare
+    // a numero intero la cancellerebbe.
+    ppp: Math.round(((t.pts || 0) / possessi) * 100) / 100,
+    // Quante volte su cento la palla si è persa senza nemmeno tirare.
+    perse: q(t.tov || 0, possessi),
+    // Quanti tiri liberi ci siamo guadagnati ogni cento tiri dal campo:
+    // dice se si attacca il ferro o ci si accontenta.
+    liberi: q(t.fta || 0, tiri),
+    rimbalziOff: t.orb || 0
+  };
 }
 
 // Percentuale, o null dove non c'è ancora niente da dire. Uno zero inventato

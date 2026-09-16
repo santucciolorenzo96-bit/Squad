@@ -1,7 +1,8 @@
 import { describe, test, is, ok } from './run.mjs';
 import { BASKET } from '../src/utils/sports/basket.js';
 import { computeSeasonStats } from '../src/utils/stats.js';
-import { refertoPartita, tabellaTabellino, totaleTabellino } from '../src/utils/referto.js';
+import { refertoPartita, tabellaTabellino, totaleTabellino, attaccoSquadra } from '../src/utils/referto.js';
+import { PALLAVOLO } from '../src/utils/sports/pallavolo.js';
 
 /* Le percentuali al tiro della pallacanestro.
  *
@@ -150,5 +151,59 @@ describe('basket: il tabellino del referto', () => {
 describe('basket: la pallavolo non è stata toccata', () => {
   test('il basket non ha preso colonne che non gli appartengono', () => {
     ok(!BASKET.seasonColumns.some(c => c.key === 'ricPos'));
+  });
+});
+
+describe('basket: come abbiamo attaccato', () => {
+  // 60 tiri dal campo, 8 rimbalzi offensivi, 12 palle perse, 20 liberi:
+  // 60 − 8 + 12 + 8,8 = 72,8 possessi.
+  const squadra = { pts: 68, fga2: 45, fga3: 15, orb: 8, tov: 12, fta: 20 };
+
+  test('i possessi si ricavano, non si contano', () => {
+    is(attaccoSquadra(squadra).possessi, 73);
+  });
+
+  test('i punti per possesso tengono due decimali', () => {
+    // 68 / 72,8 = 0,934…
+    is(attaccoSquadra(squadra).ppp, 0.93);
+  });
+
+  test('le palle perse si leggono ogni cento possessi, non in assoluto', () => {
+    is(attaccoSquadra(squadra).perse, 16);
+  });
+
+  test('i liberi si rapportano ai tiri dal campo', () => {
+    is(attaccoSquadra(squadra).liberi, 33);
+  });
+
+  test('due partite a ritmi diversi diventano confrontabili', () => {
+    // Stessi 68 punti, ma una squadra ne gioca molti di meno: il punteggio è
+    // identico e l'attacco no.
+    const lenta = { pts: 68, fga2: 32, fga3: 10, orb: 6, tov: 7, fta: 14 };
+    ok(attaccoSquadra(lenta).ppp > attaccoSquadra(squadra).ppp);
+  });
+
+  test('una partita senza tiri non produce numeri inventati', () => {
+    is(attaccoSquadra({ pts: 0, fga2: 0, fga3: 0, orb: 0, tov: 0, fta: 0 }), null);
+    is(attaccoSquadra(null), null);
+  });
+
+  test('il referto lo calcola sulla riga della squadra', () => {
+    const partita = {
+      oppName: 'Aurora', teamScore: 30, oppScore: 20, quarter: 2, chiusi: 1,
+      periodScores: [{ us: 30, them: 20 }],
+      players: [
+        atleta('Rossi', { fgm2: 5, fga2: 12, fgm3: 1, fga3: 4, ftm: 3, fta: 4, orb: 2, tov: 3 }),
+        atleta('Bianchi', { fgm2: 3, fga2: 6, fgm3: 2, fga3: 3, orb: 1, tov: 2 })
+      ]
+    };
+    const a = refertoPartita(partita, BASKET).attacco;
+    ok(a);
+    // 25 tiri − 3 rimbalzi offensivi + 5 perse + 1,76 = 28,76
+    is(a.possessi, 29);
+  });
+
+  test('nella pallavolo non si parla di possessi', () => {
+    ok(!PALLAVOLO.scout.possessi);
   });
 });

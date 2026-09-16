@@ -202,6 +202,14 @@ export const BASKET = {
      * allenatore si fa davvero a fine partita. Non nella pallavolo, dove la
      * struttura del gioco e' la rotazione e i cambi sono un'altra cosa. */
     quintetti: true,
+
+    /* I possessi. Non si contano, si ricavano da quello che gia' c'e': un
+     * possesso finisce con un tiro, con una palla persa o in lunetta. Sono
+     * l'unita' con cui due partite giocate a ritmi diversi diventano
+     * confrontabili. Nella pallavolo non servono: li' ogni scambio e' un
+     * punto, e i palloni giocati sono per definizione uguali per le due
+     * squadre. */
+    possessi: true,
     periodPrompt: 'Quanti punti ha segnato l\u2019avversario in questo periodo?',
     groups: [
       { label: 'Tiro da 2', layout: 'pair', actions: [
