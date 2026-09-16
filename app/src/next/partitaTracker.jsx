@@ -90,6 +90,20 @@ function ricordaDettaglio(v) {
   catch (e) { /* niente */ }
 }
 
+// La mappa dei tiri e' spenta di serie, e la scelta e' di chi segna: resta
+// sul suo dispositivo e vale anche per la partita dopo.
+const CHIAVE_MAPPA = 'squad_scout_mappa';
+
+function leggiMappa() {
+  try { return window.localStorage.getItem(CHIAVE_MAPPA) === '1'; }
+  catch (e) { return false; }
+}
+
+function ricordaMappa(v) {
+  try { window.localStorage.setItem(CHIAVE_MAPPA, v ? '1' : '0'); }
+  catch (e) { /* niente */ }
+}
+
 function calcolaPunteggi(g, sport) {
   const conf = sport.scout;
   const periodi = g.periodScores || [];
@@ -119,6 +133,8 @@ export function Tracker({ onFinita, onEsci }) {
   // Quanto dettaglio vuole chi sta segnando. E' una preferenza sua, non della
   // partita: resta sul suo dispositivo e vale anche per la prossima volta.
   const [dettaglio, setDettaglio] = useState(leggiDettaglio);
+  const [mappa, setMappa] = useState(leggiMappa);
+  const [tiroDaPiazzare, setTiroDaPiazzare] = useState(null);   // { giocatore, azione }
   const [chiudiPeriodo, setChiudiPeriodo] = useState(false);
   const [finePartita, setFinePartita] = useState(false);
   const salvataggioRotto = useRef(false);
@@ -218,7 +234,7 @@ export function Tracker({ onFinita, onEsci }) {
 
   const daAnnullare = (state.undoTesti || [])[(state.undoTesti || []).length - 1] || '';
 
-  function esegui(giocatore, azione, senzaCatena) {
+  function esegui(giocatore, azione, senzaCatena, punto) {
     memorizza(sigla(giocatore) + ' ' + (azione.etichettaBreve || azione.label));
     const s = giocatore.stats;
     // Quanto vale questa azione in punti lo dice lo sport, non l'azione: nel
@@ -234,6 +250,14 @@ export function Tracker({ onFinita, onEsci }) {
     }
     if (azione.teamFoul && conf.teamFouls) {
       g.quarterFouls[g.quarter] = (g.quarterFouls[g.quarter] || 0) + 1;
+    }
+
+    // Da dove e' partito il tiro, quando qualcuno l'ha detto. Sta dentro il
+    // giocatore perche' e' suo, e perche' cosi' viaggia con il tabellino.
+    if (punto) {
+      s.tiri = [...(s.tiri || []), {
+        x: punto.x, y: punto.y, act: azione.act, dentro: !!azione.dentro, q: g.quarter || 1
+      }];
     }
 
     // Il punteggio del periodo in corso cresce subito: e' il numero che chi
@@ -818,6 +842,20 @@ export function Tracker({ onFinita, onEsci }) {
         </div>
       </div>
 
+      {/* ======================================================= la mappa */}
+      {tiroDaPiazzare && (
+        <MappaTiro
+          sport={sport}
+          tiro={tiroDaPiazzare}
+          onPunto={(punto) => {
+            const { giocatore, azione } = tiroDaPiazzare;
+            setTiroDaPiazzare(null);
+            esegui(giocatore, azione, false, punto);
+          }}
+          onChiudi={() => setTiroDaPiazzare(null)}
+        />
+      )}
+
       {/* ======================================================= la catena */}
       {catena && (
         <Catena
@@ -837,7 +875,20 @@ export function Tracker({ onFinita, onEsci }) {
           ancora={ancora}
           dettaglio={dettaglio}
           onDettaglio={() => setDettaglio(v => { ricordaDettaglio(!v); return !v; })}
-          onAzione={(a) => esegui(giocatoreScelto, a)}
+          onAzione={(a) => {
+            // Con la mappa accesa un tiro non si registra subito: prima si
+            // dice da dove. Il pannello si chiude perche' il campo dev'essere
+            // libero — e' la cosa che si sta per toccare.
+            if (conf.mappaTiri && mappa && a.zona) {
+              setTiroDaPiazzare({ giocatore: giocatoreScelto, azione: a });
+              setScelto(null);
+              setAncora(null);
+              return;
+            }
+            esegui(giocatoreScelto, a);
+          }}
+          mappa={mappa}
+          onMappa={() => setMappa(v => { ricordaMappa(!v); return !v; })}
           onChiudi={() => { setScelto(null); setAncora(null); }}
         />
       )}
@@ -1057,6 +1108,83 @@ const GettoneCampo = React.memo(function GettoneCampo({
   );
 });
 
+/* ------------------------------------------------------------- la mappa */
+/* DA DOVE HA TIRATO.
+ *
+ * Il campo, grande, e un tocco. Niente elenco di zone da scegliere: la zona
+ * si deduce dal punto, e chiedere una cosa che l'app puo' dedurre e' il modo
+ * piu' rapido di far perdere l'azione dopo a chi segna.
+ *
+ * C'e' una via d'uscita, «Non l'ho visto»: il tiro si registra lo stesso,
+ * senza posizione. Un tiro perso vale molto meno di un tiro messo a caso, e
+ * senza quella scorciatoia qualcuno un punto a caso lo tocca — e da quel
+ * momento la mappa mente invece di mancare.
+ */
+function MappaTiro({ sport, tiro, onPunto, onChiudi }) {
+  const campo = useRef(null);
+
+  useEffect(() => {
+    const tasto = (e) => { if (e.key === 'Escape') onChiudi(); };
+    document.addEventListener('keydown', tasto);
+    return () => document.removeEventListener('keydown', tasto);
+  }, [onChiudi]);
+
+  function tocca(e) {
+    const r = campo.current.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    const x = ((e.clientX - r.left) / r.width) * 100;
+    const y = ((e.clientY - r.top) / r.height) * 100;
+    // Un tocco sul bordo esatto non deve produrre un 100,4%: il campo finisce
+    // dove finisce.
+    onPunto({
+      x: Math.round(Math.min(100, Math.max(0, x)) * 10) / 10,
+      y: Math.round(Math.min(100, Math.max(0, y)) * 10) / 10
+    });
+    if (navigator.vibrate) navigator.vibrate(8);
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[75] flex flex-col justify-end" onMouseDown={onChiudi}>
+      <div className="absolute inset-0 bg-fondo/80 backdrop-blur-sm" />
+      <div
+        onMouseDown={e => e.stopPropagation()}
+        className="relative max-h-[92dvh] overflow-y-auto rounded-t-2xl vetro-alto border-t border-bordo/12 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-lg animate-salita sm:px-6"
+      >
+        <div className="mx-auto mb-3.5 h-1 w-10 rounded-full bg-pannello/25" />
+
+        <div className="mb-3 flex items-center gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg vivo text-[14px] font-bold text-white">
+            {sigla(tiro.giocatore)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[15px] font-bold leading-tight">Da dove ha tirato?</div>
+            <div className="truncate text-[12.5px] text-tenue">
+              {tiro.giocatore.name} · {tiro.azione.etichettaBreve || tiro.azione.label}
+            </div>
+          </div>
+          <button
+            onClick={() => onPunto(null)}
+            className="shrink-0 rounded-lg vetro orlo px-3 py-2 text-[12.5px] font-semibold text-tenue transition-colors hover:text-testo"
+          >
+            Non l’ho visto
+          </button>
+        </div>
+
+        <div className="campo-cornice" style={{ '--proporzione': sport.field.ratio }}>
+          <div
+            ref={campo}
+            onClick={tocca}
+            className="campo parquet relative w-full cursor-crosshair"
+          >
+            <RigheCampo svg={sport.field.svg} />
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 /* --------------------------------------------------------------- la catena */
 // La domanda successiva. Sta in basso come il pannello delle azioni, ma e'
 // piu' bassa e non copre il campo: si risponde guardando ancora il gioco.
@@ -1129,7 +1257,7 @@ function Catena({ conf, catena, giocatori, onScegli, onChiudi }) {
  * partita va avanti. Il pannello si apre accanto al gettone, si ribalta sopra
  * o sotto a seconda dello spazio, e resta dentro i bordi.
  */
-function PannelloAzioni({ p, conf, ancora, dettaglio, onDettaglio, onAzione, onChiudi }) {
+function PannelloAzioni({ p, conf, ancora, dettaglio, onDettaglio, mappa, onMappa, onAzione, onChiudi }) {
   const [posa, setPosa] = useState(null);   // { left, top, maxH, origine } oppure null = foglio
   const largo = !!posa;
 
@@ -1220,6 +1348,17 @@ function PannelloAzioni({ p, conf, ancora, dettaglio, onDettaglio, onAzione, onC
           className="mt-3.5 w-full rounded-lg py-2 text-[12.5px] font-semibold text-tenue transition-colors hover:text-testo"
         >
           {dettaglio ? 'Nascondi ricezione e servizio' : 'Segna anche ricezione e servizio'}
+        </button>
+      )}
+
+      {conf.mappaTiri && (
+        <button
+          onClick={onMappa}
+          className="mt-3.5 w-full rounded-lg py-2 text-[12.5px] font-semibold text-tenue transition-colors hover:text-testo"
+        >
+          {mappa
+            ? 'Non chiedere più da dove ha tirato'
+            : 'Chiedi da dove ha tirato (un tocco in più)'}
         </button>
       )}
     </>

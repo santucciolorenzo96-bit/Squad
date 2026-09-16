@@ -1,5 +1,5 @@
 import { describe, test, is, ok } from './run.mjs';
-import { BASKET } from '../src/utils/sports/basket.js';
+import { BASKET, zonaTiro } from '../src/utils/sports/basket.js';
 import { computeSeasonStats } from '../src/utils/stats.js';
 import { refertoPartita, tabellaTabellino, totaleTabellino, attaccoSquadra } from '../src/utils/referto.js';
 import { PALLAVOLO } from '../src/utils/sports/pallavolo.js';
@@ -205,5 +205,90 @@ describe('basket: come abbiamo attaccato', () => {
 
   test('nella pallavolo non si parla di possessi', () => {
     ok(!PALLAVOLO.scout.possessi);
+  });
+});
+
+describe('basket: da dove è partito il tiro', () => {
+  test('sotto canestro è area', () => is(zonaTiro(50, 8), 'area'));
+  test('in lunetta si è ancora in area', () => is(zonaTiro(50, 38), 'area'));
+  test('dall’ala, dentro l’arco, è media', () => is(zonaTiro(20, 30), 'media'));
+  test('da fuori è tre', () => is(zonaTiro(50, 90), 'tre'));
+
+  test('l’angolo è più corto, e va rispettato', () => {
+    // La tripla d'angolo sta a 6,60 e non a 6,75: senza la regola della
+    // retta, ogni tiro dal fondo risulterebbe da due.
+    is(zonaTiro(3, 5), 'tre');
+    is(zonaTiro(10, 5), 'media');
+  });
+
+  test('senza punto non c’è nessuna zona', () => {
+    is(zonaTiro(null, null), null);
+    is(zonaTiro(50, null), null);
+  });
+
+  test('lo sport la porta con sé: il referto non sa dov’è l’arco', () => {
+    is(typeof BASKET.zonaTiro, 'function');
+    is(BASKET.zoneTiro.length, 3);
+    ok(!PALLAVOLO.zonaTiro);
+  });
+});
+
+describe('basket: la mappa nel referto', () => {
+  const conTiri = (tiri) => ({
+    oppName: 'Aurora', teamScore: 30, oppScore: 20, quarter: 2, chiusi: 1,
+    periodScores: [{ us: 30, them: 20 }],
+    players: [{ id: 'r', number: '4', name: 'Rossi', stats: Object.assign(BASKET.newStats(), { tiri }) }]
+  });
+
+  test('i tiri di tutti finiscono in un elenco solo', () => {
+    const r = refertoPartita(conTiri([
+      { x: 50, y: 8, act: 'fg2_made', dentro: true, q: 1 },
+      { x: 50, y: 10, act: 'fg2_miss', dentro: false, q: 1 },
+      { x: 50, y: 90, act: 'fg3_made', dentro: true, q: 1 }
+    ]), BASKET);
+    is(r.tiri.punti.length, 3);
+  });
+
+  test('le zone si contano sul punto, non su quello che è stato scritto', () => {
+    const r = refertoPartita(conTiri([
+      { x: 50, y: 8, act: 'fg2_made', dentro: true, q: 1 },
+      { x: 50, y: 10, act: 'fg2_miss', dentro: false, q: 1 },
+      { x: 50, y: 90, act: 'fg3_made', dentro: true, q: 1 }
+    ]), BASKET);
+    const area = r.tiri.zone.find(z => z.key === 'area');
+    is(area.fatti, 1);
+    is(area.tentati, 2);
+    is(area.quota, 50);
+    is(r.tiri.zone.find(z => z.key === 'tre').quota, 100);
+  });
+
+  test('una zona da cui non si è mai tirato non compare', () => {
+    const r = refertoPartita(conTiri([{ x: 50, y: 8, act: 'fg2_made', dentro: true, q: 1 }]), BASKET);
+    is(r.tiri.zone.length, 1);
+  });
+
+  test('una partita segnata senza mappa non ne mostra una vuota', () => {
+    is(refertoPartita(conTiri([]), BASKET).tiri, null);
+  });
+
+  test('nella pallavolo la mappa non esiste', () => {
+    const v = { oppName: 'X', teamScore: 3, oppScore: 0, quarter: 1, players: [] };
+    is(refertoPartita(v, PALLAVOLO).tiri, null);
+  });
+});
+
+describe('basket: la mappa è una scelta, non un obbligo', () => {
+  test('lo sport la offre', () => is(BASKET.scout.mappaTiri, true));
+
+  test('solo i tiri dal campo hanno un punto: i liberi si tirano da fermi', () => {
+    const azioni = BASKET.scout.groups.flatMap(gr => gr.actions);
+    const conZona = azioni.filter(a => a.zona).map(a => a.act).sort();
+    is(conZona.join(','), 'fg2_made,fg2_miss,fg3_made,fg3_miss');
+  });
+
+  test('i canestri sanno di essere entrati, gli errori no', () => {
+    const azioni = BASKET.scout.groups.flatMap(gr => gr.actions);
+    is(azioni.find(a => a.act === 'fg3_made').dentro, true);
+    ok(!azioni.find(a => a.act === 'fg3_miss').dentro);
   });
 });

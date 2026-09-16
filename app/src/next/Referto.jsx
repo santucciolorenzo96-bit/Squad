@@ -23,6 +23,58 @@ import { Finestra, Conferma, useAvviso } from './moduli.jsx';
 
 /* Un numero grande con la sua etichetta sotto. Quattro in fila: si leggono
    come si legge un cruscotto, non come una frase. */
+/* La mappa dei tiri.
+ *
+ * Il campo con sopra i tiri: pieno verde quelli entrati, cerchio vuoto rosso
+ * quelli sbagliati. Due forme diverse e non due colori soltanto, perche' una
+ * mappa letta da chi non distingue bene i colori deve restare leggibile.
+ *
+ * Sotto, le tre zone in cifre: la mappa dice dove si e' tirato, le cifre
+ * dicono come e' andata. Serve tutte e due, perche' un grappolo fitto di
+ * pallini sotto canestro puo' voler dire che ci si va spesso o che ci si
+ * sbaglia spesso, e a occhio non si distingue.
+ */
+function MappaTiri({ sport, tiri }) {
+  return (
+    <div className="mb-6">
+      <Etichetta className="mb-2.5">Da dove abbiamo tirato</Etichetta>
+
+      <Pannello alto className="overflow-hidden">
+        <div className="campo-cornice" style={{ '--proporzione': sport.field.ratio }}>
+          <div className="campo parquet relative w-full">
+            <div className="righe-campo" dangerouslySetInnerHTML={{ __html: sport.field.svg }} />
+            {tiri.punti.map((t, i) => (
+              <span
+                key={i}
+                style={{ left: t.x + '%', top: t.y + '%' }}
+                className={cx(
+                  'absolute h-[10px] w-[10px] -translate-x-1/2 -translate-y-1/2 rounded-full',
+                  t.dentro ? 'bg-verde ring-1 ring-white/50' : 'border-[1.6px] border-rosso'
+                )}
+              />
+            ))}
+          </div>
+        </div>
+      </Pannello>
+
+      <div className="mt-2.5 grid grid-cols-3 gap-2">
+        {tiri.zone.map(z => (
+          <Pannello key={z.key} className="px-3 py-2.5 text-center">
+            <div className="text-[11px] font-bold uppercase tracking-etichetta text-tenue">{z.label}</div>
+            <div className="cifra mt-1 text-[18px] font-bold leading-none">{z.quota}%</div>
+            <div className="cifra mt-1 text-[11.5px] text-tenue">{z.fatti}/{z.tentati}</div>
+          </Pannello>
+        ))}
+      </div>
+
+      <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
+        Pieno verde i tiri entrati, cerchio vuoto quelli sbagliati. La zona non è scritta da
+        nessuna parte: si ricava dal punto, arco da tre e angoli compresi.
+      </p>
+    </div>
+  );
+}
+
 function Numero({ valore, etichetta, tono }) {
   return (
     <div>
@@ -219,6 +271,8 @@ export function Referto({ partita, onChiudi, onEliminata }) {
           </p>
         </div>
       )}
+
+      {r.tiri && <MappaTiri sport={sport} tiri={r.tiri} />}
 
       {/* -------------------------------------------- come abbiamo attaccato */}
       {conf.possessi && r.attacco && (

@@ -148,6 +148,38 @@ export function caricaCampione(state) {
   // una societa' vera, dove lo scout si comincia a tenere a stagione iniziata.
   // Senza almeno un tabellino, Statistiche e il referto restano due schermate
   // che dicono «niente da mostrare», ed e' un modo pessimo di presentarsi.
+  /* I tiri con la loro posizione, per far vedere la mappa.
+   *
+   * Sparsi in modo ripetibile invece che a caso: un'anteprima che cambia a
+   * ogni ricaricamento e' un'anteprima di cui non ci si fida. `giro` e'
+   * un'onda, quindi i tiri si distribuiscono sul campo come li
+   * distribuirebbe una squadra vera — i lunghi sotto, le guardie da fuori.
+   *
+   * I punti li mettiamo dove il tiro poteva partire davvero: da due dentro
+   * l'arco, da tre fuori. La mappa e' una dimostrazione, non un'invenzione. */
+  const giro = (n) => (Math.sin(n * 2.3) + 1) / 2;   // sempre fra 0 e 1
+  const tiriDi = (i, fgm2, fga2, fgm3, fga3) => {
+    const t = [];
+    const vicino = i >= 3;                 // gli ultimi della rosa sono i lunghi
+    for (let k = 0; k < fga2; k++) {
+      const a = giro(i * 7 + k);
+      t.push({
+        x: Math.round((vicino ? 38 + a * 24 : 22 + a * 56) * 10) / 10,
+        y: Math.round((vicino ? 6 + a * 22 : 18 + a * 28) * 10) / 10,
+        act: k < fgm2 ? 'fg2_made' : 'fg2_miss', dentro: k < fgm2, q: (k % 4) + 1
+      });
+    }
+    for (let k = 0; k < fga3; k++) {
+      const a = giro(i * 5 + k + 1);
+      t.push({
+        x: Math.round((6 + a * 88) * 10) / 10,
+        y: Math.round((a > 0.15 && a < 0.85 ? 62 + a * 26 : 6 + a * 12) * 10) / 10,
+        act: k < fgm3 ? 'fg3_made' : 'fg3_miss', dentro: k < fgm3, q: (k % 4) + 1
+      });
+    }
+    return t;
+  };
+
   const tabellino = (punti, extra) => ROSA.map((p, i) => ({
     id: p.id, number: p.number, name: p.name, onCourt: i < 5,
     stats: {
@@ -156,7 +188,10 @@ export function caricaCampione(state) {
       orb: extra[i][0], drb: extra[i][1], ast: extra[i][2], stl: extra[i][3],
       tov: extra[i][4], blk: extra[i][5], blkAgainst: 0, pf: extra[i][6], pfDrawn: 0,
       tovTypes: { generica: extra[i][4], palleggio: 0, passaggio: 0, passi: 0 },
-      plusMinus: 0, seconds: 0
+      // Il piu'/meno lo scrive il registro dei quintetti a ogni cambio: qui
+      // e' scritto a mano, come se quella partita fosse stata segnata cosi'.
+      plusMinus: [6, 4, -2, 8, 1, -5, 0, 3][i] || 0, seconds: 0,
+      tiri: tiriDi(i, punti[i][0], punti[i][1], punti[i][2], punti[i][3])
     }
   }));
 
@@ -175,6 +210,11 @@ export function caricaCampione(state) {
     },
     {
       teamScore: 70, oppScore: 66, date: fra(-3), quarter: 4, chiusi: 4,
+      quintetti: {
+        'p1|p2|p3|p4|p5': { f: 38, s: 30, turni: 6 },
+        'p1|p2|p4|p6|p7': { f: 14, s: 19, turni: 3 },
+        'p2|p3|p5|p6|p8': { f: 18, s: 17, turni: 4 }
+      },
       periodScores: [{ us: 18, them: 14 }, { us: 16, them: 19 }, { us: 20, them: 15 }, { us: 16, them: 18 }],
       players: tabellino(
         [[6, 11, 1, 4, 3, 4], [4, 9, 2, 5, 0, 0], [4, 8, 1, 3, 0, 0], [3, 7, 1, 2, 0, 0],

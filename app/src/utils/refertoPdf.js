@@ -87,6 +87,23 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
     y += 6;
   }
 
+  // ------------------------------------------------------ da dove si e' tirato
+  // Sul foglio le zone in cifre e non il disegno: una mappa di pallini
+  // stampata in bianco e nero non si legge, e tre righe di numeri si'.
+  if (r.tiri) {
+    doc.setFont('helvetica', 'bold').setFontSize(11);
+    doc.text('Da dove abbiamo tirato', 20, y); y += 6;
+    doc.setFont('helvetica', 'normal').setFontSize(10);
+    y = drawTable(
+      doc,
+      ['Zona', 'Segnati', 'Tentati', '%'],
+      r.tiri.zone.map(z => [z.label, String(z.fatti), String(z.tentati), z.quota + '%']),
+      [60, 30, 30, 30],
+      y
+    );
+    y += 6;
+  }
+
   // ------------------------------------------------ come abbiamo attaccato
   if (sport.scout.possessi && r.attacco) {
     doc.setFont('helvetica', 'bold').setFontSize(11);

@@ -81,7 +81,9 @@ export function refertoPartita(g, sport) {
   // sulla stessa riga che il tabellino mette in fondo.
   const attacco = tabellino.length ? attaccoSquadra(totaleTabellino(tabellino)) : null;
 
-  return { set, fasi, rotazioni, quintetti, attacco, tabellino, chiusi: chiusi.length };
+  const tiri = tiriPartita(g, sport);
+
+  return { set, fasi, rotazioni, quintetti, attacco, tiri, tabellino, chiusi: chiusi.length };
 }
 
 /* La riga della squadra.
@@ -147,6 +149,36 @@ export function attaccoSquadra(t) {
     liberi: q(t.fta || 0, tiri),
     rimbalziOff: t.orb || 0
   };
+}
+
+/* LA MAPPA DEI TIRI.
+ *
+ * I tiri stanno dentro le statistiche di chi li ha presi — ognuno con il
+ * punto da cui è partito — e qui si rimettono insieme in un elenco solo,
+ * che è come si guardano: la mappa di una squadra, non di una persona.
+ *
+ * La zona non è registrata: si deduce dal punto, ogni volta, chiedendola
+ * allo sport. Così se un domani si corregge dove passa l'arco, si correggono
+ * anche tutte le partite già archiviate invece di restare sbagliate per
+ * sempre.
+ */
+export function tiriPartita(g, sport) {
+  if (!sport.zonaTiro) return null;
+  const punti = [];
+  (g.players || []).forEach(p => {
+    ((p.stats || {}).tiri || []).forEach(t => {
+      punti.push({ ...t, giocatore: p.id, zona: sport.zonaTiro(t.x, t.y) });
+    });
+  });
+  if (punti.length === 0) return null;
+
+  const zone = (sport.zoneTiro || []).map(z => {
+    const suoi = punti.filter(t => t.zona === z.key);
+    const fatti = suoi.filter(t => t.dentro).length;
+    return { ...z, fatti, tentati: suoi.length, quota: suoi.length ? Math.round((fatti / suoi.length) * 100) : null };
+  }).filter(z => z.tentati > 0);
+
+  return { punti, zone };
 }
 
 // Percentuale, o null dove non c'è ancora niente da dire. Uno zero inventato

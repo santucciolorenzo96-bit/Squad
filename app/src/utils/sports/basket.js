@@ -28,11 +28,53 @@ const FIELD_SVG = `
   <path d="M57 139.4A18 18 0 0 1 93 139.4"/>
 </svg>`;
 
+/* DA DOVE E' PARTITO IL TIRO.
+ *
+ * Il tocco sul campo sa una cosa sola: in che punto del riquadro e' caduto,
+ * in percentuale. Qui quella percentuale torna a essere il campo vero — il
+ * riquadro e' mezzo campo FIBA in scala, 150x140 unita' da dieci centimetri
+ * l'una — e da li' si deduce la zona.
+ *
+ * Si deduce, non si chiede. Sapere dove si e' toccato vuol dire gia' sapere
+ * se era da tre: chiederlo dopo sarebbe una domanda la cui risposta e' gia'
+ * sullo schermo, e questo scout ne ha tolte apposta parecchie.
+ *
+ * Il canestro sta a (75, 15.75). L'arco da tre ha raggio 67.5 — 6,75 metri —
+ * e negli angoli, sopra la quota 29.9, diventa una retta a 6,60 dal centro:
+ * e' il motivo per cui la tripla d'angolo e' piu' corta. Va rispettato,
+ * altrimenti ogni tiro dal fondo risulterebbe da due.
+ */
+export const ZONE_TIRO = [
+  { key: 'area', label: 'Da sotto' },
+  { key: 'media', label: 'Dalla media' },
+  { key: 'tre', label: 'Da tre' }
+];
+
+export function zonaTiro(x, y) {
+  if (x == null || y == null) return null;
+  const cx = (x / 100) * 150;
+  const cy = (y / 100) * 140;
+  const dx = cx - 75;
+  const dy = cy - 15.75;
+  const tre = cy < 29.9
+    ? Math.abs(dx) >= 66
+    : Math.sqrt(dx * dx + dy * dy) >= 67.5;
+  if (tre) return 'tre';
+  // L'area dei tre secondi: dal fondo fino alla lunetta.
+  if (cx >= 50.5 && cx <= 99.5 && cy <= 58) return 'area';
+  return 'media';
+}
+
 function newStats() {
   return {
     fgm2: 0, fga2: 0, fgm3: 0, fga3: 0, ftm: 0, fta: 0, orb: 0, drb: 0, ast: 0, stl: 0,
     tov: 0, tovTypes: { generica: 0, palleggio: 0, passaggio: 0, passi: 0 },
-    blk: 0, blkAgainst: 0, pf: 0, pfDrawn: 0, plusMinus: 0, seconds: 0
+    blk: 0, blkAgainst: 0, pf: 0, pfDrawn: 0, plusMinus: 0, seconds: 0,
+    // I tiri con il punto da cui sono partiti: { x, y, act, dentro, q }.
+    // Stanno dentro il giocatore, e non in un elenco a parte, perche' sono
+    // suoi — e perche' cosi' viaggiano gia' con il tabellino, senza bisogno
+    // di una colonna nuova sul database.
+    tiri: []
   };
 }
 
@@ -167,6 +209,11 @@ export const BASKET = {
   score,
   newStats,
 
+  // La geometria del campo viaggia con lo sport: il referto non deve sapere
+  // dove passa l'arco da tre, deve solo poterlo chiedere.
+  zonaTiro,
+  zoneTiro: ZONE_TIRO,
+
   // ------------------------------------------------------------------ SCOUT
   // Il basket è l'unico dei tre in cui si segna un evento ogni pochi secondi:
   // qui conta il numero di tocchi. Due soli — giocatore, poi azione — con i
@@ -210,15 +257,30 @@ export const BASKET = {
      * punto, e i palloni giocati sono per definizione uguali per le due
      * squadre. */
     possessi: true,
+
+    /* LA MAPPA DEI TIRI, spenta di serie.
+     *
+     * Ce l'hanno tutti — FIBA LiveStats, Easy Stats, CourtBook, le due
+     * italiane — ed e' l'unica cosa di questo scout che costa un tocco in
+     * piu'. Uno su ogni tiro, e in una partita di tiri ce ne sono cento.
+     *
+     * Per un allenatore che studia da dove segna la sua squadra vale quel
+     * tocco. Per un genitore che tiene il tabellino la prima volta e' il
+     * tocco che gli fa perdere l'azione dopo. Non si sceglie per tutti: si
+     * accende dal pannello, e la scelta resta sul dispositivo di chi segna. */
+    mappaTiri: true,
     periodPrompt: 'Quanti punti ha segnato l\u2019avversario in questo periodo?',
     groups: [
+      // `zona` dice che questo tiro ha un punto di partenza: con la mappa
+      // accesa, prima di registrarlo l'app chiede da dove. I tiri liberi no,
+      // si tirano sempre dallo stesso posto.
       { label: 'Tiro da 2', layout: 'pair', actions: [
-        { act: 'fg2_made', label: '\u2713 Canestro', tone: 'made', apply: { fgm2: 1, fga2: 1 }, score: 2, poi: 'assist' },
-        { act: 'fg2_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga2: 1 }, poi: 'rimbalzo' }
+        { act: 'fg2_made', label: '\u2713 Canestro', tone: 'made', apply: { fgm2: 1, fga2: 1 }, score: 2, zona: true, dentro: true, poi: 'assist' },
+        { act: 'fg2_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga2: 1 }, zona: true, poi: 'rimbalzo' }
       ]},
       { label: 'Tiro da 3', layout: 'pair', actions: [
-        { act: 'fg3_made', label: '\u2713 Canestro', tone: 'made', apply: { fgm3: 1, fga3: 1 }, score: 3, poi: 'assist' },
-        { act: 'fg3_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga3: 1 }, poi: 'rimbalzo' }
+        { act: 'fg3_made', label: '\u2713 Canestro', tone: 'made', apply: { fgm3: 1, fga3: 1 }, score: 3, zona: true, dentro: true, poi: 'assist' },
+        { act: 'fg3_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga3: 1 }, zona: true, poi: 'rimbalzo' }
       ]},
       { label: 'Tiro libero', layout: 'pair', actions: [
         { act: 'ft_made', label: '\u2713 Segnato', tone: 'made', apply: { ftm: 1, fta: 1 }, score: 1 },
