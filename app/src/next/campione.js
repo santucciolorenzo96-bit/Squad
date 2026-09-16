@@ -144,11 +144,44 @@ export function caricaCampione(state) {
     { id: 'm2', giornata: 10, date: fra(10), time: '17:00', opponent: 'Nuova Pallacanestro Imola', home: false, location: 'PalaRuggi', played: false },
     { id: 'm3', giornata: 11, date: fra(17), time: '', opponent: 'Bellaria Basket', home: true, location: 'Palestra Comunale', played: false }
   ];
+  // Le ultime due partite hanno il tabellino, le altre no: e' la situazione di
+  // una societa' vera, dove lo scout si comincia a tenere a stagione iniziata.
+  // Senza almeno un tabellino, Statistiche e il referto restano due schermate
+  // che dicono «niente da mostrare», ed e' un modo pessimo di presentarsi.
+  const tabellino = (punti, extra) => ROSA.map((p, i) => ({
+    id: p.id, number: p.number, name: p.name, onCourt: i < 5,
+    stats: {
+      fgm2: punti[i][0], fga2: punti[i][1], fgm3: punti[i][2], fga3: punti[i][3],
+      ftm: punti[i][4], fta: punti[i][5],
+      orb: extra[i][0], drb: extra[i][1], ast: extra[i][2], stl: extra[i][3],
+      tov: extra[i][4], blk: extra[i][5], blkAgainst: 0, pf: extra[i][6], pfDrawn: 0,
+      tovTypes: { generica: extra[i][4], palleggio: 0, passaggio: 0, passi: 0 },
+      plusMinus: 0, seconds: 0
+    }
+  }));
+
   state.history = [
     { teamScore: 68, oppScore: 54 }, { teamScore: 61, oppScore: 70 },
     { teamScore: 75, oppScore: 59 }, { teamScore: 66, oppScore: 63 },
-    { teamScore: 58, oppScore: 72 }, { teamScore: 81, oppScore: 64 },
-    { teamScore: 70, oppScore: 66 }
+    { teamScore: 58, oppScore: 72 },
+    {
+      teamScore: 81, oppScore: 64, date: fra(-10), quarter: 4, chiusi: 4,
+      periodScores: [{ us: 22, them: 15 }, { us: 19, them: 18 }, { us: 21, them: 16 }, { us: 19, them: 15 }],
+      players: tabellino(
+        [[7, 12, 2, 5, 2, 2], [5, 10, 1, 4, 1, 2], [4, 7, 2, 4, 0, 0], [5, 9, 0, 1, 2, 3],
+         [3, 6, 1, 2, 1, 1], [2, 5, 0, 0, 2, 2], [1, 4, 1, 3, 0, 0], [1, 2, 0, 1, 1, 2]],
+        [[1, 4, 5, 2, 3, 0, 2], [0, 3, 3, 1, 2, 0, 1], [2, 6, 1, 0, 1, 2, 3], [3, 7, 2, 1, 2, 1, 4],
+         [1, 2, 4, 3, 1, 0, 2], [2, 5, 0, 1, 2, 1, 3], [0, 1, 1, 0, 0, 0, 1], [1, 2, 0, 0, 1, 0, 2]])
+    },
+    {
+      teamScore: 70, oppScore: 66, date: fra(-3), quarter: 4, chiusi: 4,
+      periodScores: [{ us: 18, them: 14 }, { us: 16, them: 19 }, { us: 20, them: 15 }, { us: 16, them: 18 }],
+      players: tabellino(
+        [[6, 11, 1, 4, 3, 4], [4, 9, 2, 5, 0, 0], [4, 8, 1, 3, 0, 0], [3, 7, 1, 2, 0, 0],
+         [2, 6, 1, 1, 0, 0], [3, 6, 0, 0, 0, 0], [0, 1, 1, 4, 0, 0], [1, 3, 0, 0, 0, 0]],
+        [[2, 5, 6, 3, 2, 0, 3], [1, 2, 4, 1, 3, 0, 2], [3, 8, 2, 1, 2, 1, 2], [2, 6, 1, 0, 1, 2, 4],
+         [0, 3, 3, 2, 1, 0, 1], [1, 4, 1, 0, 2, 1, 3], [0, 0, 2, 1, 1, 0, 0], [1, 1, 0, 0, 0, 0, 1]])
+    }
   ];
   state.standings = [
     { team_name: 'Virtus Forlimpopoli', played: 8, won: 7, lost: 1, points: 14 },

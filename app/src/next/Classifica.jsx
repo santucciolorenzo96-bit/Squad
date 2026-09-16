@@ -7,7 +7,8 @@ import { canEditHome, managesSector } from '../utils/permissions.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, cx } from './ui.jsx';
 import { Interruttore, Modulo, Conferma, Campo, Testo, Spunta, useAvviso } from './moduli.jsx';
-import { IconaSezione } from './icone.jsx';
+import { IconaSezione, Chevron } from './icone.jsx';
+import { Referto } from './Referto.jsx';
 
 /* Classifica e storico.
  *
@@ -253,6 +254,7 @@ function ModuloSquadra({ riga, onChiudi, onFatto, onRimuovi }) {
 
 /* ----------------------------------------------------------------- lo storico */
 function Storico() {
+  const [referto, setReferto] = useState(null);
   const partite = [...state.history].reverse();   // la più recente per prima
   if (partite.length === 0) {
     return <Vuoto>Nessuna partita giocata. Lo storico si riempie quando i tabellini vengono chiusi.</Vuoto>;
@@ -263,7 +265,14 @@ function Storico() {
         const vinta = g.teamScore > g.oppScore;
         const pari = g.teamScore === g.oppScore;
         return (
-          <Pannello key={i} className="flex items-center gap-3 px-4 py-3 sm:px-5">
+          // Quello che lo scout ha raccolto durante la partita finora si
+          // poteva leggere solo mentre la partita era aperta. Adesso la riga
+          // si apre, e dentro c'e' tutto: set, fasi, rotazioni, tabellino.
+          <Pannello
+            key={i}
+            onClick={() => setReferto(g)}
+            className="flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-pannello/8 sm:px-5"
+          >
             {/* La lettera dell'esito prima di tutto: scorrendo l'elenco si
                 legge l'andamento senza leggere i punteggi. */}
             <span className={cx(
@@ -286,9 +295,12 @@ function Storico() {
             <div className="shrink-0 text-[16px] font-bold">
               {g.teamScore}<span className="mx-1 text-tenue">–</span>{g.oppScore}
             </div>
+            <Chevron dim={16} className="shrink-0 text-tenue" />
           </Pannello>
         );
       })}
+
+      {referto && <Referto partita={referto} onChiudi={() => setReferto(null)} />}
     </div>
   );
 }
