@@ -91,8 +91,13 @@ function Apertura({ partita, onSezione }) {
       />
 
       <div className="relative">
-        <div className="flex items-center justify-between gap-3 border-b border-bordo/10 px-5 py-3 sm:px-6">
-          <div className="flex items-center gap-2.5">
+        {/* Va a capo invece di accavallarsi. Su telefono qui dentro possono
+            stare quattro cose — icona, titolo, «amichevole», il conto alla
+            rovescia — e in trecentoventi pixel non ci stanno in fila. Con
+            `flex-wrap` il conto scende di una riga; senza, finiva sopra la
+            pastiglia. */}
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b border-bordo/10 px-5 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2.5">
             <IconaSezione id="partita" dim={26} />
             <Etichetta>Prossima partita</Etichetta>
             {/* Va detto qui e non solo nel calendario: e' la scheda che si

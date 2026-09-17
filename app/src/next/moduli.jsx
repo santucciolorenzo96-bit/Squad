@@ -336,7 +336,20 @@ export function Testo({ className, ...resto }) {
 export function Data({ className, ...resto }) {
   // `color-scheme` fa disegnare al browser il selettore di data nel tema
   // giusto: senza, su fondo scuro compare un calendario bianco.
-  return <input type="date" style={{ colorScheme: 'inherit' }} className={cx(BASE_CAMPO, className)} {...resto} />;
+  //
+  // Meno respiro ai lati che negli altri campi: dentro c'e' un controllo di
+  // sistema che porta gia' il suo, e su telefono ogni millimetro tolto al
+  // bordo e' un millimetro dato alla data. (Il resto della cura sta in
+  // vetro.css: senza togliergli l'aspetto di sistema, su iOS il campo
+  // tracima comunque.)
+  return (
+    <input
+      type="date"
+      style={{ colorScheme: 'inherit' }}
+      className={cx(BASE_CAMPO, 'px-2.5', className)}
+      {...resto}
+    />
+  );
 }
 
 export function Scelta({ className, children, ...resto }) {

@@ -548,3 +548,58 @@
     .barra-figura { transform: scale(calc(0.9 + 0.14 * var(--v))); }
   }
 }
+
+/* ==========================================================================
+   DUE REGOLE CONTRO LE SOVRAPPOSIZIONI
+   ==========================================================================
+   Stanno fuori dagli strati di Tailwind, e quindi dopo le sue utilita': sono
+   correzioni al comportamento predefinito del browser, non nuovi stili.
+
+   1. UN TESTO CHE SI TAGLIA DEVE POTERSI STRINGERE.
+
+   `truncate` dice «se non ci sto, tagliami con i puntini». Ma dentro una riga
+   flessibile ogni elemento parte con `min-width: auto`, cioe' col divieto di
+   scendere sotto la larghezza del proprio contenuto: il permesso di tagliare
+   non viene mai usato, la riga si allarga oltre il contenitore, e quello che
+   le sta accanto — una pastiglia, un pulsante — finisce sopra o sotto.
+
+   E' il difetto che faceva accavallare «amichevole» e «Segna» nell'elenco
+   delle partite. Non e' di quella riga: e' di tutte e sessantaquattro le
+   volte in cui in quest'app un testo si taglia dentro una riga flessibile.
+   Un elemento che dichiara di potersi tagliare non ha nessun motivo di
+   pretendere la larghezza del proprio contenuto. */
+.truncate { min-width: 0; }
+
+/* 2. I CAMPI DATA E ORA DEL SISTEMA.
+
+   Su iOS il controllo nativo della data tiene una larghezza sua, decisa dal
+   sistema operativo, e `width: 100%` non gliela toglie: finche' conserva
+   l'aspetto di sistema, il suo contenuto esce dal riquadro. In una griglia a
+   due colonne questo vuol dire che la data scavalca l'ora — e nessuna
+   correzione fatta sul contenitore puo' rimediare, perche' a traboccare e'
+   quello che c'e' dentro.
+
+   Tolto l'aspetto di sistema, il campo sta esattamente nello spazio che gli
+   si da'. L'allineamento a sinistra del valore serve allo stesso scopo: in
+   alcune versioni di Safari il valore e' spinto a destra e spinge fuori. */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+}
+
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value {
+  text-align: left;
+  min-width: 0;
+}
+
+/* Il calendarietto a destra del campo prende spazio senza dire niente: qui e'
+   ridotto al minimo, perche' lo spazio in una tendina su telefono e' finito. */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  margin-inline-start: 0;
+  padding: 0;
+}
