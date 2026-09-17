@@ -3,7 +3,7 @@ import { state } from '../state.js';
 import { standingsPosition, computeRecord, computeTeamPPG } from '../utils/stats.js';
 import { canEditHome, managesSector } from '../utils/permissions.js';
 import { teamInitials } from '../utils/theme.js';
-import { Pannello, Etichetta, Stato, Vuoto, Titolo, Pulsante, cx } from './ui.jsx';
+import { Pannello, Etichetta, Stato, Vuoto, Titolo, Pulsante, Amichevole, cx } from './ui.jsx';
 import { IconaSezione, Chevron } from './icone.jsx';
 
 /* La Home.
@@ -98,11 +98,7 @@ function Apertura({ partita, onSezione }) {
             {/* Va detto qui e non solo nel calendario: e' la scheda che si
                 guarda per prima, e sapere che e' un'amichevole cambia cosa ci
                 si aspetta dal risultato. */}
-            {partita.friendly && (
-              <span className="rounded-full bg-pannello/14 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-etichetta text-tenue">
-                amichevole
-              </span>
-            )}
+            {partita.friendly && <Amichevole />}
           </div>
           <Stato tono={scaduta ? 'fermo' : (g != null && g <= 1 ? 'attesa' : 'neutro')}>{conto}</Stato>
         </div>

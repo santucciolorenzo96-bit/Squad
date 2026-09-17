@@ -6,7 +6,7 @@ import {
 } from '../api/communications.js';
 import { canEditHome, isLinkedUser, managesSector } from '../utils/permissions.js';
 import { inCampione } from './campione.js';
-import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, Avatar, cx } from './ui.jsx';
+import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, Avatar, Amichevole, cx } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Data, Scelta, Spunta, ErroreCaricamento, useAvviso } from './moduli.jsx';
 import { IconaSezione } from './icone.jsx';
 
@@ -423,11 +423,7 @@ function ModuloComunicazione({ onChiudi, onFatto }) {
                       scelta && 'text-blu')}>
                       {m.opponent}
                     </span>
-                    {m.friendly && (
-                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-etichetta text-tenue">
-                        amichevole
-                      </span>
-                    )}
+                    {m.friendly && <Amichevole />}
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] text-tenue">
                     <span>{m.date ? new Date(m.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }) : 'data da definire'}</span>

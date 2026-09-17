@@ -9,7 +9,7 @@ import {
   perchePunteggioImpossibile, scambioFinito,
   saldoTurno, sommaQuintetto
 } from '../utils/regole.js';
-import { Pannello, Etichetta, Pulsante, Stato, cx } from './ui.jsx';
+import { Pannello, Etichetta, Pulsante, Stato, Amichevole, cx } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, useAvviso, useTendina } from './moduli.jsx';
 import { inCampione } from './campione.js';
 import { scriviCopia, segnaSincronizzata, cancellaCopia } from './partitaLocale.js';
@@ -601,11 +601,7 @@ export function Tracker({ onFinita, onEsci }) {
                   <span className="ml-1 text-[10px] font-bold uppercase tracking-etichetta text-tenue">set</span>
                 </div>
               )}
-              {g.friendly && (
-                <div className="mt-1.5 rounded-full bg-pannello/14 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-etichetta text-tenue">
-                  amichevole
-                </div>
-              )}
+              {g.friendly && <Amichevole className="mt-1.5" />}
               {conf.teamFouls && (
                 <div className={cx('mt-1.5 rounded-full px-2 py-0.5 text-[11px] font-bold',
                   bonus ? 'bg-rosso/18 text-rosso' : 'bg-pannello/12 text-tenue')}>

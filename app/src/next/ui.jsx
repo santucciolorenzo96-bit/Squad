@@ -1,4 +1,5 @@
 import React from 'react';
+import { Stretta } from './icone.jsx';
 
 /* Le primitive del sistema "vetro".
  *
@@ -273,5 +274,29 @@ export function AzioneRiga({ etichetta, pericolo = false, onClick, children, cla
       {children}
       <span className="hidden sm:inline">{etichetta}</span>
     </button>
+  );
+}
+
+/* La pastiglia dell'amichevole.
+ *
+ * Compare in cinque posti — calendario, Home, comunicazioni, storico,
+ * referto — e prima erano cinque frammenti copiati, gia' leggermente
+ * diversi fra loro. Un contrassegno che vuol dire «questo risultato non
+ * conta per le statistiche» deve avere sempre lo stesso aspetto: se in una
+ * schermata e' un po' diverso, chi guarda si chiede se voglia dire un'altra
+ * cosa.
+ */
+export function Amichevole({ className }) {
+  return (
+    <span
+      className={cx(
+        'inline-flex shrink-0 items-center gap-1 rounded-full bg-pannello/14 px-2 py-0.5',
+        'text-[10.5px] font-bold uppercase tracking-etichetta text-tenue',
+        className
+      )}
+    >
+      <Stretta dim={12} />
+      amichevole
+    </span>
   );
 }

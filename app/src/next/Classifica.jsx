@@ -5,7 +5,7 @@ import { fetchStandings, upsertStanding, removeStanding } from '../api/standings
 import { currentSport } from '../utils/sports/index.js';
 import { canEditHome, managesSector } from '../utils/permissions.js';
 import { inCampione } from './campione.js';
-import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, cx } from './ui.jsx';
+import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Amichevole, cx } from './ui.jsx';
 import { Interruttore, Modulo, Conferma, Campo, Testo, Spunta, useAvviso } from './moduli.jsx';
 import { IconaSezione, Chevron } from './icone.jsx';
 import { Referto } from './Referto.jsx';
@@ -284,11 +284,7 @@ function Storico({ onCambiato }) {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="truncate text-[13.5px] font-semibold">{g.oppName || 'Avversari'}</span>
-                {g.friendly && (
-                  <span className="shrink-0 rounded-full bg-pannello/14 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-etichetta text-tenue">
-                    amichevole
-                  </span>
-                )}
+                {g.friendly && <Amichevole />}
               </div>
               {g.date && <div className="text-[12.5px] text-tenue">{fmtData(g.date)}</div>}
             </div>

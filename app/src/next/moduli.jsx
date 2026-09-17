@@ -308,9 +308,20 @@ const BASE_CAMPO =
   'w-full rounded-lg vetro orlo px-3.5 py-2.5 text-[14px] text-testo placeholder:text-tenue ' +
   'transition-colors focus:border-blu/60 focus:outline-none';
 
+/* Un campo del modulo.
+ *
+ * `min-w-0` non e' un dettaglio: dentro una griglia a due colonne ogni cella
+ * si rifiuta per impostazione predefinita di stringersi sotto la larghezza
+ * minima del suo contenuto, e un campo Data ha una larghezza minima decisa
+ * dal sistema operativo — su telefono e' larga. Due celle cosi' non ci
+ * stanno in una tendina, e invece di andare a capo si sovrappongono.
+ *
+ * Sta qui e non nelle singole schermate perche' il difetto e' di chiunque
+ * metta due campi affiancati, non del calendario.
+ */
 export function Campo({ etichetta, aiuto, children }) {
   return (
-    <label className="block">
+    <label className="block min-w-0">
       {etichetta && <Etichetta className="mb-1.5">{etichetta}</Etichetta>}
       {children}
       {aiuto && <p className="mt-1.5 text-[12.5px] leading-snug text-tenue">{aiuto}</p>}

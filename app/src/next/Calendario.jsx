@@ -3,7 +3,7 @@ import { state } from '../state.js';
 import { Matita, Croce } from './icone.jsx';
 import { updateCalendarMatch, removeCalendarMatch } from '../api/calendar.js';
 import { canEditHome, managesSector } from '../utils/permissions.js';
-import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Stato, cx, AzioneRiga } from './ui.jsx';
+import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Stato, Amichevole, cx, AzioneRiga } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Data, Scelta, Spunta, Interruttore, useAvviso } from './moduli.jsx';
 
 /* Il calendario.
@@ -98,11 +98,7 @@ export function Calendario() {
                       {m.home === false ? 'fuori' : 'casa'}
                     </span>
                     <span className="truncate text-[14.5px] font-semibold leading-tight">{m.opponent}</span>
-                    {m.friendly && (
-                      <span className="shrink-0 rounded-full bg-pannello/14 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-etichetta text-tenue">
-                        amichevole
-                      </span>
-                    )}
+                    {m.friendly && <Amichevole />}
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-2.5 text-[13px] text-tenue">
                     <span>{fmtData(m.date)}</span>

@@ -375,6 +375,29 @@ export function Chevron({ dim = 16, className }) {
   );
 }
 
+/* La stretta di mano: l'amichevole.
+ *
+ * Della famiglia dell'interfaccia — tratto sottile, un colore solo, prende
+ * quello del testo — e non di quella delle sezioni: sta dentro una pastiglia
+ * alta dieci pixel accanto a una parola, e un'icona di vetro con l'alone li'
+ * peserebbe piu' della parola che accompagna.
+ *
+ * Due bracci che si incontrano al centro: quello di sinistra sale e poi
+ * scende, quello di destra scende e poi risale. E' il profilo che si vede
+ * guardando due mani strette di lato, ed e' l'unica forma di stretta che
+ * resta leggibile a questa misura — le dita, disegnate, a dodici pixel
+ * diventano una macchia. */
+export function Stretta({ dim = 14, className }) {
+  return (
+    <svg width={dim} height={dim} viewBox="0 0 20 20" fill="none" aria-hidden="true" className={className}
+         stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1.9 11.6 5.3 8.2a1.7 1.7 0 0 1 2.4 0L10 10.5" />
+      <path d="M18.1 8.4 14.7 11.8a1.7 1.7 0 0 1-2.4 0L10 9.5" />
+      <path d="m8.1 12.4 1.6 1.6" />
+    </svg>
+  );
+}
+
 export function Punto({ dim = 8, className }) {
   return (
     <svg width={dim} height={dim} viewBox="0 0 8 8" aria-hidden="true" className={className}>
