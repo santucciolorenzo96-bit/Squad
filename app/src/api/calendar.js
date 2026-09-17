@@ -23,7 +23,11 @@ export async function bulkInsertMatches(teamId, sectorId, rows, seasonId = stagi
       date: r.date || null,
       time: r.time || null,
       location: r.location || null,
-      home: r.home
+      home: r.home,
+      // Dichiarata quando si programma, non a bordo campo: chi mette
+      // l'amichevole in calendario lo sa con settimane di anticipo, chi tiene
+      // il tabellino magari no.
+      friendly: !!r.friendly
     }));
   if (toInsert.length === 0) return [];
   const { data, error } = await supabase.from('calendar').insert(toInsert).select();

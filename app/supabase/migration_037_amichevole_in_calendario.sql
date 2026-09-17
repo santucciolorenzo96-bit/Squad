@@ -1,0 +1,34 @@
+-- ============================================================================
+-- SQUAD — migrazione 037
+-- L'amichevole si dichiara quando si mette in calendario, non a bordo campo
+-- ============================================================================
+-- Esegui UNA VOLTA nel SQL Editor di Supabase, dopo la 036.
+-- È idempotente: rieseguirla non fa danni.
+--
+-- IL PROBLEMA
+--
+-- Dalla 029 un'amichevole resta nello storico ma non entra in nessun totale:
+-- si gioca per provare — quintetti nuovi, gente fuori ruolo, minuti a chi di
+-- solito non ne ha — e mescolarla alle partite vere non aggiunge dati, ne
+-- toglie, perché sposta medie e record di numeri che nessuno ha voluto dire.
+--
+-- Ma finora quel contrassegno esisteva in un posto solo: la casella che chi
+-- segna spunta all'avvio del tabellino. Cioè nel momento peggiore — in
+-- palestra, cinque minuti prima della palla a due, mentre si compone il
+-- quintetto. Chi programma l'amichevole lo sa con settimane di anticipo; chi
+-- tiene il tabellino magari no, e se non la spunta l'amichevole entra nelle
+-- statistiche di stagione senza che nessuno se ne accorga.
+--
+-- È lo stesso modo di sbagliare della partita 8-0 rimasta nello storico: un
+-- dato falso che non si annuncia.
+--
+-- Adesso l'amichevole si dichiara sulla riga di calendario, cioè quando si
+-- sa, e il tabellino avviato da quella riga se la porta dietro già spuntata.
+
+alter table calendar add column if not exists friendly boolean not null default false;
+
+-- Nota: `next_match` non la prende. In questa versione dell'app la prossima
+-- partita è la prima riga non giocata del calendario; `next_match` resta solo
+-- come ricaduta per le società che non hanno ancora caricato il calendario, e
+-- non ha nessun modulo che la scriva. Una colonna che nessuno può riempire è
+-- un'altra cosa da spiegare, non una funzione in più.

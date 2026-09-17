@@ -35,7 +35,10 @@ export function AvvioPartita({ onAvviata }) {
   const [scelta, setScelta] = useState(candidate.length ? candidate[0].id : '');
   const [avversario, setAvversario] = useState(candidate.length ? candidate[0].opponent : '');
   const [periodi, setPeriodi] = useState(String(conf.period.count));
-  const [amichevole, setAmichevole] = useState(false);
+  // Se la partita scelta e' gia' dichiarata amichevole in calendario, il
+  // tabellino si apre gia' cosi': chi l'ha programmata lo sapeva, e chiederlo
+  // di nuovo a chi segna e' un'occasione in piu' di dimenticarselo.
+  const [amichevole, setAmichevole] = useState(candidate.length ? !!candidate[0].friendly : false);
   const [titolari, setTitolari] = useState([]);
   const [lavora, setLavora] = useState(false);
   const [errore, setErrore] = useState('');
@@ -43,7 +46,9 @@ export function AvvioPartita({ onAvviata }) {
   function scegliPartita(id) {
     setScelta(id);
     const m = candidate.find(x => x.id === id);
-    if (m) setAvversario(m.opponent);
+    if (!m) return;
+    setAvversario(m.opponent);
+    setAmichevole(!!m.friendly);
   }
 
   function alterna(id) {

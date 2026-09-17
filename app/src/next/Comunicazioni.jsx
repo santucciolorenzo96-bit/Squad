@@ -388,29 +388,72 @@ function ModuloComunicazione({ onChiudi, onFatto }) {
         onFatto();
       }}
     >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Campo etichetta="Tipo">
-          <Scelta value={tipo} onChange={e => setTipo(e.target.value)}>
-            {Object.entries(TIPI).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </Scelta>
-        </Campo>
+      {/* LE PROSSIME PARTITE, IN VISTA.
+          C'erano gia', ma dentro un menu a tendina accanto a «Tipo»: la
+          funzione esisteva e non si vedeva, che dal punto di vista di chi usa
+          l'app e' come se non ci fosse. Qui sono schede che si toccano, e
+          sono la prima cosa del modulo perche' nove convocazioni su dieci
+          nascono da una riga di calendario. */}
+      {prossime.length > 0 && (
+        <div className="mb-1">
+          <Etichetta className="mb-2">Prossime partite</Etichetta>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {prossime.map((m, i) => {
+              const scelta = partita === String(i);
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => { setPartita(String(i)); applica(m); }}
+                  className={cx(
+                    'rounded-lg border px-3.5 py-2.5 text-left transition-colors',
+                    scelta
+                      ? 'border-blu/55 bg-blu/12'
+                      : 'border-bordo/12 bg-pannello/6 hover:bg-pannello/12'
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={cx(
+                      'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-etichetta',
+                      m.home === false ? 'bg-pannello/14 text-tenue' : 'bg-blu/16 text-blu'
+                    )}>
+                      {m.home === false ? 'fuori' : 'casa'}
+                    </span>
+                    <span className={cx('min-w-0 flex-1 truncate text-[13.5px] font-semibold',
+                      scelta && 'text-blu')}>
+                      {m.opponent}
+                    </span>
+                    {m.friendly && (
+                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-etichetta text-tenue">
+                        amichevole
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] text-tenue">
+                    <span>{m.date ? new Date(m.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }) : 'data da definire'}</span>
+                    {m.time && <span>{m.time}</span>}
+                    {m.location && <span className="truncate">{m.location}</span>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => setPartita('')}
+            className={cx('mt-2 rounded-lg px-2 py-1 text-[12.5px] font-semibold transition-colors',
+              partita === '' ? 'text-blu' : 'text-tenue hover:text-testo')}
+          >
+            Nessuna partita: scrivo da zero
+          </button>
+        </div>
+      )}
 
-        {prossime.length > 0 && (
-          <Campo etichetta="Riferita a una partita">
-            <Scelta
-              value={partita}
-              onChange={e => { setPartita(e.target.value); applica(prossime[parseInt(e.target.value, 10)]); }}
-            >
-              {prossime.map((m, i) => (
-                <option key={m.id} value={String(i)}>
-                  {m.opponent}{m.date ? ' · ' + new Date(m.date + 'T00:00:00').toLocaleDateString('it-IT') : ''}
-                </option>
-              ))}
-              <option value="">— nessuna partita —</option>
-            </Scelta>
-          </Campo>
-        )}
-      </div>
+      <Campo etichetta="Tipo">
+        <Scelta value={tipo} onChange={e => setTipo(e.target.value)}>
+          {Object.entries(TIPI).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </Scelta>
+      </Campo>
 
       <Campo etichetta="Titolo">
         <Testo

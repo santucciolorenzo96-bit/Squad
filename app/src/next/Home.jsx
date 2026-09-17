@@ -95,6 +95,14 @@ function Apertura({ partita, onSezione }) {
           <div className="flex items-center gap-2.5">
             <IconaSezione id="partita" dim={26} />
             <Etichetta>Prossima partita</Etichetta>
+            {/* Va detto qui e non solo nel calendario: e' la scheda che si
+                guarda per prima, e sapere che e' un'amichevole cambia cosa ci
+                si aspetta dal risultato. */}
+            {partita.friendly && (
+              <span className="rounded-full bg-pannello/14 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-etichetta text-tenue">
+                amichevole
+              </span>
+            )}
           </div>
           <Stato tono={scaduta ? 'fermo' : (g != null && g <= 1 ? 'attesa' : 'neutro')}>{conto}</Stato>
         </div>

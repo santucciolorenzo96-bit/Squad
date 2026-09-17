@@ -142,7 +142,10 @@ export function caricaCampione(state) {
     { id: 'm0', giornata: 8, date: fra(-6), time: '18:00', opponent: 'Basket Riccione', home: false, location: 'PalaRiccione', played: false },
     { id: 'm1', giornata: 9, date: fra(3), time: '18:30', opponent: 'Virtus Forlimpopoli', home: true, location: 'Palestra Comunale', played: false },
     { id: 'm2', giornata: 10, date: fra(10), time: '17:00', opponent: 'Nuova Pallacanestro Imola', home: false, location: 'PalaRuggi', played: false },
-    { id: 'm3', giornata: 11, date: fra(17), time: '', opponent: 'Bellaria Basket', home: true, location: 'Palestra Comunale', played: false }
+    { id: 'm3', giornata: 11, date: fra(17), time: '', opponent: 'Bellaria Basket', home: true, location: 'Palestra Comunale', played: false },
+    // Un'amichevole senza giornata: e' il caso che l'anteprima deve mostrare,
+    // perche' e' quello in cui il risultato non entra nelle medie.
+    { id: 'm4', giornata: null, date: fra(24), time: '18:00', opponent: 'Libertas Cesena', home: true, location: 'Palestra Comunale', played: false, friendly: true }
   ];
   // Le ultime due partite hanno il tabellino, le altre no: e' la situazione di
   // una societa' vera, dove lo scout si comincia a tenere a stagione iniziata.
