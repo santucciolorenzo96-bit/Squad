@@ -10,6 +10,7 @@ import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Vuoto, Scheletro, Stato, cx } from './ui.jsx';
 import { ErroreCaricamento } from './moduli.jsx';
 import { Chevron } from './icone.jsx';
+import { fraGiorniISO } from '../utils/format.js';
 
 /* La situazione della società.
  *
@@ -33,11 +34,7 @@ import { Chevron } from './icone.jsx';
 const GIORNI_INDIETRO = 30;
 const GIORNI_AVANTI = 30;
 
-function scostaISO(giorni) {
-  const d = new Date();
-  d.setDate(d.getDate() + giorni);
-  return d.toISOString().slice(0, 10);
-}
+const scostaISO = (giorni) => fraGiorniISO(giorni);
 
 const TONO = { critical: 'fermo', warning: 'attesa', info: 'neutro' };
 const FILO = { critical: 'bg-rosso', warning: 'bg-ambra', info: 'bg-blu' };
@@ -229,7 +226,7 @@ export function Situazione({ onSezione }) {
           issues: detectIssues({
             today: todayISO(), players, documents, deadlines, communications,
             trainings, attendance, sponsors: state.financeSponsors,
-            sectors: state.sectors, hasFinance
+            sectors: state.sectors, seasons: state.seasons, hasFinance
           }),
           finanzaBloccata
         });

@@ -35,9 +35,70 @@ export async function reopenSeason(id) {
   return updateSeason(id, { closed: false, closed_at: null, closed_by: null });
 }
 
+/* Cosa c'e' dentro una stagione.
+ *
+ * Serve prima di eliminarla, e non per cortesia: eliminare una stagione
+ * CANCELLA le rose di quell'anno — player_sectors ha `on delete cascade` —
+ * e lascia tutto il resto con la stagione vuota, che in quest'app vuol dire
+ * invisibile per sempre, perche' ogni lettura filtra per stagione.
+ *
+ * Si contano le righe senza portarle indietro (`head: true`): interessa solo
+ * se ce n'e' qualcuna.
+ */
+export async function contaDatiStagione(id) {
+  const conta = async (tabella) => {
+    const { count, error } = await supabase.from(tabella)
+      .select('id', { count: 'exact', head: true }).eq('season_id', id);
+    if (error) throw error;
+    return count || 0;
+  };
+  // player_sectors non ha una colonna `id`: si conta su una che ha.
+  const rose = async () => {
+    const { count, error } = await supabase.from('player_sectors')
+      .select('player_id', { count: 'exact', head: true }).eq('season_id', id);
+    if (error) throw error;
+    return count || 0;
+  };
+
+  const [atleti, partite, allenamenti, calendario, classifica] = await Promise.all([
+    rose(), conta('games'), conta('trainings'), conta('calendar'), conta('standings')
+  ]);
+  return {
+    atleti, partite, allenamenti, calendario, classifica,
+    totale: atleti + partite + allenamenti + calendario + classifica
+  };
+}
+
+/* Eliminare una stagione e' per le stagioni sbagliate: quella creata con la
+ * data storta, quella doppia. Una stagione VISSUTA non si elimina, si chiude —
+ * ed e' il motivo per cui qui si guarda prima cosa c'e' dentro invece di
+ * fidarsi di chi preme.
+ *
+ * Il controllo sta nell'API e non nella finestra di conferma apposta: cosi'
+ * vale anche per la vecchia interfaccia, e per qualunque schermata venga dopo.
+ */
 export async function removeSeason(id) {
+  const dentro = await contaDatiStagione(id);
+  if (dentro.totale > 0) {
+    throw new Error(descriviStagionePiena(dentro));
+  }
   const { error } = await supabase.from('seasons').delete().eq('id', id);
   if (error) throw error;
+}
+
+export function descriviStagionePiena(d) {
+  const pezzi = [];
+  if (d.atleti) pezzi.push(d.atleti + (d.atleti === 1 ? ' atleta in rosa' : ' atleti in rosa'));
+  if (d.partite) pezzi.push(d.partite + (d.partite === 1 ? ' partita' : ' partite'));
+  if (d.allenamenti) pezzi.push(d.allenamenti + (d.allenamenti === 1 ? ' allenamento' : ' allenamenti'));
+  if (d.calendario) pezzi.push(d.calendario + (d.calendario === 1 ? ' riga di calendario' : ' righe di calendario'));
+  if (d.classifica) pezzi.push(d.classifica + (d.classifica === 1 ? ' riga di classifica' : ' righe di classifica'));
+  const elenco = pezzi.length > 1
+    ? pezzi.slice(0, -1).join(', ') + ' e ' + pezzi[pezzi.length - 1]
+    : pezzi[0];
+  return 'Questa stagione contiene ' + elenco + ': non si elimina. '
+    + 'Eliminarla cancellerebbe le rose e renderebbe invisibile tutto il resto. '
+    + 'Per passare all’anno nuovo si usa «Chiudi la stagione», che archivia e porta avanti chi decidi tu.';
 }
 
 // Chiusura: archivia la stagione, ne apre una nuova e ci porta dentro le

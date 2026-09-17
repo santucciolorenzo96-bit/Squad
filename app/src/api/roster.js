@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient.js';
 import { stagioneAttiva } from './stagione.js';
+import { giornoISO } from '../utils/format.js';
 
 // La rosa è di una stagione: la stessa persona può essere nell'Under 15
 // quest'anno e nell'Under 17 il prossimo, e le due rose restano distinte.
@@ -160,7 +161,7 @@ export async function fetchExpiringDocuments(teamId, days = 30) {
   limit.setDate(limit.getDate() + days);
   const { data, error } = await supabase.from('player_documents')
     .select('*, players(name, number)').eq('team_id', teamId)
-    .not('expires_at', 'is', null).lte('expires_at', limit.toISOString().slice(0, 10))
+    .not('expires_at', 'is', null).lte('expires_at', giornoISO(limit))
     .order('expires_at');
   if (error) throw error;
   return data;

@@ -6,6 +6,7 @@
 
 import { findAllConflicts } from './conflicts.js';
 import { siglaFederazione } from './sports/index.js';
+import { oggiISO } from './format.js';
 
 // La gravita' resta, ma non come etichetta: "da risolvere", "da seguire" e
 // "da sistemare" sono la stessa cosa detta in tre modi, e nominarle non
@@ -22,10 +23,10 @@ function primarySector(p) {
 
 const DAY = 86400000;
 
-export function todayISO() {
-  const d = new Date();
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-}
+// Era l'unica scritta giusta in tutta l'app, e nessuna schermata la usava:
+// ne avevano undici copie sbagliate. Adesso vive in format.js, e questa resta
+// solo come nome con cui il resto di questo modulo la conosce.
+export const todayISO = oggiISO;
 
 function daysBetween(fromISO, toISO) {
   const a = new Date(fromISO + 'T00:00:00');
@@ -66,7 +67,8 @@ function effectiveDocument(docs) {
 export function detectIssues(ctx) {
   const {
     today, players = [], documents = [], deadlines = [], communications = [],
-    trainings = [], attendance = [], sponsors = [], sectors = [], hasFinance = false
+    trainings = [], attendance = [], sponsors = [], sectors = [], hasFinance = false,
+    seasons = []
   } = ctx;
 
   const issues = [];
@@ -88,6 +90,48 @@ export function detectIssues(ctx) {
   // Il numero di chi va sentito, dove esiste: il telefono del genitore prima
   // dell'email, perche' per un certificato scaduto si telefona.
   const playerContact = (p) => (p && (p.guardian_phone || p.email)) || null;
+
+  /* --- La stagione su cui si sta scrivendo e' gia' finita ------------------
+   *
+   * Una stagione non si chiude da sola quando arriva la sua data di fine, e
+   * deve restare cosi': chi decide chi passa all'anno dopo e' una persona,
+   * non un calendario.
+   *
+   * Ma finche' nessuno la chiude — e finche' non ne esiste una piu' recente —
+   * e' lei che riceve tutto: gli allenamenti di settembre, il calendario
+   * nuovo, la rosa rifatta. E non lo dice. A dicembre uno guarda le
+   * statistiche e trova due stagioni sommate sotto un'etichetta sola, che e'
+   * esattamente la cosa che le stagioni esistono per impedire.
+   *
+   * La regola per capire QUALE stagione riceve i dati e' la stessa di
+   * `pickActiveSeason` in api/seasons.js: la piu' recente fra quelle aperte,
+   * altrimenti la piu' recente in assoluto. Qui e' ricopiata invece di
+   * importata perche' questo modulo non tocca il database, ed e' cosi' che si
+   * riesce a provarlo. Se di la' cambia, deve cambiare anche qui.
+   *
+   * Nessun avviso quando la stagione nuova esiste gia': in quel caso e' lei a
+   * ricevere i dati, e la vecchia rimasta aperta e' disordine, non un guasto.
+   */
+  const perData = [...seasons].sort((a, b) =>
+    String(b.start_date || '').localeCompare(String(a.start_date || ''))
+  );
+  const inUso = perData.find(x => !x.closed) || perData[0];
+  if (inUso && inUso.end_date && inUso.end_date < today) {
+    const giorni = daysBetween(inUso.end_date, today);
+    issues.push({
+      id: 'stagione_da_chiudere',
+      // Piu' tempo passa, piu' dati finiscono nell'anno sbagliato e piu'
+      // diventa lungo rimetterli a posto.
+      severity: giorni > 60 ? 'critical' : 'warning',
+      title: 'La stagione ' + (inUso.name || '') + ' e’ finita e non e’ stata chiusa',
+      summary: 'E’ terminata il ' + inUso.end_date.split('-').reverse().join('/')
+        + ', ' + giorni + ' giorni fa, ed e’ ancora lei a ricevere tutto quello che inserisci '
+        + '— allenamenti, calendario, rose, partite. Chiudendola si apre la stagione nuova '
+        + 'e si decide chi ci passa dentro.',
+      items: [],
+      action: { label: 'Apri Società', tab: 'squadra' }
+    });
+  }
 
   // --- Certificati medici -------------------------------------------------
   const missing = [], expired = [], expiring = [];

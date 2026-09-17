@@ -5,6 +5,7 @@ import { updateCalendarMatch, removeCalendarMatch } from '../api/calendar.js';
 import { canEditHome, managesSector } from '../utils/permissions.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Stato, Amichevole, cx, AzioneRiga } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Data, Scelta, Spunta, Interruttore, useAvviso } from './moduli.jsx';
+import { oggiISO } from '../utils/format.js';
 
 /* Il calendario.
  *
@@ -18,7 +19,6 @@ import { Modulo, Conferma, Campo, Testo, Data, Scelta, Spunta, Interruttore, use
  * serve — e porta scritto che il risultato manca.
  */
 
-const oggiISO = () => new Date().toISOString().slice(0, 10);
 
 function fmtData(iso) {
   if (!iso) return 'Data da definire';

@@ -9,6 +9,7 @@ import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, Avatar, Amichevole, cx } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Data, Scelta, Spunta, ErroreCaricamento, useAvviso } from './moduli.jsx';
 import { IconaSezione } from './icone.jsx';
+import { oggiISO } from '../utils/format.js';
 
 /* Comunicazioni.
  *
@@ -25,7 +26,6 @@ const RISPOSTE = {
   pending: { label: 'In attesa', tono: 'attesa' }
 };
 
-const oggiISO = () => new Date().toISOString().slice(0, 10);
 
 function fmtGiorno(iso) {
   if (!iso) return '';

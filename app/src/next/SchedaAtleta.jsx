@@ -17,6 +17,7 @@ import { Pannello, Etichetta, Pulsante, Vuoto, Scheletro, Stato, Avatar, cx } fr
 import { Finestra, Modulo, Conferma, Campo, Testo, Data, Scelta, useAvviso } from './moduli.jsx';
 import { ScegliCentro } from './ritaglio.jsx';
 import { Chevron } from './icone.jsx';
+import { oggiISO } from '../utils/format.js';
 
 /* La scheda di un atleta.
  *
@@ -37,7 +38,6 @@ const TONO = {
   scaduto: 'fermo', respinto: 'fermo', mancante: 'fermo'
 };
 
-const oggiISO = () => new Date().toISOString().slice(0, 10);
 
 function fmtData(iso) {
   if (!iso) return '—';

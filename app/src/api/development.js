@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { oggiISO } from '../utils/format.js';
 
 // La parte scritta della scheda evolutiva. Il resto (presenze, valutazione,
 // medie) si calcola dai dati già in memoria: non va salvato, invecchierebbe.
@@ -20,7 +21,7 @@ export async function saveDevelopment(teamId, playerId, fields) {
   // La data dell'obiettivo si aggiorna solo quando l'obiettivo cambia davvero,
   // così "fissato il ..." resta una data vera e non l'ultimo salvataggio.
   if (fields.objective_changed) {
-    patch.objective_set_at = fields.objective ? new Date().toISOString().slice(0, 10) : null;
+    patch.objective_set_at = fields.objective ? oggiISO() : null;
   }
   if (fields.updated_by) patch.updated_by = fields.updated_by;
 

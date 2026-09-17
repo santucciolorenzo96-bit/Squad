@@ -5,6 +5,7 @@ import { canEditHome, managesSector } from '../utils/permissions.js';
 import { teamInitials } from '../utils/theme.js';
 import { Pannello, Etichetta, Stato, Vuoto, Titolo, Pulsante, Amichevole, cx } from './ui.jsx';
 import { IconaSezione, Chevron } from './icone.jsx';
+import { oggiISO } from '../utils/format.js';
 
 /* La Home.
  *
@@ -16,7 +17,6 @@ import { IconaSezione, Chevron } from './icone.jsx';
 
 const GIORNI = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
 
-const oggiISO = () => new Date().toISOString().slice(0, 10);
 
 function giorniA(iso) {
   if (!iso) return null;

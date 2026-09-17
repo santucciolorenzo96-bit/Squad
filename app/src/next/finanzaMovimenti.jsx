@@ -8,6 +8,7 @@ import { Pannello, Etichetta, Pulsante, Vuoto, Stato, cx, AzioneRiga } from './u
 import { Modulo, Conferma, Campo, Testo, Data, Scelta, Interruttore, useAvviso } from './moduli.jsx';
 import { euro, euroPreciso, Avanzamento } from './grafici.jsx';
 import { Chevron, Croce } from './icone.jsx';
+import { oggiISO } from '../utils/format.js';
 
 /* Movimenti.
  *
@@ -23,7 +24,6 @@ import { Chevron, Croce } from './icone.jsx';
  * costringe a fare il conto a mente ogni volta.
  */
 
-const oggiISO = () => new Date().toISOString().slice(0, 10);
 
 const STATI = {
   previsto: { label: 'Previsto', tono: 'neutro' },

@@ -138,6 +138,10 @@ export function Tracker({ onFinita, onEsci }) {
   const [chiudiPeriodo, setChiudiPeriodo] = useState(false);
   const [finePartita, setFinePartita] = useState(false);
   const salvataggioRotto = useRef(false);
+  // La copia sul dispositivo e' la rete di sicurezza per la palestra senza
+  // segnale. Se non si riesce a scriverla, va detto UNA volta: non a ogni
+  // tocco, che durante una partita sarebbe un avviso ogni due secondi.
+  const copiaRotta = useRef(false);
   const riprova = useRef(null);
 
   // Chiudere la scheda con del lavoro non ancora spedito e' l'unico momento in
@@ -193,6 +197,31 @@ export function Tracker({ onFinita, onEsci }) {
   // azione a fare da innesco.
   function salva() {
     const timbro = scriviCopia(g);
+
+    /* LA RETE DI SICUREZZA CHE POTEVA NON ESSERCI.
+     *
+     * `scriviCopia` restituisce null quando il dispositivo rifiuta di
+     * scrivere: succede in navigazione privata su Safari, dove localStorage
+     * solleva un'eccezione a ogni scrittura, e quando lo spazio e' finito.
+     *
+     * Prima quel null non lo guardava nessuno. L'app si comportava
+     * esattamente come se la copia ci fosse: stessa schermata, stessi
+     * messaggi. Chi segnava in palestra credeva di avere la partita al
+     * sicuro sul telefono, e non ce l'aveva — e lo avrebbe scoperto solo
+     * chiudendo l'app senza rete, cioe' quando non c'era piu' niente da fare.
+     *
+     * Una promessa che non si puo' mantenere va ritirata mentre c'e' ancora
+     * tempo per comportarsi di conseguenza: tenere la scheda aperta, o
+     * segnare anche su un foglio. */
+    if (!timbro && !copiaRotta.current) {
+      copiaRotta.current = true;
+      avvisa(
+        'Questo dispositivo non salva la copia di scorta: tieni la scheda aperta '
+        + 'finché non torna la rete.',
+        'errore'
+      );
+    }
+
     if (inCampione()) return;   // niente database dietro: non c'e' dove salvare
     clearTimeout(riprova.current);
     saveLiveGame(g.id, g).then(() => {

@@ -8,6 +8,7 @@ import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, cx, AzioneRiga } from './
 import { Modulo, Conferma, Campo, Testo, Data, Interruttore, useAvviso } from './moduli.jsx';
 import { IconaSezione, Chevron, Matita, Croce } from './icone.jsx';
 import { FoglioPresenze } from './FoglioPresenze.jsx';
+import { oggiISO } from '../utils/format.js';
 
 /* Gli allenamenti.
  *
@@ -23,7 +24,6 @@ const GIORNI = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 've
 // La settimana comincia di lunedì: è come si guarda un calendario in Italia, e
 // il fine settimana finisce in fondo invece che spezzato fra le due estremità.
 const INIZIALI = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
-const oggiISO = () => new Date().toISOString().slice(0, 10);
 
 function meseDi(iso) { return (iso || '').slice(0, 7); }
 

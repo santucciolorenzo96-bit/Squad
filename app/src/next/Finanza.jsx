@@ -11,6 +11,7 @@ import { IconaSezione, Chevron } from './icone.jsx';
 import { euro, euroPreciso, Avanzamento, Impilata, ColonneAffrontate, Anello, COLORI_FETTA, raggruppa } from './grafici.jsx';
 import { Movimenti } from './finanzaMovimenti.jsx';
 import { Configurazione } from './finanzaConfig.jsx';
+import { oggiISO } from '../utils/format.js';
 
 /* La finanza.
  *
@@ -30,7 +31,6 @@ import { Configurazione } from './finanzaConfig.jsx';
  */
 
 const MESI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
-const oggiISO = () => new Date().toISOString().slice(0, 10);
 
 export function Finanza() {
   const [vista, setVista] = useState(state.financeSubTab === 'config' ? 'config' : (state.financeSubTab === 'movimenti' ? 'movimenti' : 'quadro'));

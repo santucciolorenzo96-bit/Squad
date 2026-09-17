@@ -5,6 +5,7 @@ import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Dato, Vuoto, Scheletro, Avatar, cx } from './ui.jsx';
 import { Interruttore, ErroreCaricamento } from './moduli.jsx';
 import { IconaSezione } from './icone.jsx';
+import { oggiISO, fraGiorniISO } from '../utils/format.js';
 
 /* Le presenze.
  *
@@ -23,13 +24,10 @@ const PERIODI = [
   { id: 'season', testo: 'Stagione', giorni: null }
 ];
 
-const oggiISO = () => new Date().toISOString().slice(0, 10);
 
 function inizioPeriodo(giorni) {
   if (giorni == null) return '0000-01-01';
-  const d = new Date();
-  d.setDate(d.getDate() - giorni);
-  return d.toISOString().slice(0, 10);
+  return fraGiorniISO(-giorni);
 }
 
 function colorePct(pct) {

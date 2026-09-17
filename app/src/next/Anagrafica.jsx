@@ -10,6 +10,7 @@ import { Pannello, Etichetta, Stato, Dato, Vuoto, Scheletro, Avatar, Pulsante, T
 import { Modulo, Campo, Testo, useAvviso } from './moduli.jsx';
 import { IconaSezione, Chevron } from './icone.jsx';
 import { SchedaAtleta } from './SchedaAtleta.jsx';
+import { oggiISO } from '../utils/format.js';
 
 /* L'anagrafica.
  *
@@ -30,7 +31,6 @@ import { SchedaAtleta } from './SchedaAtleta.jsx';
 const TONO = { ok: 'buono', scadenza: 'attesa', verifica: 'attesa', scaduto: 'fermo', respinto: 'fermo', mancante: 'fermo' };
 const BREVE = { certificato_medico: 'Certificato', tesseramento_fip: 'Tesseramento' };
 
-const oggiISO = () => new Date().toISOString().slice(0, 10);
 
 export function Anagrafica() {
   const [caricato, setCaricato] = useState(false);

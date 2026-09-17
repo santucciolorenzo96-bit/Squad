@@ -5,6 +5,7 @@ import { currentSport } from '../utils/sports/index.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Avatar, Stato, cx } from './ui.jsx';
 import { Campo, Testo, Scelta, useAvviso } from './moduli.jsx';
+import { oggiISO, fraGiorniISO } from '../utils/format.js';
 
 /* L'avvio di una partita.
  *
@@ -17,7 +18,6 @@ import { Campo, Testo, Scelta, useAvviso } from './moduli.jsx';
  * caso normale, e digitare un nome mentre la squadra si riscalda no.
  */
 
-const oggiISO = () => new Date().toISOString().slice(0, 10);
 
 export function AvvioPartita({ onAvviata }) {
   const sport = currentSport();
@@ -27,7 +27,7 @@ export function AvvioPartita({ onAvviata }) {
 
   // Le partite di oggi e domani della categoria: quasi sempre è una di queste.
   const oggi = oggiISO();
-  const domani = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const domani = fraGiorniISO(1);
   const candidate = state.calendar
     .filter(m => !m.played && (m.date === oggi || m.date === domani))
     .sort((a, b) => (a.time || '').localeCompare(b.time || ''));

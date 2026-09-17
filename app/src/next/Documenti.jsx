@@ -12,6 +12,7 @@ import { useAvviso } from './moduli.jsx';
 import { Cancellazione } from './Cancellazione.jsx';
 import { SchedaAtleta } from './SchedaAtleta.jsx';
 import { IconaSezione, Chevron } from './icone.jsx';
+import { oggiISO } from '../utils/format.js';
 
 /* Documenti.
  *
@@ -28,7 +29,6 @@ const TONO = {
   scaduto: 'fermo', respinto: 'fermo', mancante: 'fermo'
 };
 
-const oggiISO = () => new Date().toISOString().slice(0, 10);
 
 export function Documenti() {
   const [cancella, setCancella] = useState(false);

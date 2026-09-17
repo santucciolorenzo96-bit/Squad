@@ -83,3 +83,42 @@ export function contiene(testo, ago) {
   if (!a) return true;
   return senzaAccenti(testo).indexOf(a) >= 0;
 }
+
+/* LE DATE SENZA ORA.
+ *
+ * In quest'app una data è una stringa «2026-09-22»: un giorno del calendario,
+ * non un istante. Allenamenti, partite, scadenze — nessuna di queste cose ha
+ * un fuso orario, hanno un giorno.
+ *
+ * `toISOString()` invece converte in UTC, e per farlo deve scegliere un
+ * istante. Da mezzanotte locale in Italia sono le 22:00 del giorno prima, e
+ * la stringa che ne esce è il giorno sbagliato. Al contrario, `new Date()`
+ * dopo le 22:00 diventa già domani.
+ *
+ * Due difetti veri, che nessuno dei due si annuncia:
+ *
+ *  - l'allenatore che dopo cena aggiunge l'allenamento di stasera trova la
+ *    data di domani già scritta nel modulo;
+ *  - un programma fisso «ogni martedì» generava tutti lunedì, sempre, perché
+ *    partiva dalla mezzanotte locale del martedì e la scriveva in UTC.
+ *
+ * Qui il fuso si toglie prima di convertire: il giorno resta quello che è
+ * sull'orologio di chi guarda, che è l'unico che conta per un allenamento.
+ */
+export function giornoISO(data) {
+  const d = data instanceof Date ? data : new Date(data);
+  if (isNaN(d.getTime())) return '';
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+export function oggiISO() {
+  return giornoISO(new Date());
+}
+
+// Fra N giorni, sempre in giorni di calendario: `setDate` attraversa i cambi
+// di ora legale senza sbagliare, una somma di millisecondi no.
+export function fraGiorniISO(n, da) {
+  const d = da instanceof Date ? new Date(da) : new Date();
+  d.setDate(d.getDate() + n);
+  return giornoISO(d);
+}

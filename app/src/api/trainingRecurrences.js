@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient.js';
 import { stagioneAttiva } from './stagione.js';
+import { giornoISO } from '../utils/format.js';
 
 export const WEEKDAY_LABELS = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
 const WEEKS_AHEAD = 8;
@@ -40,7 +41,10 @@ function occurrenceDates(weekday, weeksAhead = WEEKS_AHEAD) {
   const dates = [];
   let d = nextDateForWeekday(new Date(), weekday);
   for (let i = 0; i < weeksAhead; i++) {
-    dates.push(d.toISOString().slice(0, 10));
+    // `giornoISO` e non `toISOString`: qui si parte dalla mezzanotte LOCALE
+    // del giorno giusto, e convertirla in UTC la riporta indietro di due ore,
+    // cioe' al giorno prima. Un programma «ogni martedi» generava lunedi.
+    dates.push(giornoISO(d));
     d = new Date(d);
     d.setDate(d.getDate() + 7);
   }

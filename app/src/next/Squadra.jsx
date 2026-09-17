@@ -446,7 +446,17 @@ function Stagioni({ avvisa }) {
       {daRimuovere && (
         <Conferma
           titolo="Eliminare la stagione?"
-          testo={`«${daRimuovere.name}» viene eliminata. I dati che vi erano legati restano, ma senza stagione di appartenenza.`}
+          /* La frase di prima diceva: «i dati che vi erano legati restano, ma
+             senza stagione di appartenenza». Era vera alla lettera e falsa
+             nella sostanza — restano, e non li vede piu' nessuno, perche' in
+             quest'app ogni lettura filtra per stagione. E per le rose non era
+             vera nemmeno alla lettera: player_sectors ha `on delete cascade`,
+             quindi si cancellano davvero.
+             Adesso l'API si rifiuta se dentro c'e' qualcosa, e qui si dice a
+             cosa serve davvero questo comando. */
+          testo={`«${daRimuovere.name}» viene eliminata. Serve per una stagione creata per sbaglio: `
+            + 'se dentro c’è anche un solo dato l’app si rifiuta, e ti dice cosa contiene. '
+            + 'Per passare all’anno nuovo si usa «Chiudi la stagione».'}
           etichetta="Elimina"
           onChiudi={() => setDaRimuovere(null)}
           onConferma={async () => { await removeSeason(daRimuovere.id); carica(); avvisa('Stagione eliminata'); }}
