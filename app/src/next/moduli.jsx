@@ -53,10 +53,95 @@ export function ProvvederAvvisi({ children }) {
   );
 }
 
+/* ------------------------------------------------------------- la tendina */
+/* SI CHIUDE TRASCINANDOLA IN GIU'.
+ *
+ * La maniglia sopra al titolo c'e' da sempre, e non faceva niente. Una
+ * maniglia e' una promessa: chi la vede prova a tirarla, non succede niente,
+ * e da quel momento non sa piu' quali gesti l'app conosce e quali no. Un
+ * comando che non c'e' confonde meno di uno che sembra esserci.
+ *
+ * Si tira dall'INTESTAZIONE — maniglia e titolo — e non da tutto il foglio.
+ * Dentro c'e' quasi sempre qualcosa che scorre, e un gesto che vale per due
+ * cose diverse finisce per farne una a caso: si prova a scorrere l'elenco dei
+ * destinatari e si chiude il modulo con dentro mezza comunicazione scritta.
+ * L'intestazione non scorre mai, quindi li' il gesto e' senza equivoci.
+ *
+ * `touch-action: none` sull'intestazione dice al browser di non tentare lui
+ * lo scorrimento: senza, il gesto parte e viene interrotto a meta'.
+ */
+export function useTendina(onChiudi) {
+  const [tiro, setTiro] = useState(0);
+  const [trascina, setTrascina] = useState(false);
+  // L'animazione d'entrata usa la stessa proprieta' del trascinamento, e
+  // un'animazione in corso vince su uno stile scritto a mano: finche' non e'
+  // finita, il foglio non si lascerebbe muovere. Dura meno di mezzo secondo,
+  // e nessuno trascina prima di aver visto arrivare quello che ha aperto.
+  const [entrata, setEntrata] = useState(true);
+  const inizio = useRef(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setEntrata(false), 420);
+    return () => clearTimeout(t);
+  }, []);
+
+  function giu(e) {
+    if (e.button != null && e.button !== 0) return;
+    inizio.current = { y: e.clientY, t: Date.now() };
+    setTrascina(true);
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* niente */ }
+  }
+
+  function muovi(e) {
+    if (!inizio.current) return;
+    const dy = e.clientY - inizio.current.y;
+    // In su non si va: la tendina e' gia' in cima. Si concede un sesto del
+    // movimento, quel tanto che dice «ti sto seguendo, ma di qua non si passa».
+    setTiro(dy > 0 ? dy : dy / 6);
+  }
+
+  function su(e) {
+    if (!inizio.current) return;
+    const dy = e.clientY - inizio.current.y;
+    const dt = Math.max(1, Date.now() - inizio.current.t);
+    inizio.current = null;
+    setTrascina(false);
+
+    // Due modi di chiudere, perche' due modi di fare il gesto: chi la
+    // accompagna in giu' per un pezzo, e chi la butta via con un colpo secco
+    // senza percorrere nemmeno un terzo dello schermo.
+    if (dy > 110 || (dy > 24 && dy / dt > 0.55)) {
+      setTiro(typeof window !== 'undefined' ? window.innerHeight : 900);
+      setTimeout(onChiudi, 160);
+      return;
+    }
+    // Non abbastanza: torna su, e il ritorno si vede. Un foglio che scatta al
+    // suo posto senza transizione sembra essersi rotto.
+    setTiro(0);
+  }
+
+  return {
+    entrata,
+    stile: {
+      transform: tiro ? 'translateY(' + Math.round(tiro) + 'px)' : undefined,
+      transition: trascina ? 'none' : 'transform 220ms cubic-bezier(.22,1,.36,1)'
+    },
+    maniglia: {
+      onPointerDown: giu,
+      onPointerMove: muovi,
+      onPointerUp: su,
+      onPointerCancel: su,
+      style: { touchAction: 'none' }
+    }
+  };
+}
+
 /* ----------------------------------------------------------------- finestra */
 // Esc chiude, il clic fuori chiude, e la pagina sotto non scorre. Sono tre
 // cose che si notano solo quando mancano.
 export function Finestra({ titolo, sotto, onChiudi, larga = false, azioni, children }) {
+  const tendina = useTendina(onChiudi);
+
   useEffect(() => {
     const tasto = (e) => { if (e.key === 'Escape') onChiudi(); };
     document.addEventListener('keydown', tasto);
@@ -79,15 +164,21 @@ export function Finestra({ titolo, sotto, onChiudi, larga = false, azioni, child
         role="dialog"
         aria-modal="true"
         onMouseDown={e => e.stopPropagation()}
+        style={tendina.stile}
         className={cx(
-          'relative flex max-h-[92dvh] w-full flex-col rounded-t-2xl vetro-alto orlo shadow-lg animate-salita',
+          'relative flex max-h-[92dvh] w-full flex-col rounded-t-2xl vetro-alto orlo shadow-lg',
+          tendina.entrata && 'animate-salita',
           'sm:rounded-2xl',
           larga ? 'sm:max-w-[46rem]' : 'sm:max-w-[30rem]'
         )}
       >
-        <div className="shrink-0 border-b border-bordo/10 px-5 pb-4 pt-5 sm:px-6">
-          {/* La maniglia: su telefono dice che il foglio si trascina via, ed è
-              il primo gesto che chiunque prova. */}
+        {/* L'intestazione E' la maniglia: si prende da qui, titolo compreso.
+            Piu' larga del trattino, perche' un bersaglio di un pixel di altezza
+            non lo prende nessuno al primo colpo. */}
+        <div
+          {...tendina.maniglia}
+          className="shrink-0 cursor-grab border-b border-bordo/10 px-5 pb-4 pt-5 active:cursor-grabbing sm:cursor-auto sm:px-6"
+        >
           <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-pannello/25 sm:hidden" />
           <h2 className="text-[19px] font-bold leading-tight tracking-tight">{titolo}</h2>
           {sotto && <p className="mt-1.5 text-[12.5px] leading-snug text-tenue">{sotto}</p>}

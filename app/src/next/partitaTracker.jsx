@@ -10,7 +10,7 @@ import {
   saldoTurno, sommaQuintetto
 } from '../utils/regole.js';
 import { Pannello, Etichetta, Pulsante, Stato, cx } from './ui.jsx';
-import { Modulo, Conferma, Campo, Testo, useAvviso } from './moduli.jsx';
+import { Modulo, Conferma, Campo, Testo, useAvviso, useTendina } from './moduli.jsx';
 import { inCampione } from './campione.js';
 import { scriviCopia, segnaSincronizzata, cancellaCopia } from './partitaLocale.js';
 
@@ -1122,6 +1122,7 @@ const GettoneCampo = React.memo(function GettoneCampo({
  */
 function MappaTiro({ sport, tiro, onPunto, onChiudi }) {
   const campo = useRef(null);
+  const tendina = useTendina(onChiudi);
 
   useEffect(() => {
     const tasto = (e) => { if (e.key === 'Escape') onChiudi(); };
@@ -1148,11 +1149,16 @@ function MappaTiro({ sport, tiro, onPunto, onChiudi }) {
       <div className="absolute inset-0 bg-fondo/80 backdrop-blur-sm" />
       <div
         onMouseDown={e => e.stopPropagation()}
-        className="relative max-h-[92dvh] overflow-y-auto rounded-t-2xl vetro-alto border-t border-bordo/12 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-lg animate-salita sm:px-6"
+        style={tendina.stile}
+        className={cx(
+          'relative max-h-[92dvh] overflow-y-auto rounded-t-2xl vetro-alto border-t border-bordo/12',
+          'px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-lg sm:px-6',
+          tendina.entrata && 'animate-salita'
+        )}
       >
-        <div className="mx-auto mb-3.5 h-1 w-10 rounded-full bg-pannello/25" />
+        <div {...tendina.maniglia} className="mx-auto mb-3.5 h-1 w-10 cursor-grab rounded-full bg-pannello/25" />
 
-        <div className="mb-3 flex items-center gap-3">
+        <div {...tendina.maniglia} className="mb-3 flex items-center gap-3">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg vivo text-[14px] font-bold text-white">
             {sigla(tiro.giocatore)}
           </span>
@@ -1259,6 +1265,7 @@ function Catena({ conf, catena, giocatori, onScegli, onChiudi }) {
  */
 function PannelloAzioni({ p, conf, ancora, dettaglio, onDettaglio, mappa, onMappa, onAzione, onChiudi }) {
   const [posa, setPosa] = useState(null);   // { left, top, maxH, origine } oppure null = foglio
+  const tendina = useTendina(onChiudi);
   const largo = !!posa;
 
   useEffect(() => {
@@ -1297,9 +1304,14 @@ function PannelloAzioni({ p, conf, ancora, dettaglio, onDettaglio, mappa, onMapp
     });
   }, [ancora]);
 
+  // L'intestazione e' la maniglia quando il pannello e' un foglio; quando e'
+  // ancorato al gettone non c'e' nessuna tendina da tirare, e le due cose non
+  // si devono mischiare.
+  const presa = posa ? {} : tendina.maniglia;
+
   const corpo = (
     <>
-      <div className="mb-3.5 flex items-center gap-3">
+      <div {...presa} className="mb-3.5 flex items-center gap-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg vivo text-[16px] font-bold text-white">
           {sigla(p)}
         </span>
@@ -1392,9 +1404,14 @@ function PannelloAzioni({ p, conf, ancora, dettaglio, onDettaglio, mappa, onMapp
       <div className="absolute inset-0 bg-fondo/70 backdrop-blur-sm" />
       <div
         onMouseDown={e => e.stopPropagation()}
-        className="relative max-h-[82dvh] overflow-y-auto rounded-t-2xl vetro-alto border-t border-bordo/12 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-lg animate-salita sm:px-6"
+        style={tendina.stile}
+        className={cx(
+          'relative max-h-[82dvh] overflow-y-auto rounded-t-2xl vetro-alto border-t border-bordo/12',
+          'px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-lg sm:px-6',
+          tendina.entrata && 'animate-salita'
+        )}
       >
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-pannello/25" />
+        <div {...presa} className="mx-auto mb-4 h-1 w-10 cursor-grab rounded-full bg-pannello/25" />
         {corpo}
       </div>
     </div>,
