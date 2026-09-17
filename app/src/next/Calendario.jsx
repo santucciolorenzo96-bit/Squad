@@ -98,12 +98,19 @@ export function Calendario() {
                       {m.home === false ? 'fuori' : 'casa'}
                     </span>
                     <span className="truncate text-[14.5px] font-semibold leading-tight">{m.opponent}</span>
-                    {m.friendly && <Amichevole />}
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-2.5 text-[13px] text-tenue">
+                  {/* «amichevole» sta QUI e non accanto al nome.
+                      Sulla riga del titolo non ci sta: con il riquadro della
+                      giornata, la pastiglia casa/fuori e il pulsante Segna,
+                      su un telefono da 360 pixel mancano ventisei pixel — e
+                      mancano anche riducendo a zero il nome dell'avversario,
+                      perche' le pastiglie non si stringono. Qui invece la
+                      riga va gia' a capo da sola. */}
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-tenue">
                     <span>{fmtData(m.date)}</span>
                     {m.time && <span>{m.time}</span>}
                     {m.location && <span className="truncate">{m.location}</span>}
+                    {m.friendly && <Amichevole />}
                   </div>
                   {daSegnare && (
                     <div className="mt-1.5">

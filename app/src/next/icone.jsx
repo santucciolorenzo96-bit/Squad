@@ -377,23 +377,25 @@ export function Chevron({ dim = 16, className }) {
 
 /* La stretta di mano: l'amichevole.
  *
- * Della famiglia dell'interfaccia — tratto sottile, un colore solo, prende
- * quello del testo — e non di quella delle sezioni: sta dentro una pastiglia
- * alta dieci pixel accanto a una parola, e un'icona di vetro con l'alone li'
- * peserebbe piu' della parola che accompagna.
+ * PIENA, non a contorno. A dodici pixel un tratto sottile che gira su se
+ * stesso si chiude: le linee finiscono per toccarsi e quello che si vede e'
+ * un groviglio, non due mani. Una sagoma piena a quella misura resta una
+ * forma sola e riconoscibile — e' il motivo per cui le icone delle
+ * applicazioni sono piene e quelle dei menu no.
  *
- * Due bracci che si incontrano al centro: quello di sinistra sale e poi
- * scende, quello di destra scende e poi risale. E' il profilo che si vede
- * guardando due mani strette di lato, ed e' l'unica forma di stretta che
- * resta leggibile a questa misura — le dita, disegnate, a dodici pixel
- * diventano una macchia. */
+ * Resta della famiglia dell'interfaccia: un colore solo, quello del testo.
+ * Cambia il modo di disegnare, non a che famiglia appartiene.
+ *
+ * Tre masse che si sovrappongono in una: due bracci che scendono dall'alto,
+ * uno da sinistra e uno da destra, e il nodo delle mani dove si incontrano.
+ * I bracci hanno angoli opposti perche' siano due, e non un bastone solo.
+ */
 export function Stretta({ dim = 14, className }) {
   return (
-    <svg width={dim} height={dim} viewBox="0 0 20 20" fill="none" aria-hidden="true" className={className}
-         stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M1.9 11.6 5.3 8.2a1.7 1.7 0 0 1 2.4 0L10 10.5" />
-      <path d="M18.1 8.4 14.7 11.8a1.7 1.7 0 0 1-2.4 0L10 9.5" />
-      <path d="m8.1 12.4 1.6 1.6" />
+    <svg width={dim} height={dim} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className={className}>
+      <rect x="0.7" y="7.2" width="8.2" height="3.2" rx="1.6" transform="rotate(20 4.8 8.8)" />
+      <rect x="11.1" y="7.2" width="8.2" height="3.2" rx="1.6" transform="rotate(-20 15.2 8.8)" />
+      <rect x="6.4" y="9.3" width="7.2" height="5.8" rx="2.6" />
     </svg>
   );
 }

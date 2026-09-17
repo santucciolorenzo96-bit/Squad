@@ -423,12 +423,12 @@ function ModuloComunicazione({ onChiudi, onFatto }) {
                       scelta && 'text-blu')}>
                       {m.opponent}
                     </span>
-                    {m.friendly && <Amichevole />}
                   </div>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] text-tenue">
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-tenue">
                     <span>{m.date ? new Date(m.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }) : 'data da definire'}</span>
                     {m.time && <span>{m.time}</span>}
                     {m.location && <span className="truncate">{m.location}</span>}
+                    {m.friendly && <Amichevole />}
                   </div>
                 </button>
               );

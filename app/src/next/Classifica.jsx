@@ -284,9 +284,11 @@ function Storico({ onCambiato }) {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="truncate text-[13.5px] font-semibold">{g.oppName || 'Avversari'}</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12.5px] text-tenue">
+                {g.date && <span>{fmtData(g.date)}</span>}
                 {g.friendly && <Amichevole />}
               </div>
-              {g.date && <div className="text-[12.5px] text-tenue">{fmtData(g.date)}</div>}
             </div>
             <div className="shrink-0 text-[16px] font-bold">
               {g.teamScore}<span className="mx-1 text-tenue">–</span>{g.oppScore}
