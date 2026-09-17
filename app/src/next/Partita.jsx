@@ -3,6 +3,7 @@ import { state } from '../state.js';
 import { fetchLiveGame, fetchOpenGames, deleteGame } from '../api/games.js';
 import { currentSport } from '../utils/sports/index.js';
 import { managesSector, canDeleteGame } from '../utils/permissions.js';
+import { tabellinoInAltraMano } from '../utils/regole.js';
 import { inCampione } from './campione.js';
 import { leggiCopia, cancellaCopia, daQuanto } from './partitaLocale.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, cx } from './ui.jsx';
@@ -17,6 +18,56 @@ import { Tracker } from './partitaTracker.jsx';
  * un'altra categoria — e quello va detto, perché una partita dimenticata
  * blocca le altre pur restando invisibile da qui.
  */
+
+/* CHI STA TENENDO IL TABELLINO, E DA QUANTO.
+ *
+ * Il salvataggio ora non puo' piu' sovrascrivere nessuno — ci pensa la
+ * revisione — ma scoprirlo al primo tocco vuol dire scoprirlo dopo aver
+ * segnato qualcosa che andra' perso. Questo serve a saperlo PRIMA.
+ *
+ * Tre minuti e non di piu': un tabellino salvato l'ultima volta cinque minuti
+ * fa non e' in mano a nessuno, e' stato abbandonato — e' la palestra dove e'
+ * finito il primo tempo, o il telefono che si e' scaricato. Un blocco che non
+ * scade e' un tabellino che nessuno puo' piu' riprendere.
+ */
+// La regola sta in regole.js, dove si puo' provare. Qui si aggiunge solo il
+// nome: chi tiene il tabellino e' una persona, e dirlo per nome cambia cosa
+// si fa dopo — si va a cercarla, invece di chiedersi chi sia.
+function altraMano(g) {
+  if (!tabellinoInAltraMano(g, (state.currentUser || {}).id)) return null;
+  const chi = (state.staff || []).find(x => x.id === g.tenutoDa);
+  return { nome: (chi && chi.display_name) || 'un altro dispositivo' };
+}
+
+function ScoutOccupato({ mano, partita, onPrendo, onIndietro }) {
+  return (
+    <>
+      <Titolo sopra="Categoria">Scout</Titolo>
+      <div className="mt-5">
+        <Pannello alto className="pad-pannello-stretto">
+          <Etichetta className="!text-ambra">Tabellino gia’ in mano</Etichetta>
+          <p className="mt-3 text-[13.5px] leading-relaxed">
+            <b>{mano.nome}</b> sta segnando {partita.oppName ? '«' + partita.oppName + '»' : 'questa partita'} in
+            questo momento, da un altro dispositivo.
+          </p>
+          <p className="mt-2 text-[12.5px] leading-relaxed text-tenue">
+            Un tabellino si tiene in uno alla volta. Se entri anche tu, le azioni segnate da
+            uno dei due non arriveranno mai — e ve ne accorgereste contando i punti a fine
+            partita.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Pulsante variante="primario" onClick={onIndietro}>Va bene, guardo altrove</Pulsante>
+            <Pulsante onClick={onPrendo}>Prendo io il tabellino</Pulsante>
+          </div>
+          <p className="mt-3 text-[12px] leading-relaxed text-tenue">
+            Prendilo solo se sai che l’altro ha smesso: da quel momento il suo scout non
+            salva piu’ e glielo dice.
+          </p>
+        </Pannello>
+      </div>
+    </>
+  );
+}
 
 /* Si e' usciti dallo scout, ma la partita e' ancora aperta.
  *
@@ -93,6 +144,7 @@ export function Partita() {
   const [scout, setScout] = useState(true);    // lo scout occupa tutta la finestra
   const [errore, setErrore] = useState(null);
   const [aperte, setAperte] = useState([]);
+  const [prendoIo, setPrendoIo] = useState(false);
   const [daScartare, setDaScartare] = useState(null);
   const avvisa = useAvviso();
 
@@ -216,6 +268,20 @@ export function Partita() {
 
   if (fase === 'live') {
     const finita = () => { avvisa('Partita archiviata'); carica(); };
+
+    // Prima di tutto: il tabellino e' in mano a qualcun altro?
+    const mano = prendoIo ? null : altraMano(state.liveGame);
+    if (mano) {
+      return (
+        <ScoutOccupato
+          mano={mano}
+          partita={state.liveGame}
+          onPrendo={() => { setPrendoIo(true); setScout(true); }}
+          onIndietro={() => setScout(false)}
+        />
+      );
+    }
+
     if (scout) {
       return (
         <>

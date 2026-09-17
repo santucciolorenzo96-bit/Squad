@@ -142,6 +142,10 @@ export function Tracker({ onFinita, onEsci }) {
   // segnale. Se non si riesce a scriverla, va detto UNA volta: non a ogni
   // tocco, che durante una partita sarebbe un avviso ogni due secondi.
   const copiaRotta = useRef(false);
+  // Un altro dispositivo ha scritto: da qui in poi non si salva piu' niente
+  // finche' non si decide cosa fare. Continuare vorrebbe dire insistere a
+  // sovrascrivere il lavoro di qualcun altro.
+  const [conflitto, setConflitto] = useState(false);
   const riprova = useRef(null);
 
   // Chiudere la scheda con del lavoro non ancora spedito e' l'unico momento in
@@ -223,6 +227,10 @@ export function Tracker({ onFinita, onEsci }) {
     }
 
     if (inCampione()) return;   // niente database dietro: non c'e' dove salvare
+    // Con un conflitto aperto ogni salvataggio sarebbe un tentativo di
+    // scavalcare chi sta segnando davvero.
+    if (conflitto) return;
+
     clearTimeout(riprova.current);
     saveLiveGame(g.id, g).then(() => {
       segnaSincronizzata(g.sectorId, timbro);
@@ -232,6 +240,19 @@ export function Tracker({ onFinita, onEsci }) {
       }
     }).catch(e => {
       console.error(e);
+
+      /* IL CONFLITTO NON E' UN GUASTO DI RETE, E NON SI RIPROVA.
+       *
+       * Senza questa distinzione il rimedio sarebbe peggio del male: il
+       * meccanismo di riprova, pensato per la palestra senza segnale,
+       * ritenterebbe ogni dieci secondi di scrivere sopra a quello che l'altro
+       * dispositivo sta segnando — e prima o poi ci riuscirebbe. */
+      if (e && e.conflitto) {
+        clearTimeout(riprova.current);
+        setConflitto(true);
+        return;
+      }
+
       if (!salvataggioRotto.current) {
         salvataggioRotto.current = true;
         avvisa('Rete assente: la partita e’ al sicuro su questo dispositivo e riparte da sola.', 'errore');
@@ -931,6 +952,31 @@ export function Tracker({ onFinita, onEsci }) {
             chiudiTurno();
             apriTurno();
             aggiorna(); salva(); avvisa(msg);
+          }}
+        />
+      )}
+
+      {/* IL CONFLITTO.
+          Non e' un avviso che passa: e' una finestra che non si chiude da
+          sola, perche' da questo momento quello che c'e' sullo schermo e
+          quello che c'e' sul server sono due partite diverse, e continuare a
+          segnare qui vorrebbe dire accumulare azioni che non arriveranno mai.
+          Si dice cosa e' successo, e si offre l'unica uscita onesta. */}
+      {conflitto && (
+        <Conferma
+          titolo="Questa partita la sta segnando qualcun altro"
+          testo={'Un altro dispositivo ha salvato il tabellino dopo di te, e le ultime azioni '
+            + 'segnate qui non sono state salvate. Ricaricando riprendi dalla versione vera; '
+            + 'se invece il tabellino buono è questo, chiedi all’altro di uscire dallo scout '
+            + 'e poi ricarica.'}
+          etichetta="Ricarica la partita"
+          pericolo={false}
+          onChiudi={() => { /* non si chiude: non c'e' una via che non sia decidere */ }}
+          onConferma={async () => {
+            state.undoStack = [];
+            state.undoTesti = [];
+            cancellaCopia(g.sectorId);
+            window.location.reload();
           }}
         />
       )}

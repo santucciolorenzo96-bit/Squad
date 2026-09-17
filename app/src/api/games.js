@@ -23,6 +23,10 @@ function fromDbGame(row) {
     // tornerebbe indietro senza dire niente.
     quintetti: row.quintetti || {},
     turno: row.turno || null,
+    // Da quale versione parte questo dispositivo, e chi ha scritto per ultimo.
+    revisione: row.revisione || 0,
+    tenutoDa: row.tenuto_da || null,
+    tenutoAlle: row.tenuto_alle || null,
     players: row.players || [],
     startedBy: row.started_by,
     startedAt: row.started_at,
@@ -61,6 +65,9 @@ function describeWriteError(error) {
   if (/quintetti|turno/.test(msg)) {
     return new Error('Mancano le colonne quintetti e turno sulla tabella games: esegui la migrazione 036 su Supabase, poi riprova.');
   }
+  if (/salva_tabellino|revisione|tenuto_/.test(msg)) {
+    return new Error('Manca la funzione salva_tabellino: esegui la migrazione 038 su Supabase, poi riprova.');
+  }
   return error;
 }
 
@@ -98,9 +105,44 @@ export async function startGame(teamId, sectorId, liveGame, startedByProfileId) 
   return fromDbGame(data);
 }
 
+/* IL SALVATAGGIO CHE NON PUO' SOVRASCRIVERE NESSUNO.
+ *
+ * Prima era un UPDATE cieco: prendeva tutto quello che aveva in mano il
+ * dispositivo e lo scriveva sopra a quello che c'era. Bastava la curiosita'
+ * per perdere una partita — il dirigente che apre Scout dal telefono per
+ * guardare il punteggio riscriveva l'intera riga con la sua copia, e tutto
+ * quello che il tablet aveva segnato nel frattempo spariva. Senza un errore.
+ *
+ * Adesso ogni salvataggio dichiara da quale revisione parte, e il database
+ * scrive solo se e' ancora quella. Se non lo e' non scrive niente e risponde
+ * null: non e' un guasto tecnico, e' «un altro e' arrivato prima», ed e' una
+ * cosa che va detta a chi sta segnando invece che riprovata di nascosto.
+ *
+ * Il confronto e la scrittura stanno nella stessa funzione del database
+ * perche' devono essere un gesto solo: leggere, confrontare e scrivere in tre
+ * richieste separate lascia in mezzo lo spazio perche' l'altro dispositivo
+ * scriva, che e' il difetto che stiamo chiudendo.
+ */
 export async function saveLiveGame(gameId, liveGame) {
-  const { error } = await supabase.from('games').update(toDbPatch(liveGame)).eq('id', gameId);
+  const { data, error } = await supabase.rpc('salva_tabellino', {
+    p_game: gameId,
+    p_revisione: liveGame.revisione || 0,
+    p_patch: toDbPatch(liveGame)
+  });
   if (error) throw describeWriteError(error);
+  if (data == null) {
+    const e = new Error(
+      'Questa partita e’ stata modificata da un altro dispositivo: le ultime azioni '
+      + 'segnate qui non sono state salvate.'
+    );
+    // Il richiamante deve poterlo distinguere da «non c'e' rete»: uno si
+    // riprova da solo, l'altro no — riprovare vorrebbe dire insistere a
+    // sovrascrivere il lavoro di qualcun altro.
+    e.conflitto = true;
+    throw e;
+  }
+  // La revisione nuova diventa quella da cui parte il prossimo salvataggio.
+  liveGame.revisione = data;
 }
 
 export async function endGame(gameId, liveGame) {

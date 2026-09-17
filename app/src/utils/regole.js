@@ -225,3 +225,36 @@ export function quintettiOrdinati(quintetti) {
     .map(([chiave, v]) => ({ chiave, ids: chiave.split('|'), ...v, saldo: v.f - v.s }))
     .sort((a, b) => (b.saldo - a.saldo) || (b.turni - a.turni));
 }
+
+/* ======================================================================== */
+/* CHI TIENE IL TABELLINO                                                   */
+/* ======================================================================== */
+/*
+ * Un tabellino si tiene in uno alla volta. Il database ora impedisce che due
+ * dispositivi si sovrascrivano — ogni salvataggio dichiara da quale revisione
+ * parte — ma scoprirlo al primo tocco vuol dire scoprirlo dopo aver segnato
+ * qualcosa che andra' perso. Questa regola serve a saperlo prima.
+ *
+ * TRE MINUTI, e non di piu'. Un tabellino salvato l'ultima volta cinque
+ * minuti fa non e' in mano a nessuno: e' stato abbandonato — e' l'intervallo,
+ * e' il telefono scaricato, e' chi e' uscito dallo scout senza chiudere la
+ * partita. Un blocco che non scade e' un tabellino che nessuno puo' piu'
+ * riprendere, e sarebbe un guaio peggiore di quello che risolve.
+ *
+ * `adesso` si passa da fuori perche' la regola si possa provare: una funzione
+ * che legge l'orologio da sola da' una risposta diversa a ogni esecuzione.
+ */
+export const RESPIRO_SCRIBA = 3 * 60 * 1000;
+
+export function tabellinoInAltraMano(partita, ioId, adesso = Date.now()) {
+  if (!partita || !partita.tenutoDa || !partita.tenutoAlle) return false;
+  // La propria mano non e' un'altra mano, nemmeno da un altro dispositivo:
+  // chi rientra dalla stessa persona sta riprendendo il suo.
+  if (ioId && partita.tenutoDa === ioId) return false;
+  const quando = new Date(partita.tenutoAlle).getTime();
+  if (isNaN(quando)) return false;
+  // Una data nel futuro vuol dire orologi che non vanno d'accordo, non una
+  // mano che sta scrivendo: non e' un motivo per bloccare nessuno.
+  if (quando > adesso) return false;
+  return adesso - quando <= RESPIRO_SCRIBA;
+}
