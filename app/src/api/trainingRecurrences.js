@@ -29,6 +29,32 @@ export async function removeRecurrence(id) {
   if (error) throw error;
 }
 
+/* Gli allenamenti futuri gia' creati da un programma che si sta togliendo.
+ *
+ * Togliere il martedi' e ritrovarsi i martedi' ancora in elenco e' il tipo di
+ * cosa che fa dubitare di aver premuto il pulsante giusto. Ma cancellarli
+ * d'ufficio sarebbe peggio: qualcuno potrebbe averli gia' comunicati alle
+ * famiglie, o averne spostato uno a mano. Quindi si contano, si dice quanti
+ * sono, e si lascia scegliere.
+ *
+ * Solo i FUTURI: il passato e' successo, e cancellarlo sarebbe riscrivere la
+ * storia di sere in cui la squadra c'era.
+ */
+export async function contaOccorrenzeFuture(recurrenceId, daGiorno) {
+  const { count, error } = await supabase.from('trainings')
+    .select('id', { count: 'exact', head: true })
+    .eq('recurrence_id', recurrenceId).gte('date', daGiorno);
+  if (error) throw error;
+  return count || 0;
+}
+
+export async function rimuoviOccorrenzeFuture(recurrenceId, daGiorno) {
+  const { data, error } = await supabase.from('trainings')
+    .delete().eq('recurrence_id', recurrenceId).gte('date', daGiorno).select('id');
+  if (error) throw error;
+  return (data || []).map(x => x.id);
+}
+
 function nextDateForWeekday(fromDate, weekday) {
   const d = new Date(fromDate);
   d.setHours(0, 0, 0, 0);

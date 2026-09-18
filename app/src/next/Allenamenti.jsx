@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
 import { addTraining, updateTraining, removeTraining, fetchTrainingsForDate } from '../api/trainings.js';
+import {
+  WEEKDAY_LABELS, createRecurrence, updateRecurrence, removeRecurrence,
+  ensureOccurrencesGenerated, contaOccorrenzeFuture, rimuoviOccorrenzeFuture
+} from '../api/trainingRecurrences.js';
 import { findLocationConflicts } from '../utils/conflicts.js';
 import { canEditHome, managesSector } from '../utils/permissions.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, cx, AzioneRiga } from './ui.jsx';
-import { Modulo, Conferma, Campo, Testo, Data, Interruttore, useAvviso } from './moduli.jsx';
+import { Modulo, Conferma, Campo, Testo, Data, Scelta, Spunta, Interruttore, Finestra, useAvviso } from './moduli.jsx';
 import { IconaSezione, Chevron, Matita, Croce } from './icone.jsx';
 import { FoglioPresenze } from './FoglioPresenze.jsx';
 import { oggiISO } from '../utils/format.js';
@@ -274,6 +278,7 @@ export function Allenamenti() {
   const [modulo, setModulo] = useState(null);        // null | {} | allenamento
   const [presenze, setPresenze] = useState(null);    // l'allenamento di cui si segnano le presenze
   const [daRimuovere, setDaRimuovere] = useState(null);
+  const [programmi, setProgrammi] = useState(false);
   const [, ridisegna] = useState(0);
   const avvisa = useAvviso();
 
@@ -281,6 +286,45 @@ export function Allenamenti() {
   // assegnata. Chi vede questa categoria perche' ci gioca la guarda e basta.
   const puoiModificare = canEditHome(state.currentUser) && managesSector(state.currentUser, state.activeSectorId, state.staffSectors);
   const oggi = oggiISO();
+
+  /* LE OCCORRENZE DEI GIORNI FISSI NASCONO QUI.
+   *
+   * All'apertura della schermata, otto settimane avanti, e solo per chi può
+   * scrivere in questa categoria: a un genitore il database rifiuterebbe la
+   * scrittura, e provarci vorrebbe dire un errore per una cosa che non ha
+   * chiesto di fare.
+   *
+   * È idempotente: salta le date che esistono già. Non lo era — le creava
+   * senza stagione, e quindi non ritrovava mai le proprie: ogni apertura ne
+   * faceva una copia nuova, ed è così che sono nati i doppioni di settembre.
+   * Il difetto è chiuso in api/stagione.js, ma vale la pena ricordarlo qui,
+   * perché questo è il punto in cui si vedeva.
+   */
+  useEffect(() => {
+    if (!puoiModificare || inCampione()) return;
+    if ((state.trainingRecurrences || []).length === 0) return;
+    let vivo = true;
+    (async () => {
+      try {
+        const creati = await ensureOccurrencesGenerated(
+          state.teamProfile.id, state.activeSectorId,
+          state.trainingRecurrences, state.trainings
+        );
+        if (!vivo || creati.length === 0) return;
+        state.trainings = state.trainings.concat(creati);
+        ridisegna(n => n + 1);
+      } catch (e) {
+        // Non blocca la schermata: gli allenamenti già in elenco si vedono lo
+        // stesso. Ma non in silenzio — se i giorni fissi hanno smesso di
+        // produrre, chi li ha impostati deve poterlo sapere.
+        console.error(e);
+        if (vivo) avvisa('I giorni fissi non hanno generato gli allenamenti: riprova più tardi.', 'errore');
+      }
+    })();
+    return () => { vivo = false; };
+    // Una volta per apertura e per categoria.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.activeSectorId]);
 
   const futuri = state.trainings.filter(t => t.date >= oggi)
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -293,9 +337,16 @@ export function Allenamenti() {
     <div className="sezioni">
       <Titolo
         sopra="Categoria"
-        azione={puoiModificare
-          ? <Pulsante variante="primario" onClick={() => setModulo({})}>+ Allenamento</Pulsante>
-          : null}
+        azione={
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Anche a chi non può modificare: sapere che il martedì e il
+                giovedì sono fissi è un'informazione, non un comando. */}
+            <Pulsante onClick={() => setProgrammi(true)}>Giorni fissi</Pulsante>
+            {puoiModificare && (
+              <Pulsante variante="primario" onClick={() => setModulo({})}>+ Allenamento</Pulsante>
+            )}
+          </div>
+        }
       >
         Allenamenti
       </Titolo>
@@ -378,6 +429,14 @@ export function Allenamenti() {
           esistente={modulo.id ? modulo : null}
           onChiudi={() => setModulo(null)}
           onFatto={(msg) => { ridisegna(n => n + 1); avvisa(msg); }}
+        />
+      )}
+
+      {programmi && (
+        <ProgrammiFissi
+          puoiModificare={puoiModificare}
+          onChiudi={() => setProgrammi(false)}
+          onCambiato={(msg) => { ridisegna(n => n + 1); avvisa(msg); }}
         />
       )}
 
@@ -476,5 +535,211 @@ function ModuloAllenamento({ esistente, onChiudi, onFatto }) {
         <Testo value={luogo} onChange={e => { setLuogo(e.target.value); setGiaAvvisato(false); }} placeholder="Palestra Comunale" />
       </Campo>
     </Modulo>
+  );
+}
+
+
+/* ======================================================================== */
+/* I PROGRAMMI FISSI                                                        */
+/* ======================================================================== */
+/*
+ * «Il martedì e il giovedì alle 18:30, in palestra comunale.» È così che una
+ * squadra si allena, e scriverlo trentadue volte a mano non è un lavoro: è un
+ * modo di sbagliarne una.
+ *
+ * Esistevano già — tabella, regole di accesso, notifiche — ma solo
+ * nell'interfaccia precedente: qui i programmi si vedevano soltanto come una
+ * pastiglia sugli allenamenti che ne erano nati. Una funzione a metà, e del
+ * tipo peggiore: quello che una società scopre a ottobre chiedendosi perché
+ * gli allenamenti fissi hanno smesso di comparire.
+ *
+ * Le occorrenze si generano all'apertura della schermata, otto settimane
+ * avanti. Non è un lavoro periodico da qualche parte: è qui, quando qualcuno
+ * guarda, ed è l'unico momento in cui serve che ci siano.
+ */
+
+function ModuloRicorrenza({ esistente, onChiudi, onFatto }) {
+  const [giorno, setGiorno] = useState(esistente ? String(esistente.weekday) : '2');
+  const [inizio, setInizio] = useState(esistente ? (esistente.start_time || '') : '');
+  const [fine, setFine] = useState(esistente ? (esistente.end_time || '') : '');
+  const [luogo, setLuogo] = useState(esistente ? (esistente.location || '') : '');
+  const [attivo, setAttivo] = useState(esistente ? esistente.active !== false : true);
+
+  return (
+    <Modulo
+      titolo={esistente ? 'Modifica il giorno fisso' : 'Nuovo giorno fisso'}
+      sotto="Da qui nascono da soli gli allenamenti delle prossime otto settimane."
+      onChiudi={onChiudi}
+      etichettaInvia={esistente ? 'Salva' : 'Aggiungi'}
+      onInvia={async () => {
+        if (inCampione()) return 'Nell’anteprima con dati di esempio non si salva niente.';
+        const campi = {
+          weekday: parseInt(giorno, 10),
+          start_time: inizio.trim() || null,
+          end_time: fine.trim() || null,
+          location: luogo.trim() || null,
+          active: attivo
+        };
+        if (esistente) {
+          const agg = await updateRecurrence(esistente.id, campi);
+          Object.assign(esistente, agg);
+          onFatto('Giorno fisso salvato');
+        } else {
+          const creato = await createRecurrence(state.teamProfile.id, state.activeSectorId, campi);
+          state.trainingRecurrences.push(creato);
+          onFatto('Giorno fisso aggiunto');
+        }
+      }}
+    >
+      <Campo etichetta="Giorno della settimana">
+        <Scelta value={giorno} onChange={e => setGiorno(e.target.value)}>
+          {WEEKDAY_LABELS.map((n, i) => <option key={i} value={String(i)}>{n}</option>)}
+        </Scelta>
+      </Campo>
+      <div className="grid grid-cols-2 gap-3">
+        <Campo etichetta="Inizio">
+          <Testo value={inizio} onChange={e => setInizio(e.target.value)} placeholder="18:30" />
+        </Campo>
+        <Campo etichetta="Fine">
+          <Testo value={fine} onChange={e => setFine(e.target.value)} placeholder="20:00" />
+        </Campo>
+      </div>
+      <Campo
+        etichetta="Luogo"
+        aiuto="Scrivilo sempre allo stesso modo: è così che l’app si accorge se due categorie prenotano la stessa palestra."
+      >
+        <Testo value={luogo} onChange={e => setLuogo(e.target.value)} placeholder="Palestra Comunale" />
+      </Campo>
+      <Spunta etichetta="Attivo" checked={attivo} onChange={e => setAttivo(e.target.checked)} />
+      {!attivo && (
+        <p className="-mt-1 text-[12.5px] leading-relaxed text-tenue">
+          Spento non genera più niente. Gli allenamenti già creati restano dove sono.
+        </p>
+      )}
+    </Modulo>
+  );
+}
+
+function ProgrammiFissi({ puoiModificare, onChiudi, onCambiato }) {
+  const [modulo, setModulo] = useState(null);       // null | {} | ricorrenza
+  const [daRimuovere, setDaRimuovere] = useState(null);
+  const [future, setFuture] = useState(null);       // quante occorrenze future ne sono nate
+  const [ancheFuture, setAncheFuture] = useState(true);
+
+  // La settimana comincia di lunedì: domenica sta in fondo, non in cima.
+  const ordine = (n) => (n === 0 ? 7 : n);
+  const elenco = [...state.trainingRecurrences].sort((a, b) => ordine(a.weekday) - ordine(b.weekday));
+
+  async function chiediRimozione(r) {
+    setDaRimuovere(r);
+    setFuture(null);
+    setAncheFuture(true);
+    try { setFuture(await contaOccorrenzeFuture(r.id, oggiISO())); }
+    catch (e) { setFuture(0); }
+  }
+
+  return (
+    <>
+      <Finestra
+        titolo="Giorni fissi"
+        sotto="Gli allenamenti che si ripetono ogni settimana. Da qui nascono da soli, otto settimane avanti."
+        onChiudi={onChiudi}
+        azioni={puoiModificare
+          ? <Pulsante variante="primario" className="w-full" onClick={() => setModulo({})}>+ Giorno fisso</Pulsante>
+          : null}
+      >
+        {elenco.length === 0 ? (
+          <Vuoto>
+            Nessun giorno fisso. Impostandone uno — «il martedì alle 18:30» — gli
+            allenamenti delle prossime otto settimane compaiono da soli.
+          </Vuoto>
+        ) : (
+          <div className="space-y-2">
+            {elenco.map(r => (
+              <Pannello key={r.id} className="flex items-center gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="truncate text-[14px] font-semibold">{WEEKDAY_LABELS[r.weekday]}</span>
+                    {r.active === false && (
+                      <span className="shrink-0 rounded-full bg-pannello/14 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-etichetta text-tenue">
+                        spento
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 text-[12.5px] text-tenue">
+                    <span>{r.start_time || 'orario da definire'}{r.end_time ? '–' + r.end_time : ''}</span>
+                    {r.location && <span className="truncate">{r.location}</span>}
+                  </div>
+                </div>
+                {puoiModificare && (
+                  <div className="flex shrink-0 items-center gap-1">
+                    <AzioneRiga etichetta="Modifica" onClick={() => setModulo(r)}><Matita /></AzioneRiga>
+                    <AzioneRiga etichetta="Togli" pericolo onClick={() => chiediRimozione(r)}><Croce /></AzioneRiga>
+                  </div>
+                )}
+              </Pannello>
+            ))}
+          </div>
+        )}
+      </Finestra>
+
+      {modulo && (
+        <ModuloRicorrenza
+          esistente={modulo.id ? modulo : null}
+          onChiudi={() => setModulo(null)}
+          onFatto={(msg) => { setModulo(null); onCambiato(msg); }}
+        />
+      )}
+
+      {/* TOGLIERE UN GIORNO FISSO NON E’ UNA SOLA DOMANDA.
+          Togliere il martedì e ritrovarsi i martedì ancora in elenco fa dubitare
+          di aver premuto il pulsante giusto. Ma cancellarli d'ufficio sarebbe
+          peggio: qualcuno potrebbe averli già comunicati alle famiglie, o
+          averne spostato uno a mano. Quindi si dice quanti sono e si sceglie.
+          Solo i futuri: il passato è successo. */}
+      {daRimuovere && (
+        <Conferma
+          titolo={'Togliere il ' + WEEKDAY_LABELS[daRimuovere.weekday].toLowerCase() + '?'}
+          testo={future == null
+            ? 'Conto quanti allenamenti futuri ne sono già nati…'
+            : (future === 0
+                ? 'Non ci sono allenamenti futuri nati da questo programma: si toglie e basta.'
+                : future + ' allenamenti futuri sono nati da qui. '
+                  + (ancheFuture
+                      ? 'Vengono tolti anche quelli.'
+                      : 'Quelli restano in calendario: si toglie solo il programma.'))}
+          etichetta={!future || !ancheFuture ? 'Togli il programma' : 'Togli tutto'}
+          onChiudi={() => setDaRimuovere(null)}
+          onConferma={async () => {
+            if (inCampione()) throw new Error('Nell’anteprima con dati di esempio non si cancella niente.');
+            if (future > 0 && ancheFuture) {
+              const tolti = await rimuoviOccorrenzeFuture(daRimuovere.id, oggiISO());
+              const via = new Set(tolti);
+              state.trainings = state.trainings.filter(t => !via.has(t.id));
+            }
+            await removeRecurrence(daRimuovere.id);
+            state.trainingRecurrences = state.trainingRecurrences.filter(x => x.id !== daRimuovere.id);
+            setDaRimuovere(null);
+            onCambiato('Giorno fisso tolto');
+          }}
+        />
+      )}
+
+      {/* La scelta sta fuori dalla conferma perché Conferma non ospita campi.
+          Sopra di lei, perché va vista prima di premere. */}
+      {daRimuovere && future > 0 && (
+        <div className="fixed inset-x-0 bottom-[9rem] z-[90] flex justify-center px-4">
+          <button
+            type="button"
+            onClick={() => setAncheFuture(v => !v)}
+            className="rounded-full vetro-alto orlo px-4 py-2 text-[12.5px] font-semibold text-soffuso shadow-lg"
+          >
+            {ancheFuture
+              ? 'Tieni i ' + future + ' allenamenti già creati'
+              : 'Togli anche i ' + future + ' allenamenti già creati'}
+          </button>
+        </div>
+      )}
+    </>
   );
 }
