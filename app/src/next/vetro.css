@@ -351,6 +351,29 @@
      quando l'app e' chiara: legandolo a --fondo, in tema chiaro diventava un
      cerchio chiaro con sopra iniziali bianche. */
   .su-legno { background: rgb(18 15 12 / 0.72); backdrop-filter: blur(6px); }
+
+  /* UNA FASCIA SCURA FUORI DALL'ANELLO CHIARO.
+     Il parquet non e' scuro in tutti e due i temi: al buio e' 62 42 28, di
+     giorno e' 186 128 78, cioe' un legno chiaro su cui un anello bianco da'
+     3,4:1. Finche' dentro al gettone c'erano le iniziali su fondo scuro non
+     importava; con una foto dentro, il bordo e' l'unica cosa che separa il
+     giocatore dal campo, e un volto chiaro su legno chiaro si perdeva.
+     Due anelli concentrici — chiaro dentro, scuro fuori — funzionano su
+     qualunque fondo senza chiedersi che tema sia attivo. E' lo stesso
+     principio della canotta, che ha la sagoma scura e il bordo chiaro. */
+  .alone-legno { position: relative; }
+  .alone-legno::after {
+    content: '';
+    position: absolute;
+    /* Il riquadro comincia dove finisce l'anello chiaro, cioe' due pixel
+       fuori dal bottone, e l'ombra prosegue di li'. Senza questo scarto in
+       mezzo resterebbe una striscia di parquet e i due anelli non sarebbero
+       concentrici. */
+    inset: -2px;
+    border-radius: 9999px;
+    box-shadow: 0 0 0 3px rgb(10 8 6 / 0.55);
+    pointer-events: none;
+  }
   .su-legno-lieve { background: rgb(18 15 12 / 0.55); backdrop-filter: blur(6px); }
 
   .gettone-campo {

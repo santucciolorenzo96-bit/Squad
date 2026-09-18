@@ -1166,29 +1166,37 @@ function Volto({ p, url, className, style }) {
  * distintivo qualunque, e in una schermata dove ci sono gia' il ⇄ tondo e la
  * pastiglia tonda delle statistiche sarebbe il terzo cerchio. La canotta dice
  * da sola cos'è quel numero.
+ *
+ * PIU' LARGA CHE ALTA, e non per gusto. Il vincolo è verticale: in altezza
+ * non può crescere, perché mangerebbe il volto e tornerebbe a essere lei la
+ * cosa che si guarda per prima. In larghezza no: sporge dall'angolo del
+ * cerchio, dove non c'è niente. Così il numero a due cifre ha lo spazio che
+ * gli serve senza che il distintivo pesi di più — su un telefono stretto le
+ * cifre passano da 8,8 a 10 pixel, che è la differenza fra intuirle e
+ * leggerle.
  */
 function Canotta({ numero, dim }) {
   const n = String(numero == null || numero === '' ? '\u2013' : numero);
   return (
     <span
       className="pointer-events-none relative block"
-      style={{ width: dim, height: dim }}
+      style={{ width: `calc(${dim} * 1.28)`, height: dim }}
       aria-hidden="true"
     >
-      <svg viewBox="0 0 24 24" className="absolute inset-0 h-full w-full">
-        {/* Due volte: la sagoma scura sotto fa da bordo, così la canotta si
-            stacca dal parquet chiaro come dalle divise scure. */}
+      <svg viewBox="0 0 30 24" className="absolute inset-0 h-full w-full">
+        {/* Sagoma scura con il bordo chiaro: si stacca dal parquet scuro come
+            da quello chiaro, senza dipendere dal tema. */}
         <path
-          d="M8 2.6h2.2a1.9 1.9 0 0 0 3.6 0H16l5 3.6-2.2 3.3-1.3-1v11.1a1.5 1.5 0 0 1-1.5 1.5H7a1.5 1.5 0 0 1-1.5-1.5V8.5l-1.3 1L2 6.2Z"
-          fill="rgb(10 8 6 / 0.82)"
-          stroke="rgb(255 255 255 / 0.55)"
+          d="M11 2.6h2.4a2 2 0 0 0 4.2 0H20l5.8 3.6-2.3 3.4-1.5-1.1v11.2a1.5 1.5 0 0 1-1.5 1.5H9.3a1.5 1.5 0 0 1-1.5-1.5V8.5L6.3 9.6 4 6.2Z"
+          fill="rgb(10 8 6 / 0.85)"
+          stroke="rgb(255 255 255 / 0.6)"
           strokeWidth="1.1"
           strokeLinejoin="round"
         />
       </svg>
       <span
         className="cifra absolute inset-x-0 font-bold leading-none text-white"
-        style={{ top: '52%', fontSize: `calc(${dim} * 0.46)`, textAlign: 'center' }}
+        style={{ top: '50%', fontSize: `calc(${dim} * 0.52)`, textAlign: 'center' }}
       >
         {n}
       </span>
@@ -1240,8 +1248,12 @@ const GettoneCampo = React.memo(function GettoneCampo({
           title={p.name}
           className={cx(
             'grid place-items-center rounded-full font-bold text-white ring-2 transition-all active:scale-95',
-            'su-legno',
-            inSostituzione ? 'ring-blu shadow-blu' : 'ring-white/70'
+            // `alone-legno` mette una fascia scura FUORI dall'anello chiaro.
+            // Senza, sul parquet del tema chiaro il bianco dava 3,4:1 e un
+            // volto chiaro si perdeva nel legno; con la fascia il contrasto
+            // non dipende piu' da che colore ha la foto.
+            'su-legno alone-legno',
+            inSostituzione ? 'ring-blu' : 'ring-white/75'
           )}
           style={{ width: 'var(--volto)', height: 'var(--volto)', fontSize: 'var(--numero)' }}
         >
