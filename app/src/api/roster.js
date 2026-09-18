@@ -81,12 +81,18 @@ export async function getPlayerPhotoSignedUrl(filePath) {
   return data.signedUrl;
 }
 
-// Firma in un'unica chiamata le foto di più giocatori: { [playerId]: signedUrl }
-export async function fetchPlayerPhotoUrls(players) {
+/* Firma in un'unica chiamata le foto di piu' giocatori: { [playerId]: url }.
+ *
+ * `secondi` dice quanto valgono. Dieci minuti bastano a una schermata che si
+ * guarda e si chiude; non bastano a una partita, che dura un'ora e mezza e
+ * durante la quale nessuno ricarica niente. Lo scout ne chiede sei ore, che
+ * coprono anche un torneo con tre partite di fila.
+ */
+export async function fetchPlayerPhotoUrls(players, secondi = 600) {
   const withPhoto = players.filter(p => p.photo_path);
   if (withPhoto.length === 0) return {};
   const { data, error } = await supabase.storage.from('player-photos')
-    .createSignedUrls(withPhoto.map(p => p.photo_path), 600);
+    .createSignedUrls(withPhoto.map(p => p.photo_path), secondi);
   if (error) throw error;
   const map = {};
   withPhoto.forEach((p, i) => { if (data[i] && data[i].signedUrl) map[p.id] = data[i].signedUrl; });

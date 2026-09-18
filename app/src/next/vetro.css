@@ -424,6 +424,12 @@
        copriva il numero di maglia: il distintivo diventava piu' importante
        del giocatore. */
     --scambio: clamp(1.05rem, 4.4cqw, 1.75rem);
+    /* La canotta col numero, in basso a destra rispetto al volto.
+       Poco piu' grande del ⇄: dentro ci sta un numero a due cifre, e un
+       numero di maglia che non si legge non serve a niente. Ma nemmeno puo'
+       mangiarsi il volto — sta intorno alla meta' della faccia, non di piu',
+       altrimenti torna a essere lei la cosa che si guarda per prima. */
+    --canotta: clamp(1.2rem, 4.9cqw, 2rem);
   }
 
   /* I numeri si incolonnano sempre: in una tabella di dati le cifre che

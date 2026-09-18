@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { state } from '../state.js';
 import { saveLiveGame, endGame } from '../api/games.js';
+import { fetchPlayerPhotoUrls } from '../api/roster.js';
 import { updateCalendarMatch } from '../api/calendar.js';
 import { currentSport } from '../utils/sports/index.js';
 import {
@@ -146,6 +147,11 @@ export function Tracker({ onFinita, onEsci }) {
   // finche' non si decide cosa fare. Continuare vorrebbe dire insistere a
   // sovrascrivere il lavoro di qualcun altro.
   const [conflitto, setConflitto] = useState(false);
+  // I volti della rosa: { [idGiocatore]: indirizzo firmato }. Si chiedono una
+  // volta all'apertura e valgono sei ore, quanto basta a una partita e a un
+  // torneo di tre. Se non arrivano restano le iniziali, che e' esattamente
+  // quello che si vedeva prima.
+  const [foto, setFoto] = useState({});
   const riprova = useRef(null);
 
   // Chiudere la scheda con del lavoro non ancora spedito e' l'unico momento in
@@ -481,6 +487,17 @@ export function Tracker({ onFinita, onEsci }) {
     }
     g.turno = null;
   }
+
+  useEffect(() => {
+    if (inCampione() || (state.roster || []).length === 0) return;
+    let vivo = true;
+    fetchPlayerPhotoUrls(state.roster, 6 * 60 * 60)
+      .then(f => { if (vivo) setFoto(f || {}); })
+      // Senza foto lo scout funziona uguale: non vale un avviso in mezzo a
+      // una partita.
+      .catch(() => {});
+    return () => { vivo = false; };
+  }, []);
 
   // All'apertura dello scout il quintetto e' gia' in campo da prima: se non
   // c'e' un turno aperto se ne apre uno adesso, altrimenti i primi canestri
@@ -830,6 +847,7 @@ export function Tracker({ onFinita, onEsci }) {
                     key={p.id}
                     p={p}
                     sport={sport}
+                    foto={foto[p.id]}
                     lampo={lampo && lampo.id === p.id ? lampo.testo : null}
                     inSostituzione={sostituzione === p.id}
                     stile={posto ? { top: posto.top, left: posto.left } : undefined}
@@ -862,8 +880,15 @@ export function Tracker({ onFinita, onEsci }) {
                   sostituzione ? 'vetro-alto ring-1 ring-blu' : 'vetro hover:bg-pannello/12'
                 )}
               >
-                <div className="text-[15px] font-bold leading-none">{sigla(p)}</div>
-                <div className="mt-1 truncate text-[11px] text-tenue">{p.name.split(' ')[0]}</div>
+                <div className="relative mx-auto h-11 w-11">
+                  <span className="block h-full w-full overflow-hidden rounded-full vetro orlo text-[14px] font-bold">
+                    <Volto p={p} url={foto[p.id]} />
+                  </span>
+                  <span className="absolute -bottom-1 -right-1">
+                    <Canotta numero={p.number} dim="1.35rem" />
+                  </span>
+                </div>
+                <div className="mt-1.5 truncate text-[11px] text-tenue">{p.name.split(' ')[0]}</div>
               </button>
             ))}
           </div>
@@ -921,12 +946,13 @@ export function Tracker({ onFinita, onEsci }) {
           ancora={ancora}
           dettaglio={dettaglio}
           onDettaglio={() => setDettaglio(v => { ricordaDettaglio(!v); return !v; })}
+          foto={foto[giocatoreScelto.id]}
           onAzione={(a) => {
             // Con la mappa accesa un tiro non si registra subito: prima si
             // dice da dove. Il pannello si chiude perche' il campo dev'essere
             // libero — e' la cosa che si sta per toccare.
             if (conf.mappaTiri && mappa && a.zona) {
-              setTiroDaPiazzare({ giocatore: giocatoreScelto, azione: a });
+              setTiroDaPiazzare({ giocatore: giocatoreScelto, azione: a, foto: foto[giocatoreScelto.id] });
               setScelto(null);
               setAncora(null);
               return;
@@ -1093,6 +1119,83 @@ function ManoPunteggio({ attiva, valori = [1], onPiu, onMeno }) {
   );
 }
 
+/* ------------------------------------------------------------ il volto */
+/* CHI E' QUESTO GIOCATORE.
+ *
+ * Il numero di maglia funziona per chi la squadra la conosce. Ma il tabellino
+ * lo tiene spesso un genitore, un dirigente, qualcuno arrivato da poco — e
+ * per loro «7» e «11» sono due numeri, non due persone. Un volto si riconosce
+ * anche a bordo campo, anche di corsa, anche da lontano, e senza sapere
+ * niente.
+ *
+ * Quando la foto non c'e' restano le iniziali, come dappertutto nell'app: e'
+ * il ripiego che la gente ha gia' imparato a leggere altrove.
+ *
+ * `onError` non e' pignoleria. Gli indirizzi delle foto sono firmati e
+ * scadono, e senza rete non arrivano affatto: senza un ripiego, un gettone
+ * diventerebbe un riquadro vuoto proprio in palestra, che e' l'unico posto
+ * dove questo schermo serve.
+ */
+function Volto({ p, url, className, style }) {
+  const [rotta, setRotta] = useState(false);
+  if (url && !rotta) {
+    return (
+      <img
+        src={url}
+        alt=""
+        onError={() => setRotta(true)}
+        className={cx('h-full w-full object-cover', className)}
+        style={style}
+      />
+    );
+  }
+  return (
+    <span className={cx('grid h-full w-full place-items-center', className)} style={style}>
+      {sigla(p)}
+    </span>
+  );
+}
+
+/* LA CANOTTA COL NUMERO.
+ *
+ * Il numero serve ancora: e' quello che grida l'allenatore, quello scritto sul
+ * referto, quello che l'arbitro chiama. Ma smette di essere l'unico modo di
+ * riconoscere qualcuno, e quindi puo' farsi piccolo.
+ *
+ * Dentro una canotta e non dentro un cerchio: un cerchio col numero è un
+ * distintivo qualunque, e in una schermata dove ci sono gia' il ⇄ tondo e la
+ * pastiglia tonda delle statistiche sarebbe il terzo cerchio. La canotta dice
+ * da sola cos'è quel numero.
+ */
+function Canotta({ numero, dim }) {
+  const n = String(numero == null || numero === '' ? '\u2013' : numero);
+  return (
+    <span
+      className="pointer-events-none relative block"
+      style={{ width: dim, height: dim }}
+      aria-hidden="true"
+    >
+      <svg viewBox="0 0 24 24" className="absolute inset-0 h-full w-full">
+        {/* Due volte: la sagoma scura sotto fa da bordo, così la canotta si
+            stacca dal parquet chiaro come dalle divise scure. */}
+        <path
+          d="M8 2.6h2.2a1.9 1.9 0 0 0 3.6 0H16l5 3.6-2.2 3.3-1.3-1v11.1a1.5 1.5 0 0 1-1.5 1.5H7a1.5 1.5 0 0 1-1.5-1.5V8.5l-1.3 1L2 6.2Z"
+          fill="rgb(10 8 6 / 0.82)"
+          stroke="rgb(255 255 255 / 0.55)"
+          strokeWidth="1.1"
+          strokeLinejoin="round"
+        />
+      </svg>
+      <span
+        className="cifra absolute inset-x-0 font-bold leading-none text-white"
+        style={{ top: '52%', fontSize: `calc(${dim} * 0.46)`, textAlign: 'center' }}
+      >
+        {n}
+      </span>
+    </span>
+  );
+}
+
 /* ------------------------------------------------------------- le righe */
 // Il disegno del campo non cambia mai durante una partita, ma sta dentro una
 // schermata che si ridisegna a ogni tocco. Memorizzato, il browser smette di
@@ -1108,7 +1211,7 @@ const RigheCampo = React.memo(function RigheCampo({ svg }) {
 // Memorizzato: quando si segna un canestro cambia UN giocatore, e ridisegnare
 // gli altri quattro è lavoro che si paga a ogni tocco per tutta la partita.
 const GettoneCampo = React.memo(function GettoneCampo({
-  p, sport, lampo, inSostituzione, stile, onAssegna, onSostituisci
+  p, sport, foto, lampo, inSostituzione, stile, onAssegna, onSostituisci
 }) {
   const conf = sport.scout;
   const valore = conf.tileStat
@@ -1142,8 +1245,19 @@ const GettoneCampo = React.memo(function GettoneCampo({
           )}
           style={{ width: 'var(--volto)', height: 'var(--volto)', fontSize: 'var(--numero)' }}
         >
-          {sigla(p)}
+          {/* `overflow-hidden` sul bottone tondo: la foto e' quadrata e senza
+              ritaglio uscirebbe dagli angoli del cerchio. */}
+          <span className="block h-full w-full overflow-hidden rounded-full">
+            <Volto p={p} url={foto} />
+          </span>
         </button>
+
+        {/* Il numero, in basso a destra. Sporge di poco: attaccato al bordo
+            sembrerebbe un pezzo del cerchio invece di una cosa appoggiata
+            sopra. */}
+        <span className="absolute -bottom-1 -right-1">
+          <Canotta numero={p.number} dim="var(--canotta)" />
+        </span>
 
         <button
           onClick={onSostituisci}
@@ -1230,8 +1344,8 @@ function MappaTiro({ sport, tiro, onPunto, onChiudi }) {
         <div {...tendina.maniglia} className="mx-auto mb-3.5 h-1 w-10 cursor-grab rounded-full bg-pannello/25" />
 
         <div {...tendina.maniglia} className="mb-3 flex items-center gap-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg vivo text-[14px] font-bold text-white">
-            {sigla(tiro.giocatore)}
+          <span className="block h-9 w-9 shrink-0 overflow-hidden rounded-lg vivo text-[14px] font-bold text-white">
+            <Volto p={tiro.giocatore} url={tiro.foto} />
           </span>
           <div className="min-w-0 flex-1">
             <div className="text-[15px] font-bold leading-tight">Da dove ha tirato?</div>
@@ -1334,7 +1448,7 @@ function Catena({ conf, catena, giocatori, onScegli, onChiudi }) {
  * partita va avanti. Il pannello si apre accanto al gettone, si ribalta sopra
  * o sotto a seconda dello spazio, e resta dentro i bordi.
  */
-function PannelloAzioni({ p, conf, ancora, dettaglio, onDettaglio, mappa, onMappa, onAzione, onChiudi }) {
+function PannelloAzioni({ p, conf, foto, ancora, dettaglio, onDettaglio, mappa, onMappa, onAzione, onChiudi }) {
   const [posa, setPosa] = useState(null);   // { left, top, maxH, origine } oppure null = foglio
   const tendina = useTendina(onChiudi);
   const largo = !!posa;
@@ -1383,8 +1497,16 @@ function PannelloAzioni({ p, conf, ancora, dettaglio, onDettaglio, mappa, onMapp
   const corpo = (
     <>
       <div {...presa} className="mb-3.5 flex items-center gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg vivo text-[16px] font-bold text-white">
-          {sigla(p)}
+        {/* Il volto anche qui, ed e' il momento in cui serve di piu': e' la
+            conferma di aver toccato la persona giusta, un istante prima di
+            segnarle addosso un'azione. */}
+        <span className="relative h-10 w-10 shrink-0">
+          <span className="block h-full w-full overflow-hidden rounded-lg vivo text-[16px] font-bold text-white">
+            <Volto p={p} url={foto} />
+          </span>
+          <span className="absolute -bottom-1 -right-1">
+            <Canotta numero={p.number} dim="1.25rem" />
+          </span>
         </span>
         <div className="min-w-0 flex-1">
           <div className="truncate text-[15px] font-bold leading-tight">{p.name}</div>
