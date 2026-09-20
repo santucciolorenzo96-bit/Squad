@@ -8,9 +8,10 @@ import { currentSport } from '../utils/sports/index.js';
 import {
   situazionePeriodo, etichettaPalla, partitaDecisa, periodiMassimi,
   perchePunteggioImpossibile, scambioFinito,
-  saldoTurno, sommaQuintetto
+  saldoTurno, sommaQuintetto, abbinaCalendario
 } from '../utils/regole.js';
 import { Pannello, Etichetta, Pulsante, Stato, Amichevole, cx } from './ui.jsx';
+import { oggiISO } from '../utils/format.js';
 import { Modulo, Conferma, Campo, Testo, useAvviso, useTendina } from './moduli.jsx';
 import { inCampione } from './campione.js';
 import { scriviCopia, segnaSincronizzata, cancellaCopia } from './partitaLocale.js';
@@ -289,6 +290,17 @@ export function Tracker({ onFinita, onEsci }) {
   }
 
   const daAnnullare = (state.undoTesti || [])[(state.undoTesti || []).length - 1] || '';
+
+  /* QUALE RIGA DI CALENDARIO CHIUDE QUESTA PARTITA.
+   *
+   * Quella scelta all'avvio, se c'era. Altrimenti si prova a ritrovarla dal
+   * nome dell'avversario: si scouta anche una partita rinviata, o la si
+   * segna il giorno dopo da un video, e in quei casi all'avvio non c'era
+   * niente da scegliere. La regola — nome intero, data vicina, e in caso di
+   * dubbio nessuna — sta in regole.js, dove si puo’ provare. */
+  const rigaCalendario = g.calendarMatchId
+    ? (state.calendar || []).find(m => m.id === g.calendarMatchId) || { id: g.calendarMatchId }
+    : abbinaCalendario(state.calendar, g.oppName, oggiISO());
 
   function esegui(giocatore, azione, senzaCatena, punto) {
     memorizza(sigla(giocatore) + ' ' + (azione.etichettaBreve || azione.label));
@@ -1011,7 +1023,9 @@ export function Tracker({ onFinita, onEsci }) {
         <Conferma
           titolo="Chiudere la partita?"
           testo={`${g.teamScore}–${g.oppScore} contro ${g.oppName}. Il tabellino va in archivio e non si modifica più.`
-            + (g.calendarMatchId ? ' Il risultato torna anche sulla riga di calendario.' : '')}
+            + (rigaCalendario
+                ? ' Il risultato torna anche sulla riga di calendario.'
+                : ' In calendario non c’è nessuna riga che corrisponde: il risultato lì va scritto a mano.')}
           etichetta="Chiudi la partita"
           pericolo={false}
           onChiudi={() => setFinePartita(false)}
@@ -1022,14 +1036,23 @@ export function Tracker({ onFinita, onEsci }) {
             chiudiTurno();
             calcolaPunteggi(g, sport);
             if (!inCampione()) await endGame(g.id, g);
-            if (g.calendarMatchId && !inCampione()) {
+            if (rigaCalendario && !inCampione()) {
               // Se questo fallisce la partita è comunque archiviata: il
               // risultato si può sempre scrivere a mano dal calendario, ma
               // perdere il tabellino no.
               try {
-                await updateCalendarMatch(g.calendarMatchId, {
+                const agg = await updateCalendarMatch(rigaCalendario.id, {
                   team_score: g.teamScore, opp_score: g.oppScore, played: true
                 });
+                /* E ANCHE IN MEMORIA.
+                 *
+                 * Scriverlo solo nel database non bastava: `state.calendar`
+                 * resta quello caricato all'apertura della categoria, quindi
+                 * chi chiudeva la partita e andava sul Calendario trovava
+                 * ancora la riga «da giocare». Il risultato c'era, ma per
+                 * vederlo bisognava ricaricare l'app — e nessuno ricarica
+                 * un'app per controllare se ha funzionato. */
+                state.calendar = state.calendar.map(m => (m.id === rigaCalendario.id ? { ...m, ...agg } : m));
               } catch (e) { console.error(e); }
             }
             cancellaCopia(g.sectorId);

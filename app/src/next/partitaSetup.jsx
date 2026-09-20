@@ -7,6 +7,16 @@ import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Avatar, Stato, cx } from 
 import { Campo, Testo, Scelta, useAvviso } from './moduli.jsx';
 import { oggiISO, fraGiorniISO } from '../utils/format.js';
 
+// «oggi», «domani», «ieri», e poi la data: dentro una finestra di sette
+// giorni le parole sono piu' rapide di una data da decifrare, fuori no.
+function etichettaGiorno(data, oggi) {
+  const g = Math.round((new Date(data + 'T00:00:00') - new Date(oggi + 'T00:00:00')) / 86400000);
+  if (g === 0) return 'oggi';
+  if (g === 1) return 'domani';
+  if (g === -1) return 'ieri';
+  return new Date(data + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
 /* L'avvio di una partita.
  *
  * Tre decisioni in una schermata sola — chi affrontiamo, quanti periodi, chi
@@ -25,12 +35,23 @@ export function AvvioPartita({ onAvviata }) {
   const inCampo = sport.match.minOnField;
   const avvisa = useAvviso();
 
-  // Le partite di oggi e domani della categoria: quasi sempre è una di queste.
+  /* Le partite della categoria intorno a oggi.
+   *
+   * Erano solo oggi e domani. Ma una partita si scouta anche il giorno dopo
+   * da un video, e una rinviata si gioca il mercoledi' invece della domenica:
+   * fuori da quella finestra di due giorni il tabellino non si legava a
+   * nessuna riga, e a fine partita il risultato non tornava in calendario.
+   * Tre giorni prima e tre dopo coprono i casi veri senza far comparire
+   * mezzo girone in un elenco da cui si sceglie di fretta. */
   const oggi = oggiISO();
-  const domani = fraGiorniISO(1);
+  const da = fraGiorniISO(-3);
+  const a = fraGiorniISO(3);
+  const distanza = (m) => Math.abs(Math.round(
+    (new Date(m.date + 'T00:00:00') - new Date(oggi + 'T00:00:00')) / 86400000
+  ));
   const candidate = state.calendar
-    .filter(m => !m.played && (m.date === oggi || m.date === domani))
-    .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    .filter(m => !m.played && m.date && m.date >= da && m.date <= a)
+    .sort((x, y) => distanza(x) - distanza(y) || (x.time || '').localeCompare(y.time || ''));
 
   const [scelta, setScelta] = useState(candidate.length ? candidate[0].id : '');
   const [avversario, setAvversario] = useState(candidate.length ? candidate[0].opponent : '');
@@ -142,7 +163,7 @@ export function AvvioPartita({ onAvviata }) {
                 </span>
                 <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{m.opponent}</span>
                 <span className="shrink-0 text-[13px] text-tenue">
-                  {m.date === oggi ? 'oggi' : 'domani'}{m.time ? ' · ' + m.time : ''}
+                  {etichettaGiorno(m.date, oggi)}{m.time ? ' · ' + m.time : ''}
                 </span>
               </button>
             ))}

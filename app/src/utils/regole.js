@@ -1,3 +1,4 @@
+import { senzaAccenti } from './format.js';
 /* Il regolamento, per quanto serve a chi segna.
  *
  * Non tutti gli sport hanno una regola che dice quando un periodo finisce: nel
@@ -257,4 +258,61 @@ export function tabellinoInAltraMano(partita, ioId, adesso = Date.now()) {
   // mano che sta scrivendo: non e' un motivo per bloccare nessuno.
   if (quando > adesso) return false;
   return adesso - quando <= RESPIRO_SCRIBA;
+}
+
+/* ======================================================================== */
+/* QUALE RIGA DI CALENDARIO E' QUESTA PARTITA                               */
+/* ======================================================================== */
+/*
+ * A fine partita il risultato deve tornare sulla riga di calendario. Ci
+ * torna se qualcuno, all'avvio del tabellino, ha scelto quella riga da un
+ * elenco — e l'elenco mostrava solo le partite di oggi e domani.
+ *
+ * Basta scoutare una partita rinviata, o segnarla il giorno dopo da un
+ * video, e quel legame non c'e'. Il tabellino finisce in archivio e il
+ * calendario resta con la riga «da giocare»: due verita' diverse sullo
+ * stesso pomeriggio, e nessuna che dice all'altra che esiste.
+ *
+ * Qui si prova a ritrovare la riga dal nome dell'avversario. Con due
+ * prudenze, perche' scrivere un risultato sulla partita sbagliata e' peggio
+ * che non scriverlo:
+ *
+ *  - il nome deve corrispondere per intero, a parte accenti, maiuscole e
+ *    spazi doppi. Niente somiglianze: «Virtus» e «Virtus Roma» sono due
+ *    societa' diverse.
+ *  - la data deve essere vicina. Contro la stessa squadra si gioca due volte
+ *    l'anno, andata e ritorno: senza un limite di giorni si rischia di
+ *    chiudere la partita sbagliata delle due.
+ *
+ * Se restano due righe ugualmente vicine non si sceglie: si restituisce
+ * null, e il risultato lo scrivera' una persona.
+ */
+const GIORNI_ABBINAMENTO = 10;
+
+function normalizza(x) {
+  return senzaAccenti(String(x || '')).toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+export function abbinaCalendario(calendario, nomeAvversario, oggi) {
+  const cercato = normalizza(nomeAvversario);
+  if (!cercato || !oggi) return null;
+
+  const distanza = (d) => {
+    if (!d) return null;
+    const g = Math.round(
+      (new Date(d + 'T00:00:00') - new Date(oggi + 'T00:00:00')) / 86400000
+    );
+    return isNaN(g) ? null : Math.abs(g);
+  };
+
+  const candidate = (calendario || [])
+    .filter(m => !m.played && normalizza(m.opponent) === cercato)
+    .map(m => ({ m, d: distanza(m.date) }))
+    .filter(x => x.d != null && x.d <= GIORNI_ABBINAMENTO)
+    .sort((a, b) => a.d - b.d);
+
+  if (candidate.length === 0) return null;
+  // Due partite alla stessa distanza da oggi: non c'e' modo di sapere quale.
+  if (candidate.length > 1 && candidate[0].d === candidate[1].d) return null;
+  return candidate[0].m;
 }
