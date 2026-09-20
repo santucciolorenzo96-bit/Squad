@@ -1,4 +1,4 @@
-import { createDoc, drawHeader, drawParagraph, drawTable, save } from './pdf.js';
+import { createDoc, drawHeader, drawParagraph, drawTable, drawSection, drawScore, drawTiles, save } from './pdf.js';
 import { refertoPartita, tabellaTabellino, quota } from './referto.js';
 
 /* Il referto in PDF.
@@ -27,6 +27,9 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
   const nostri = (team && team.name) || 'Noi';
 
   const titolo = `${nostri} — ${game.oppName}`;
+  // «I set» nella pallavolo, «I periodi» nel basket: la parola la dice lo sport.
+  const per = (sport.scout.period.label || 'periodo').toLowerCase();
+  const nomePeriodi = per === 'set' ? 'I set' : 'I ' + per + 'i';
   let y = drawHeader(doc, team || {}, titolo);
 
   const riga = [
@@ -37,17 +40,14 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
   y = drawParagraph(doc, riga, y);
   y += 2;
 
-  // Il risultato, grande: è la prima cosa che si cerca.
-  doc.setFont('helvetica', 'bold').setFontSize(16);
-  doc.text(`${game.teamScore ?? 0} – ${game.oppScore ?? 0}`, 20, y + 4);
-  doc.setFont('helvetica', 'normal').setFontSize(10);
-  y += 12;
+  // Il risultato, grande e dentro un riquadro con i due nomi ai lati: e' la
+  // prima cosa che si cerca aprendo il foglio, e su carta non si puo'
+  // toccare niente per scoprirla.
+  y = drawScore(doc, nostri, game.oppName || 'Avversari', game.teamScore, game.oppScore, y);
 
   // ------------------------------------------------------------------ i set
   if (r.set.length) {
-    doc.setFont('helvetica', 'bold').setFontSize(11);
-    doc.text('I set', 20, y); y += 6;
-    doc.setFont('helvetica', 'normal').setFontSize(10);
+    y = drawSection(doc, nomePeriodi, y);
 
     y = drawTable(doc,
       ['Set', 'Punteggio', 'Cambio palla', 'Break'],
@@ -71,9 +71,7 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
 
   // ----------------------------------------------------------- le rotazioni
   if (r.rotazioni.length) {
-    doc.setFont('helvetica', 'bold').setFontSize(11);
-    doc.text('Le rotazioni', 20, y); y += 6;
-    doc.setFont('helvetica', 'normal').setFontSize(10);
+    y = drawSection(doc, 'Le rotazioni', y);
 
     y = drawTable(doc,
       ['Rotazione', 'Punti fatti', 'Punti subiti', 'Saldo'],
@@ -91,9 +89,7 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
   // Sul foglio le zone in cifre e non il disegno: una mappa di pallini
   // stampata in bianco e nero non si legge, e tre righe di numeri si'.
   if (r.tiri) {
-    doc.setFont('helvetica', 'bold').setFontSize(11);
-    doc.text('Da dove abbiamo tirato', 20, y); y += 6;
-    doc.setFont('helvetica', 'normal').setFontSize(10);
+    y = drawSection(doc, 'Da dove abbiamo tirato', y);
     y = drawTable(
       doc,
       ['Zona', 'Segnati', 'Tentati', '%'],
@@ -106,23 +102,20 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
 
   // ------------------------------------------------ come abbiamo attaccato
   if (sport.scout.possessi && r.attacco) {
-    doc.setFont('helvetica', 'bold').setFontSize(11);
-    doc.text('Come abbiamo attaccato', 20, y); y += 6;
-    doc.setFont('helvetica', 'normal').setFontSize(10);
-    y = drawParagraph(doc,
-      `${r.attacco.possessi} possessi giocati, `
-      + `${r.attacco.ppp.toFixed(2).replace('.', ',')} punti per possesso. `
-      + (r.attacco.perse != null ? `Palla persa nel ${r.attacco.perse}% dei possessi. ` : '')
-      + (r.attacco.liberi != null ? `${r.attacco.liberi} tiri liberi ogni 100 tiri dal campo.` : ''),
-      y);
-    y += 4;
+    y = drawSection(doc, 'Come abbiamo attaccato', y);
+    y = drawTiles(doc, [
+      { valore: r.attacco.ppp.toFixed(2).replace('.', ','), etichetta: 'punti per possesso' },
+      { valore: r.attacco.possessi, etichetta: 'possessi giocati' },
+      { valore: r.attacco.perse == null ? '\u2014' : r.attacco.perse + '%', etichetta: 'possessi persi',
+        tono: r.attacco.perse != null && r.attacco.perse > 20 ? 'rosso' : null },
+      { valore: r.attacco.liberi == null ? '\u2014' : r.attacco.liberi + '%', etichetta: 'liberi per 100 tiri' }
+    ], y);
+    y += 2;
   }
 
   // ------------------------------------------------------- i quintetti
   if (r.quintetti.length > 0) {
-    doc.setFont('helvetica', 'bold').setFontSize(11);
-    doc.text('I quintetti', 20, y); y += 6;
-    doc.setFont('helvetica', 'normal').setFontSize(10);
+    y = drawSection(doc, 'I quintetti', y);
     y = drawTable(
       doc,
       ['Saldo', 'Cinque in campo', 'Fatti', 'Subiti'],
@@ -140,9 +133,7 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
 
   // ------------------------------------------------------------ il tabellino
   const t = tabellaTabellino(r, sport);
-  doc.setFont('helvetica', 'bold').setFontSize(11);
-  doc.text('Il tabellino', 20, y); y += 6;
-  doc.setFont('helvetica', 'normal').setFontSize(10);
+  y = drawSection(doc, 'Il tabellino', y);
 
   /* Le larghezze si calcolano, non si scrivono a mano.
    *
@@ -157,8 +148,7 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
   const larghezze = t.intestazioni.map((_, i) =>
     i === 0 ? 9 : i === 1 ? nome : (DISPONIBILE - 9 - nome) / nStat
   );
-  const righe = t.totale ? [...t.righe, t.totale] : t.righe;
-  y = drawTable(doc, t.intestazioni, righe, larghezze, y);
+  y = drawTable(doc, t.intestazioni, t.righe, larghezze, y, { totale: t.totale });
 
   if (sport.seasonLegend) {
     y += 3;
