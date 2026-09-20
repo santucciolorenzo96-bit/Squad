@@ -140,14 +140,25 @@ describe('pallavolo: efficienza in attacco', () => {
 // Ogni attacco alza il totale: e' l'unico modo perche' il denominatore esista.
 describe('pallavolo: ogni attacco conta come tentativo', () => {
   const azioni = PALLAVOLO.scout.groups.find(g => g.label === 'Attacco').actions;
-  test('i tre esiti stanno nello stesso gruppo', () => is(azioni.length, 3));
-  test('il punto conta un attacco', () => is(azioni.find(a => a.act === 'kill').apply.attacks, 1));
-  test('il ripreso conta un attacco e nient’altro', () => {
-    const a = azioni.find(x => x.act === 'attack_ok');
-    is(a.apply.attacks, 1);
-    is(a.apply.points, undefined);
+
+  test('i quattro esiti stanno nello stesso gruppo', () => is(azioni.length, 4));
+
+  test('tutti e quattro alzano il totale degli attacchi', () => {
+    // Se uno solo non lo alzasse, l'efficienza avrebbe un denominatore più
+    // piccolo del vero e direbbe che si attacca meglio di come si attacca.
+    azioni.forEach(a => is(a.apply.attacks, 1, a.act + ' non conta un attacco'));
   });
-  test('l’errore conta un attacco', () => is(azioni.find(a => a.act === 'attack_err').apply.attacks, 1));
+
+  test('solo il punto fa punto', () => {
+    is(azioni.find(a => a.act === 'kill').apply.points, 1);
+    ['attack_err', 'attack_pos', 'attack_neg'].forEach(k => {
+      is(azioni.find(a => a.act === k).apply.points, undefined);
+    });
+  });
+
+  test('l’errore in attacco è un punto per loro', () => {
+    is(azioni.find(a => a.act === 'attack_err').puntoLoro, true);
+  });
 });
 
 // La positività in ricezione: quante palle tornano giocabili su quelle
@@ -172,18 +183,93 @@ describe('pallavolo: positività in ricezione', () => {
   });
 });
 
-// I gruppi facoltativi esistono e sono marcati: e' quella marcatura che il
-// pannello guarda per decidere se mostrarli.
-describe('pallavolo: il dettaglio e’ facoltativo', () => {
+/* I QUATTRO FONDAMENTALI, E IL MURO.
+ *
+ * Servizio, attacco, difesa, ricezione: e' la scansione con cui un allenatore
+ * di pallavolo guarda uno scambio. Piu' il muro, che non e' fra i quattro ma
+ * chiude uno scambio senza passare dall'attacco — senza un pulsante, un muro
+ * punto andrebbe aggiunto a mano e non sarebbe di nessuno.
+ *
+ * Niente piu' gruppi facoltativi: la ricezione era spenta di serie, adesso e'
+ * un fondamentale come gli altri.
+ */
+describe('pallavolo: i fondamentali', () => {
   const g = PALLAVOLO.scout.groups;
-  test('ricezione e servizio sono marcati come dettaglio', () => {
-    ok(g.find(x => x.label === 'Ricezione').dettaglio);
-    ok(g.find(x => x.label === 'Servizio').dettaglio);
+
+  test('ci sono tutti e cinque, nell’ordine in cui si giocano', () => {
+    is(g.map(x => x.label).join(' '), 'Servizio Attacco Difesa Ricezione Muro');
   });
-  test('attacco, errore e difesa no', () => {
-    ['Attacco', 'Errore', 'Difesa'].forEach(l => is(!!g.find(x => x.label === l).dettaglio, false));
+
+  test('nessun gruppo è più facoltativo', () => {
+    is(g.filter(x => x.dettaglio).length, 0);
   });
-  test('senza dettaglio restano quattro gruppi', () => {
-    is(g.filter(x => !x.dettaglio).length, 4);
+
+  test('la ricezione ha i suoi quattro livelli', () => {
+    const r = g.find(x => x.label === 'Ricezione').actions.map(a => a.act);
+    is(r.join(' '), 'rec_perf rec_pos rec_neg recept_err');
+  });
+
+  test('ogni errore è un punto per loro, in tutti i fondamentali', () => {
+    // È la regola del gioco, e finora la applicava a mano chi segnava: due
+    // tocchi per un evento solo, e quello dimenticato falsava il punteggio.
+    ['serve_err', 'attack_err', 'dig_err', 'recept_err'].forEach(k => {
+      const a = g.flatMap(x => x.actions).find(x => x.act === k);
+      ok(a, k + ' non esiste');
+      is(a.puntoLoro, true, k + ' non dà il punto agli avversari');
+    });
+  });
+
+  test('il muro punto esiste, ed è un punto nostro', () => {
+    const b = g.flatMap(x => x.actions).find(x => x.act === 'block');
+    is(b.apply.points, 1);
+  });
+});
+
+/* L'errore in attacco chiede com'è finito.
+ *
+ * Non chiede CHI come le altre catene: chiede COSA, e la risposta va sullo
+ * stesso giocatore. Fuori è una scelta di tiro, murata è una lettura del
+ * muro: due correzioni diverse in allenamento, e finora erano lo stesso
+ * numero.
+ */
+describe('pallavolo: com’è finito l’errore', () => {
+  const c = PALLAVOLO.scout.chains.comeErrore;
+
+  test('la catena esiste e propone due esiti', () => {
+    is(c.opzioni.length, 2);
+    is(c.opzioni.map(o => o.act).join(' '), 'att_out att_blocked');
+  });
+
+  test('i due esiti si contano separatamente', () => {
+    is(c.opzioni.find(o => o.act === 'att_out').apply.attackOut, 1);
+    is(c.opzioni.find(o => o.act === 'att_blocked').apply.attackBlocked, 1);
+  });
+
+  test('nessuno dei due tocca il punteggio: l’ha già fatto l’errore', () => {
+    // L'errore in attacco ha gia' dato il punto agli avversari. Se lo desse
+    // anche il dettaglio, ogni errore ne varrebbe due.
+    c.opzioni.forEach(o => {
+      is(o.apply.points, undefined);
+      is(o.puntoLoro, undefined);
+    });
+  });
+
+  test('si può non rispondere', () => {
+    // Chi segna guarda la palla, non sempre il muro: un dato messo a caso
+    // vale meno di un dato mancante.
+    ok(c.altro);
+  });
+});
+
+// La positivita' in difesa, come quella in ricezione.
+describe('pallavolo: positività in difesa', () => {
+  const pos = PALLAVOLO.seasonColumns.find(c => c.key === 'difPos').calc;
+
+  test('solo le positive contano', () => {
+    is(pos({ digs: 6, digNeg: 3, digErrors: 1 }), 60);
+  });
+
+  test('senza difese non si inventa una percentuale', () => {
+    is(pos({}), null);
   });
 });

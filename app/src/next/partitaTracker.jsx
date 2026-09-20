@@ -10,9 +10,9 @@ import {
   perchePunteggioImpossibile, scambioFinito,
   saldoTurno, sommaQuintetto, abbinaCalendario
 } from '../utils/regole.js';
-import { Pannello, Etichetta, Pulsante, Stato, Amichevole, cx } from './ui.jsx';
+import { Pannello, Etichetta, Pulsante, Stato, Amichevole, Vuoto, cx } from './ui.jsx';
 import { oggiISO } from '../utils/format.js';
-import { Modulo, Conferma, Campo, Testo, useAvviso, useTendina } from './moduli.jsx';
+import { Modulo, Conferma, Campo, Testo, Finestra, useAvviso, useTendina } from './moduli.jsx';
 import { inCampione } from './campione.js';
 import { scriviCopia, segnaSincronizzata, cancellaCopia } from './partitaLocale.js';
 
@@ -365,11 +365,26 @@ export function Tracker({ onFinita, onEsci }) {
     setCatena(seguito ? { tipo: azione.poi, autore: giocatore.id } : null);
   }
 
-  function rispondiCatena(giocatore) {
+  /* La risposta alla catena.
+   *
+   * Arriva un GIOCATORE (chi ha alzato, chi ha preso il rimbalzo) oppure
+   * un'OPZIONE (com'e' finito l'errore: fuori o murato). Nel primo caso
+   * l'azione va su chi si e' scelto; nel secondo va su chi ha appena
+   * sbagliato, perche' la domanda riguarda il suo errore.
+   */
+  function rispondiCatena(risposta) {
     const c = (conf.chains || {})[catena.tipo];
+    const autore = catena.autore;
     setCatena(null);
-    if (!giocatore || !c) return;
-    esegui(giocatore, { ...c.azione, etichettaBreve: c.azione.label }, true);
+    if (!risposta || !c) return;
+
+    if (c.opzioni) {
+      const chi = g.players.find(p => p.id === autore);
+      if (!chi) return;
+      esegui(chi, { ...risposta, etichettaBreve: risposta.label }, true);
+      return;
+    }
+    esegui(risposta, { ...c.azione, etichettaBreve: c.azione.label }, true);
   }
 
   // Il punteggio del periodo in corso, da una parte o dall'altra.
@@ -539,6 +554,7 @@ export function Tracker({ onFinita, onEsci }) {
   }
 
   const inCampo = g.players.filter(p => p.onCourt);
+  const uscente = sostituzione ? g.players.find(p => p.id === sostituzione) : null;
   const inPanca = g.players.filter(p => !p.onCourt);
   const falli = conf.teamFouls ? (g.quarterFouls[g.quarter] || 0) : 0;
   const bonus = conf.teamFouls && falli >= conf.teamFoulBonus;
@@ -873,9 +889,7 @@ export function Tracker({ onFinita, onEsci }) {
         </div>
 
         <div className="mt-6 md:mt-0">
-          <Etichetta className="mb-2.5">
-            {sostituzione ? 'Chi entra?' : sport.field.benchLabel}
-          </Etichetta>
+          <Etichetta className="mb-2.5">{sport.field.benchLabel}</Etichetta>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-2">
             {inPanca.length === 0 ? (
               <p className="col-span-full text-[12.5px] text-tenue">Nessuno in panchina.</p>
@@ -887,10 +901,7 @@ export function Tracker({ onFinita, onEsci }) {
                   setAncora(e.currentTarget.getBoundingClientRect());
                   setScelto(p.id);
                 }}
-                className={cx(
-                  'rounded-lg px-2 py-2.5 text-center transition-all orlo',
-                  sostituzione ? 'vetro-alto ring-1 ring-blu' : 'vetro hover:bg-pannello/12'
-                )}
+                className="rounded-lg vetro px-2 py-2.5 text-center transition-all orlo hover:bg-pannello/12"
               >
                 <div className="relative mx-auto h-11 w-11">
                   <span className="block h-full w-full overflow-hidden rounded-full vetro orlo text-[14px] font-bold">
@@ -905,25 +916,63 @@ export function Tracker({ onFinita, onEsci }) {
             ))}
           </div>
 
-          {sostituzione && (
-            <button
-              onClick={() => setSostituzione(null)}
-              className="mt-3 w-full rounded-lg vetro orlo py-2 text-[13px] font-semibold text-tenue hover:text-testo"
-            >
-              Annulla la sostituzione
-            </button>
-          )}
-
           {/* Tre righe, non un foglietto di istruzioni: durante una partita
               nessuno legge, e quello che resta a schermo va guadagnato. */}
           <ul className="mt-4 space-y-1.5 text-[12.5px] leading-relaxed text-tenue">
             <li>Tocca un giocatore, poi l’azione.</li>
             <li>Le domande che seguono (rimbalzo, assist) si saltano toccando fuori.</li>
-            <li>Il ⇄ sul gettone prepara una sostituzione.</li>
+            <li>Il ⇄ sul gettone apre il cambio: chi entra si sceglie davanti.</li>
             <li>I punti senza autore si mettono col + e col − sotto al punteggio.</li>
           </ul>
         </div>
       </div>
+
+      {/* ====================================================== il cambio */}
+      {/* IL CAMBIO NON PUO' STARE FUORI DALLO SCHERMO.
+       *
+       * Prima si toccava il ⇄ sul gettone e poi bisognava trovare chi entra
+       * nella colonna della panchina: su telefono è sotto, oltre il campo,
+       * e per arrivarci si scorre. Durante un time out, con l'allenatore che
+       * detta due cambi di fila, quello scorrimento è il momento in cui si
+       * perde il filo — e chi gestisce la partita deve avere tutto sotto
+       * occhio, non sotto la piega.
+       *
+       * Adesso la scelta arriva davanti, grande, con i volti. Un tocco per
+       * dire chi esce, un tocco per dire chi entra, e si torna al campo. */}
+      {sostituzione && uscente && (
+        <Finestra
+          titolo={'Chi entra al posto di ' + sigla(uscente) + '?'}
+          sotto={uscente.name + ' · esce dal campo'}
+          larga
+          onChiudi={() => setSostituzione(null)}
+        >
+          {inPanca.length === 0 ? (
+            <Vuoto>Non c’è nessuno in panchina: tutti quelli in distinta sono già in campo.</Vuoto>
+          ) : (
+            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+              {inPanca.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => sostituisci(p)}
+                  className="rounded-xl vetro orlo px-2 py-3 text-center transition-all hover:bg-pannello/12 active:scale-[0.97]"
+                >
+                  <span className="relative mx-auto block h-14 w-14">
+                    <span className="block h-full w-full overflow-hidden rounded-full vetro orlo text-[17px] font-bold">
+                      <Volto p={p} url={foto[p.id]} />
+                    </span>
+                    <span className="absolute -bottom-1 -right-1">
+                      <Canotta numero={p.number} dim="1.45rem" />
+                    </span>
+                  </span>
+                  <span className="mt-2 block truncate text-[12.5px] font-semibold">
+                    {p.name.split(' ')[0]}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </Finestra>
+      )}
 
       {/* ======================================================= la mappa */}
       {tiroDaPiazzare && (
@@ -1431,9 +1480,19 @@ function Catena({ conf, catena, giocatori, onScegli, onChiudi }) {
 
   if (!c) return null;
 
-  const candidati = c.includiAutore
-    ? giocatori
-    : giocatori.filter(p => p.id !== catena.autore);
+  /* DUE DOMANDE DIVERSE CON LO STESSO ASPETTO.
+   *
+   * Quasi tutte le catene chiedono CHI: chi ha alzato, chi ha preso il
+   * rimbalzo, e la risposta e' un giocatore. Una chiede COSA: com'e' finito
+   * l'attacco sbagliato, fuori o murato, e la risposta va sullo stesso
+   * giocatore che ha appena sbagliato.
+   *
+   * Stesso foglio, stessa posizione, stesso modo di saltarla: chi segna non
+   * deve accorgersi che sono due meccanismi. Cambia solo cosa c'e' dentro. */
+  const opzioni = c.opzioni || null;
+  const candidati = opzioni
+    ? []
+    : (c.includiAutore ? giocatori : giocatori.filter(p => p.id !== catena.autore));
 
   return createPortal(
     <div className="fixed inset-0 z-[75] flex flex-col justify-end" onMouseDown={onChiudi}>
@@ -1453,6 +1512,20 @@ function Catena({ conf, catena, giocatori, onScegli, onChiudi }) {
           </button>
         </div>
 
+        {opzioni ? (
+          // Poche risposte e lunghe: bottoni larghi, non una griglia da cinque.
+          <div className="grid grid-cols-2 gap-2">
+            {opzioni.map(o => (
+              <button
+                key={o.act}
+                onClick={() => onScegli(o)}
+                className="rounded-lg vetro orlo px-3 py-3 text-[13.5px] font-semibold transition-all hover:bg-pannello/16 active:scale-[0.97]"
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        ) : (
         <div className="grid grid-cols-5 gap-2">
           {candidati.map(p => (
             <button
@@ -1465,6 +1538,7 @@ function Catena({ conf, catena, giocatori, onScegli, onChiudi }) {
             </button>
           ))}
         </div>
+        )}
       </div>
     </div>,
     document.body

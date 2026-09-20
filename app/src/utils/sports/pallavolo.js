@@ -50,13 +50,28 @@ function newStats() {
     // di loro l'efficienza non esiste: si avrebbero i numeratori e non il
     // denominatore, cioe' i punti di un'attaccante ma non quanti palloni le
     // sono serviti per farli.
-    points: 0, kills: 0, attacks: 0, attackErrors: 0, blocks: 0,
-    aces: 0, serveErrors: 0, servePos: 0, digs: 0,
-    // La ricezione a tre livelli, che e' come la chiamano in campo: perfetta
-    // (l'alzatrice puo' fare tutto), positiva (opzioni ridotte), slash (resta
-    // solo la palla spinta). L'errore c'era gia'.
+    points: 0,
+
+    // SERVIZIO: ace, errore, positiva.
+    aces: 0, serveErrors: 0, servePos: 0,
+
+    // ATTACCO: punto, errore, positivo, negativo. `attacks` e' la somma dei
+    // quattro, cioe' i palloni attaccati: senza il totale l'efficienza non
+    // esiste — si avrebbero i numeratori e non il denominatore.
+    kills: 0, attackErrors: 0, attackPos: 0, attackNeg: 0, attacks: 0,
+    // Com'e' finito l'errore. Due numeri diversi che dicono due cose
+    // diverse: fuori e' una scelta di tiro, murata e' una lettura del muro.
+    attackOut: 0, attackBlocked: 0,
+
+    // DIFESA: positiva, negativa, errore.
+    digs: 0, digNeg: 0, digErrors: 0,
+
+    // RICEZIONE a quattro livelli, come la chiamano in campo: ++ perfetta
+    // (l'alzatrice puo' fare tutto), + positiva (opzioni ridotte), - resta
+    // solo la palla spinta, errore.
     recPerf: 0, recPos: 0, recNeg: 0, receptionErrors: 0,
-    assists: 0, setsPlayed: 0
+
+    blocks: 0, assists: 0, setsPlayed: 0
   };
 }
 
@@ -82,6 +97,12 @@ export const PALLAVOLO = {
     points: (p) => (p.stats || {}).points || 0,
     kills: (p) => (p.stats || {}).kills || 0,
     attacks: (p) => (p.stats || {}).attacks || 0,
+    attackPos: (p) => (p.stats || {}).attackPos || 0,
+    attackNeg: (p) => (p.stats || {}).attackNeg || 0,
+    attackBlocked: (p) => (p.stats || {}).attackBlocked || 0,
+    attackOut: (p) => (p.stats || {}).attackOut || 0,
+    digNeg: (p) => (p.stats || {}).digNeg || 0,
+    digErrors: (p) => (p.stats || {}).digErrors || 0,
     blocks: (p) => (p.stats || {}).blocks || 0,
     aces: (p) => (p.stats || {}).aces || 0,
     attackErrors: (p) => (p.stats || {}).attackErrors || 0,
@@ -105,9 +126,16 @@ export const PALLAVOLO = {
     // una funzione al posto di una chiave.
     { key: 'eff', short: 'EFF', label: 'Efficienza in attacco', suffisso: '%',
       calc: (r) => (r.attacks ? Math.round(((r.kills - r.attackErrors) / r.attacks) * 100) : null) },
-    { key: 'blocks', short: 'MU', label: 'Muri' },
+    { key: 'blocks', short: 'MU', label: 'Muri punto' },
     { key: 'aces', short: 'ACE', label: 'Ace' },
-    { key: 'digs', short: 'DIF', label: 'Difese' },
+    { key: 'digs', short: 'DIF', label: 'Difese positive' },
+    // La positivita' in difesa, come quella in ricezione: quante palle
+    // restano giocabili sul totale di quelle toccate.
+    { key: 'difPos', short: 'DIF%', label: 'Positivit\u00e0 in difesa', suffisso: '%',
+      calc: (r) => {
+        const tot = (r.digs || 0) + (r.digNeg || 0) + (r.digErrors || 0);
+        return tot ? Math.round(((r.digs || 0) / tot) * 100) : null;
+      } },
     // La positivita' in ricezione: quante palle tornano giocabili sul totale
     // di quelle ricevute. E' il secondo numero della pallavolo dopo
     // l'efficienza, e come quello e' un rapporto che si ricalcola.
@@ -118,10 +146,11 @@ export const PALLAVOLO = {
       } },
     { key: 'assists', short: 'ALZ', label: 'Alzate vincenti' },
     { key: 'attackErrors', short: 'EA', label: 'Errori in attacco' },
+    { key: 'attackBlocked', short: 'MUS', label: 'Attacchi murati' },
     { key: 'serveErrors', short: 'ES', label: 'Errori al servizio' },
     { key: 'setsPlayed', short: 'SET', label: 'Set giocati' }
   ],
-  seasonLegend: 'PG = partite giocate · P/S = punti a partita · TOT = palloni attaccati · EFF = (vincenti meno errori) diviso gli attacchi · ALZ = alzate che hanno prodotto un punto · EA/ES = errori in attacco e al servizio',
+  seasonLegend: 'PG = partite giocate · P/S = punti a partita · TOT = palloni attaccati · EFF = (vincenti meno errori) diviso gli attacchi · RIC = ricezioni ++ e + sul totale ricevuto · DIF% = difese positive sul totale difeso · MUS = attacchi finiti sul muro avversario · ALZ = alzate che hanno prodotto un punto · EA/ES = errori in attacco e al servizio',
   showMinutes: false,
 
   ratingLabel: 'Efficienza',
@@ -187,64 +216,92 @@ export const PALLAVOLO = {
     trackSeconds: false,
     teamFouls: false,
     periodPrompt: 'Come è finito questo set?',
+    /* I QUATTRO FONDAMENTALI, NELL'ORDINE IN CUI SI GIOCANO.
+     *
+     * Servizio, attacco, difesa, ricezione: e' la scansione con cui un
+     * allenatore di pallavolo guarda uno scambio, ed e' anche l'ordine in cui
+     * le voci si cercano su un foglio di scout federale. Ogni fondamentale
+     * ha i suoi esiti, e ogni esito e' un tocco.
+     *
+     * Niente piu' opzionale: la ricezione era spenta di serie perche'
+     * costava un tocco in piu' su meta' degli scambi, e per un genitore alla
+     * prima volta era il tocco che faceva perdere lo scambio dopo. Adesso e'
+     * un fondamentale come gli altri, sempre a schermo — e' una scelta
+     * diversa, e vuol dire che questo scout e' per chi lo sa tenere.
+     */
     groups: [
-      /* I TRE ESITI DELL'ATTACCO, VICINI.
-       *
-       * Un attacco finisce in tre modi: punto, ripreso, errore. Prima ne
-       * registravamo due — il punto e l'errore — in due gruppi lontani, e il
-       * terzo non esisteva affatto. Mancando quello mancava il totale degli
-       * attacchi, e senza il totale non c'e' l'efficienza: (vincenti - errori)
-       * diviso i palloni attaccati. E' il numero con cui si giudica
-       * un'attaccante in tutto il mondo, e ci mancava per un pulsante.
-       *
-       * Adesso i tre stanno insieme perche' sono la stessa domanda — «com'e'
-       * finito quell'attacco?» — e chi segna la risposta ce l'ha gia' in testa. */
-      { label: 'Attacco', actions: [
-        // Dopo un attacco vincente la domanda successiva e' sempre la stessa, e
-        // in panchina la fanno ad alta voce: chi ha alzato.
-        { act: 'kill', label: '✓ Punto', etichettaBreve: 'Attacco vincente', tone: 'made',
-          apply: { points: 1, kills: 1, attacks: 1 }, poi: 'alzata' },
-        // Attaccato, non chiuso: la difesa avversaria l'ha tenuto su e lo
-        // scambio continua. Non da' punti a nessuno, e conta eccome.
-        { act: 'attack_ok', label: '↺ Ripreso', etichettaBreve: 'Attacco ripreso', tone: 'neutral',
-          apply: { attacks: 1 } },
-        { act: 'attack_err', label: '✗ Errore', etichettaBreve: 'Errore in attacco', tone: 'miss',
-          apply: { attackErrors: 1, attacks: 1 }, puntoLoro: true }
-      ]},
-      { label: 'Punto diretto', layout: 'pair', actions: [
-        { act: 'block', label: 'Muro punto', tone: 'made', apply: { points: 1, blocks: 1 } },
-        { act: 'ace', label: 'Ace', tone: 'made', apply: { points: 1, aces: 1 } }
-      ]},
-      { label: 'Errore', layout: 'pair', actions: [
-        { act: 'serve_err', label: 'Al servizio', etichettaBreve: 'Errore al servizio', tone: 'warn',
+      { label: 'Servizio', actions: [
+        { act: 'ace', label: 'Ace', tone: 'made', apply: { points: 1, aces: 1 } },
+        { act: 'serve_err', label: 'Errore', etichettaBreve: 'Errore al servizio', tone: 'miss',
           apply: { serveErrors: 1 }, puntoLoro: true },
-        { act: 'recept_err', label: 'In ricezione', etichettaBreve: 'Errore in ricezione', tone: 'warn',
-          apply: { receptionErrors: 1 }, puntoLoro: true }
-      ]},
-      { label: 'Difesa', actions: [
-        { act: 'dig', label: 'Difesa', tone: 'neutral', apply: { digs: 1 } }
+        { act: 'serve_pos', label: 'Positiva', etichettaBreve: 'Servizio positivo', tone: 'neutral',
+          apply: { servePos: 1 } }
       ]},
 
-      /* IL DETTAGLIO, SPENTO DI SERIE.
-       *
-       * Segnare la qualita' di ogni ricezione vuol dire un tocco in piu' su
-       * meta' degli scambi. Per un allenatore che sa cosa farsene e' il dato
-       * piu' prezioso della pallavolo; per un genitore che tiene lo scout la
-       * prima volta e' il tocco che fa perdere lo scambio successivo.
-       *
-       * Quindi non si sceglie per tutti: si accende dal pannello quando si
-       * vuole, e la scelta resta sul dispositivo di chi segna — perche' e' una
-       * preferenza di chi tiene lo scout, non una proprieta' della partita. */
-      { label: 'Ricezione', dettaglio: true, actions: [
-        { act: 'rec_perf', label: '# Perfetta', etichettaBreve: 'Ricezione perfetta', tone: 'made', apply: { recPerf: 1 } },
-        { act: 'rec_pos', label: '+ Positiva', etichettaBreve: 'Ricezione positiva', tone: 'neutral', apply: { recPos: 1 } },
-        { act: 'rec_neg', label: '\u2212 Slash', etichettaBreve: 'Ricezione slash', tone: 'warn', apply: { recNeg: 1 } }
+      { label: 'Attacco', actions: [
+        // Dopo un attacco vincente la domanda successiva e' sempre la stessa,
+        // e in panchina la fanno ad alta voce: chi ha alzato.
+        { act: 'kill', label: 'Punto', etichettaBreve: 'Attacco vincente', tone: 'made',
+          apply: { points: 1, kills: 1, attacks: 1 }, poi: 'alzata', traiettoria: true },
+        // L'errore chiede com'e' finito: fuori e' una scelta di tiro, murata
+        // e' una lettura del muro avversario. Due correzioni diverse in
+        // allenamento, e finora erano lo stesso numero.
+        { act: 'attack_err', label: 'Errore', etichettaBreve: 'Errore in attacco', tone: 'miss',
+          apply: { attackErrors: 1, attacks: 1 }, puntoLoro: true, poi: 'comeErrore' },
+        { act: 'attack_pos', label: 'Positivo', etichettaBreve: 'Attacco positivo', tone: 'neutral',
+          apply: { attackPos: 1, attacks: 1 } },
+        { act: 'attack_neg', label: 'Negativo', etichettaBreve: 'Attacco negativo', tone: 'warn',
+          apply: { attackNeg: 1, attacks: 1 } }
       ]},
-      { label: 'Servizio', dettaglio: true, actions: [
-        { act: 'serve_pos', label: '+ Servizio positivo', etichettaBreve: 'Servizio positivo', tone: 'neutral', apply: { servePos: 1 } }
+
+      { label: 'Difesa', actions: [
+        { act: 'dig_err', label: 'Errore', etichettaBreve: 'Errore in difesa', tone: 'miss',
+          apply: { digErrors: 1 }, puntoLoro: true },
+        { act: 'dig', label: 'Positiva', etichettaBreve: 'Difesa positiva', tone: 'made',
+          apply: { digs: 1 } },
+        { act: 'dig_neg', label: 'Negativa', etichettaBreve: 'Difesa negativa', tone: 'warn',
+          apply: { digNeg: 1 } }
+      ]},
+
+      { label: 'Ricezione', actions: [
+        { act: 'rec_perf', label: '++', etichettaBreve: 'Ricezione perfetta', tone: 'made',
+          apply: { recPerf: 1 } },
+        { act: 'rec_pos', label: '+', etichettaBreve: 'Ricezione positiva', tone: 'neutral',
+          apply: { recPos: 1 } },
+        { act: 'rec_neg', label: '\u2212', etichettaBreve: 'Ricezione slash', tone: 'warn',
+          apply: { recNeg: 1 } },
+        { act: 'recept_err', label: 'Errore', etichettaBreve: 'Errore in ricezione', tone: 'miss',
+          apply: { receptionErrors: 1 }, puntoLoro: true }
+      ]},
+
+      /* IL MURO NON E' NEI QUATTRO, E SERVE LO STESSO.
+       *
+       * Un muro punto e' un punto: senza un pulsante, chi segna dovrebbe
+       * aggiungerlo a mano col + sotto al punteggio, e quel punto non
+       * sarebbe di nessuno. Resta qui, da solo, perche' e' l'unico
+       * fondamentale che chiude uno scambio senza passare dall'attacco. */
+      { label: 'Muro', actions: [
+        { act: 'block', label: 'Muro punto', tone: 'made', apply: { points: 1, blocks: 1 } }
       ]}
     ],
     chains: {
+      /* COM'E' FINITO L'ERRORE.
+       *
+       * Non chiede CHI, come le altre catene: chiede COSA, e la risposta va
+       * sullo stesso giocatore che ha appena sbagliato. Due esiti, perche' in
+       * allenamento si correggono in due modi diversi — fuori e' una scelta
+       * di tiro, murata e' una lettura del muro.
+       *
+       * «Non lo so» c'e' apposta: chi segna guarda la palla, non sempre il
+       * muro, e un dato messo a caso vale meno di un dato mancante. */
+      comeErrore: {
+        titolo: 'Com\u2019\u00e8 finito?',
+        opzioni: [
+          { act: 'att_out', label: 'Fuori o a rete', apply: { attackOut: 1 } },
+          { act: 'att_blocked', label: 'Murata', apply: { attackBlocked: 1 } }
+        ],
+        altro: 'Non lo so'
+      },
       alzata: {
         titolo: 'Chi ha alzato?',
         azione: { act: 'assist', label: 'Alzata', apply: { assists: 1 } },
