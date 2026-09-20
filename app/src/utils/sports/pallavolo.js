@@ -44,6 +44,44 @@ const FIELD_SVG = `
   </g>
 </svg>`;
 
+/* IL CAMPO INTERO, VISTO DI FIANCO.
+ *
+ * Quello del sestetto e' mezzo campo: basta, perche' li' si dispongono sei
+ * giocatrici. Una traiettoria no: parte da casa nostra e finisce da loro, e
+ * mezzo campo non la puo' contenere.
+ *
+ * DI FIANCO e non in piedi, con la rete verticale e noi a sinistra. In piedi
+ * un campo da 9 per 18 diventa una striscia alta e stretta: su un telefono
+ * larga centocinquanta pixel, dove un gesto preciso non si fa. Di fianco
+ * prende tutta la larghezza, e l'attacco si disegna con una passata del dito
+ * da sinistra a destra — che e' anche la direzione in cui va la palla.
+ */
+export const CAMPO_INTERO = `
+<svg class="court-lines" viewBox="0 0 200 90" preserveAspectRatio="none" fill="none"
+     stroke="currentColor" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round">
+  <!-- I due campi: diciotto metri per nove, dieci unita' al metro. -->
+  <rect x="10" y="0.7" width="180" height="88.6" rx="1"/>
+
+  <!-- La rete, in mezzo: e' il muro, e si vede che lo e'. -->
+  <path d="M100 0.7v88.6" stroke-width="2.4"/>
+
+  <!-- Le due linee dei tre metri. -->
+  <path d="M70 0.7v88.6" stroke-width="0.9"/>
+  <path d="M130 0.7v88.6" stroke-width="0.9"/>
+
+  <!-- Le zone di servizio, tratteggiate perche' non sono campo. -->
+  <path d="M10 0.7H0.6v88.6H10" stroke-dasharray="3 3" stroke-opacity="0.45"/>
+  <path d="M190 0.7h9.4v88.6H190" stroke-dasharray="3 3" stroke-opacity="0.45"/>
+
+  <!-- Chi sta di qua e chi di la'. Senza, una traiettoria disegnata al
+       contrario sembra giusta. -->
+  <g fill="currentColor" fill-opacity="0.26" stroke="none"
+     font-family="inherit" font-size="9" font-weight="700" text-anchor="middle">
+    <text x="40" y="49">NOI</text>
+    <text x="160" y="49">LORO</text>
+  </g>
+</svg>`;
+
 function newStats() {
   return {
     // `attacks` sono gli attacchi TENTATI, vincenti ed errori compresi. Senza
@@ -71,7 +109,11 @@ function newStats() {
     // solo la palla spinta, errore.
     recPerf: 0, recPos: 0, recNeg: 0, receptionErrors: 0,
 
-    blocks: 0, assists: 0, setsPlayed: 0
+    blocks: 0, assists: 0, setsPlayed: 0,
+
+    // Le traiettorie dei punti: { x1, y1, x2, y2, q } in percentuale del
+    // campo intero. Da dove e' partita la palla e dove e' caduta.
+    traiettorie: []
   };
 }
 
@@ -162,6 +204,11 @@ export const PALLAVOLO = {
 
   score: (s) => (s.points || 0),
   newStats,
+
+  // Il campo intero serve solo alla traiettoria: il descrittore lo porta con
+  // se', cosi' lo scout non deve sapere com'e' fatto un campo da pallavolo.
+  campoIntero: CAMPO_INTERO,
+  campoInteroRatio: 200 / 90,
 
   // ------------------------------------------------------------------ SCOUT
   // La pallavolo non ha cronometro, e il punteggio del set non si ricava dai

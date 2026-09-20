@@ -82,8 +82,9 @@ export function refertoPartita(g, sport) {
   const attacco = tabellino.length ? attaccoSquadra(totaleTabellino(tabellino)) : null;
 
   const tiri = tiriPartita(g, sport);
+  const traiettorie = traiettoriePartita(g);
 
-  return { set, fasi, rotazioni, quintetti, attacco, tiri, tabellino, chiusi: chiusi.length };
+  return { set, fasi, rotazioni, quintetti, attacco, tiri, traiettorie, tabellino, chiusi: chiusi.length };
 }
 
 /* La riga della squadra.
@@ -179,6 +180,26 @@ export function tiriPartita(g, sport) {
   }).filter(z => z.tentati > 0);
 
   return { punti, zone };
+}
+
+/* LE TRAIETTORIE DEI PUNTI.
+ *
+ * Il tabellino dice che Rossi ha fatto quattordici punti. La mappa dice che
+ * dodici sono partiti dalla stessa zona e caduti nello stesso metro
+ * quadrato — e che gli avversari non l'hanno mai coperto. Sono due
+ * informazioni diverse, e la seconda si vede solo disegnandola.
+ *
+ * Stanno dentro chi le ha giocate, come i tiri del basket, e qui si
+ * rimettono in un elenco solo: la mappa di una squadra, non di una persona.
+ */
+export function traiettoriePartita(g) {
+  const linee = [];
+  (g.players || []).forEach(p => {
+    ((p.stats || {}).traiettorie || []).forEach(t => {
+      linee.push({ ...t, giocatore: p.id, numero: p.number, nome: p.name });
+    });
+  });
+  return linee.length ? linee : null;
 }
 
 // Percentuale, o null dove non c'è ancora niente da dire. Uno zero inventato

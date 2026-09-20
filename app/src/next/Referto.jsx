@@ -75,6 +75,53 @@ function MappaTiri({ sport, tiri }) {
   );
 }
 
+/* LE TRAIETTORIE DEI PUNTI.
+ *
+ * Il campo intero con sopra le righe: da dove e' partita la palla, dove e'
+ * caduta. Il pallino pieno e' la partenza, la punta e' l'arrivo.
+ *
+ * Righe sottili e semitrasparenti apposta: quando dodici punti partono dalla
+ * stessa zona, la sovrapposizione diventa una macchia piu' scura, e quella
+ * macchia e' l'informazione. Con righe piene e opache sarebbe un gomitolo
+ * in cui non si distingue niente.
+ */
+function Traiettorie({ sport, linee }) {
+  return (
+    <div className="mb-6">
+      <Etichetta className="mb-2.5">Dove sono caduti i punti</Etichetta>
+
+      <Pannello alto className="overflow-hidden">
+        <div className="campo-cornice" style={{ '--proporzione': sport.campoInteroRatio }}>
+          <div className="campo parquet relative w-full">
+            <div className="righe-campo" dangerouslySetInnerHTML={{ __html: sport.campoIntero }} />
+            <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              {linee.map((t, i) => (
+                <g key={i}>
+                  <line
+                    x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
+                    stroke="rgb(var(--verde))" strokeOpacity="0.55" strokeWidth="1"
+                    strokeLinecap="round" vectorEffect="non-scaling-stroke"
+                  />
+                  {/* Il cerchio non si deforma con il campo: `preserveAspectRatio
+                      none` stira tutto, e un pallino diventerebbe un'ellisse. */}
+                  <circle cx={t.x1} cy={t.y1} r="0.9" fill="rgb(var(--verde))" fillOpacity="0.8" />
+                </g>
+              ))}
+            </svg>
+          </div>
+        </div>
+      </Pannello>
+
+      <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
+        {linee.length} {linee.length === 1 ? 'punto disegnato' : 'punti disegnati'}. Il pallino è da
+        dove è partita la palla, la punta dove è caduta. Dove le righe si sovrappongono si è
+        segnato più volte nello stesso modo — e se gli avversari non l’hanno mai coperto,
+        si vede da qui.
+      </p>
+    </div>
+  );
+}
+
 function Numero({ valore, etichetta, tono }) {
   return (
     <div>
@@ -273,6 +320,7 @@ export function Referto({ partita, onChiudi, onEliminata }) {
       )}
 
       {r.tiri && <MappaTiri sport={sport} tiri={r.tiri} />}
+      {r.traiettorie && sport.campoIntero && <Traiettorie sport={sport} linee={r.traiettorie} />}
 
       {/* -------------------------------------------- come abbiamo attaccato */}
       {conf.possessi && r.attacco && (

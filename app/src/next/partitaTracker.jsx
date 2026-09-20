@@ -137,6 +137,7 @@ export function Tracker({ onFinita, onEsci }) {
   const [dettaglio, setDettaglio] = useState(leggiDettaglio);
   const [mappa, setMappa] = useState(leggiMappa);
   const [tiroDaPiazzare, setTiroDaPiazzare] = useState(null);   // { giocatore, azione }
+  const [traiettoria, setTraiettoria] = useState(null);         // { giocatore, azione, foto }
   const [chiudiPeriodo, setChiudiPeriodo] = useState(false);
   const [finePartita, setFinePartita] = useState(false);
   const salvataggioRotto = useRef(false);
@@ -302,7 +303,7 @@ export function Tracker({ onFinita, onEsci }) {
     ? (state.calendar || []).find(m => m.id === g.calendarMatchId) || { id: g.calendarMatchId }
     : abbinaCalendario(state.calendar, g.oppName, oggiISO());
 
-  function esegui(giocatore, azione, senzaCatena, punto) {
+  function esegui(giocatore, azione, senzaCatena, punto, linea) {
     memorizza(sigla(giocatore) + ' ' + (azione.etichettaBreve || azione.label));
     const s = giocatore.stats;
     // Quanto vale questa azione in punti lo dice lo sport, non l'azione: nel
@@ -326,6 +327,12 @@ export function Tracker({ onFinita, onEsci }) {
       s.tiri = [...(s.tiri || []), {
         x: punto.x, y: punto.y, act: azione.act, dentro: !!azione.dentro, q: g.quarter || 1
       }];
+    }
+
+    // Da dove e' partita la palla e dove e' caduta. Come i tiri del basket,
+    // sta dentro chi l'ha giocata: e' sua, e viaggia con il tabellino.
+    if (linea) {
+      s.traiettorie = [...(s.traiettorie || []), { ...linea, act: azione.act, q: g.quarter || 1 }];
     }
 
     // Il punteggio del periodo in corso cresce subito: e' il numero che chi
@@ -974,6 +981,20 @@ export function Tracker({ onFinita, onEsci }) {
         </Finestra>
       )}
 
+      {/* ================================================== la traiettoria */}
+      {traiettoria && (
+        <CampoTraiettoria
+          sport={sport}
+          tiro={traiettoria}
+          onChiudi={() => setTraiettoria(null)}
+          onFatto={(linea) => {
+            const { giocatore, azione } = traiettoria;
+            setTraiettoria(null);
+            esegui(giocatore, azione, false, null, linea);
+          }}
+        />
+      )}
+
       {/* ======================================================= la mappa */}
       {tiroDaPiazzare && (
         <MappaTiro
@@ -1014,6 +1035,15 @@ export function Tracker({ onFinita, onEsci }) {
             // libero — e' la cosa che si sta per toccare.
             if (conf.mappaTiri && mappa && a.zona) {
               setTiroDaPiazzare({ giocatore: giocatoreScelto, azione: a, foto: foto[giocatoreScelto.id] });
+              setScelto(null);
+              setAncora(null);
+              return;
+            }
+            // Il punto della pallavolo chiede la traiettoria prima di
+            // registrarsi, per la stessa ragione del tiro nel basket: il
+            // campo dev'essere libero, ed e' la cosa che si sta per toccare.
+            if (sport.campoIntero && a.traiettoria) {
+              setTraiettoria({ giocatore: giocatoreScelto, azione: a, foto: foto[giocatoreScelto.id] });
               setScelto(null);
               setAncora(null);
               return;
@@ -1452,6 +1482,144 @@ function MappaTiro({ sport, tiro, onPunto, onChiudi }) {
             className="campo parquet relative w-full cursor-crosshair"
           >
             <RigheCampo svg={sport.field.svg} />
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* ---------------------------------------------------------- la traiettoria */
+/* DOVE E' PARTITA E DOVE E' CADUTA.
+ *
+ * Un punto in pallavolo non e' un numero: e' una diagonale stretta dalla
+ * quattro, o un pallonetto dietro al muro, o una parallela sulla riga. Il
+ * tabellino dice che Rossi ha fatto quattordici punti; la mappa dice che
+ * dodici sono partiti dalla stessa zona e caduti nello stesso metro
+ * quadrato, e che gli avversari non l'hanno mai coperto.
+ *
+ * UN GESTO SOLO, e non due tocchi. Si appoggia il dito da dove e' partita e
+ * si tira fino a dove e' caduta: mentre si tira la riga si vede, e quando si
+ * stacca il dito e' registrata. Due tocchi separati vorrebbero dire due
+ * momenti in cui si puo' sbagliare bersaglio, e qui il gioco e' gia'
+ * ripartito.
+ *
+ * C'e' sempre una via d'uscita: «Non l'ho vista» registra il punto senza
+ * traiettoria. Un dato messo a caso vale meno di un dato mancante, e una
+ * mappa con dentro due righe inventate non si guarda piu'.
+ */
+function CampoTraiettoria({ sport, tiro, onFatto, onChiudi }) {
+  const campo = useRef(null);
+  const tendina = useTendina(onChiudi);
+  const [da, setDa] = useState(null);
+  const [a, setA] = useState(null);
+
+  useEffect(() => {
+    const tasto = (e) => { if (e.key === 'Escape') onChiudi(); };
+    document.addEventListener('keydown', tasto);
+    return () => document.removeEventListener('keydown', tasto);
+  }, [onChiudi]);
+
+  function punto(e) {
+    const r = campo.current.getBoundingClientRect();
+    if (!r.width || !r.height) return null;
+    const dentro = (v) => Math.round(Math.min(100, Math.max(0, v)) * 10) / 10;
+    return { x: dentro(((e.clientX - r.left) / r.width) * 100), y: dentro(((e.clientY - r.top) / r.height) * 100) };
+  }
+
+  function giu(e) {
+    const q = punto(e);
+    if (!q) return;
+    setDa(q);
+    setA(q);
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* niente */ }
+  }
+
+  function muovi(e) {
+    if (!da) return;
+    const q = punto(e);
+    if (q) setA(q);
+  }
+
+  function su() {
+    if (!da || !a) return;
+    // Un tocco secco senza trascinamento non e' una traiettoria: e' un dito
+    // appoggiato per sbaglio. Si lascia stare invece di registrare un punto
+    // che parte e arriva nello stesso posto.
+    const lungo = Math.hypot(a.x - da.x, a.y - da.y) > 6;
+    if (!lungo) { setDa(null); setA(null); return; }
+    if (navigator.vibrate) navigator.vibrate(10);
+    onFatto({ x1: da.x, y1: da.y, x2: a.x, y2: a.y });
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[75] flex flex-col justify-end" onMouseDown={onChiudi}>
+      <div className="absolute inset-0 bg-fondo/80 backdrop-blur-sm" />
+      <div
+        onMouseDown={e => e.stopPropagation()}
+        style={tendina.stile}
+        className={cx(
+          'relative max-h-[92dvh] overflow-y-auto rounded-t-2xl vetro-alto border-t border-bordo/12',
+          'px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-lg sm:px-6',
+          tendina.entrata && 'animate-salita'
+        )}
+      >
+        <div {...tendina.maniglia} className="mx-auto mb-3.5 h-1 w-10 cursor-grab rounded-full bg-pannello/25" />
+
+        <div {...tendina.maniglia} className="mb-3 flex items-center gap-3">
+          <span className="block h-9 w-9 shrink-0 overflow-hidden rounded-lg vivo text-[14px] font-bold text-white">
+            <Volto p={tiro.giocatore} url={tiro.foto} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[15px] font-bold leading-tight">Tira la traiettoria</div>
+            <div className="truncate text-[12.5px] text-tenue">
+              {tiro.giocatore.name} \u00b7 dal punto di partenza a dove \u00e8 caduta
+            </div>
+          </div>
+          <button
+            onClick={() => onFatto(null)}
+            className="shrink-0 rounded-lg vetro orlo px-3 py-2 text-[12.5px] font-semibold text-tenue transition-colors hover:text-testo"
+          >
+            Non l\u2019ho vista
+          </button>
+        </div>
+
+        <div className="campo-cornice" style={{ '--proporzione': sport.campoInteroRatio }}>
+          <div
+            ref={campo}
+            onPointerDown={giu}
+            onPointerMove={muovi}
+            onPointerUp={su}
+            onPointerCancel={() => { setDa(null); setA(null); }}
+            style={{ touchAction: 'none' }}
+            className="campo parquet relative w-full cursor-crosshair"
+          >
+            <RigheCampo svg={sport.campoIntero} />
+
+            {/* La riga mentre si tira: si vede quello che si sta dicendo. */}
+            {da && a && (
+              <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100"
+                   preserveAspectRatio="none">
+                <line
+                  x1={da.x} y1={da.y} x2={a.x} y2={a.y}
+                  stroke="rgb(var(--verde))" strokeWidth="1.1" strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              </svg>
+            )}
+            {da && (
+              <span
+                style={{ left: da.x + '%', top: da.y + '%' }}
+                className="pointer-events-none absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-verde"
+              />
+            )}
+            {a && (
+              <span
+                style={{ left: a.x + '%', top: a.y + '%' }}
+                className="pointer-events-none absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-verde ring-2 ring-white"
+              />
+            )}
           </div>
         </div>
       </div>
