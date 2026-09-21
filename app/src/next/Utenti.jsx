@@ -469,10 +469,91 @@ function ModuloUtente({ u, onChiudi, onFatto }) {
 }
 
 /* ================================================================ famiglie */
+/* CAMBIARE IL RUOLO A UN ACCOUNT COLLEGATO.
+ *
+ * Serve soprattutto per una cosa: un atleta che si e' iscritto col codice
+ * societa' e si e' ritrovato genitore. Succedeva perche' il modulo di
+ * registrazione aveva «Genitore» gia' selezionato, e chi non lo toccava lo
+ * diventava — quel difetto e' chiuso, ma chi si era gia' iscritto e' rimasto
+ * com'era, e non c'era nessun posto in cui correggerlo.
+ *
+ * Solo il ruolo e il nome: categorie e finanza non riguardano un account
+ * collegato, le sue categorie sono quelle dell'atleta a cui e' legato. Un
+ * modulo con dentro tre campi che non servono fa pensare che servano.
+ */
+function ModuloRuoloCollegato({ f, onChiudi, onFatto }) {
+  const [nome, setNome] = useState(f.display_name || '');
+  const [ruolo, setRuolo] = useState(f.role || '');
+  const diventaStaff = !LINKED_ROLES.includes(ruolo);
+
+  return (
+    <Modulo
+      titolo="Chi è questa persona"
+      sotto={f.display_name}
+      onChiudi={onChiudi}
+      etichettaInvia="Salva"
+      onInvia={async () => {
+        if (!nome.trim()) return 'Scrivi il nome.';
+        if (!ruolo) return 'Scegli un ruolo.';
+        if (inCampione()) return 'Nell\u2019anteprima con dati di esempio non si salva niente.';
+
+        const agg = await updateProfile(f.id, { display_name: nome.trim(), role: ruolo });
+
+        /* I DUE ELENCHI SONO LA STESSA TABELLA, GUARDATA DA DUE LATI.
+         * «Staff» esclude genitori e atleti; questo elenco li comprende.
+         * Cambiando ruolo la persona passa da uno all'altro, e se non lo si
+         * dice anche a quello che sta in memoria resta per sbaglio in tutti e
+         * due — o in nessuno — finche' non si ricarica l'app. */
+        if (diventaStaff) {
+          const gia = state.staff.some(x => x.id === f.id);
+          state.staff = gia
+            ? state.staff.map(x => (x.id === f.id ? { ...x, ...agg } : x))
+            : [...state.staff, agg];
+        } else {
+          state.staff = state.staff.filter(x => x.id !== f.id);
+        }
+
+        onFatto(diventaStaff
+          ? 'Adesso \u00e8 ' + (ROLES[ruolo] || ruolo).toLowerCase() + ': lo trovi nell\u2019elenco dello staff'
+          : 'Ruolo aggiornato');
+      }}
+    >
+      <Campo etichetta="Nome e cognome">
+        <Testo value={nome} onChange={e => setNome(e.target.value)} />
+      </Campo>
+
+      <Campo etichetta="Ruolo">
+        <Scelta value={ruolo} onChange={e => setRuolo(e.target.value)}>
+          {!ASSIGNABLE_ROLES.includes(f.role) && (
+            <option value={f.role || ''}>{roleLabel(f.role)}</option>
+          )}
+          {ASSIGNABLE_ROLES.map(r => <option key={r} value={r}>{ROLES[r]}</option>)}
+        </Scelta>
+      </Campo>
+
+      {LINKED_ROLES.includes(f.role) && LINKED_ROLES.includes(ruolo) && f.role !== ruolo && (
+        <p className="-mt-1 text-[12.5px] leading-relaxed text-tenue">
+          I collegamenti alle schede restano come sono: cambia solo come l\u2019app si rivolge a
+          questa persona \u2014 un atleta vede la propria scheda, un genitore quella di suo
+          figlio.
+        </p>
+      )}
+
+      {diventaStaff && (
+        <p className="-mt-1 text-[12.5px] leading-relaxed text-ambra">
+          Diventando {(ROLES[ruolo] || ruolo).toLowerCase()} esce da questo elenco e passa allo
+          staff, dove gli si assegnano le categorie. I collegamenti alle schede restano.
+        </p>
+      )}
+    </Modulo>
+  );
+}
+
 function Famiglie({ avvisa }) {
   const [dati, setDati] = useState(null);
   const [errore, setErrore] = useState(null);
   const [collega, setCollega] = useState(null);
+  const [ruolo, setRuolo] = useState(null);
   const [altri, setAltri] = useState(false);   // il foglio per collegare uno staff
 
   // In elenco vanno i genitori e gli atleti — per loro il collegamento E' la
@@ -520,6 +601,15 @@ function Famiglie({ avvisa }) {
                 <Pulsante className="shrink-0 py-1.5 text-[12.5px]" onClick={() => setCollega(f)}>
                   Collega
                 </Pulsante>
+                {/* IL RUOLO SI CAMBIA DA QUI, E DA NESSUN'ALTRA PARTE.
+                    L'elenco «Staff» esclude apposta genitori e atleti — non
+                    sono staff — e quindi chi si e' iscritto col ruolo
+                    sbagliato non compariva in nessun modulo che lo potesse
+                    correggere. Il database lo permetteva da sempre: mancava
+                    il pulsante. */}
+                <AzioneRiga etichetta="Cambia ruolo" onClick={() => setRuolo(f)}>
+                  <Matita />
+                </AzioneRiga>
               </div>
 
               <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -560,6 +650,14 @@ function Famiglie({ avvisa }) {
             </div>
           ))}
         </Pannello>
+      )}
+
+      {ruolo && (
+        <ModuloRuoloCollegato
+          f={ruolo}
+          onChiudi={() => setRuolo(null)}
+          onFatto={(msg) => { setRuolo(null); carica(); avvisa(msg); }}
+        />
       )}
 
       {collega && (
