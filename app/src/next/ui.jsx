@@ -286,7 +286,7 @@ export function AzioneRiga({ etichetta, pericolo = false, onClick, children, cla
  * schermata e' un po' diverso, chi guarda si chiede se voglia dire un'altra
  * cosa.
  */
-export function Amichevole({ className }) {
+export function Amichevole({ className, icona = true }) {
   return (
     <span
       className={cx(
@@ -295,7 +295,10 @@ export function Amichevole({ className }) {
         className
       )}
     >
-      <Stretta dim={12} />
+      {/* `icona={false}` dove il simbolo c'è già altrove nella stessa riga:
+          nel calendario sta nel riquadro della giornata, e ripeterlo due
+          centimetri sotto sarebbe la stessa cosa detta due volte. */}
+      {icona && <Stretta dim={12} />}
       amichevole
     </span>
   );

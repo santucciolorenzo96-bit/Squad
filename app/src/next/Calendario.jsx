@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { state } from '../state.js';
-import { Matita, Croce } from './icone.jsx';
+import { Matita, Croce, Stretta } from './icone.jsx';
 import { updateCalendarMatch, removeCalendarMatch } from '../api/calendar.js';
 import { canEditHome, managesSector } from '../utils/permissions.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Stato, Amichevole, cx, AzioneRiga } from './ui.jsx';
@@ -78,12 +78,24 @@ export function Calendario() {
             const daSegnare = !m.played && m.date && m.date < oggi;
             return (
               <Pannello key={m.id} className="flex items-center gap-3.5 px-4 py-3.5 sm:px-5">
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg vetro orlo">
+                {/* IL RIQUADRO DICE CHE PARTITA E'.
+                    Per una di campionato e' la giornata. Un'amichevole una
+                    giornata non ce l'ha — non sta in nessun girone — e prima
+                    qui restava un puntino, cioe' lo spazio di
+                    un'informazione senza l'informazione. Adesso ci sta la
+                    stretta di mano: stesso posto, stessa domanda, risposta
+                    diversa. */}
+                <div
+                  className="grid h-12 w-12 shrink-0 place-items-center rounded-lg vetro orlo"
+                  title={m.giornata ? 'Giornata ' + m.giornata : (m.friendly ? 'Amichevole' : 'Senza giornata')}
+                >
                   {m.giornata ? (
                     <div className="text-center leading-none">
                       <div className="text-[10px] font-bold uppercase tracking-etichetta text-tenue">gg</div>
                       <div className="mt-1 text-[16px] font-bold">{m.giornata}</div>
                     </div>
+                  ) : m.friendly ? (
+                    <Stretta dim={24} className="text-tenue" />
                   ) : (
                     <span className="text-[15px] text-tenue">·</span>
                   )}
@@ -110,7 +122,7 @@ export function Calendario() {
                     <span>{fmtData(m.date)}</span>
                     {m.time && <span>{m.time}</span>}
                     {m.location && <span className="truncate">{m.location}</span>}
-                    {m.friendly && <Amichevole />}
+                    {m.friendly && <Amichevole icona={false} />}
                   </div>
                   {daSegnare && (
                     <div className="mt-1.5">
