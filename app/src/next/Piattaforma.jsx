@@ -365,15 +365,15 @@ export function PannelloSocieta() {
 /* Un SuperAdmin senza società: l'app non ha niente da mostrargli tranne
  * questo. Prima finiva su «Completa l'iscrizione», che gli chiedeva di
  * entrare in una società — cioè esattamente la cosa che non deve fare. */
-export function ConsoleSuperAdmin({ email, onIscriviti }) {
+export function ConsoleSuperAdmin({ email, onIscriviti, onCampione }) {
   return (
     <ProvvederAvvisi>
-      <ConsoleDentro email={email} onIscriviti={onIscriviti} />
+      <ConsoleDentro email={email} onIscriviti={onIscriviti} onCampione={onCampione} />
     </ProvvederAvvisi>
   );
 }
 
-function ConsoleDentro({ email, onIscriviti }) {
+function ConsoleDentro({ email, onIscriviti, onCampione }) {
   const avvisa = useAvviso();
   return (
     <div className="mx-auto min-h-[100dvh] w-full max-w-[46rem] px-5 py-10">
@@ -408,6 +408,25 @@ function ConsoleDentro({ email, onIscriviti }) {
       <PannelloSocieta />
 
       <PannelloAccount />
+
+      {/* L'ANTEPRIMA STA QUI, E NON SULLA SCHERMATA D'ACCESSO.
+          Serve a una persona sola e per una cosa sola: far vedere l'app a un
+          dirigente prima che la sua societa' esista. Sull'accesso invitava
+          un genitore a guardare una societa' inventata, e a chi non sa dove
+          sia finito faceva credere che i dati veri fossero quelli. */}
+      {onCampione && (
+        <Pannello className="pad-pannello-stretto mt-7">
+          <Etichetta>Anteprima</Etichetta>
+          <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
+            Apre l’app con una società inventata — rosa, partite, allenamenti, conti — per
+            mostrarla a chi non ce l’ha ancora. Non tocca nessun dato vero, e da lì si torna
+            qui.
+          </p>
+          <Pulsante className="mt-3.5 w-full" onClick={onCampione}>
+            Apri l’app con dati di esempio
+          </Pulsante>
+        </Pannello>
+      )}
 
       {onIscriviti && (
         <button

@@ -68,7 +68,22 @@ function Errore({ testo }) {
 }
 
 /* ================================================================== radice */
-export function Accesso({ onEntrato, onCampione }) {
+/* I DATI DI ESEMPIO NON STANNO QUI.
+ *
+ * C'era un pulsante «Guarda l'app con dati di esempio» sotto all'accesso. E'
+ * stato utile finche' l'app era una cosa da far vedere; adesso e' una cosa
+ * che le societa' usano, e la prima schermata che incontra un genitore non
+ * puo' invitarlo a guardare una societa' inventata.
+ *
+ * Chi arriva qui vuole entrare nella propria, o non sa dove sia finito.
+ * Un'anteprima con dentro dodici atleti che non esistono non aiuta nessuno
+ * dei due, e a chi non sa dove sia finito fa credere che i dati veri siano
+ * quelli.
+ *
+ * L'anteprima resta, dove serve: nella console del SuperAdmin, che e' chi la
+ * usa per mostrare l'app a un dirigente.
+ */
+export function Accesso({ onEntrato }) {
   const [passo, setPasso] = useState(PASSI.landing);
   const [emailConfermata, setEmailConfermata] = useState('');
   const [codiceAttivazione, setCodiceAttivazione] = useState('');
@@ -96,16 +111,7 @@ export function Accesso({ onEntrato, onCampione }) {
   if (passo === PASSI.recupero) return <Recupero onIndietro={() => vai(PASSI.accedi)} />;
 
   return (
-    <Colonna
-      sotto={onCampione && (
-        <button
-          onClick={onCampione}
-          className="w-full rounded-lg vetro orlo py-2.5 text-[13px] font-semibold text-tenue transition-colors hover:text-testo"
-        >
-          Guarda l’app con dati di esempio
-        </button>
-      )}
-    >
+    <Colonna>
       <Pulsante variante="primario" onClick={() => vai(PASSI.accedi)} className="w-full py-3.5 text-[15px]">
         Accedi
       </Pulsante>

@@ -88,14 +88,13 @@ function Tema({ valore, onCambia }) {
 // Va detto forte, non in una nota a pie' di pagina: giudicare un'interfaccia
 // credendo di vedere la propria societa' quando invece i dati sono inventati
 // e' il modo piu' rapido di trarne la conclusione sbagliata.
-function Nastro({ onAccesso }) {
+function Nastro({ onIndietro }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-gradient-to-r from-blu to-blu2 px-4 py-1.5 text-white sm:px-6">
       <span className="text-[11px] font-bold uppercase tracking-etichetta">Dati di esempio</span>
       <span className="text-[12.5px] opacity-90">
-        Nessuna sessione aperta: questi non sono i tuoi dati.{' '}
-        <button onClick={onAccesso} className="underline">Torna alle schermate d&rsquo;accesso</button>{' '}
-        per entrare con il tuo account.
+        Questa società non esiste: rosa, partite e conti sono inventati.{' '}
+        <button onClick={onIndietro} className="underline">Torna alla console</button>.
       </span>
     </div>
   );
@@ -389,6 +388,21 @@ function App() {
    * bianco e un salto di altezza anche quando i dati arrivavano in duecento
    * millisecondi, cioe' quasi sempre.
    */
+  /* L'anteprima con i dati di esempio.
+   *
+   * Sta nella console del SuperAdmin, e non sulla schermata d'accesso: serve
+   * a far vedere l'app a un dirigente prima che la sua societa' esista.
+   * Sull'accesso invitava un genitore a guardare una societa' inventata, e a
+   * chi non sa dove sia finito faceva credere che i dati veri fossero quelli.
+   */
+  function apriCampione() {
+    caricaCampione(state);
+    setSectorId(state.activeSectorId);
+    setCategoriaResa(state.activeSectorId);
+    setCampione(true);
+    setFase('dentro');
+  }
+
   async function cambiaSettore(id) {
     state.activeSectorId = id;
     setSectorId(id);
@@ -423,6 +437,7 @@ function App() {
       <ConsoleSuperAdmin
         email={recupero.email}
         onIscriviti={() => setFase('completa')}
+        onCampione={apriCampione}
       />
     );
   }
@@ -442,16 +457,7 @@ function App() {
   if (fase === 'accesso') {
     return (
       <ProvvederAvvisi>
-        <Accesso
-          onEntrato={() => window.location.reload()}
-          onCampione={() => {
-            caricaCampione(state);
-            setSectorId(state.activeSectorId);
-            setCategoriaResa(state.activeSectorId);
-            setCampione(true);
-            setFase('dentro');
-          }}
-        />
+        <Accesso onEntrato={() => window.location.reload()} />
       </ProvvederAvvisi>
     );
   }
@@ -523,7 +529,7 @@ function App() {
         nastro={
           ospite
             ? <NastroOspite societa={ospite} />
-            : (campione ? <Nastro onAccesso={() => { setCampione(false); setFase('accesso'); }} /> : null)
+            : (campione ? <Nastro onIndietro={() => { setCampione(false); setFase('console'); }} /> : null)
         }
         chiaveContenuto={sezione + '|' + (categoriaResa || '')}
         strumenti={<Tema valore={tema} onCambia={setTema} />}
