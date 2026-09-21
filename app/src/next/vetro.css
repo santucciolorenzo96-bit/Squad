@@ -18,7 +18,23 @@
    compaia un pannello.
    ========================================================================== */
 
+/* DICHIARARE IL TEMA AL BROWSER, NON SOLO ALLE PROPRIE REGOLE.
+ *
+ * Le variabili qui sotto colorano quello che disegniamo noi. Ma i menu a
+ * tendina, i selettori di data, le barre di scorrimento e il completamento
+ * automatico li disegna il sistema, e il sistema non guarda le nostre
+ * variabili: guarda `color-scheme`, che non c'era.
+ *
+ * Senza, il browser presume «chiaro» e apre i menu su fondo bianco — mentre
+ * il testo dentro eredita il nostro colore, che al buio è quasi bianco.
+ * Bianco su bianco: la tendina si apriva vuota.
+ *
+ * Sta dentro gli stessi blocchi della tavolozza, e non in una regola sua,
+ * perché è la stessa informazione: se un domani cambiano le condizioni del
+ * tema chiaro, questa le segue senza che nessuno se ne debba ricordare.
+ */
 :root {
+  color-scheme: dark;
   --fondo: 11 16 32;
   --fondo2: 17 24 46;
   --pannello: 148 170 220;      /* si usa sempre con un'opacità: bg-pannello/10 */
@@ -56,6 +72,7 @@
 }
 
 :root[data-tema="chiaro"] {
+  color-scheme: light;
   --fondo: 240 243 252;
   --fondo2: 228 234 250;
   --pannello: 255 255 255;
@@ -93,6 +110,7 @@
 
 @media (prefers-color-scheme: light) {
   :root:not([data-tema="scuro"]) {
+    color-scheme: light;
     --fondo: 240 243 252;
     --fondo2: 228 234 250;
     --pannello: 255 255 255;
@@ -631,4 +649,20 @@ input[type="datetime-local"]::-webkit-date-and-time-value {
 input[type="date"]::-webkit-calendar-picker-indicator {
   margin-inline-start: 0;
   padding: 0;
+}
+
+/* LE VOCI DI UN MENU A TENDINA.
+ *
+ * `color-scheme` basta su quasi tutto, e su Windows e Android e' gia' lui a
+ * disegnare la tendina scura. Questa e' la rete: dove il sistema lascia
+ * decidere all'autore il colore delle voci, si decide, invece di sperare che
+ * il valore di serie sia leggibile.
+ *
+ * Si usa `--fondo2` e non `--fondo`: una tendina che si apre sopra la pagina
+ * deve staccarsi dalla pagina, non confondersi con lei.
+ */
+select option,
+select optgroup {
+  background-color: rgb(var(--fondo2));
+  color: rgb(var(--testo));
 }
