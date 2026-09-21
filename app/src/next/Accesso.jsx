@@ -29,6 +29,69 @@ const PASSI = {
 };
 
 /* ------------------------------------------------------------------ guscio */
+/* CHI SEI.
+ *
+ * Era un menu a tendina con «Genitore» gia' dentro. Un menu che mostra una
+ * risposta la sta suggerendo, e chi sta compilando un modulo accetta i
+ * suggerimenti: chi non lo toccava diventava genitore, e nel database non
+ * c'era modo di distinguere «sono un genitore» da «non l'ho guardato».
+ *
+ * Non e' un campo come gli altri. Il nome si corregge, l'email si cambia;
+ * questo decide cosa l'app dira' a quella persona per tutto l'anno — «tuo
+ * figlio» invece del suo nome, la scheda di qualcun altro invece della
+ * propria. Un atleta di sedici anni che si vede chiamare cosi' smette di
+ * fidarsi dell'app, e ha ragione.
+ *
+ * Quindi: nessuna risposta preselezionata, quattro riquadri, e non si va
+ * avanti senza averne toccato uno. Con sotto cosa vuol dire ciascuno, perche'
+ * «Staff» e «Scout» non sono parole ovvie per chi si sta iscrivendo.
+ */
+const COSA_SONO = {
+  atleta: 'Gioco in una delle squadre.',
+  genitore: 'Sono il genitore di chi gioca.',
+  allenatore: 'Alleno una squadra.',
+  staff: 'Do una mano in societ\u00e0: dirigente, accompagnatore, segreteria.',
+  segnapunti: 'Tengo il tabellino durante le partite.'
+};
+
+// L'ordine conta: per una persona su dieci che si iscrive, nove sono atleti
+// o genitori. Le altre due voci vengono dopo, non in mezzo.
+const ORDINE_RUOLI = ['atleta', 'genitore', 'staff', 'segnapunti'];
+
+function ScegliRuolo({ valore, onCambia }) {
+  return (
+    <div className="mb-4">
+      <Etichetta className="mb-2">Chi sei?</Etichetta>
+      <div className="grid gap-2">
+        {ORDINE_RUOLI.filter(r => SELF_SIGNUP_ROLES.includes(r)).map(r => {
+          const scelto = valore === r;
+          return (
+            <button
+              key={r}
+              type="button"
+              onClick={() => onCambia(r)}
+              aria-pressed={scelto}
+              className={cx(
+                'rounded-lg border px-3.5 py-2.5 text-left transition-colors',
+                scelto ? 'border-blu/55 bg-blu/12' : 'border-bordo/12 bg-pannello/6 hover:bg-pannello/12'
+              )}
+            >
+              <span className={cx('block text-[13.5px] font-semibold', scelto && 'text-blu')}>
+                {ROLES[r]}
+              </span>
+              <span className="mt-0.5 block text-[12px] leading-snug text-tenue">{COSA_SONO[r]}</span>
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-2 text-[12.5px] leading-snug text-tenue">
+        Ruolo e categorie li sistema poi un amministratore: quello che scegli qui non d\u00e0
+        nessun potere da solo.
+      </p>
+    </div>
+  );
+}
+
 function Colonna({ children, sotto }) {
   return (
     <div className="flex min-h-[100dvh] flex-col items-center justify-center px-5 py-10">
@@ -314,7 +377,7 @@ function Entra({ onEntrato, onIndietro, onConferma, onAttivazione }) {
   const [codice, setCodice] = useState('');
   const [societa, setSocieta] = useState(null);
   const [invito, setInvito] = useState(null);    // invito nominativo, se il codice è quello
-  const [ruolo, setRuolo] = useState('genitore');
+  const [ruolo, setRuolo] = useState('');
 
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -360,6 +423,9 @@ function Entra({ onEntrato, onIndietro, onConferma, onAttivazione }) {
   async function registra() {
     setErrore('');
     if (!nome.trim()) { setErrore('Scrivi il tuo nome e cognome.'); return; }
+    // Nessun ripiego: se non l'ha scelto, glielo si chiede. Indovinare qui
+    // vuol dire chiamare «tuo figlio» un ragazzo per tutto l'anno.
+    if (!invito && !ruolo) { setErrore('Dicci chi sei: atleta, genitore, staff o chi tiene il tabellino.'); return; }
     if (!email.trim()) { setErrore('Serve la tua email: è con quella che accedi.'); return; }
     const pw = passwordProblem(pass);
     if (pw) { setErrore(pw); return; }
@@ -477,17 +543,7 @@ function Entra({ onEntrato, onIndietro, onConferma, onAttivazione }) {
                 )}
               </div>
             ) : (
-              <div className="mb-4">
-                <Campo etichetta="Chi sei?">
-                  <Scelta value={ruolo} onChange={e => setRuolo(e.target.value)}>
-                    {SELF_SIGNUP_ROLES.map(r => <option key={r} value={r}>{ROLES[r]}</option>)}
-                  </Scelta>
-                </Campo>
-                <p className="mt-1.5 text-[12.5px] leading-snug text-tenue">
-                  Ruolo e categorie li sistema poi un amministratore: quello che scegli qui
-                  non dà nessun potere da solo.
-                </p>
-              </div>
+              <ScegliRuolo valore={ruolo} onCambia={setRuolo} />
             )}
 
             <div className="space-y-4">
@@ -752,7 +808,7 @@ export function CompletaIscrizione({ email, erroreIniziale, onFatto }) {
   const [nome, setNome] = useState('');
   const [codice, setCodice] = useState('');
   const [attivazione, setAttivazione] = useState('');
-  const [ruolo, setRuolo] = useState('genitore');
+  const [ruolo, setRuolo] = useState('');
   const [sport, setSport] = useState('basket');
   const [societa, setSocieta] = useState('');
   const [citta, setCitta] = useState('');
@@ -768,6 +824,10 @@ export function CompletaIscrizione({ email, erroreIniziale, onFatto }) {
       if (modo === 'entra') {
         const c = codice.trim().toUpperCase();
         if (!c) { setErrore('Inserisci il codice.'); setLavora(false); return; }
+        if (!ruolo) {
+          setErrore('Dicci chi sei: atleta, genitore, staff o chi tiene il tabellino.');
+          setLavora(false); return;
+        }
         // Prima l'invito nominativo, poi il codice societa': stesso ordine
         // della registrazione, per la stessa ragione.
         const inv = await fetchInvitePreview(c).catch(() => null);
@@ -834,11 +894,11 @@ export function CompletaIscrizione({ email, erroreIniziale, onFatto }) {
                   className="text-center text-[18px] font-bold tracking-[0.25em]"
                 />
               </Campo>
-              <Campo etichetta="Chi sei?" aiuto="Con un invito personale questo campo viene ignorato: il ruolo &egrave; gi&agrave; nell&rsquo;invito.">
-                <Scelta value={ruolo} onChange={e => setRuolo(e.target.value)}>
-                  {SELF_SIGNUP_ROLES.map(r => <option key={r} value={r}>{ROLES[r]}</option>)}
-                </Scelta>
-              </Campo>
+              <ScegliRuolo valore={ruolo} onCambia={setRuolo} />
+              <p className="-mt-2 text-[12px] leading-snug text-tenue">
+                Se quello che hai è un invito personale, il ruolo è già dentro l’invito e
+                questa scelta non viene usata.
+              </p>
             </>
           ) : (
             <>
