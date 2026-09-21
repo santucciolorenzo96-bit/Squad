@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, createContext, useContext, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { cx, Pannello, Etichetta, Pulsante } from './ui.jsx';
+import { Chevron } from './icone.jsx';
 
 /* Finestre, moduli e avvisi.
  *
@@ -352,11 +353,151 @@ export function Data({ className, ...resto }) {
   );
 }
 
-export function Scelta({ className, children, ...resto }) {
+/* LA TENDINA E' NOSTRA, NON DEL SISTEMA.
+ *
+ * Un `select` lo disegna il sistema, e il sistema non sa niente del nostro
+ * tema: al buio apriva una tendina bianca con dentro il nostro testo quasi
+ * bianco. `color-scheme` sistema il caso comune — ed e' giusto averlo, serve
+ * anche alle barre di scorrimento e ai selettori di data — ma su qualche
+ * piattaforma la tendina resta com'è il sistema, e non c'è nessuna riga di
+ * CSS che possa costringerla.
+ *
+ * Quindi non la si costringe: la si disegna. Stessi colori del resto
+ * dell'app, in tutti e due i temi, su qualunque telefono — e non c'è piu'
+ * niente che possa uscire bianco su bianco, perche' non c'è piu' niente che
+ * decida qualcosa al posto nostro.
+ *
+ * L'interfaccia resta quella di prima: `value`, `onChange` con
+ * `e.target.value`, e dei figli `<option>`. Le ventidue schermate che la
+ * usano non sono state toccate.
+ *
+ * In un portale con posizione calcolata, e non in un pannello dentro il
+ * modulo: i moduli scorrono, e un elenco lungo dentro un contenitore che
+ * scorre verrebbe tagliato a meta'.
+ */
+function vociDa(children) {
+  return React.Children.toArray(children)
+    .filter(c => c && c.props)
+    .map(c => {
+      const dentro = c.props.children;
+      const testo = Array.isArray(dentro) ? dentro.join('') : String(dentro == null ? '' : dentro);
+      return { valore: String(c.props.value == null ? '' : c.props.value), testo };
+    });
+}
+
+export function Scelta({ className, children, value, onChange, disabled, segnaposto = 'Scegli\u2026', ...resto }) {
+  const [posa, setPosa] = useState(null);
+  const bottone = useRef(null);
+  const voci = vociDa(children);
+  const corrente = voci.find(v => v.valore === String(value == null ? '' : value));
+
+  useEffect(() => {
+    if (!posa) return;
+    const tasto = (e) => { if (e.key === 'Escape') setPosa(null); };
+    const viaLibera = () => setPosa(null);
+    document.addEventListener('keydown', tasto);
+    // Se qualcosa scorre sotto, il pannello resterebbe dov'era: si chiude,
+    // invece di galleggiare staccato dal campo che l'ha aperto. In cattura,
+    // perche' a scorrere e' quasi sempre il corpo del modulo e non la pagina,
+    // e uno scorrimento dentro un contenitore non arriva alla finestra.
+    window.addEventListener('scroll', viaLibera, true);
+    window.addEventListener('resize', viaLibera);
+    return () => {
+      document.removeEventListener('keydown', tasto);
+      window.removeEventListener('scroll', viaLibera, true);
+      window.removeEventListener('resize', viaLibera);
+    };
+  }, [posa]);
+
+  function apri() {
+    if (disabled) return;
+    const r = bottone.current.getBoundingClientRect();
+    const sotto = window.innerHeight - r.bottom - 12;
+    const sopra = r.top - 12;
+    // Sotto se ci sta, altrimenti sopra: un elenco che esce dallo schermo si
+    // scorre a fatica proprio mentre si sta scegliendo.
+    const giu = sotto >= Math.min(288, sopra);
+    setPosa({
+      left: r.left,
+      width: r.width,
+      top: giu ? r.bottom + 4 : null,
+      bottom: giu ? null : window.innerHeight - r.top + 4,
+      maxH: Math.max(140, (giu ? sotto : sopra))
+    });
+  }
+
+  function scegli(v) {
+    setPosa(null);
+    if (onChange) onChange({ target: { value: v.valore } });
+  }
+
   return (
-    <select className={cx(BASE_CAMPO, 'appearance-none pr-9', className)} {...resto}>
-      {children}
-    </select>
+    <>
+      <button
+        ref={bottone}
+        type="button"
+        onClick={apri}
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={!!posa}
+        className={cx(
+          BASE_CAMPO, 'flex items-center gap-2 text-left disabled:opacity-50',
+          posa && 'border-blu/60', className
+        )}
+        {...resto}
+      >
+        <span className={cx('min-w-0 flex-1 truncate', !corrente && 'text-tenue')}>
+          {corrente ? corrente.testo : segnaposto}
+        </span>
+        <Chevron dim={15} className={cx('shrink-0 text-tenue transition-transform', posa ? '-rotate-90' : 'rotate-90')} />
+      </button>
+
+      {posa && createPortal(
+        <div className="fixed inset-0 z-[90]" onMouseDown={() => setPosa(null)}>
+          <div
+            role="listbox"
+            onMouseDown={e => e.stopPropagation()}
+            style={{
+              left: posa.left,
+              width: posa.width,
+              top: posa.top != null ? posa.top : undefined,
+              bottom: posa.bottom != null ? posa.bottom : undefined,
+              maxHeight: posa.maxH
+            }}
+            className="animate-nascita fixed overflow-y-auto rounded-lg vetro-alto orlo py-1 shadow-lg"
+          >
+            {voci.map(v => {
+              const on = corrente && v.valore === corrente.valore;
+              return (
+                <button
+                  key={v.valore}
+                  type="button"
+                  role="option"
+                  aria-selected={!!on}
+                  onClick={() => scegli(v)}
+                  className={cx(
+                    'flex w-full items-center gap-2 px-3.5 py-2.5 text-left text-[14px] transition-colors',
+                    on ? 'font-semibold text-blu' : 'hover:bg-pannello/12'
+                  )}
+                >
+                  <span className="min-w-0 flex-1 truncate">{v.testo}</span>
+                  {on && <SpuntaScelta />}
+                </button>
+              );
+            })}
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
+
+function SpuntaScelta() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-[16px] w-[16px] shrink-0 text-blu" fill="none" aria-hidden="true">
+      <path d="m4.4 10.4 3.7 3.7 7.5-8.2" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
