@@ -40,11 +40,18 @@
   --pannello: 148 170 220;      /* si usa sempre con un'opacità: bg-pannello/10 */
   --bordo: 255 255 255;
 
-  --testo: 233 239 255;
-  --soffuso: 154 170 205;
+  /* Piu' bianco di prima (era 233 239 255). Al buio il testo principale non
+     e' mai davvero bianco — il bianco pieno su fondo scuro abbaglia e lascia
+     l'alone — ma sotto una certa soglia smette di sembrare testo e comincia
+     a sembrare testo spento. Qui sta appena sopra quella soglia. */
+  --testo: 244 247 255;
+  /* Alzato con lui: il secondario deve restare secondario, ma la distanza
+     fra i due non deve crescere, o diventa una gerarchia di tre livelli
+     invece che di due. */
+  --soffuso: 176 190 219;
   /* 5.2:1 sul fondo. Era 4.52, appena sopra il minimo: appena sopra il minimo
      vuol dire che a quarantacinque anni non si legge piu'. */
-  --tenue: 117 135 171;
+  --tenue: 134 150 183;
 
   --blu: 56 124 255;
   --blu2: 108 92 255;

@@ -113,24 +113,6 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
     y += 2;
   }
 
-  // ------------------------------------------------------- i quintetti
-  if (r.quintetti.length > 0) {
-    y = drawSection(doc, 'I quintetti', y);
-    y = drawTable(
-      doc,
-      ['Saldo', 'Cinque in campo', 'Fatti', 'Subiti'],
-      r.quintetti.map(q => [
-        (q.saldo > 0 ? '+' : '') + q.saldo,
-        q.nomi.join(' '),
-        String(q.f),
-        String(q.s)
-      ]),
-      [18, 104, 24, 24],
-      y
-    );
-    y += 6;
-  }
-
   // ------------------------------------------------------------ il tabellino
   const t = tabellaTabellino(r, sport);
   y = drawSection(doc, 'Il tabellino', y);
@@ -155,6 +137,28 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
     doc.setFontSize(8);
     y = drawParagraph(doc, sport.seasonLegend, y, { size: 8 });
   }
+
+  // In fondo anche sul foglio, nello stesso ordine dello schermo: e' la
+  // sezione che si legge a mente fredda, non quella che si cerca per prima.
+  y += 4;
+  // ------------------------------------------------------- i quintetti
+  if (r.quintetti.length > 0) {
+    y = drawSection(doc, 'Con quali cinque siamo andati meglio', y);
+    y = drawTable(
+      doc,
+      ['Scarto', 'Cinque in campo', 'Fatti', 'Subiti'],
+      r.quintetti.map(q => [
+        (q.saldo > 0 ? '+' : '') + q.saldo,
+        q.nomi.join(' '),
+        String(q.f),
+        String(q.s)
+      ]),
+      [18, 104, 24, 24],
+      y
+    );
+    y += 6;
+  }
+
 
   save(doc, `referto_${pulisci(nostri)}_${pulisci(game.oppName)}.pdf`);
 }

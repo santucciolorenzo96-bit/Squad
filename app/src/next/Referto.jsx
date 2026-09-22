@@ -122,6 +122,112 @@ function Traiettorie({ sport, linee }) {
   );
 }
 
+/* CON QUALI CINQUE SIAMO ANDATI MEGLIO.
+ *
+ * Il dato e' semplice — quanti punti ha guadagnato la squadra con quei
+ * cinque in campo — e la vecchia versione lo rendeva difficile: un elenco
+ * di righe tutte uguali, cinque numeri di maglia e una cifra col segno,
+ * senza niente che dicesse quale fosse la risposta.
+ *
+ * Qui la risposta e' la prima cosa: UN quintetto, grande, con scritto in
+ * parole cosa ha fatto. Gli altri vengono dopo, e si confrontano con una
+ * barra invece che con dei numeri — perche' la domanda vera non e' «quanto
+ * fa +3», e' «chi va meglio di chi», e quella a una barra si risponde
+ * guardandola.
+ *
+ * La barra parte dal centro: a destra in verde chi ha guadagnato, a
+ * sinistra in rosso chi ha perso terreno. Un quintetto sotto di cinque e uno
+ * sopra di cinque sono due cose opposte, e su una barra che cresce sempre da
+ * sinistra sembrerebbero due gradazioni della stessa.
+ */
+function BarraSaldo({ saldo, max }) {
+  const quota = Math.min(50, (Math.abs(saldo) / (max || 1)) * 50);
+  return (
+    <div className="relative mt-2 h-1.5 overflow-hidden rounded-full bg-pannello/12">
+      <span className="absolute inset-y-0 left-1/2 w-px bg-bordo/30" aria-hidden="true" />
+      <span
+        className={cx('absolute inset-y-0 rounded-full', saldo >= 0 ? 'bg-verde' : 'bg-rosso')}
+        style={saldo >= 0
+          ? { left: '50%', width: quota + '%' }
+          : { right: '50%', width: quota + '%' }}
+      />
+    </div>
+  );
+}
+
+function Maglie({ nomi }) {
+  return (
+    <span className="flex flex-wrap gap-1">
+      {nomi.map((n, i) => (
+        <span key={i} className="cifra rounded-md bg-pannello/14 px-1.5 py-0.5 text-[12.5px] font-bold text-soffuso">
+          {n}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function Quintetti({ quintetti }) {
+  const migliore = quintetti[0];
+  const altri = quintetti.slice(1);
+  const max = Math.max(1, ...quintetti.map(q => Math.abs(q.saldo)));
+  const tono = (v) => (v > 0 ? 'text-verde' : v < 0 ? 'text-rosso' : 'text-soffuso');
+  const segno = (v) => (v > 0 ? '+' : '') + v;
+
+  return (
+    <div className="mt-7">
+      <Etichetta className="mb-2.5">Con quali cinque siamo andati meglio</Etichetta>
+
+      <Pannello alto className="px-4 py-4 sm:px-5">
+        <div className="flex items-start gap-4">
+          <div className="shrink-0 text-center">
+            <div className={cx('cifra text-[32px] font-bold leading-none', tono(migliore.saldo))}>
+              {segno(migliore.saldo)}
+            </div>
+            <div className="mt-1.5 text-[10.5px] font-bold uppercase tracking-etichetta text-tenue">
+              di scarto
+            </div>
+          </div>
+          <div className="min-w-0 flex-1">
+            <Maglie nomi={migliore.nomi} />
+            <p className="mt-2 text-[12.5px] leading-relaxed text-soffuso">
+              {migliore.f} punti fatti e {migliore.s} subiti, in {migliore.turni}{' '}
+              {migliore.turni === 1 ? 'volta in campo insieme' : 'volte in campo insieme'}.
+            </p>
+          </div>
+        </div>
+      </Pannello>
+
+      {altri.length > 0 && (
+        <>
+          <Etichetta className="mb-2 mt-5">Gli altri</Etichetta>
+          <div className="space-y-2">
+            {altri.map(q => (
+              <Pannello key={q.chiave} className="px-3.5 py-2.5">
+                <div className="flex items-center gap-3">
+                  <span className={cx('cifra w-9 shrink-0 text-[15px] font-bold leading-none', tono(q.saldo))}>
+                    {segno(q.saldo)}
+                  </span>
+                  <span className="min-w-0 flex-1"><Maglie nomi={q.nomi} /></span>
+                  <span className="cifra shrink-0 text-[11.5px] text-tenue">{q.f}\u2013{q.s}</span>
+                </div>
+                <BarraSaldo saldo={q.saldo} max={max} />
+              </Pannello>
+            ))}
+          </div>
+        </>
+      )}
+
+      <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
+        Lo scarto è la differenza fra i punti fatti e quelli subiti dalla squadra mentre
+        quei cinque erano in campo: <b className="text-soffuso">+12</b> vuol dire dodici punti
+        guadagnati sugli avversari. I quintetti che non hanno visto nemmeno un punto — quelli
+        che nascono da due cambi di fila a un time out — non sono in elenco.
+      </p>
+    </div>
+  );
+}
+
 function Numero({ valore, etichetta, tono }) {
   return (
     <div>
@@ -352,31 +458,6 @@ export function Referto({ partita, onChiudi, onEliminata }) {
         </div>
       )}
 
-      {/* ----------------------------------------------------- i quintetti */}
-      {r.quintetti.length > 0 && (
-        <div className="mb-6">
-          <Etichetta className="mb-2.5">I quintetti</Etichetta>
-          <div className="space-y-2">
-            {r.quintetti.map(q => (
-              <Pannello key={q.chiave} className="flex items-center gap-3 px-4 py-2.5">
-                <span className={cx('cifra w-11 shrink-0 text-center text-[17px] font-bold leading-none',
-                  q.saldo > 0 ? 'text-verde' : q.saldo < 0 ? 'text-rosso' : 'text-soffuso')}>
-                  {q.saldo > 0 ? '+' : ''}{q.saldo}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-soffuso">
-                  {q.nomi.join(' · ')}
-                </span>
-                <span className="cifra shrink-0 text-[12px] text-tenue">{q.f}–{q.s}</span>
-              </Pannello>
-            ))}
-          </div>
-          <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
-            Punti fatti e subiti dalla squadra con quei cinque in campo. È la riga su cui si
-            decide chi entra in un finale punto a punto.
-          </p>
-        </div>
-      )}
-
       {/* ------------------------------------------------------ il tabellino */}
       <Etichetta className="mb-2.5">Il tabellino</Etichetta>
       {t.righe.length === 0 ? (
@@ -436,6 +517,16 @@ export function Referto({ partita, onChiudi, onEliminata }) {
       {sport.seasonLegend && (
         <p className="mt-2.5 text-[12px] leading-relaxed text-tenue">{sport.seasonLegend}</p>
       )}
+
+      {/* IN FONDO, E DA SOLA.
+          Stava in mezzo alle altre sezioni ed era la piu' difficile da
+          leggere: cinque numeri di maglia in fila e un numero col segno
+          davanti, senza niente che dicesse cosa fossero. Chi la incontrava a
+          meta' referto doveva indovinare. Qui in fondo e' l'ultima cosa che
+          si legge, ed e' quella che si guarda a mente fredda — non durante
+          la partita, ma la sera dopo, decidendo chi far entrare la prossima
+          volta in un finale punto a punto. */}
+      {r.quintetti.length > 0 && <Quintetti quintetti={r.quintetti} />}
 
       {daEliminare && (
         <Conferma

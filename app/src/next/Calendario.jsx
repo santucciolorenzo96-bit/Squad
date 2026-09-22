@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { state } from '../state.js';
-import { Matita, Croce, Stretta } from './icone.jsx';
+import { Matita, Croce, Stretta, Chevron } from './icone.jsx';
+import { Referto } from './Referto.jsx';
 import { updateCalendarMatch, removeCalendarMatch } from '../api/calendar.js';
 import { canEditHome, managesSector } from '../utils/permissions.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Stato, Amichevole, cx, AzioneRiga } from './ui.jsx';
@@ -20,6 +21,34 @@ import { oggiISO } from '../utils/format.js';
  */
 
 
+/* IL TABELLINO DI UNA RIGA DI CALENDARIO.
+ *
+ * Nello Storico una partita si apre e dentro c'è tutto: set, tiri, quintetti,
+ * tabellino. In Calendario no, e non c'era una ragione — sono la stessa
+ * partita guardata da due elenchi diversi, e chi ha appena visto il
+ * risultato è esattamente chi vuole sapere com'è andata.
+ *
+ * Il legame e' `calendarMatchId`, che il tabellino porta da quando e' stato
+ * aperto da quella riga. Se non c'e' si prova con avversario e data: una
+ * partita segnata senza scegliere la riga di calendario esiste, e anche lei
+ * ha un referto da mostrare.
+ *
+ * Restituisce null per i risultati scritti a mano: quelli un referto non ce
+ * l'hanno, e una riga che si apre su una schermata vuota è peggio di una
+ * riga che non si apre.
+ */
+function tabellinoDi(m) {
+  const storico = state.history || [];
+  const perId = m.id && storico.find(g => g.calendarMatchId === m.id);
+  if (perId) return perId;
+  if (!m.date) return null;
+  const nome = (m.opponent || '').trim().toLowerCase();
+  return storico.find(g =>
+    (g.oppName || '').trim().toLowerCase() === nome
+    && String(g.date || '').slice(0, 10) === m.date
+  ) || null;
+}
+
 function fmtData(iso) {
   if (!iso) return 'Data da definire';
   return new Date(iso + 'T00:00:00')
@@ -31,6 +60,7 @@ export function Calendario() {
   const [modulo, setModulo] = useState(null);
   const [risultato, setRisultato] = useState(null);
   const [daRimuovere, setDaRimuovere] = useState(null);
+  const [referto, setReferto] = useState(null);
   const [, ridisegna] = useState(0);
   const avvisa = useAvviso();
 
@@ -132,9 +162,30 @@ export function Calendario() {
                 </div>
 
                 {m.played ? (
-                  <div className="shrink-0 text-[16px] font-bold">
-                    {m.team_score ?? '?'}<span className="mx-1 text-tenue">–</span>{m.opp_score ?? '?'}
-                  </div>
+                  /* IL RISULTATO SI APRE, SE DIETRO C'E' UN TABELLINO.
+                     Nello Storico gia' succedeva; qui no, e non c'era una
+                     ragione: sono la stessa partita in due elenchi diversi, e
+                     chi ha appena letto il risultato e' esattamente chi vuole
+                     sapere com'e' andata. Dove il tabellino non c'e' — un
+                     risultato scritto a mano — resta un numero e basta: una
+                     riga che si apre su una schermata vuota e' peggio di una
+                     riga che non si apre. */
+                  tabellinoDi(m) ? (
+                    <button
+                      onClick={() => setReferto(tabellinoDi(m))}
+                      title="Apri il referto"
+                      className="flex shrink-0 items-center gap-1 rounded-lg px-1.5 py-1 transition-colors hover:bg-pannello/12"
+                    >
+                      <span className="text-[16px] font-bold">
+                        {m.team_score ?? '?'}<span className="mx-1 text-tenue">–</span>{m.opp_score ?? '?'}
+                      </span>
+                      <Chevron dim={15} className="text-tenue" />
+                    </button>
+                  ) : (
+                    <div className="shrink-0 text-[16px] font-bold">
+                      {m.team_score ?? '?'}<span className="mx-1 text-tenue">–</span>{m.opp_score ?? '?'}
+                    </div>
+                  )
                 ) : puoiModificare ? (
                   <Pulsante onClick={() => setRisultato(m)} className="shrink-0 py-1.5 text-[12.5px]">
                     Segna
@@ -173,6 +224,8 @@ export function Calendario() {
           onFatto={() => { ridisegna(n => n + 1); avvisa('Risultato salvato'); }}
         />
       )}
+
+      {referto && <Referto partita={referto} onChiudi={() => setReferto(null)} />}
 
       {daRimuovere && (
         <Conferma
