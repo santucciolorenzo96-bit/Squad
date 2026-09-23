@@ -388,13 +388,40 @@ function vociDa(children) {
 export function Scelta({ className, children, value, onChange, disabled, segnaposto = 'Scegli\u2026', ...resto }) {
   const [posa, setPosa] = useState(null);
   const bottone = useRef(null);
+  const pannello = useRef(null);
+  // Da dove e' cominciato il tocco: serve a distinguere uno scorrimento da
+  // una scelta. Vedi piu' sotto.
+  const partenza = useRef(null);
   const voci = vociDa(children);
   const corrente = voci.find(v => v.valore === String(value == null ? '' : value));
 
   useEffect(() => {
     if (!posa) return;
     const tasto = (e) => { if (e.key === 'Escape') setPosa(null); };
-    const viaLibera = () => setPosa(null);
+    /* SCORRERE L'ELENCO NON E' USCIRE DALL'ELENCO.
+     *
+     * Il pannello si chiude quando qualcosa scorre sotto di lui, altrimenti
+     * resterebbe appeso dov'era mentre il campo che l'ha aperto se ne va.
+     * Ma «qualcosa» comprendeva il pannello stesso: con venti atleti in
+     * elenco, provare a scorrerli lo faceva sparire.
+     *
+     * Quello che scorre e' il bersaglio dell'evento, quindi basta chiedersi
+     * se sta dentro il pannello. */
+    /* E NEMMENO L'APERTURA STESSA.
+     *
+     * Toccando un campo che sta a meta' fuori dallo schermo, il browser lo
+     * porta in vista da solo: e' uno scorrimento che arriva un istante dopo
+     * l'apertura, e chiudeva il pannello prima che si potesse guardarlo.
+     * Dal di fuori sembrava che la tendina non si aprisse affatto.
+     *
+     * Duecento millisecondi di grazia: abbastanza perche' lo scorrimento
+     * automatico finisca, troppo pochi perche' qualcuno scorra apposta. */
+    const apertoAlle = Date.now();
+    const viaLibera = (e) => {
+      if (Date.now() - apertoAlle < 200) return;
+      if (pannello.current && e && e.target && e.target.nodeType && pannello.current.contains(e.target)) return;
+      setPosa(null);
+    };
     document.addEventListener('keydown', tasto);
     // Se qualcosa scorre sotto, il pannello resterebbe dov'era: si chiude,
     // invece di galleggiare staccato dal campo che l'ha aperto. In cattura,
@@ -464,7 +491,8 @@ export function Scelta({ className, children, value, onChange, disabled, segnapo
               bottom: posa.bottom != null ? posa.bottom : undefined,
               maxHeight: posa.maxH
             }}
-            className="animate-nascita fixed overflow-y-auto rounded-lg vetro-alto orlo py-1 shadow-lg"
+            ref={pannello}
+            className="animate-nascita fixed overflow-y-auto overscroll-contain rounded-lg vetro-alto orlo py-1 shadow-lg"
           >
             {voci.map(v => {
               const on = corrente && v.valore === corrente.valore;
@@ -474,7 +502,20 @@ export function Scelta({ className, children, value, onChange, disabled, segnapo
                   type="button"
                   role="option"
                   aria-selected={!!on}
-                  onClick={() => scegli(v)}
+                  /* E scorrere non deve nemmeno SCEGLIERE.
+                     Su un telefono si scorre appoggiando il dito su una
+                     voce e trascinando: al rilascio arriva un clic su
+                     quella voce, e si finiva per collegare l'atleta
+                     sbagliato senza aver scelto niente. Se il dito si e'
+                     spostato di piu' di dieci pixel era uno scorrimento,
+                     non una scelta. */
+                  onPointerDown={(e) => { partenza.current = { x: e.clientX, y: e.clientY }; }}
+                  onClick={(e) => {
+                    const p0 = partenza.current;
+                    partenza.current = null;
+                    if (p0 && Math.hypot(e.clientX - p0.x, e.clientY - p0.y) > 10) return;
+                    scegli(v);
+                  }}
                   className={cx(
                     'flex w-full items-center gap-2 px-3.5 py-2.5 text-left text-[14px] transition-colors',
                     on ? 'font-semibold text-blu' : 'hover:bg-pannello/12'
