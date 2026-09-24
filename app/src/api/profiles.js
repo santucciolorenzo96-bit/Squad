@@ -97,5 +97,14 @@ function describeAvatarError(error) {
   if (/Bucket not found/i.test(msg)) {
     return new Error('Manca il deposito delle immagini: esegui la migrazione 024 su Supabase, poi riprova.');
   }
+  // La foto del profilo non dipende da nessun ruolo: si scrive nella propria
+  // cartella e basta. Se il database la rifiuta, le regole non ci sono —
+  // non e' una questione di permessi di chi carica.
+  if (/row-level security|violates row-level/i.test(msg)) {
+    return new Error(
+      'Il database ha rifiutato la foto. La foto del profilo non dipende dal ruolo, '
+      + 'quindi mancano le regole del deposito: esegui la migrazione 024 su Supabase, poi riprova.'
+    );
+  }
   return error;
 }

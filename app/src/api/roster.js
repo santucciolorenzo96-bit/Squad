@@ -66,13 +66,46 @@ export async function updateLinkedPlayerDetails(id, fields) {
   return data;
 }
 
+/* IL PERCORSO NON E' UNA COMODITA': E' IL PERMESSO.
+ *
+ * Le regole del deposito leggono la seconda cartella del percorso e chiedono
+ * se chi carica puo' gestire QUELL'atleta. Cambiare la forma di questa riga
+ * — togliere la societa', mettere l'atleta altrove — non sposta un file:
+ * toglie il permesso di scriverlo, e l'errore che ne esce parla di sicurezza
+ * invece che di percorsi.
+ */
 export async function uploadPlayerPhoto(teamId, playerId, blob) {
   const path = `${teamId}/${playerId}/photo_${Date.now()}.jpg`;
   const { error: upErr } = await supabase.storage.from('player-photos').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
-  if (upErr) throw upErr;
+  if (upErr) throw descriviErroreFoto(upErr);
   const { data, error } = await supabase.from('players').update({ photo_path: path }).eq('id', playerId).select().single();
   if (error) throw error;
   return data;
+}
+
+/* «new row violates row-level security policy» e' corretto e non serve a
+ * niente: chi lo legge sta caricando la foto di un ragazzino, non
+ * amministrando un database. Qui diventa una frase che dice cosa fare.
+ *
+ * Le due cause sono diverse e portano in due posti diversi — una si risolve
+ * eseguendo una migrazione, l'altra chiedendo a un amministratore — quindi
+ * vanno distinte invece di essere messe insieme in un «non e' stato
+ * possibile». */
+function descriviErroreFoto(error) {
+  const msg = (error && error.message) || '';
+  if (/Bucket not found/i.test(msg)) {
+    return new Error(
+      'Manca il deposito delle foto degli atleti: esegui la migrazione 004 su Supabase, poi riprova.'
+    );
+  }
+  if (/row-level security|violates row-level/i.test(msg)) {
+    return new Error(
+      'Il database ha rifiutato la foto: per caricarla servono i permessi su questa categoria. '
+      + 'Se sei un amministratore e succede lo stesso, mancano le regole del deposito: '
+      + 'esegui la migrazione 010 su Supabase.'
+    );
+  }
+  return error;
 }
 
 export async function getPlayerPhotoSignedUrl(filePath) {
