@@ -6,7 +6,7 @@ import {
   uploadPlayerPhoto, getPlayerPhotoSignedUrl
 } from '../api/roster.js';
 import { fetchDevelopment, saveDevelopment } from '../api/development.js';
-import { canReviewDocuments, isLinkedUser, canEditHome, managesSector } from '../utils/permissions.js';
+import { canReviewDocuments, isLinkedUser, canEditHome, managesSector, canManagePlayer } from '../utils/permissions.js';
 import { tipiDocumento } from '../utils/sports/index.js';
 import { docStatus, DOC_STATE, ageFrom } from '../utils/docStatus.js';
 import { resizeImageFile } from '../utils/image.js';
@@ -65,6 +65,11 @@ export function SchedaAtleta({ playerId, onChiudi }) {
   const puoiVedereSviluppo = famiglia
     ? state.linkedPlayers.some(lp => lp.id === playerId)
     : canEditHome(state.currentUser);
+  // La fotografia della rosa è della società: la cambia chi gestisce il
+  // settore, esattamente come dice can_manage_player() nel database. Mostrare
+  // la matita anche agli altri non dava loro un permesso in più — dava un
+  // errore in più.
+  const puoiCambiareFoto = canManagePlayer(state.currentUser, state.activeSectorId, state.staffSectors);
 
   function carica_tutto() {
     if (inCampione()) {
@@ -137,17 +142,23 @@ export function SchedaAtleta({ playerId, onChiudi }) {
       >
         {/* ------------------------------------------------------ ritratto */}
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => inputFoto.current && inputFoto.current.click()}
-            className="relative shrink-0"
-            title="Cambia fotografia"
-          >
-            <Avatar nome={p.name} url={foto} dim={72} />
-            <span className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full vivo text-[13px] text-white">
-              ✎
-            </span>
-          </button>
-          <input ref={inputFoto} type="file" accept="image/*" className="hidden" onChange={scegliFoto} />
+          {puoiCambiareFoto ? (
+            <>
+              <button
+                onClick={() => inputFoto.current && inputFoto.current.click()}
+                className="relative shrink-0"
+                title="Cambia fotografia"
+              >
+                <Avatar nome={p.name} url={foto} dim={72} />
+                <span className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full vivo text-[13px] text-white">
+                  ✎
+                </span>
+              </button>
+              <input ref={inputFoto} type="file" accept="image/*" className="hidden" onChange={scegliFoto} />
+            </>
+          ) : (
+            <div className="shrink-0"><Avatar nome={p.name} url={foto} dim={72} /></div>
+          )}
 
           <div className="min-w-0 flex-1">
             {riga && riga.games ? (

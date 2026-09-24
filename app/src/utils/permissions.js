@@ -196,6 +196,20 @@ export function canReviewDocuments(user) {
   return !!user && MANAGER_ROLES.includes(user.role);
 }
 
+/* Toccare la scheda di un giocatore: foto, anagrafica, documenti.
+ *
+ * Deve dire la stessa cosa di can_manage_player() nel database — che è
+ * is_team_manager() e accesso al settore. Quando le due si scollano non esce
+ * un pulsante disabilitato: esce un errore in faccia all'utente, perche' il
+ * caricamento parte, arriva al database e li' viene rifiutato. E' successo
+ * davvero con la fotografia dell'atleta: la mostravamo anche alle famiglie,
+ * che non possono gestirla, e l'unica risposta che ricevevano era
+ * «new row violates row-level security policy».
+ */
+export function canManagePlayer(user, sectorId, staffSectors) {
+  return canEditHome(user) && managesSector(user, sectorId, staffSectors);
+}
+
 // Utente base collegato a un giocatore: Genitore e Atleta hanno gli stessi
 // permessi, cambia solo l'etichetta con cui si presentano
 export function isLinkedUser(user) {

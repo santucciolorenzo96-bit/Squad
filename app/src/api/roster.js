@@ -101,7 +101,8 @@ function descriviErroreFoto(error) {
   if (/row-level security|violates row-level/i.test(msg)) {
     return new Error(
       'Il database ha rifiutato la foto: per caricarla servono i permessi su questa categoria. '
-      + 'Se sei un amministratore e succede lo stesso, mancano le regole del deposito: '
+      + 'Se il giocatore non è assegnato a nessuna categoria serve la migrazione 039; '
+      + 'se sei un amministratore e succede lo stesso, mancano le regole del deposito: '
       + 'esegui la migrazione 010 su Supabase.'
     );
   }
