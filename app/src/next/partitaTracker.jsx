@@ -21,9 +21,9 @@ import { scriviCopia, segnaSincronizzata, cancellaCopia } from './partitaLocale.
  * Tre regole, e vengono dal campo, non dal disegno:
  *
  * 1. DUE TOCCHI PER OGNI EVENTO — giocatore, poi azione — e mai uno scorrimento
- *    in mezzo. I comandi si aprono ancorati in basso, sotto il pollice. Nel
- *    basket si segna un evento ogni pochi secondi: ogni gesto in più si paga
- *    per tutta la partita.
+ *    in mezzo. I comandi si aprono SEMPRE AL CENTRO, nello stesso punto: dopo
+ *    tre azioni la mano ci arriva senza guardare. Nel basket si segna un
+ *    evento ogni pochi secondi: ogni gesto in più si paga per tutta la partita.
  *
  * 1-bis. E DOVE IL GIOCO LO SA GIÀ, UNO SOLO. Dopo un errore al tiro arriva
  *    quasi sempre un rimbalzo; dopo un canestro, spesso un assist. Invece di
@@ -128,7 +128,6 @@ export function Tracker({ onFinita, onEsci }) {
 
   const [, ridisegna] = useState(0);
   const [scelto, setScelto] = useState(null);      // id giocatore col pannello aperto
-  const [ancora, setAncora] = useState(null);      // da dove è stato toccato: il pannello nasce lì
   const [lampo, setLampo] = useState(null);        // { id, testo } riscontro dell'ultima azione
   const [catena, setCatena] = useState(null);      // { tipo, autore } la domanda successiva
   const [sostituzione, setSostituzione] = useState(null);
@@ -284,7 +283,6 @@ export function Tracker({ onFinita, onEsci }) {
     state.liveGame = JSON.parse(state.undoStack.pop());
     if (state.undoTesti) state.undoTesti.pop();
     setScelto(null);
-    setAncora(null);
     setCatena(null);
     aggiorna();
     salva();
@@ -360,7 +358,6 @@ export function Tracker({ onFinita, onEsci }) {
     setTimeout(() => setLampo(l => (l && l.id === giocatore.id ? null : l)), 900);
 
     setScelto(null);
-    setAncora(null);
     aggiorna();
     salva();
     if (navigator.vibrate) navigator.vibrate(12);
@@ -886,7 +883,7 @@ export function Tracker({ onFinita, onEsci }) {
                     lampo={lampo && lampo.id === p.id ? lampo.testo : null}
                     inSostituzione={sostituzione === p.id}
                     stile={posto ? { top: posto.top, left: posto.left } : undefined}
-                    onAssegna={(e) => { setAncora(e.currentTarget.getBoundingClientRect()); setScelto(p.id); }}
+                    onAssegna={() => setScelto(p.id)}
                     onSostituisci={() => setSostituzione(s => (s === p.id ? null : p.id))}
                   />
                 );
@@ -903,9 +900,8 @@ export function Tracker({ onFinita, onEsci }) {
             ) : inPanca.map(p => (
               <button
                 key={p.id}
-                onClick={(e) => {
+                onClick={() => {
                   if (sostituzione) { sostituisci(p); return; }
-                  setAncora(e.currentTarget.getBoundingClientRect());
                   setScelto(p.id);
                 }}
                 className="rounded-lg vetro px-2 py-2.5 text-center transition-all orlo hover:bg-pannello/12"
@@ -1025,7 +1021,6 @@ export function Tracker({ onFinita, onEsci }) {
         <PannelloAzioni
           p={giocatoreScelto}
           conf={conf}
-          ancora={ancora}
           dettaglio={dettaglio}
           onDettaglio={() => setDettaglio(v => { ricordaDettaglio(!v); return !v; })}
           foto={foto[giocatoreScelto.id]}
@@ -1036,7 +1031,6 @@ export function Tracker({ onFinita, onEsci }) {
             if (conf.mappaTiri && mappa && a.zona) {
               setTiroDaPiazzare({ giocatore: giocatoreScelto, azione: a, foto: foto[giocatoreScelto.id] });
               setScelto(null);
-              setAncora(null);
               return;
             }
             // Il punto della pallavolo chiede la traiettoria prima di
@@ -1045,14 +1039,13 @@ export function Tracker({ onFinita, onEsci }) {
             if (sport.campoIntero && a.traiettoria) {
               setTraiettoria({ giocatore: giocatoreScelto, azione: a, foto: foto[giocatoreScelto.id] });
               setScelto(null);
-              setAncora(null);
               return;
             }
             esegui(giocatoreScelto, a);
           }}
           mappa={mappa}
           onMappa={() => setMappa(v => { ricordaMappa(!v); return !v; })}
-          onChiudi={() => { setScelto(null); setAncora(null); }}
+          onChiudi={() => setScelto(null)}
         />
       )}
 
@@ -1629,8 +1622,12 @@ function CampoTraiettoria({ sport, tiro, onFatto, onChiudi }) {
 }
 
 /* --------------------------------------------------------------- la catena */
-// La domanda successiva. Sta in basso come il pannello delle azioni, ma e'
-// piu' bassa e non copre il campo: si risponde guardando ancora il gioco.
+// La domanda successiva: chi ha alzato, chi ha preso il rimbalzo, com'e' finito
+// l'attacco sbagliato.
+//
+// Sta al centro come il pannello delle azioni, e non e' un dettaglio: arriva
+// mezzo secondo dopo averlo chiuso, e se comparisse da un'altra parte l'occhio
+// dovrebbe rincorrerla. Stesso posto, stessa forma, stesso modo di uscirne.
 //
 // Non ha un pulsante "annulla" e non ne ha bisogno: toccare fuori la chiude, e
 // chiuderla non perde niente — l'evento di partenza e' gia' registrato.
@@ -1663,50 +1660,68 @@ function Catena({ conf, catena, giocatori, onScegli, onChiudi }) {
     : (c.includiAutore ? giocatori : giocatori.filter(p => p.id !== catena.autore));
 
   return createPortal(
-    <div className="fixed inset-0 z-[75] flex flex-col justify-end" onMouseDown={onChiudi}>
-      {/* Niente sfocatura sul fondo: qui la domanda dura due secondi e il campo
-          deve restare visibile dietro. */}
+    <div
+      className="fixed inset-0 z-[75] flex items-center justify-center p-3 sm:p-5"
+      onMouseDown={onChiudi}
+    >
+      {/* Sfocatura leggera: la domanda dura due secondi e il campo deve
+          restare riconoscibile dietro, ma senza un fondo il pannello bianco su
+          bianco sparisce. */}
+      <div className="absolute inset-0 bg-fondo/55 backdrop-blur-sm" />
+
       <div
         onMouseDown={e => e.stopPropagation()}
-        className="relative rounded-t-2xl vetro-alto border-t border-bordo/12 px-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] pt-3.5 shadow-lg animate-salita sm:px-6"
+        className="animate-respiro relative flex max-h-[94dvh] w-[min(34rem,100%)] flex-col overflow-hidden rounded-2xl vetro-alto orlo shadow-lg"
       >
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-bordo/8 px-3.5 py-2.5 sm:px-4">
           <Etichetta>{c.titolo}</Etichetta>
           <button
             onClick={onChiudi}
-            className="shrink-0 rounded-lg px-2.5 py-1 text-[12.5px] font-semibold text-tenue hover:text-testo"
+            className="shrink-0 rounded-lg px-2.5 py-1 text-[12.5px] font-semibold text-tenue transition-colors hover:text-testo"
           >
             {c.altro}
           </button>
         </div>
 
-        {opzioni ? (
-          // Poche risposte e lunghe: bottoni larghi, non una griglia da cinque.
-          <div className="grid grid-cols-2 gap-2">
-            {opzioni.map(o => (
-              <button
-                key={o.act}
-                onClick={() => onScegli(o)}
-                className="rounded-lg vetro orlo px-3 py-3 text-[13.5px] font-semibold transition-all hover:bg-pannello/16 active:scale-[0.97]"
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-        ) : (
-        <div className="grid grid-cols-5 gap-2">
-          {candidati.map(p => (
-            <button
-              key={p.id}
-              onClick={() => onScegli(p)}
-              className="rounded-lg vetro orlo px-1 py-2.5 text-center transition-all hover:bg-pannello/16 active:scale-[0.97]"
-            >
-              <div className="text-[17px] font-bold leading-none">{p.number}</div>
-              <div className="mt-1 truncate text-[11px] text-tenue">{p.name.split(' ')[0]}</div>
-            </button>
-          ))}
+        <div className="min-h-0 flex-1 overflow-y-auto px-3.5 py-3 sm:px-4">
+          {opzioni ? (
+            // Poche risposte e lunghe: bottoni larghi, non una griglia da cinque.
+            <div className="grid grid-cols-2 gap-2">
+              {opzioni.map(o => (
+                <button
+                  key={o.act}
+                  onClick={() => onScegli(o)}
+                  className={cx(
+                    'flex min-h-[3rem] min-w-0 items-center justify-center break-words rounded-lg',
+                    'px-2 py-2 text-center text-[13px] font-semibold leading-[1.15] ring-1',
+                    TONO_AZIONE[o.tone] || TONO_AZIONE.neutral
+                  )}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            /* Quattro per riga e non cinque: con cinque, su un telefono, il
+               nome sotto il numero restava largo cinquanta pixel e veniva
+               tagliato a meta' parola. Il numero e' quello che si cerca, il
+               nome e' la conferma — e una conferma tagliata non conferma. */
+            <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5">
+              {candidati.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => onScegli(p)}
+                  className="min-w-0 rounded-lg vetro orlo px-1 py-2 text-center transition-all hover:bg-pannello/16 active:scale-[0.97]"
+                >
+                  <div className="cifra text-[17px] font-bold leading-none">{p.number}</div>
+                  <div className="mt-1 truncate text-[11px] leading-tight text-tenue">
+                    {p.name.split(' ')[0]}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-        )}
       </div>
     </div>,
     document.body
@@ -1714,186 +1729,199 @@ function Catena({ conf, catena, giocatori, onScegli, onChiudi }) {
 }
 
 /* -------------------------------------------------------- pannello azioni */
-/* Da dove nasce il pannello.
+/* LA DOMANDA CHE QUESTO PANNELLO DEVE FAR RISPONDERE IN UN SECONDO:
+ * cosa ha appena fatto questo giocatore.
  *
- * Su telefono dal basso, a tutta larghezza: il pollice arriva lì e lo schermo
- * è stretto comunque.
+ * Tre cose, che prima non c'erano.
  *
- * Da tablet in su ANCORATO al giocatore toccato, come se uscisse da lui. Su un
- * tablet «in fondo allo schermo» è a venti centimetri dal dito che ha appena
- * toccato, e un foglio a tutta larghezza copre il campo proprio mentre la
- * partita va avanti. Il pannello si apre accanto al gettone, si ribalta sopra
- * o sotto a seconda dello spazio, e resta dentro i bordi.
+ * STA AL CENTRO, SEMPRE. Nasceva dal gettone toccato — sembrava una bella
+ * idea, «esce dalla persona» — e in palestra era il contrario: il pannello
+ * finiva ogni volta in un punto diverso, e l'occhio doveva ritrovarlo prima di
+ * poter cercare il pulsante. Al centro è sempre lì, e dopo tre azioni la mano
+ * ci arriva senza guardare. Lo stesso vale per la domanda che segue un'azione
+ * (chi ha alzato, chi ha preso il rimbalzo): stesso posto, stessa forma.
+ *
+ * VERDE QUELLO CHE È ANDATO BENE, ROSSO QUELLO CHE È ANDATO MALE. Prima metà
+ * dei pulsanti era grigia — assist, rimbalzo, palla rubata, tutte cose
+ * positive — e i falli erano ambra, che non vuol dire niente. Due intensità
+ * per parte: pieno per quello che chiude l'azione (canestro, errore), tenue
+ * per quello che la accompagna (assist, palla persa).
+ *
+ * TUTTO SENZA SCORRERE. Diciotto azioni nel basket: in colonna unica il
+ * pannello era più alto dello schermo, e le ultime si trovavano scorrendo —
+ * cioè non si trovavano, perché mentre scorri la partita va avanti. Adesso i
+ * gruppi stanno su due colonne da tablet in su, i pulsanti sono compatti, e il
+ * numero di colonne dentro ogni gruppo dipende da quanto sono lunghe le
+ * parole: quattro etichette corte stanno in fila, quattro lunghe vanno a due a
+ * due. Così le scritte entrano invece di uscire dal bordo.
  */
-function PannelloAzioni({ p, conf, foto, ancora, dettaglio, onDettaglio, mappa, onMappa, onAzione, onChiudi }) {
-  const [posa, setPosa] = useState(null);   // { left, top, maxH, origine } oppure null = foglio
-  const tendina = useTendina(onChiudi);
-  const largo = !!posa;
 
+/* Quante colonne per un gruppo di azioni.
+ *
+ * Non è una preferenza estetica: è l'unica cosa che decide se «Stoppata
+ * subita» entra nel pulsante o esce dal bordo. Quattro etichette corte
+ * («++», «+», «−», «Errore») stanno bene in fila; quattro lunghe
+ * («Generica», «Palleggio», «Passaggio», «Passi/Sup.») no. */
+function colonneAzioni(actions) {
+  const n = actions.length;
+  if (n <= 1) return 'grid-cols-1';
+  if (n === 2) return 'grid-cols-2';
+  if (n === 3) return 'grid-cols-3';
+  const piuLunga = Math.max.apply(null, actions.map(a => String(a.label || '').length));
+  return piuLunga <= 8 ? 'grid-cols-4' : 'grid-cols-2';
+}
+
+function PannelloAzioni({ p, conf, foto, dettaglio, onDettaglio, mappa, onMappa, onAzione, onChiudi }) {
   useEffect(() => {
     const tasto = (e) => { if (e.key === 'Escape') onChiudi(); };
     document.addEventListener('keydown', tasto);
     return () => document.removeEventListener('keydown', tasto);
   }, [onChiudi]);
 
-  // La posizione si calcola una volta, all'apertura: il gettone non si muove
-  // mentre il pannello è aperto, e ricalcolare a ogni disegno vorrebbe dire
-  // farlo ballare sotto il dito.
-  useEffect(() => {
-      const L = 34 * 16;                      // larghezza del pannello, in pixel
-    const grande = typeof window !== 'undefined' && window.innerWidth >= 768;
-    if (!grande || !ancora) { setPosa(null); return; }
-
-    const margine = 12;
-    const sopra = ancora.top;
-    const sotto = window.innerHeight - ancora.bottom;
-    const verso = sotto >= sopra ? 'giu' : 'su';
-    const spazio = (verso === 'giu' ? sotto : sopra) - margine * 2;
-
-    const left = Math.min(
-      Math.max(ancora.left + ancora.width / 2 - L / 2, margine),
-      window.innerWidth - L - margine
-    );
-
-    setPosa({
-      left,
-      top: verso === 'giu' ? ancora.bottom + margine : null,
-      bottom: verso === 'su' ? window.innerHeight - ancora.top + margine : null,
-      maxH: Math.max(spazio, 240),
-      // L'origine della crescita è il gettone: l'occhio segue il movimento e
-      // capisce da cosa è uscito il pannello.
-      origine: (ancora.left + ancora.width / 2 - left) + 'px ' + (verso === 'giu' ? '0%' : '100%')
-    });
-  }, [ancora]);
-
-  // L'intestazione e' la maniglia quando il pannello e' un foglio; quando e'
-  // ancorato al gettone non c'e' nessuna tendina da tirare, e le due cose non
-  // si devono mischiare.
-  const presa = posa ? {} : tendina.maniglia;
-
-  const corpo = (
-    <>
-      <div {...presa} className="mb-3.5 flex items-center gap-3">
-        {/* Il volto anche qui, ed e' il momento in cui serve di piu': e' la
-            conferma di aver toccato la persona giusta, un istante prima di
-            segnarle addosso un'azione. */}
-        <span className="relative h-10 w-10 shrink-0">
-          <span className="block h-full w-full overflow-hidden rounded-lg vivo text-[16px] font-bold text-white">
-            <Volto p={p} url={foto} />
-          </span>
-          <span className="absolute -bottom-1 -right-1">
-            <Canotta numero={p.number} dim="1.25rem" />
-          </span>
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[15px] font-bold leading-tight">{p.name}</div>
-          <div className="text-[12.5px] text-tenue">{p.onCourt ? 'in campo' : 'in panchina'}</div>
-        </div>
-        <button
-          onClick={onChiudi}
-          className="shrink-0 rounded-lg px-3 py-2 text-[13px] font-semibold text-tenue hover:text-testo"
-        >
-          Chiudi
-        </button>
-      </div>
-
-      {/* Nel pannello ancorato i gruppi stanno su due colonne: con diciotto
-          azioni in colonna unica il pannello diventa piu' alto dello schermo e
-          copre il campo, che e' la cosa che si stava guardando. */}
-      <div className={cx(largo ? 'grid grid-cols-2 gap-x-3 gap-y-3' : 'space-y-3')}>
-        {conf.groups.filter(gr => !gr.dettaglio || dettaglio).map(gr => (
-          <div key={gr.label}>
-            <Etichetta className="mb-1.5">{gr.label}</Etichetta>
-            <div className={cx('grid gap-2', gr.layout === 'pair' ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3')}>
-              {gr.actions.map(a => (
-                <button
-                  key={a.act}
-                  onClick={() => onAzione(a)}
-                  className={cx(
-                    'rounded-lg px-3 py-3 text-[13px] font-semibold transition-all orlo active:scale-[0.97]',
-                    TONO_AZIONE[a.tone] || TONO_AZIONE.neutral
-                  )}
-                >
-                  {a.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* L'interruttore sta qui, sotto ai pulsanti: e' guardandoli che viene da
-          chiedersi se ce ne sono altri, non in una schermata di impostazioni. */}
-      {conf.groups.some(gr => gr.dettaglio) && (
-        <button
-          onClick={onDettaglio}
-          className="mt-3.5 w-full rounded-lg py-2 text-[12.5px] font-semibold text-tenue transition-colors hover:text-testo"
-        >
-          {dettaglio ? 'Nascondi ricezione e servizio' : 'Segna anche ricezione e servizio'}
-        </button>
-      )}
-
-      {conf.mappaTiri && (
-        <button
-          onClick={onMappa}
-          className="mt-3.5 w-full rounded-lg py-2 text-[12.5px] font-semibold text-tenue transition-colors hover:text-testo"
-        >
-          {mappa
-            ? 'Non chiedere più da dove ha tirato'
-            : 'Chiedi da dove ha tirato (un tocco in più)'}
-        </button>
-      )}
-    </>
-  );
-
-  // Nel portale, per lo stesso motivo della Finestra: ancorato alla pagina e
-  // non alla colonna, altrimenti finisce dove non deve.
-  if (posa) {
-    return createPortal(
-      <div className="fixed inset-0 z-[70]" onMouseDown={onChiudi}>
-        <div
-          onMouseDown={e => e.stopPropagation()}
-          style={{
-            left: posa.left,
-            top: posa.top != null ? posa.top : undefined,
-            bottom: posa.bottom != null ? posa.bottom : undefined,
-            maxHeight: posa.maxH,
-            transformOrigin: posa.origine
-          }}
-          className="animate-nascita fixed w-[34rem] overflow-y-auto rounded-2xl vetro-alto orlo px-4 py-4 shadow-lg"
-        >
-          {corpo}
-        </div>
-      </div>,
-      document.body
-    );
-  }
+  const gruppi = conf.groups.filter(gr => !gr.dettaglio || dettaglio);
+  const conDettaglio = conf.groups.some(gr => gr.dettaglio);
+  const conPiede = conDettaglio || conf.mappaTiri;
 
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex flex-col justify-end" onMouseDown={onChiudi}>
-      <div className="absolute inset-0 bg-fondo/70 backdrop-blur-sm" />
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-5"
+      onMouseDown={onChiudi}
+    >
+      <div className="absolute inset-0 bg-fondo/75 backdrop-blur-sm" />
+
       <div
         onMouseDown={e => e.stopPropagation()}
-        style={tendina.stile}
         className={cx(
-          'relative max-h-[82dvh] overflow-y-auto rounded-t-2xl vetro-alto border-t border-bordo/12',
-          'px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-lg sm:px-6',
-          tendina.entrata && 'animate-salita'
+          'animate-respiro relative flex w-[min(46rem,100%)] flex-col overflow-hidden',
+          'max-h-[94dvh] rounded-2xl vetro-alto orlo shadow-lg'
         )}
       >
-        <div {...presa} className="mx-auto mb-4 h-1 w-10 cursor-grab rounded-full bg-pannello/25" />
-        {corpo}
+        {/* ------------------------------------------------ chi stai segnando */}
+        <div className="flex shrink-0 items-center gap-3 border-b border-bordo/8 px-3.5 py-3 sm:px-4">
+          {/* Il volto è la conferma di aver toccato la persona giusta, un
+              istante prima di segnarle addosso un'azione. */}
+          <span className="relative h-9 w-9 shrink-0">
+            <span className="block h-full w-full overflow-hidden rounded-lg vivo text-[15px] font-bold text-white">
+              <Volto p={p} url={foto} />
+            </span>
+            <span className="absolute -bottom-1 -right-1">
+              <Canotta numero={p.number} dim="1.1rem" />
+            </span>
+          </span>
+
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[14.5px] font-bold leading-tight">{p.name}</div>
+            {/* La legenda dei colori sta qui e non in fondo: si legge prima di
+                toccare, non dopo. Due parole, una volta sola. */}
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-tenue">
+              <span>{p.onCourt ? 'in campo' : 'in panchina'}</span>
+              <span className="flex items-center gap-1">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-verde" aria-hidden="true" />
+                positivo
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rosso" aria-hidden="true" />
+                negativo
+              </span>
+            </div>
+          </div>
+
+          <button
+            onClick={onChiudi}
+            aria-label="Chiudi"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[16px] text-tenue transition-colors hover:bg-pannello/12 hover:text-testo"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* ------------------------------------------------------- le azioni */}
+        {/* overflow-y-auto è la rete, non il piano: le misure qui sotto sono
+            fatte perché diciotto azioni entrino senza scorrere anche su un
+            telefono piccolo. Se un domani uno sport ne avesse trenta, meglio
+            una barra di scorrimento che dei pulsanti tagliati via. */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-3.5 py-3 sm:px-4">
+          <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-2">
+            {gruppi.map(gr => (
+              <div key={gr.label} className="min-w-0">
+                <Etichetta className="mb-1">{gr.label}</Etichetta>
+                <div className={cx('grid gap-1.5', colonneAzioni(gr.actions))}>
+                  {gr.actions.map(a => (
+                    <button
+                      key={a.act}
+                      onClick={() => onAzione(a)}
+                      title={a.etichettaBreve || a.label}
+                      className={cx(
+                        'flex min-h-[2.5rem] min-w-0 items-center justify-center break-words',
+                        'rounded-lg px-1.5 py-1.5 text-center text-[12.5px] font-semibold leading-[1.15]',
+                        'ring-1 transition-all active:scale-[0.97]',
+                        TONO_AZIONE[a.tone] || TONO_AZIONE.neutral
+                      )}
+                    >
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ------------------------------------------------- cosa segnare */}
+        {/* Gli interruttori stanno sotto ai pulsanti e non in una schermata di
+            impostazioni: è guardandoli che viene da chiedersi se ce ne sono
+            altri. Su una riga sola, perché due pulsanti a tutta larghezza
+            rubavano l'altezza a un gruppo di azioni. */}
+        {conPiede && (
+          <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-bordo/8 px-3.5 py-2.5 sm:px-4">
+            {conDettaglio && (
+              <InterruttoreScout acceso={dettaglio} onClick={onDettaglio}>
+                Ricezione e servizio
+              </InterruttoreScout>
+            )}
+            {conf.mappaTiri && (
+              <InterruttoreScout acceso={mappa} onClick={onMappa}>
+                Chiedi da dove ha tirato
+              </InterruttoreScout>
+            )}
+          </div>
+        )}
       </div>
     </div>,
     document.body
   );
 }
 
+function InterruttoreScout({ acceso, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={acceso}
+      className={cx(
+        'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold transition-colors',
+        acceso ? 'bg-blu/16 text-blu' : 'bg-pannello/10 text-tenue hover:text-soffuso'
+      )}
+    >
+      <span className={cx('h-1.5 w-1.5 rounded-full', acceso ? 'bg-blu' : 'bg-tenue/50')} aria-hidden="true" />
+      {children}
+    </button>
+  );
+}
+
+/* Verde quello che è andato bene, rosso quello che è andato male.
+ *
+ * Due intensità per parte, e non è decorazione: PIENO è quello che chiude
+ * l'azione — un canestro, un errore, un punto preso — TENUE è quello che la
+ * accompagna, un assist o una palla persa. Con una sola intensità per colore
+ * il pannello diventa una bandiera e non si legge più niente.
+ *
+ * L'ambra è sparita: «fallo commesso» in ambra non diceva se fosse una cosa
+ * buona o cattiva, e mentre segni non hai tempo di chiedertelo. */
 const TONO_AZIONE = {
-  made: 'bg-verde/16 text-verde hover:bg-verde/24',
-  miss: 'bg-rosso/12 text-rosso hover:bg-rosso/20',
-  warn: 'bg-ambra/14 text-ambra hover:bg-ambra/22',
-  neutral: 'vetro text-testo hover:bg-pannello/16'
+  made: 'bg-verde/20 text-verde ring-verde/30 hover:bg-verde/28',
+  neutral: 'bg-verde/8 text-verde/85 ring-verde/15 hover:bg-verde/14',
+  warn: 'bg-rosso/8 text-rosso/85 ring-rosso/15 hover:bg-rosso/14',
+  miss: 'bg-rosso/18 text-rosso ring-rosso/30 hover:bg-rosso/26'
 };
 
 /* ------------------------------------------------------- chiusura periodo */

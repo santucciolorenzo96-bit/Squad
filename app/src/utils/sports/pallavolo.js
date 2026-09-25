@@ -344,8 +344,11 @@ export const PALLAVOLO = {
       comeErrore: {
         titolo: 'Com\u2019\u00e8 finito?',
         opzioni: [
-          { act: 'att_out', label: 'Fuori o a rete', apply: { attackOut: 1 } },
-          { act: 'att_blocked', label: 'Murata', apply: { attackBlocked: 1 } }
+          // Rosse tutte e due: sono i due modi in cui l'attacco e' finito
+          // male, non una scelta fra bene e male. Nel pannello il colore
+          // significa «com'e' andata», e qui e' gia' andata male.
+          { act: 'att_out', label: 'Fuori o a rete', tone: 'warn', apply: { attackOut: 1 } },
+          { act: 'att_blocked', label: 'Murata', tone: 'warn', apply: { attackBlocked: 1 } }
         ],
         altro: 'Non lo so'
       },
