@@ -28,7 +28,7 @@ import { Accesso, CompletaIscrizione } from './Accesso.jsx';
 import { ConsoleSuperAdmin } from './Piattaforma.jsx';
 import { amIPlatformOwner, currentSociety, leaveSociety, segnoOspite } from '../api/platform.js';
 import { supabase } from '../supabaseClient.js';
-import { getPendingAction, runPendingAction, clearPendingAction } from '../auth.js';
+import { getPendingAction, runPendingAction, clearPendingAction, logout } from '../auth.js';
 import { Etichetta, Vuoto, Scheletro, Titolo, cx } from './ui.jsx';
 import { ProvvederAvvisi } from './moduli.jsx';
 import { caricaCampione } from './campione.js';
@@ -135,6 +135,51 @@ function NastroOspite({ societa }) {
 /* ------------------------------------------------------------------- ignota */
 // Rete di sicurezza: una voce di menu senza schermata. Non dovrebbe capitare,
 // e se capita e' meglio dirlo che mostrare una pagina bianca.
+/* L'anticamera.
+ *
+ * Non è un errore e non è un divieto: è una persona che ha bussato e sta
+ * aspettando che le aprano. La differenza la fanno le parole — «in attesa di
+ * conferma» e non «accesso negato» — e il dire cosa sta succedendo davvero:
+ * qualcuno in società deve riconoscere il tuo nome, e finché non lo fa qui
+ * dentro non c'è niente da vedere.
+ *
+ * C'è anche l'uscita: chi ha sbagliato codice società non deve restare
+ * intrappolato in una sala d'attesa che non finirà mai.
+ */
+function InAttesa({ onEsci }) {
+  const u = state.currentUser || {};
+  return (
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center px-5 py-10">
+      <div className="w-full max-w-md text-center">
+        <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-ambra/14 text-[22px]">
+          ⏳
+        </div>
+        <h1 className="mt-5 text-[22px] font-bold leading-tight">Ci siamo quasi</h1>
+        <p className="mt-3 text-[13.5px] leading-relaxed text-soffuso">
+          La tua richiesta è arrivata alla società. Qualcuno deve riconoscere il tuo nome e
+          confermarti: di solito è questione di poco, e non devi fare altro.
+        </p>
+        {u.claim_note && (
+          <p className="mt-4 rounded-lg bg-pannello/8 px-4 py-3 text-[13px] leading-relaxed text-soffuso">
+            Hai scritto di essere {u.role === 'atleta' ? 'in rosa come' : 'il genitore di'}{' '}
+            <b className="text-testo">{u.claim_note}</b>. Se non è così, esci e rifai la
+            registrazione: è più facile adesso che dopo.
+          </p>
+        )}
+        <p className="mt-4 text-[12.5px] leading-relaxed text-tenue">
+          Quando ti confermano, entri con le stesse email e password di adesso.
+        </p>
+        <button
+          onClick={onEsci}
+          className="mt-6 w-full rounded-lg vetro orlo py-2.5 text-[13px] font-semibold text-soffuso transition-colors hover:text-testo"
+        >
+          Esci
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function NonAncora({ nome }) {
   return (
     <div className="space-y-5">
@@ -318,6 +363,24 @@ function App() {
           }
         }
 
+        /* CHI ASPETTA DI ESSERE CONFERMATO NON ENTRA.
+         *
+         * Con il codice della società si entra come famiglia e si resta in
+         * attesa: un codice che gira in una chat di genitori non è una prova
+         * di identità. Il database lo sa già — current_team_id() non risponde
+         * finché approved_at è vuoto, quindi ogni lettura tornerebbe vuota —
+         * e senza questa deviazione l'app mostrerebbe una società senza
+         * niente dentro, che sembra un guasto.
+         *
+         * `approved_at === undefined` vuol dire che la migrazione 046 non è
+         * stata eseguita: in quel caso si entra come prima. Una colonna che
+         * manca non deve chiudere fuori nessuno. */
+        if (profilo && !profilo.daPiattaforma && profilo.approved_at === null) {
+          state.currentUser = profilo;
+          setFase('attesa');
+          return;
+        }
+
         state.currentUser = profilo;
         // Solo il nucleo: nome della societa', categorie, permessi, stagione.
         // E' tutto quello che serve per disegnare il guscio.
@@ -452,6 +515,10 @@ function App() {
         />
       </ProvvederAvvisi>
     );
+  }
+
+  if (fase === 'attesa') {
+    return <InAttesa onEsci={() => { logout(); window.location.reload(); }} />;
   }
 
   if (fase === 'accesso') {

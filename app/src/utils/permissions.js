@@ -26,7 +26,18 @@ export const LINKED_ROLES = ['genitore', 'atleta'];
 // compreso perchè di per sé non dà nessun potere: ogni scrittura passa da
 // can_manage_sector, che richiede un settore assegnato da un amministratore.
 // Admin, presidente e allenatore restano fuori: quelli contano anche senza settori.
-export const SELF_SIGNUP_ROLES = ['staff', 'segnapunti', 'genitore', 'atleta'];
+/* Con il CODICE DELLA SOCIETÀ si entra solo come famiglia.
+ *
+ * «staff» non è un'etichetta: rientra in MANAGER_ROLES, cioè gestisce
+ * anagrafica, documenti, presenze, allenamenti e calendario. Quel codice gira
+ * nelle chat dei genitori, ed era l'unico punto in cui consegnava POTERE
+ * invece che accesso: chiunque l'avesse poteva dichiararsi dirigente.
+ *
+ * Staff e segnapunti entrano con un invito personale, che un amministratore
+ * crea sapendo chi sta invitando e a cosa. Lo dice anche join_team()
+ * (migrazione 046): se le due si scollano, esce una schermata che propone un
+ * ruolo che poi il database rifiuta. */
+export const SELF_SIGNUP_ROLES = ['genitore', 'atleta'];
 // Ruoli che un amministratore può attribuire dalla schermata Utenti: tutti,
 // inclusi Genitore e Atleta, altrimenti un account finito nel ruolo sbagliato
 // non sarebbe più correggibile dall'interfaccia.

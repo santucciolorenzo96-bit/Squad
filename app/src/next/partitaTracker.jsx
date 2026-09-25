@@ -1574,14 +1574,14 @@ function CampoTraiettoria({ sport, tiro, onFatto, onChiudi }) {
           <div className="min-w-0 flex-1">
             <div className="text-[15px] font-bold leading-tight">Tira la traiettoria</div>
             <div className="truncate text-[12.5px] text-tenue">
-              {tiro.giocatore.name} \u00b7 dal punto di partenza a dove \u00e8 caduta
+              {tiro.giocatore.name} · dal punto di partenza a dove è caduta
             </div>
           </div>
           <button
             onClick={() => onFatto(null)}
             className="shrink-0 rounded-lg vetro orlo px-3 py-2 text-[12.5px] font-semibold text-tenue transition-colors hover:text-testo"
           >
-            Non l\u2019ho vista
+            Non l’ho vista
           </button>
         </div>
 

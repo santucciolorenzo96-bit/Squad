@@ -56,7 +56,10 @@ const COSA_SONO = {
 
 // L'ordine conta: per una persona su dieci che si iscrive, nove sono atleti
 // o genitori. Le altre due voci vengono dopo, non in mezzo.
-const ORDINE_RUOLI = ['atleta', 'genitore', 'staff', 'segnapunti'];
+// Restano due: con il codice della società si entra solo come famiglia.
+// Staff e segnapunti hanno responsabilità, e chi ha responsabilità lo decide
+// la società con un invito personale.
+const ORDINE_RUOLI = ['atleta', 'genitore'];
 
 function ScegliRuolo({ valore, onCambia }) {
   return (
@@ -85,9 +88,41 @@ function ScegliRuolo({ valore, onCambia }) {
         })}
       </div>
       <p className="mt-2 text-[12.5px] leading-snug text-tenue">
-        Ruolo e categorie li sistema poi un amministratore: quello che scegli qui non d\u00e0
-        nessun potere da solo.
+        Devi dare una mano in società o tenere il tabellino? Chiedi un invito personale:
+        quei ruoli li assegna un amministratore, non il codice della società.
       </p>
+    </div>
+  );
+}
+
+/* CHI SEI, DETTO CON UN NOME.
+ *
+ * Chi si registra sa perfettamente di chi è il genitore, ma finora non aveva
+ * modo di dirlo: il collegamento alla scheda lo faceva un amministratore a
+ * mano, indovinando dai nomi. È così che degli atleti sono finiti registrati
+ * come genitori.
+ *
+ * Si SCRIVE e non si sceglie da un elenco, e non è una scorciatoia: un elenco
+ * mostrerebbe i nomi di tutti i ragazzi della società a chiunque abbia il
+ * codice, prima ancora di sapere chi è. Il nome scritto non svela niente, e
+ * all'amministratore basta lo stesso — l'app gli propone l'atleta che
+ * somiglia di più, e lui conferma con un tocco.
+ */
+function NomeDellAtleta({ ruolo, valore, onCambia }) {
+  if (!ruolo) return null;
+  const mio = ruolo === 'atleta';
+  return (
+    <div className="mb-4">
+      <Campo
+        etichetta={mio ? 'Il tuo nome in rosa' : 'Il nome di tuo figlio'}
+        aiuto="Serve alla società per collegarti alla scheda giusta. Scrivilo come lo scriverebbero loro."
+      >
+        <Testo
+          value={valore}
+          onChange={e => onCambia(e.target.value)}
+          placeholder={mio ? 'Come ti chiamano in palestra' : 'Nome e cognome'}
+        />
+      </Campo>
     </div>
   );
 }
@@ -378,6 +413,7 @@ function Entra({ onEntrato, onIndietro, onConferma, onAttivazione }) {
   const [societa, setSocieta] = useState(null);
   const [invito, setInvito] = useState(null);    // invito nominativo, se il codice è quello
   const [ruolo, setRuolo] = useState('');
+  const [atleta, setAtleta] = useState('');
 
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -425,7 +461,13 @@ function Entra({ onEntrato, onIndietro, onConferma, onAttivazione }) {
     if (!nome.trim()) { setErrore('Scrivi il tuo nome e cognome.'); return; }
     // Nessun ripiego: se non l'ha scelto, glielo si chiede. Indovinare qui
     // vuol dire chiamare «tuo figlio» un ragazzo per tutto l'anno.
-    if (!invito && !ruolo) { setErrore('Dicci chi sei: atleta, genitore, staff o chi tiene il tabellino.'); return; }
+    if (!invito && !ruolo) { setErrore('Dicci chi sei: atleta o genitore.'); return; }
+    if (!invito && !atleta.trim()) {
+      setErrore(ruolo === 'atleta'
+        ? 'Scrivi con che nome sei in rosa: serve alla società per collegarti alla tua scheda.'
+        : 'Scrivi il nome di tuo figlio: serve alla società per collegarti alla sua scheda.');
+      return;
+    }
     if (!email.trim()) { setErrore('Serve la tua email: è con quella che accedi.'); return; }
     const pw = passwordProblem(pass);
     if (pw) { setErrore(pw); return; }
@@ -439,6 +481,7 @@ function Entra({ onEntrato, onIndietro, onConferma, onAttivazione }) {
         inviteCode: codice.trim().toUpperCase(),
         displayName: nome.trim(),
         role: ruolo,
+        claim: atleta.trim(),
         personale: !!invito
       });
       if (res.needsEmailConfirmation) { onConferma(email.trim()); return; }
@@ -543,7 +586,10 @@ function Entra({ onEntrato, onIndietro, onConferma, onAttivazione }) {
                 )}
               </div>
             ) : (
-              <ScegliRuolo valore={ruolo} onCambia={setRuolo} />
+              <>
+                <ScegliRuolo valore={ruolo} onCambia={setRuolo} />
+                <NomeDellAtleta ruolo={ruolo} valore={atleta} onCambia={setAtleta} />
+              </>
             )}
 
             <div className="space-y-4">
@@ -809,6 +855,7 @@ export function CompletaIscrizione({ email, erroreIniziale, onFatto }) {
   const [codice, setCodice] = useState('');
   const [attivazione, setAttivazione] = useState('');
   const [ruolo, setRuolo] = useState('');
+  const [atleta, setAtleta] = useState('');
   const [sport, setSport] = useState('basket');
   const [societa, setSocieta] = useState('');
   const [citta, setCitta] = useState('');
@@ -825,7 +872,11 @@ export function CompletaIscrizione({ email, erroreIniziale, onFatto }) {
         const c = codice.trim().toUpperCase();
         if (!c) { setErrore('Inserisci il codice.'); setLavora(false); return; }
         if (!ruolo) {
-          setErrore('Dicci chi sei: atleta, genitore, staff o chi tiene il tabellino.');
+          setErrore('Dicci chi sei: atleta o genitore.');
+          setLavora(false); return;
+        }
+        if (!atleta.trim()) {
+          setErrore('Scrivi il nome dell’atleta: serve alla società per collegarti alla scheda giusta.');
           setLavora(false); return;
         }
         // Prima l'invito nominativo, poi il codice societa': stesso ordine
@@ -834,7 +885,8 @@ export function CompletaIscrizione({ email, erroreIniziale, onFatto }) {
         const { error } = inv
           ? await supabase.rpc('join_team_with_invite', { p_code: c, p_display_name: nome.trim() })
           : await supabase.rpc('join_team', {
-              p_invite_code: c, p_display_name: nome.trim(), p_role: ruolo
+              p_invite_code: c, p_display_name: nome.trim(), p_role: ruolo,
+              p_claim: atleta.trim() || null
             });
         if (error) throw error;
       } else {
@@ -895,6 +947,7 @@ export function CompletaIscrizione({ email, erroreIniziale, onFatto }) {
                 />
               </Campo>
               <ScegliRuolo valore={ruolo} onCambia={setRuolo} />
+              <NomeDellAtleta ruolo={ruolo} valore={atleta} onCambia={setAtleta} />
               <p className="-mt-2 text-[12px] leading-snug text-tenue">
                 Se quello che hai è un invito personale, il ruolo è già dentro l’invito e
                 questa scelta non viene usata.

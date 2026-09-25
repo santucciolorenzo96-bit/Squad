@@ -108,3 +108,41 @@ function describeAvatarError(error) {
   }
   return error;
 }
+
+/* =============== Chi aspetta di entrare in società (migrazione 046) ===============
+ *
+ * Con il codice della società si entra come atleta o come genitore, e si
+ * resta in attesa: un codice che gira in una chat non è una prova di identità.
+ * Lo staff entra solo con un invito personale, che un amministratore ha creato
+ * sapendo chi stava invitando — e quello è già l'approvazione.
+ */
+
+export async function fetchPending() {
+  const { data, error } = await supabase.rpc('chi_aspetta');
+  if (error) throw descriviErroreIscritti(error);
+  return data || [];
+}
+
+// Approvare e collegare l'atleta sono lo stesso gesto: l'amministratore sta
+// rispondendo a «sono il genitore di Luca», e dire di sì senza collegare
+// lascerebbe a metà proprio la cosa che era stata chiesta.
+export async function approveMember(profileId, playerId, role) {
+  const { error } = await supabase.rpc('approva_iscritto', {
+    p_profile: profileId, p_player: playerId || null, p_role: role || null
+  });
+  if (error) throw descriviErroreIscritti(error);
+}
+
+export async function rejectMember(profileId) {
+  const { error } = await supabase.rpc('rifiuta_iscritto', { p_profile: profileId });
+  if (error) throw descriviErroreIscritti(error);
+}
+
+function descriviErroreIscritti(error) {
+  const msg = (error && error.message) || '';
+  if (/chi_aspetta|approva_iscritto|rifiuta_iscritto|approved_at/.test(msg)
+      && /does not exist|schema cache/.test(msg)) {
+    return new Error('Manca l’approvazione degli iscritti: esegui la migrazione 046 su Supabase, poi riprova.');
+  }
+  return error;
+}

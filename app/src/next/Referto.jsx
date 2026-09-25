@@ -210,7 +210,7 @@ function Quintetti({ quintetti }) {
                     {segno(q.saldo)}
                   </span>
                   <span className="min-w-0 flex-1"><Maglie nomi={q.nomi} /></span>
-                  <span className="cifra shrink-0 text-[11.5px] text-tenue">{q.f}\u2013{q.s}</span>
+                  <span className="cifra shrink-0 text-[11.5px] text-tenue">{q.f}–{q.s}</span>
                 </div>
                 <BarraSaldo saldo={q.saldo} max={max} />
               </Pannello>

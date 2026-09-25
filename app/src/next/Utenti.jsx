@@ -6,7 +6,10 @@ import {
   ROLES, ASSIGNABLE_ROLES, ADMIN_ROLES, LINKED_ROLES,
   isFinanceAdmin, isAdmin, roleLabel
 } from '../utils/permissions.js';
-import { updateProfile, deactivateProfile } from '../api/profiles.js';
+import {
+  updateProfile, deactivateProfile, fetchPending, approveMember, rejectMember
+} from '../api/profiles.js';
+import { proponiAtleta, altriCandidati } from '../utils/iscritti.js';
 import { assignStaffToSector, removeStaffFromSector, fetchStaffSectors } from '../api/sectors.js';
 import { fetchFamilyLinksForTeam, linkProfileToPlayer, unlinkProfileFromPlayer } from '../api/family.js';
 import { fetchInvites, createInvite, revokeInvite } from '../api/invites.js';
@@ -43,17 +46,203 @@ export function Utenti() {
       <Pannello className="pad-pannello-stretto">
         <Etichetta>Due modi per far entrare qualcuno</Etichetta>
         <p className="mt-2.5 text-[12.5px] leading-relaxed text-soffuso">
-          Il <b className="text-testo">codice società</b> (in Squadra) vale per tutti e non scade: chi lo usa
-          sceglie da sé se è atleta, genitore, scout o staff, e poi ruolo, categorie e collegamenti li sistemi
-          qui a mano. Un <b className="text-testo">invito</b> vale per una persona sola, una volta sola, e porta
-          già con sé quelle scelte.
+          Il <b className="text-testo">codice società</b> (in Impostazioni) vale per tutti e non scade, ma fa
+          entrare solo come atleta o genitore, e solo dopo che lo confermi tu: un codice che gira in una chat
+          non dice chi è la persona che l’ha usato. Un <b className="text-testo">invito</b> vale per una persona
+          sola, una volta sola, porta già con sé ruolo, categorie e collegamento — ed è l’unico modo per far
+          entrare chi dovrà gestire qualcosa.
         </p>
       </Pannello>
 
+      <Anticamera avvisa={avvisa} />
       <Inviti avvisa={avvisa} />
       <Staff avvisa={avvisa} />
       <Famiglie avvisa={avvisa} />
     </div>
+  );
+}
+
+/* ============================================================== l'anticamera */
+/* Chi ha usato il codice della società e aspetta di essere riconosciuto.
+ *
+ * Due cose in una schermata sola, perché sono lo stesso gesto: confermare che
+ * quella persona può entrare, e collegarla alla scheda giusta. Rispondere «sì»
+ * a «sono il genitore di Luca» senza fare il collegamento lascerebbe a metà
+ * proprio la cosa che era stata chiesta — ed è così che finora gli atleti
+ * finivano registrati come genitori.
+ *
+ * Il nome dell'atleta lo ha scritto chi si è iscritto. Noi proponiamo quello
+ * che somiglia di più, e SOLO se non c'è dubbio: due nomi ugualmente vicini
+ * non producono una scelta a caso, perché chi conferma con un tocco si fida
+ * del tocco, e collegare un genitore al figlio di un altro è un errore che
+ * nessuno andrà a ricontrollare.
+ */
+function Anticamera({ avvisa }) {
+  const [righe, setRighe] = useState(null);
+  const [scelto, setScelto] = useState(null);
+
+  function carica() {
+    if (inCampione()) { setRighe([]); return; }
+    fetchPending().then(setRighe).catch(() => setRighe([]));
+  }
+  useEffect(carica, []);
+
+  if (!righe || righe.length === 0) return null;
+
+  return (
+    <div>
+      <Etichetta className="mb-2.5">
+        {righe.length === 1 ? 'Una persona aspetta di entrare' : righe.length + ' persone aspettano di entrare'}
+      </Etichetta>
+      <Pannello className="overflow-hidden">
+        {righe.map((r, i) => (
+          <div key={r.id} className={cx('px-4 py-3.5 sm:px-5', i > 0 && 'border-t border-bordo/6')}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate text-[14px] font-semibold leading-tight">{r.display_name}</div>
+                <div className="mt-1 text-[12.5px] text-tenue">
+                  {ROLES[r.role] || r.role}
+                  {r.claim_note
+                    ? (r.role === 'atleta' ? ' · in rosa come ' : ' · genitore di ') + r.claim_note
+                    : ' · non ha detto di chi'}
+                </div>
+              </div>
+              <Pulsante
+                variante="primario"
+                className="shrink-0 py-1.5 text-[12.5px]"
+                onClick={() => setScelto(r)}
+              >
+                Guarda
+              </Pulsante>
+            </div>
+          </div>
+        ))}
+      </Pannello>
+      <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
+        Finché non li confermi non vedono niente: entrano, ma trovano una sala d’attesa.
+      </p>
+
+      {scelto && (
+        <ModuloIscritto
+          iscritto={scelto}
+          onChiudi={() => setScelto(null)}
+          onFatto={(testo) => {
+            setRighe(x => x.filter(y => y.id !== scelto.id));
+            avvisa(testo);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ModuloIscritto({ iscritto, onChiudi, onFatto }) {
+  const rosa = state.roster || [];
+  const proposto = proponiAtleta(iscritto.claim_note, rosa);
+  const altri = altriCandidati(iscritto.claim_note, rosa);
+  const [atleta, setAtleta] = useState(proposto ? proposto.id : '');
+  const [ruolo, setRuolo] = useState(iscritto.role);
+  const [rifiuta, setRifiuta] = useState(false);
+
+  /* L'elenco completo è l'ultima spiaggia, non la prima: quasi sempre basta la
+     proposta, e nei casi rimasti basta uno dei due o tre nomi vicini. Ma la
+     categoria aperta è una sola, e l'atleta potrebbe essere in un'altra —
+     quindi l'elenco c'è, e dice a quale rosa si riferisce. */
+  const vicini = proposto ? [proposto, ...altri] : altri;
+  const resto = rosa.filter(p => !vicini.some(v => v.id === p.id));
+
+  return (
+    <>
+      <Modulo
+        titolo={iscritto.display_name}
+        sotto={'Chiede di entrare come ' + (ROLES[iscritto.role] || iscritto.role).toLowerCase()}
+        etichettaInvia="Conferma"
+        onChiudi={onChiudi}
+        azioniExtra={
+          <button
+            type="button"
+            onClick={() => setRifiuta(true)}
+            className="rounded-lg px-3 py-2 text-[12.5px] font-semibold text-rosso transition-colors hover:bg-rosso/10"
+          >
+            Non lo conosco
+          </button>
+        }
+        onInvia={async () => {
+          if (inCampione()) return 'Nell’anteprima con dati di esempio non si salva niente.';
+          await approveMember(iscritto.id, atleta || null, ruolo);
+          onFatto(atleta ? 'Confermato e collegato' : 'Confermato');
+        }}
+      >
+        {iscritto.claim_note ? (
+          <div className="rounded-lg bg-pannello/8 px-3.5 py-3">
+            <Etichetta>Ha scritto</Etichetta>
+            <p className="mt-1.5 text-[13.5px] leading-relaxed">
+              {iscritto.role === 'atleta' ? 'Sono in rosa come ' : 'Sono il genitore di '}
+              <b>{iscritto.claim_note}</b>
+            </p>
+          </div>
+        ) : (
+          <p className="text-[13px] leading-relaxed text-ambra">
+            Non ha scritto di chi si tratta: se non lo riconosci, meglio chiedere prima di
+            confermare.
+          </p>
+        )}
+
+        <Campo
+          etichetta="È"
+          aiuto="Se chi si è iscritto ha sbagliato, correggilo adesso: dopo, un atleta si ritrova chiamato genitore per tutto l’anno."
+        >
+          <Scelta value={ruolo} onChange={e => setRuolo(e.target.value)}>
+            <option value="atleta">{ROLES.atleta}</option>
+            <option value="genitore">{ROLES.genitore}</option>
+          </Scelta>
+        </Campo>
+
+        <Campo
+          etichetta="Collegalo alla scheda"
+          aiuto={proposto
+            ? 'Proposto in base al nome che ha scritto. Controlla che sia lui.'
+            : 'Nessun nome somiglia abbastanza da proporlo: scegli tu, oppure lascia vuoto e collegalo dopo.'}
+        >
+          <Scelta value={atleta} onChange={e => setAtleta(e.target.value)}>
+            <option value="">— nessuno per ora —</option>
+            {vicini.map(p => (
+              <option key={p.id} value={p.id}>
+                {p.name}{p.number && p.number !== '-' ? ' · ' + p.number : ''}
+              </option>
+            ))}
+            {resto.length > 0 && vicini.length > 0 && <option disabled>──────────</option>}
+            {resto.map(p => (
+              <option key={p.id} value={p.id}>
+                {p.name}{p.number && p.number !== '-' ? ' · ' + p.number : ''}
+              </option>
+            ))}
+          </Scelta>
+        </Campo>
+
+        <p className="text-[12.5px] leading-relaxed text-tenue">
+          L’elenco è quello della categoria aperta. Se il suo atleta è in un’altra, cambia
+          categoria in alto e riapri: oppure conferma adesso e collegalo dopo, da qui sotto.
+        </p>
+      </Modulo>
+
+      {rifiuta && (
+        <Conferma
+          titolo="Non lo conosci?"
+          testo={
+            'La richiesta di ' + iscritto.display_name + ' sparisce, e il suo account resta '
+            + 'senza società: potrà riprovare con il codice giusto. Non gli arriva nessun messaggio.'
+          }
+          etichetta="Rifiuta"
+          onChiudi={() => setRifiuta(false)}
+          onConferma={async () => {
+            await rejectMember(iscritto.id);
+            onFatto('Richiesta rifiutata');
+            onChiudi();
+          }}
+        />
+      )}
+    </>
   );
 }
 
@@ -533,8 +722,8 @@ function ModuloRuoloCollegato({ f, onChiudi, onFatto }) {
 
       {LINKED_ROLES.includes(f.role) && LINKED_ROLES.includes(ruolo) && f.role !== ruolo && (
         <p className="-mt-1 text-[12.5px] leading-relaxed text-tenue">
-          I collegamenti alle schede restano come sono: cambia solo come l\u2019app si rivolge a
-          questa persona \u2014 un atleta vede la propria scheda, un genitore quella di suo
+          I collegamenti alle schede restano come sono: cambia solo come l’app si rivolge a
+          questa persona — un atleta vede la propria scheda, un genitore quella di suo
           figlio.
         </p>
       )}
