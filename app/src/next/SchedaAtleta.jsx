@@ -7,7 +7,10 @@ import {
   proposePlayerPhoto, publishProposedPhoto, rejectProposedPhoto
 } from '../api/roster.js';
 import { senzaNumero, numeriLiberi, obiezioneNumero, normalizzaNumero } from '../utils/maglie.js';
-import { fetchDevelopment, saveDevelopment } from '../api/development.js';
+import {
+  fetchDevelopment, saveDevelopment,
+  fetchObjectives, addObjective, achieveObjective, reopenObjective
+} from '../api/development.js';
 import { canReviewDocuments, isLinkedUser, canEditHome, managesSector, canManagePlayer } from '../utils/permissions.js';
 import { tipiDocumento } from '../utils/sports/index.js';
 import { docStatus, DOC_STATE, ageFrom } from '../utils/docStatus.js';
@@ -54,6 +57,7 @@ export function SchedaAtleta({ playerId, onChiudi }) {
   const [documenti, setDocumenti] = useState(null);
   const [foto, setFoto] = useState(null);
   const [sviluppo, setSviluppo] = useState(null);
+  const [obiettivi, setObiettivi] = useState([]);
   const [errore, setErrore] = useState(null);
 
   const [modAnagrafica, setModAnagrafica] = useState(false);
@@ -88,11 +92,14 @@ export function SchedaAtleta({ playerId, onChiudi }) {
     Promise.all([
       fetchPlayer(playerId),
       fetchPlayerDocuments(playerId).catch(() => []),
-      fetchDevelopment(playerId).catch(() => null)
-    ]).then(([giocatore, docs, dev]) => {
+      fetchDevelopment(playerId).catch(() => null),
+      // Se la migrazione 043 non c'e' ancora, la scheda mostra il resto.
+      fetchObjectives(playerId).catch(() => [])
+    ]).then(([giocatore, docs, dev, obs]) => {
       setP(giocatore);
       setDocumenti(docs);
       setSviluppo(dev);
+      setObiettivi(obs || []);
       if (giocatore && giocatore.photo_path) {
         getPlayerPhotoSignedUrl(giocatore.photo_path).then(setFoto).catch(() => {});
       }
@@ -313,41 +320,29 @@ export function SchedaAtleta({ playerId, onChiudi }) {
             <div className="mb-2.5 flex items-center justify-between gap-3">
               <Etichetta>Scheda evolutiva</Etichetta>
               {!famiglia && (
-                <Pulsante className="py-1 text-[12.5px]" onClick={() => setModSviluppo(true)}>Modifica</Pulsante>
+                <Pulsante className="py-1 text-[12.5px]" onClick={() => setModSviluppo(true)}>
+                  {sviluppo && sviluppo.coach_note ? 'Nota' : '+ Nota'}
+                </Pulsante>
               )}
             </div>
-            <Pannello className="pad-pannello-stretto">
-              {sviluppo && (sviluppo.objective || sviluppo.coach_note) ? (
-                <>
-                  {sviluppo.objective && (
-                    <div>
-                      <Etichetta>Obiettivo</Etichetta>
-                      <p className="mt-1.5 text-[13.5px] leading-relaxed">{sviluppo.objective}</p>
-                      {sviluppo.objective_set_at && (
-                        <p className="mt-1 text-[12px] text-tenue">
-                          fissato il {fmtData(sviluppo.objective_set_at)}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  {/* La nota dell'allenatore non la vede la famiglia: è uno
-                      strumento di lavoro fra tecnici, e saperla letta la
-                      renderebbe diplomatica invece che utile. */}
-                  {sviluppo.coach_note && !famiglia && (
-                    <div className={cx(sviluppo.objective && 'mt-4 border-t border-bordo/8 pt-4')}>
-                      <Etichetta>Nota dell’allenatore</Etichetta>
-                      <p className="mt-1.5 text-[13.5px] leading-relaxed text-soffuso">{sviluppo.coach_note}</p>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <p className="text-[12.5px] leading-relaxed text-tenue">
-                  {famiglia
-                    ? 'L’allenatore non ha ancora fissato un obiettivo.'
-                    : 'Nessun obiettivo fissato. Un obiettivo scritto è quello di cui si parla al colloquio con la famiglia.'}
-                </p>
-              )}
-            </Pannello>
+            <Obiettivi
+              p={p}
+              righe={obiettivi}
+              famiglia={famiglia}
+              puoiScrivere={!famiglia && canManagePlayer(state.currentUser, state.activeSectorId, state.staffSectors)}
+              onCambiato={setObiettivi}
+              avvisa={avvisa}
+            />
+
+            {/* La nota dell'allenatore non la vede la famiglia: è uno
+                strumento di lavoro fra tecnici, e saperla letta la renderebbe
+                diplomatica invece che utile. */}
+            {sviluppo && sviluppo.coach_note && !famiglia && (
+              <Pannello className="pad-pannello-stretto mt-3">
+                <Etichetta>Nota dell’allenatore</Etichetta>
+                <p className="mt-1.5 text-[13.5px] leading-relaxed text-soffuso">{sviluppo.coach_note}</p>
+              </Pannello>
+            )}
           </div>
         )}
       </Finestra>
@@ -376,7 +371,7 @@ export function SchedaAtleta({ playerId, onChiudi }) {
           p={p}
           sviluppo={sviluppo}
           onChiudi={() => setModSviluppo(false)}
-          onFatto={() => { carica_tutto(); avvisa('Scheda evolutiva salvata'); }}
+          onFatto={() => { carica_tutto(); avvisa('Nota salvata'); }}
         />
       )}
 
@@ -407,6 +402,158 @@ export function SchedaAtleta({ playerId, onChiudi }) {
             }
           }}
         />
+      )}
+    </>
+  );
+}
+
+/* ------------------------------------------------------------- obiettivi */
+/* L'obiettivo lo scrive l'allenatore, il ragazzo lo legge e ci lavora, e
+ * quando è raggiunto l'allenatore lo spunta e ne scrive un altro. La
+ * decisione resta tecnica: qui non si concorda niente.
+ *
+ * Quello che cambia rispetto a prima è che gli obiettivi non si cancellano
+ * a vicenda. Erano un campo solo: scriverne uno nuovo faceva sparire il
+ * precedente, e di quello che un ragazzo aveva migliorato in due anni non
+ * restava niente. Adesso quelli chiusi restano sotto, con la data — ed è
+ * proprio la cosa che a un quindicenne serve vedere.
+ *
+ * Uno alla volta: due obiettivi in corso sono zero obiettivi in corso.
+ */
+function Obiettivi({ p, righe, famiglia, puoiScrivere, onCambiato, avvisa }) {
+  const [nuovo, setNuovo] = useState('');
+  const [scrive, setScrive] = useState(false);
+  const [lavora, setLavora] = useState(false);
+
+  const inCorso = righe.find(o => !o.achieved_at) || null;
+  const fatti = righe.filter(o => o.achieved_at);
+
+  async function conVerifica(azione, testo) {
+    setLavora(true);
+    try {
+      await azione();
+      if (testo) avvisa(testo);
+    } catch (e) {
+      console.error(e);
+      avvisa((e && e.message) || 'Non riuscito.', 'errore');
+    } finally {
+      setLavora(false);
+    }
+  }
+
+  const spunta = () => conVerifica(async () => {
+    const agg = await achieveObjective(inCorso.id, state.currentUser.id);
+    onCambiato(righe.map(o => (o.id === agg.id ? agg : o)));
+    setScrive(true);   // l'obiettivo dopo si scrive adesso, non domani
+  }, 'Obiettivo raggiunto');
+
+  const riapri = (o) => conVerifica(async () => {
+    const agg = await reopenObjective(o.id);
+    onCambiato(righe.map(x => (x.id === agg.id ? agg : x)));
+  }, 'Rimesso in corso');
+
+  const scrivi = () => conVerifica(async () => {
+    const agg = await addObjective(p.team_id, p.id, nuovo, state.currentUser.id);
+    onCambiato([agg, ...righe]);
+    setNuovo('');
+    setScrive(false);
+  }, 'Obiettivo fissato');
+
+  return (
+    <>
+      <Pannello className="pad-pannello-stretto">
+        {inCorso ? (
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <Etichetta>Obiettivo</Etichetta>
+              <p className="mt-1.5 text-[13.5px] leading-relaxed">{inCorso.testo}</p>
+              <p className="mt-1 text-[12px] text-tenue">fissato il {fmtData(inCorso.set_at)}</p>
+            </div>
+            {puoiScrivere && (
+              <Pulsante
+                className="shrink-0 py-1.5 text-[12.5px]"
+                disabled={lavora}
+                onClick={spunta}
+              >
+                Raggiunto
+              </Pulsante>
+            )}
+          </div>
+        ) : scrive || (puoiScrivere && righe.length === 0) ? null : (
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[12.5px] leading-relaxed text-tenue">
+              {famiglia
+                ? 'L’allenatore non ha ancora fissato un obiettivo.'
+                : 'Nessun obiettivo in corso.'}
+            </p>
+            {puoiScrivere && (
+              <Pulsante className="shrink-0 py-1.5 text-[12.5px]" onClick={() => setScrive(true)}>
+                Fissane uno
+              </Pulsante>
+            )}
+          </div>
+        )}
+
+        {/* Il campo per il prossimo si apre da solo appena si spunta quello
+            appena chiuso: è il momento in cui si sa già cosa viene dopo. */}
+        {puoiScrivere && !inCorso && (scrive || righe.length === 0) && (
+          <div className={cx(righe.length > 0 && 'mt-1')}>
+            <Etichetta className="mb-1.5">
+              {fatti.length > 0 ? 'E adesso?' : 'Obiettivo'}
+            </Etichetta>
+            <Testo
+              value={nuovo}
+              onChange={e => setNuovo(e.target.value)}
+              placeholder="Tiro in sospensione con i piedi paralleli"
+              maxLength={160}
+            />
+            <div className="mt-2.5 flex justify-end gap-2">
+              {righe.length > 0 && (
+                <Pulsante className="py-1.5 text-[12.5px]" onClick={() => { setScrive(false); setNuovo(''); }}>
+                  Non adesso
+                </Pulsante>
+              )}
+              <Pulsante
+                variante="primario"
+                className="py-1.5 text-[12.5px]"
+                disabled={lavora || !nuovo.trim()}
+                onClick={scrivi}
+              >
+                Fissa
+              </Pulsante>
+            </div>
+          </div>
+        )}
+      </Pannello>
+
+      {fatti.length > 0 && (
+        <div className="mt-3">
+          <Etichetta className="mb-2">
+            {fatti.length === 1 ? 'Già raggiunto' : 'Già raggiunti'}
+          </Etichetta>
+          <div className="space-y-1.5">
+            {fatti.map(o => (
+              <Pannello key={o.id} className="flex items-start gap-3 px-3.5 py-2.5">
+                <span className="mt-0.5 shrink-0 text-[13px] font-bold text-verde" aria-hidden="true">✓</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] leading-snug text-soffuso">{o.testo}</p>
+                  <p className="mt-0.5 text-[12px] text-tenue">
+                    raggiunto il {fmtData(o.achieved_at)}
+                  </p>
+                </div>
+                {puoiScrivere && (
+                  <button
+                    onClick={() => riapri(o)}
+                    disabled={lavora}
+                    className="shrink-0 text-[12px] text-tenue underline-offset-2 transition-colors hover:text-soffuso hover:underline"
+                  >
+                    rimetti in corso
+                  </button>
+                )}
+              </Pannello>
+            ))}
+          </div>
+        </div>
       )}
     </>
   );
@@ -849,50 +996,39 @@ function ModuloAnagrafica({ p, famiglia, sport, onChiudi, onFatto }) {
 }
 
 /* -------------------------------------------------------- scheda evolutiva */
+/* La nota dell'allenatore, e basta.
+ *
+ * L'obiettivo stava qui dentro insieme alla nota, e le due cose non si
+ * somigliano: l'obiettivo lo legge anche la famiglia ed è uno alla volta con
+ * la sua storia, la nota non la legge nessun altro ed è un appunto che si
+ * riscrive. Dalla migrazione 043 l'obiettivo vive per conto suo, e questo
+ * modulo è rimasto quello che era davvero: il quaderno del tecnico. */
 function ModuloSviluppo({ p, sviluppo, onChiudi, onFatto }) {
-  const [obiettivo, setObiettivo] = useState((sviluppo && sviluppo.objective) || '');
   const [nota, setNota] = useState((sviluppo && sviluppo.coach_note) || '');
-  const originale = (sviluppo && sviluppo.objective) || '';
 
   return (
     <Modulo
-      titolo="Scheda evolutiva"
+      titolo="Nota dell’allenatore"
       sotto={p.name}
       onChiudi={onChiudi}
       onInvia={async () => {
         if (inCampione()) return 'Nell’anteprima con dati di esempio non si salva niente.';
         await saveDevelopment(state.teamProfile.id, p.id, {
-          objective: obiettivo.trim() || null,
           coach_note: nota.trim() || null,
-          // La data dell'obiettivo si aggiorna solo se l'obiettivo cambia
-          // davvero: altrimenti "fissato il ..." diventerebbe la data
-          // dell'ultimo salvataggio, che non dice niente.
-          objective_changed: obiettivo.trim() !== originale.trim(),
           updated_by: state.currentUser.id
         });
         onFatto();
       }}
     >
       <Campo
-        etichetta="Obiettivo"
-        aiuto="Lo vede anche la famiglia. È quello di cui si parla al colloquio, quindi conviene sia una cosa sola e verificabile."
-      >
-        <Testo
-          value={obiettivo}
-          onChange={e => setObiettivo(e.target.value)}
-          placeholder="Es. tiro in sospensione dai 4 metri"
-          autoFocus
-        />
-      </Campo>
-
-      <Campo
-        etichetta="Nota dell’allenatore"
-        aiuto="Questa NON la vede la famiglia: è uno strumento di lavoro fra tecnici."
+        etichetta="Nota"
+        aiuto="Questa NON la vede la famiglia: è uno strumento di lavoro fra tecnici. L’obiettivo, che invece si condivide, si scrive nella scheda."
       >
         <Testo
           value={nota}
           onChange={e => setNota(e.target.value)}
           placeholder="Es. cala di concentrazione nell'ultimo quarto"
+          autoFocus
         />
       </Campo>
     </Modulo>

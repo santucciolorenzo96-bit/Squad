@@ -30,3 +30,61 @@ export async function saveDevelopment(teamId, playerId, fields) {
   if (error) throw error;
   return data;
 }
+
+/* ======================= Gli obiettivi (migrazione 043) =======================
+ *
+ * Prima l'obiettivo era un campo solo: scriverne uno nuovo cancellava il
+ * precedente, e di quello che un ragazzo aveva migliorato in due anni non
+ * restava niente. Adesso sono righe — quello in corso e' l'ultimo senza data
+ * di raggiungimento, gli altri sono la sua storia.
+ *
+ * La decisione resta dell'allenatore: scrive lui, spunta lui. Il ragazzo
+ * legge, ci lavora, e vede l'elenco di quello che ha gia' chiuso.
+ */
+
+export async function fetchObjectives(playerId) {
+  const { data, error } = await supabase.from('player_objectives')
+    .select('*').eq('player_id', playerId)
+    .order('set_at', { ascending: false }).order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function addObjective(teamId, playerId, testo, userId) {
+  const { data, error } = await supabase.from('player_objectives')
+    .insert({ team_id: teamId, player_id: playerId, testo: String(testo).trim(), set_by: userId })
+    .select().single();
+  if (error) throw descriviErroreObiettivo(error);
+  return data;
+}
+
+export async function achieveObjective(id, userId) {
+  const { data, error } = await supabase.from('player_objectives')
+    .update({ achieved_at: oggiISO(), achieved_by: userId })
+    .eq('id', id).select().single();
+  if (error) throw descriviErroreObiettivo(error);
+  return data;
+}
+
+// Rimettere in corso un obiettivo spuntato per sbaglio: un tocco si sbaglia,
+// e senza questa l'unica strada sarebbe riscriverlo da capo perdendo la data.
+export async function reopenObjective(id) {
+  const { data, error } = await supabase.from('player_objectives')
+    .update({ achieved_at: null, achieved_by: null })
+    .eq('id', id).select().single();
+  if (error) throw descriviErroreObiettivo(error);
+  return data;
+}
+
+export async function removeObjective(id) {
+  const { error } = await supabase.from('player_objectives').delete().eq('id', id);
+  if (error) throw descriviErroreObiettivo(error);
+}
+
+function descriviErroreObiettivo(error) {
+  const msg = (error && error.message) || '';
+  if (/player_objectives/.test(msg) && /does not exist|schema cache/.test(msg)) {
+    return new Error('Mancano gli obiettivi: esegui la migrazione 043 su Supabase, poi riprova.');
+  }
+  return error;
+}
