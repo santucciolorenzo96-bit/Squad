@@ -38,6 +38,7 @@ export const TIPI = {
   next_match_changed: { sezione: 'home', azione: 'Prossima partita' },
   document_uploaded: { sezione: 'anagrafica', azione: 'Documento da verificare' },
   photo_proposed: { sezione: 'anagrafica', azione: 'Fotografia proposta' },
+  dato_sensibile: { sezione: 'anagrafica', azione: 'Dato del tesseramento' },
   document_reviewed: { sezione: 'anagrafica', azione: 'Esito del documento' },
   comunicazione: { sezione: 'comunicazioni', azione: 'Comunicazione' }
 };

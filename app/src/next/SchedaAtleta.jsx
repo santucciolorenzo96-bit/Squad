@@ -351,6 +351,8 @@ export function SchedaAtleta({ playerId, onChiudi }) {
         <ModuloAnagrafica
           p={p}
           famiglia={famiglia}
+          tesserato={documenti.some(d => d.doc_type === 'tesseramento_fip'
+            && d.status === 'approved' && (!d.expires_at || d.expires_at >= oggi))}
           sport={sport}
           onChiudi={() => setModAnagrafica(false)}
           onFatto={() => { carica_tutto(); avvisa('Scheda salvata'); }}
@@ -911,7 +913,7 @@ function ModuloCaricamento({ p, tipo, onChiudi, onFatto }) {
 }
 
 /* ------------------------------------------------------------- anagrafica */
-function ModuloAnagrafica({ p, famiglia, sport, onChiudi, onFatto }) {
+function ModuloAnagrafica({ p, famiglia, sport, tesserato, onChiudi, onFatto }) {
   const [nome, setNome] = useState(p.name || '');
   const [numero, setNumero] = useState(p.number || '');
   const [nascita, setNascita] = useState(p.birth_date || '');
@@ -959,10 +961,31 @@ function ModuloAnagrafica({ p, famiglia, sport, onChiudi, onFatto }) {
         </div>
       )}
 
+      {/* Data di nascita e codice fiscale sono gia' andati sulla federazione:
+          cambiarli qui non li cambia la', e crea una discordanza silenziosa
+          fra quello che sa SQUAD e quello che sa la FIP. La societa' puo'
+          ancora farlo — e' lei che con la federazione ci parla. */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <Campo etichetta="Data di nascita"><Data value={nascita} onChange={e => setNascita(e.target.value)} /></Campo>
-        <Campo etichetta="Codice fiscale">
-          <Testo value={cf} onChange={e => setCf(e.target.value.toUpperCase())} maxLength={16} />
+        <Campo
+          etichetta="Data di nascita"
+          aiuto={famiglia && tesserato ? 'Già sul tesseramento: la corregge la società.' : null}
+        >
+          <Data
+            value={nascita}
+            onChange={e => setNascita(e.target.value)}
+            disabled={famiglia && tesserato}
+          />
+        </Campo>
+        <Campo
+          etichetta="Codice fiscale"
+          aiuto={famiglia && tesserato ? 'Già sul tesseramento: lo corregge la società.' : null}
+        >
+          <Testo
+            value={cf}
+            onChange={e => setCf(e.target.value.toUpperCase())}
+            maxLength={16}
+            disabled={famiglia && tesserato}
+          />
         </Campo>
       </div>
 
