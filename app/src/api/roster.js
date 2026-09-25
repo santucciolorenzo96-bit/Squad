@@ -13,13 +13,32 @@ export async function fetchRosterBySector(sectorId, seasonId) {
     .sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
 }
 
+/* Aggiungere un giocatore sono due scritture: la persona, e la sua presenza
+ * nella rosa di questa categoria in questa stagione.
+ *
+ * Se la seconda falliva, la prima restava. Nasceva un giocatore che non sta in
+ * nessuna rosa: Rosa e Anagrafica leggono per categoria e stagione, quindi
+ * quella persona non compariva piu' da nessuna parte — esisteva solo nella
+ * Situazione e nel database. L'errore lo vedevi, ma sembrava «non e' stato
+ * creato», e invece era stato creato a meta'.
+ *
+ * Adesso o entrano tutte e due o non entra niente: se il collegamento non
+ * riesce, il giocatore appena creato viene tolto. Non e' una transazione vera
+ * — quelle da qui non si fanno — ma copre il caso che conta. */
 export async function addPlayer(teamId, sectorId, number, name, seasonId = stagioneAttiva()) {
   const { data: player, error } = await supabase.from('players')
     .insert({ team_id: teamId, number, name }).select().single();
   if (error) throw error;
   const { error: linkErr } = await supabase.from('player_sectors')
     .insert({ player_id: player.id, sector_id: sectorId, season_id: seasonId || null });
-  if (linkErr) throw linkErr;
+  if (linkErr) {
+    // try/catch e non .catch(): il costruttore di query di Supabase ha `then`
+    // ma non `catch`, e una .catch() qui lancerebbe un errore suo al posto di
+    // quello vero. Se il ritiro non riesce il giocatore resta orfano, ed e'
+    // giusto che esca comunque l'errore che ha causato tutto.
+    try { await supabase.from('players').delete().eq('id', player.id); } catch (e) { /* vedi sopra */ }
+    throw linkErr;
+  }
   return player;
 }
 
