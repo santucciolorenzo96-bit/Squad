@@ -92,6 +92,76 @@ function descriviErroreNumero(error) {
   return error;
 }
 
+/* ================= La fotografia proposta dalla famiglia =================
+ *
+ * Stesso modello dei documenti: carica la famiglia, pubblica la societa'. La
+ * foto ce l'ha in mano un genitore, non il segretario — chiudere del tutto la
+ * porta vuol dire che la foto non arriva mai, ed e' quello che e' successo
+ * finora. Ma quella foto la vedono tutti, quindi un filtro ci vuole.
+ *
+ * Il nome del file inizia per «proposta_»: e' cosi' che la regola dello
+ * storage distingue un file in attesa da uno pubblicato, senza interrogare
+ * un'altra tabella.
+ */
+export async function proposePlayerPhoto(teamId, playerId, blob, focalX = 50, focalY = 50) {
+  const path = `${teamId}/${playerId}/proposta_${Date.now()}.jpg`;
+  const { error: upErr } = await supabase.storage.from('player-photos')
+    .upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+  if (upErr) throw descriviErroreProposta(upErr);
+  const { error } = await supabase.rpc('propose_player_photo', {
+    p_player_id: playerId, p_path: path, p_focal_x: focalX, p_focal_y: focalY
+  });
+  if (error) throw descriviErroreProposta(error);
+  return path;
+}
+
+/* La societa' decide.
+ *
+ * Pubblicare vuol dire spostare il percorso dalla proposta alla foto vera:
+ * il file non si muove, cambia solo quale colonna lo indica. Rifiutare
+ * cancella il file, perche' una foto rifiutata non deve restare da nessuna
+ * parte — se e' stata rifiutata, un motivo c'era.
+ */
+export async function publishProposedPhoto(p) {
+  const patch = {
+    photo_path: p.photo_pending_path,
+    photo_focal_x: p.photo_pending_focal_x != null ? p.photo_pending_focal_x : 50,
+    photo_focal_y: p.photo_pending_focal_y != null ? p.photo_pending_focal_y : 50,
+    photo_pending_path: null, photo_pending_by: null, photo_pending_at: null
+  };
+  const aggiornato = await updatePlayer(p.id, patch);
+  // La vecchia foto non serve piu': si toglie dopo, perche' se la
+  // cancellazione non riesce la scheda e' comunque a posto.
+  if (p.photo_path && p.photo_path !== p.photo_pending_path) {
+    try { await supabase.storage.from('player-photos').remove([p.photo_path]); } catch (e) { /* pazienza */ }
+  }
+  return aggiornato;
+}
+
+export async function rejectProposedPhoto(p) {
+  const aggiornato = await updatePlayer(p.id, {
+    photo_pending_path: null, photo_pending_by: null, photo_pending_at: null
+  });
+  if (p.photo_pending_path) {
+    try { await supabase.storage.from('player-photos').remove([p.photo_pending_path]); } catch (e) { /* pazienza */ }
+  }
+  return aggiornato;
+}
+
+function descriviErroreProposta(error) {
+  const msg = (error && error.message) || '';
+  if (/propose_player_photo/.test(msg) && /does not exist|schema cache/.test(msg)) {
+    return new Error('Manca la proposta della fotografia: esegui la migrazione 042 su Supabase, poi riprova.');
+  }
+  if (/row-level security|violates row-level/i.test(msg)) {
+    return new Error(
+      'Il database ha rifiutato la fotografia. Si può proporre solo quella del proprio atleta: '
+      + 'se la scheda è la tua, manca la migrazione 042 su Supabase.'
+    );
+  }
+  return error;
+}
+
 // Percorso per gli account famiglia: RLS non filtra per colonna, quindi il
 // giocatore collegato si aggiorna tramite una funzione che scrive i soli campi
 // anagrafici (niente numero di maglia, nome o squadra).

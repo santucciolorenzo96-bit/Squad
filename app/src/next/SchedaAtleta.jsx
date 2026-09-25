@@ -3,7 +3,8 @@ import { state } from '../state.js';
 import {
   fetchPlayer, updatePlayer, updateLinkedPlayerDetails, fetchPlayerDocuments,
   uploadPlayerDocument, getDocumentSignedUrl, reviewDocument,
-  uploadPlayerPhoto, getPlayerPhotoSignedUrl, chooseMyNumber
+  uploadPlayerPhoto, getPlayerPhotoSignedUrl, chooseMyNumber,
+  proposePlayerPhoto, publishProposedPhoto, rejectProposedPhoto
 } from '../api/roster.js';
 import { senzaNumero, numeriLiberi, obiezioneNumero, normalizzaNumero } from '../utils/maglie.js';
 import { fetchDevelopment, saveDevelopment } from '../api/development.js';
@@ -59,6 +60,7 @@ export function SchedaAtleta({ playerId, onChiudi }) {
   const [carica, setCarica] = useState(null);     // { tipo }
   const [modSviluppo, setModSviluppo] = useState(false);
   const [centro, setCentro] = useState(null);     // { file }
+  const [proposta, setProposta] = useState(null); // l'anteprima della foto proposta
   const inputFoto = useRef(null);
 
   const famiglia = isLinkedUser(state.currentUser);
@@ -71,6 +73,7 @@ export function SchedaAtleta({ playerId, onChiudi }) {
   // la matita anche agli altri non dava loro un permesso in più — dava un
   // errore in più.
   const puoiCambiareFoto = canManagePlayer(state.currentUser, state.activeSectorId, state.staffSectors);
+  const mioAtleta = famiglia && state.linkedPlayers.some(lp => lp.id === playerId);
 
   function carica_tutto() {
     if (inCampione()) {
@@ -92,6 +95,12 @@ export function SchedaAtleta({ playerId, onChiudi }) {
       setSviluppo(dev);
       if (giocatore && giocatore.photo_path) {
         getPlayerPhotoSignedUrl(giocatore.photo_path).then(setFoto).catch(() => {});
+      }
+      // L'anteprima della proposta la si firma a parte: e' un file diverso, e
+      // finche' non viene pubblicata non deve sostituire niente.
+      setProposta(null);
+      if (giocatore && giocatore.photo_pending_path) {
+        getPlayerPhotoSignedUrl(giocatore.photo_pending_path).then(setProposta).catch(() => {});
       }
     }).catch(setErrore);
   }
@@ -157,6 +166,20 @@ export function SchedaAtleta({ playerId, onChiudi }) {
               </button>
               <input ref={inputFoto} type="file" accept="image/*" className="hidden" onChange={scegliFoto} />
             </>
+          ) : mioAtleta ? (
+            <>
+              <button
+                onClick={() => inputFoto.current && inputFoto.current.click()}
+                className="relative shrink-0"
+                title="Proponi una fotografia"
+              >
+                <Avatar nome={p.name} url={foto} dim={72} />
+                <span className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full bg-pannello/90 text-[13px] ring-1 ring-bordo/20">
+                  ✉
+                </span>
+              </button>
+              <input ref={inputFoto} type="file" accept="image/*" className="hidden" onChange={scegliFoto} />
+            </>
           ) : (
             <div className="shrink-0"><Avatar nome={p.name} url={foto} dim={72} /></div>
           )}
@@ -178,6 +201,17 @@ export function SchedaAtleta({ playerId, onChiudi }) {
             )}
           </div>
         </div>
+
+        {/* ----------------------------------------- la foto in attesa */}
+        {p.photo_pending_path && (
+          <FotoProposta
+            p={p}
+            url={proposta}
+            puoiDecidere={puoiCambiareFoto}
+            onFatto={(testo) => { carica_tutto(); avvisa(testo); }}
+            avvisa={avvisa}
+          />
+        )}
 
         {/* ------------------------------------------- il numero di maglia */}
         {/* Solo a chi quella maglia la indossa, e solo finché il numero non
@@ -352,11 +386,21 @@ export function SchedaAtleta({ playerId, onChiudi }) {
           onChiudi={() => setCentro(null)}
           onConferma={async (punto) => {
             try {
-              const agg = await uploadPlayerPhoto(state.teamProfile.id, p.id, centro.file);
-              await updatePlayer(p.id, { photo_focal_x: punto.x, photo_focal_y: punto.y });
-              setCentro(null);
-              carica_tutto();
-              avvisa('Fotografia aggiornata');
+              // Due strade dallo stesso gesto: chi gestisce la categoria
+              // pubblica, la famiglia propone. Il ritaglio e' lo stesso —
+              // e' la persona che inquadra a sapere dove sta la testa.
+              if (puoiCambiareFoto) {
+                await uploadPlayerPhoto(state.teamProfile.id, p.id, centro.file);
+                await updatePlayer(p.id, { photo_focal_x: punto.x, photo_focal_y: punto.y });
+                setCentro(null);
+                carica_tutto();
+                avvisa('Fotografia aggiornata');
+              } else {
+                await proposePlayerPhoto(state.teamProfile.id, p.id, centro.file, punto.x, punto.y);
+                setCentro(null);
+                carica_tutto();
+                avvisa('Proposta inviata: la società la pubblica dopo averla vista.');
+              }
             } catch (e) {
               console.error(e);
               avvisa((e && e.message) || 'Caricamento non riuscito.', 'errore');
@@ -365,6 +409,87 @@ export function SchedaAtleta({ playerId, onChiudi }) {
         />
       )}
     </>
+  );
+}
+
+/* ------------------------------------------------- la foto che aspetta */
+/* Il modello dei documenti, applicato alla fotografia: carica la famiglia,
+ * pubblica la società.
+ *
+ * La foto ce l'ha in mano un genitore, non il segretario — se la porta resta
+ * chiusa la foto non arriva mai, ed è quello che è successo finora. Ma quella
+ * foto finisce nello scout, nel referto e in anagrafica, e la vedono tutti:
+ * il filtro vale più della comodità.
+ *
+ * La proposta si vede accanto alla foto vera, non al suo posto: finché non
+ * viene pubblicata, in rosa e nello scout non cambia niente. E chi l'ha
+ * mandata la rivede qui, così sa che è arrivata.
+ */
+function FotoProposta({ p, url, puoiDecidere, onFatto, avvisa }) {
+  const [lavora, setLavora] = useState(false);
+
+  async function decidi(pubblica) {
+    setLavora(true);
+    try {
+      if (pubblica) {
+        await publishProposedPhoto(p);
+        onFatto('Fotografia pubblicata');
+      } else {
+        await rejectProposedPhoto(p);
+        onFatto('Proposta rifiutata');
+      }
+    } catch (e) {
+      console.error(e);
+      avvisa((e && e.message) || 'Non è stato possibile decidere adesso.', 'errore');
+    } finally {
+      setLavora(false);
+    }
+  }
+
+  return (
+    <Pannello alto className="mt-5 flex items-start gap-4 px-4 py-4">
+      <div
+        className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl bg-pannello/15 ring-1 ring-bordo/15"
+        aria-hidden={!url}
+      >
+        {url && (
+          <img
+            src={url}
+            alt=""
+            className="h-full w-full object-cover"
+            style={{
+              objectPosition: `${p.photo_pending_focal_x != null ? p.photo_pending_focal_x : 50}% `
+                + `${p.photo_pending_focal_y != null ? p.photo_pending_focal_y : 50}%`
+            }}
+          />
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <Etichetta>Fotografia proposta</Etichetta>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-soffuso">
+          {puoiDecidere
+            ? 'L’ha mandata la famiglia. Finché non la pubblichi, in rosa e nello scout resta quella di prima.'
+            : 'È arrivata alla società. Comparirà in rosa quando l’avranno vista.'}
+        </p>
+
+        {puoiDecidere && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Pulsante
+              variante="primario"
+              className="py-1.5 text-[12.5px]"
+              disabled={lavora}
+              onClick={() => decidi(true)}
+            >
+              Pubblica
+            </Pulsante>
+            <Pulsante className="py-1.5 text-[12.5px]" disabled={lavora} onClick={() => decidi(false)}>
+              Rifiuta
+            </Pulsante>
+          </div>
+        )}
+      </div>
+    </Pannello>
   );
 }
 

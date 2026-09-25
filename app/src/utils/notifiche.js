@@ -37,6 +37,7 @@ export const TIPI = {
   absence_announced: { sezione: 'allenamenti', azione: 'Assenza annunciata' },
   next_match_changed: { sezione: 'home', azione: 'Prossima partita' },
   document_uploaded: { sezione: 'anagrafica', azione: 'Documento da verificare' },
+  photo_proposed: { sezione: 'anagrafica', azione: 'Fotografia proposta' },
   document_reviewed: { sezione: 'anagrafica', azione: 'Esito del documento' },
   comunicazione: { sezione: 'comunicazioni', azione: 'Comunicazione' }
 };
