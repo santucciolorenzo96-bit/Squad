@@ -77,14 +77,16 @@ export function Presenze() {
   // Un giocatore per riga, contando solo ciò che è stato davvero rilevato.
   const perGiocatore = {};
   state.roster.forEach(p => {
-    perGiocatore[p.id] = { p, present: 0, absent: 0, excused: 0, rilevati: 0 };
+    perGiocatore[p.id] = { p, present: 0, absent: 0, rilevati: 0 };
   });
   rilevate.forEach(a => {
     const r = perGiocatore[a.player_id];
     if (!r) return;
     if (a.status === 'present') r.present++;
-    else if (a.status === 'absent') r.absent++;
-    else if (a.status === 'excused') r.excused++;
+    // Prima esisteva anche «giustificato»: la migrazione 041 li ha trasformati
+    // in assenti, perche' era quello che erano. Chi legge una rilevazione
+    // vecchia scaricata in memoria non deve vedere una riga sparire.
+    else if (a.status === 'absent' || a.status === 'excused') r.absent++;
     else return;
     r.rilevati++;
   });
@@ -157,7 +159,6 @@ export function Presenze() {
                         <th className="etichetta px-3 py-3.5 text-right">Rilevati</th>
                         <th className="etichetta px-3 py-3.5 text-right">Presente</th>
                         <th className="etichetta px-3 py-3.5 text-right">Assente</th>
-                        <th className="etichetta px-3 py-3.5 text-right">Giust.</th>
                         <th className="etichetta px-5 py-3.5 text-right">Presenza</th>
                       </tr>
                     </thead>
@@ -174,7 +175,6 @@ export function Presenze() {
                           <td className="px-3 py-3 text-right text-[13px] text-tenue">{r.rilevati}</td>
                           <td className="px-3 py-3 text-right text-[13px] text-verde">{r.present}</td>
                           <td className="px-3 py-3 text-right text-[13px] text-rosso">{r.absent}</td>
-                          <td className="px-3 py-3 text-right text-[13px] text-ambra">{r.excused}</td>
                           <td className={cx('px-5 py-3 text-right text-[15px] font-bold', colorePct(r.pct))}>
                             {r.pct == null ? '—' : `${r.pct}%`}
                           </td>

@@ -6,7 +6,8 @@ import {
   ensureOccurrencesGenerated, contaOccorrenzeFuture, rimuoviOccorrenzeFuture
 } from '../api/trainingRecurrences.js';
 import { findLocationConflicts } from '../utils/conflicts.js';
-import { canEditHome, managesSector } from '../utils/permissions.js';
+import { canEditHome, managesSector, isLinkedUser } from '../utils/permissions.js';
+import { fetchAbsenceNotices, announceAbsence, cancelAbsenceNotice } from '../api/attendance.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, cx, AzioneRiga } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Data, Scelta, Spunta, Interruttore, Finestra, useAvviso } from './moduli.jsx';
@@ -226,7 +227,7 @@ function IconaPresenze({ dim = 17 }) {
 }
 
 /* ------------------------------------------------------------------ la riga */
-function Riga({ t, puoiModificare, onApri, onRimuovi, onPresenze }) {
+function Riga({ t, puoiModificare, onApri, onRimuovi, onPresenze, avvisati, onAvvisa }) {
   return (
     <Pannello className="flex items-center gap-3.5 px-4 py-3.5 sm:px-5">
       <Riquadro iso={t.date} />
@@ -244,7 +245,26 @@ function Riga({ t, puoiModificare, onApri, onRimuovi, onPresenze }) {
         {t.location && (
           <div className="mt-1 truncate text-[12.5px] font-semibold text-soffuso">{t.location}</div>
         )}
+        {/* Quanti hanno gia' avvisato che non vengono: serve prima, mentre si
+            prepara la seduta, non dopo averla preparata per venti. */}
+        {avvisati > 0 && (
+          <div className="mt-1 text-[12.5px] font-semibold text-ambra">
+            {avvisati === 1 ? 'Un atleta ha avvisato che non viene' : avvisati + ' atleti hanno avvisato che non vengono'}
+          </div>
+        )}
       </div>
+
+      {/* Il gesto della famiglia: una riga sola, dove l'allenamento gia' sta.
+          Un posto separato dove annunciare le assenze sarebbe un posto in piu'
+          da ricordarsi. */}
+      {onAvvisa && (
+        <button
+          onClick={() => onAvvisa(t)}
+          className="shrink-0 rounded-lg bg-pannello/10 px-3 py-1.5 text-[12.5px] font-semibold text-soffuso ring-1 ring-bordo/12 transition-colors hover:text-testo"
+        >
+          Non posso venire
+        </button>
+      )}
       {puoiModificare && (
         <div className="flex shrink-0 items-center gap-1">
           {onPresenze && (
@@ -279,6 +299,8 @@ export function Allenamenti() {
   const [presenze, setPresenze] = useState(null);    // l'allenamento di cui si segnano le presenze
   const [daRimuovere, setDaRimuovere] = useState(null);
   const [programmi, setProgrammi] = useState(false);
+  const [avvisi, setAvvisi] = useState([]);          // gli avvisi di assenza gia' dati
+  const [avvisoPer, setAvvisoPer] = useState(null);  // l'allenamento per cui si sta avvisando
   const [, ridisegna] = useState(0);
   const avvisa = useAvviso();
 
@@ -286,6 +308,20 @@ export function Allenamenti() {
   // assegnata. Chi vede questa categoria perche' ci gioca la guarda e basta.
   const puoiModificare = canEditHome(state.currentUser) && managesSector(state.currentUser, state.activeSectorId, state.staffSectors);
   const oggi = oggiISO();
+
+  /* GLI AVVISI DI ASSENZA.
+   *
+   * Li vedono in due, per due motivi diversi: lo staff per sapere in quanti
+   * saranno, la famiglia per non avvisare due volte. Una richiesta sola per
+   * tutti gli allenamenti futuri — sono pochi, e chiederli riga per riga
+   * vorrebbe dire venti richieste per una schermata.
+   *
+   * Se la migrazione 041 non c'e' ancora, non succede niente: l'elenco resta
+   * vuoto e la schermata e' quella di prima. */
+  const famiglia = isLinkedUser(state.currentUser);
+  const mieiAtleti = famiglia
+    ? (state.linkedPlayers || []).filter(lp => state.roster.some(p => p.id === lp.id))
+    : [];
 
   /* LE OCCORRENZE DEI GIORNI FISSI NASCONO QUI.
    *
@@ -332,6 +368,20 @@ export function Allenamenti() {
     .sort((a, b) => b.date.localeCompare(a.date));
 
   const elenco = vista === 'passati' ? passati : futuri;
+
+  useEffect(() => {
+    let vivo = true;
+    const ids = futuri.map(t => t.id);
+    if (inCampione() || ids.length === 0) { setAvvisi([]); return undefined; }
+    fetchAbsenceNotices(ids)
+      .then(r => { if (vivo) setAvvisi(r || []); })
+      .catch(() => { if (vivo) setAvvisi([]); });
+    return () => { vivo = false; };
+  }, [state.trainings.length, state.activeSectorId]);
+
+  const avvisatiPer = (id) => avvisi.filter(a => a.training_id === id).length;
+  const mioAvvisoPer = (id) => avvisi.find(a => a.training_id === id
+    && mieiAtleti.some(p => p.id === a.player_id)) || null;
 
   return (
     <div className="sezioni">
@@ -410,6 +460,9 @@ export function Allenamenti() {
                 <Riga
                   t={t}
                   puoiModificare={puoiModificare}
+                  avvisati={puoiModificare ? avvisatiPer(t.id) : 0}
+                  onAvvisa={famiglia && mieiAtleti.length > 0 && t.date >= oggi
+                    ? (x) => setAvvisoPer(x) : null}
                   onApri={(x) => setModulo(x)}
                   onPresenze={(x) => setPresenze(x)}
                   onRimuovi={(x) => setDaRimuovere(x)}
@@ -422,6 +475,18 @@ export function Allenamenti() {
 
       {presenze && (
         <FoglioPresenze allenamento={presenze} onChiudi={() => setPresenze(null)} />
+      )}
+
+      {avvisoPer && (
+        <AvvisoAssenza
+          allenamento={avvisoPer}
+          atleti={mieiAtleti}
+          gia={avvisi.filter(a => a.training_id === avvisoPer.id
+            && mieiAtleti.some(p => p.id === a.player_id))}
+          onChiudi={() => setAvvisoPer(null)}
+          onCambiato={(nuovi) => setAvvisi(nuovi)}
+          tutti={avvisi}
+        />
       )}
 
       {modulo && (
@@ -616,6 +681,90 @@ function ModuloRicorrenza({ esistente, onChiudi, onFatto }) {
           Spento non genera più niente. Gli allenamenti già creati restano dove sono.
         </p>
       )}
+    </Modulo>
+  );
+}
+
+/* ------------------------------------------------- avvisare che non si viene */
+/* Il genitore che alle sette di mattina sa che il figlio ha la febbre non
+ * aveva nessun posto dove dirlo: lo scriveva su WhatsApp, e l'allenatore lo
+ * ricopiava la sera sul foglio presenze.
+ *
+ * Questo non segna una presenza — quella la constata chi sta in palestra, e
+ * se il ragazzo si presenta lo stesso e' presente. Dice all'allenatore PRIMA
+ * che stasera sono in nove, che e' l'informazione con cui decide cosa far
+ * fare. Per questo l'avviso e la presenza sono due cose separate anche nel
+ * database.
+ *
+ * Il motivo e' facoltativo di proposito: obbligarlo vorrebbe dire costringere
+ * a dichiarare una malattia per saltare un allenamento.
+ */
+function AvvisoAssenza({ allenamento, atleti, gia, tutti, onChiudi, onCambiato }) {
+  const [chi, setChi] = useState(atleti.length === 1 ? atleti[0].id : '');
+  const [nota, setNota] = useState('');
+  const avvisa = useAvviso();
+
+  const suo = gia.find(a => a.player_id === chi) || null;
+  const data = new Date(allenamento.date + 'T00:00:00')
+    .toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  async function ritira(playerId) {
+    await cancelAbsenceNotice(allenamento.id, playerId);
+    onCambiato(tutti.filter(a => !(a.training_id === allenamento.id && a.player_id === playerId)));
+    avvisa('Avviso ritirato');
+    onChiudi();
+  }
+
+  return (
+    <Modulo
+      titolo="Non posso venire"
+      sotto={allenamento.title + ' · ' + data}
+      etichettaInvia="Avvisa"
+      onChiudi={onChiudi}
+      onInvia={async () => {
+        if (!chi) return 'Scegli di chi si tratta.';
+        if (suo) return 'Hai già avvisato per questo allenamento.';
+        if (inCampione()) return 'Nell’anteprima con dati di esempio non si salva niente.';
+        const riga = await announceAbsence(allenamento.id, chi, nota, state.currentUser.id);
+        onCambiato([...tutti, riga]);
+        avvisa('Avvisato: l’allenatore lo vede subito.');
+      }}
+    >
+      {atleti.length > 1 && (
+        <Campo etichetta="Chi">
+          <Scelta value={chi} onChange={e => setChi(e.target.value)}>
+            <option value="">— scegli —</option>
+            {atleti.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </Scelta>
+        </Campo>
+      )}
+
+      {suo ? (
+        <div>
+          <p className="text-[13px] leading-relaxed text-soffuso">
+            Hai già avvisato che non viene{suo.note ? ' «' + suo.note + '»' : ''}.
+          </p>
+          <div className="mt-3 flex justify-end">
+            <Pulsante className="py-1.5 text-[12.5px]" onClick={() => ritira(suo.player_id)}>
+              Ritira l’avviso
+            </Pulsante>
+          </div>
+        </div>
+      ) : (
+        <Campo etichetta="Motivo" aiuto="Facoltativo. Serve all’allenatore per capire se è una volta sola.">
+          <Testo
+            value={nota}
+            onChange={e => setNota(e.target.value)}
+            placeholder="influenza, gita scolastica…"
+            maxLength={80}
+          />
+        </Campo>
+      )}
+
+      <p className="text-[12.5px] leading-relaxed text-tenue">
+        L’avviso non segna l’assenza: le presenze le registra l’allenatore in palestra.
+        Se poi riuscite a venire, va benissimo così.
+      </p>
     </Modulo>
   );
 }

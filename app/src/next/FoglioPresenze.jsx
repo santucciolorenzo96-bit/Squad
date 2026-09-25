@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
-import { fetchAttendance, setAttendance } from '../api/attendance.js';
+import { fetchAttendance, setAttendance, fetchAbsenceNotices } from '../api/attendance.js';
 import { fetchPlayerPhotoUrls } from '../api/roster.js';
 import { inCampione } from './campione.js';
 import { Etichetta, Avatar, Scheletro, Vuoto, Cerca, NessunRisultato, cx } from './ui.jsx';
@@ -25,14 +25,24 @@ import { contiene } from '../utils/format.js';
  *    mentre si compila: ho finito?
  */
 
+/* Due stati, non tre.
+ *
+ * «Giustificato» sembrava un'informazione e invece era una discussione: chi
+ * decide se un'assenza è giustificata? Il certificato, la parola del genitore,
+ * l'aver avvisato? Tre allenatori davano tre risposte, e la percentuale di
+ * presenza smetteva di voler dire qualcosa.
+ *
+ * Il foglio risponde a una domanda sola: c'era o non c'era. Se l'assenza era
+ * giustificata lo sa l'allenatore, che era lì e conosce la situazione — e non
+ * è un dato da tenere in colonna per tutta la stagione. */
 const STATI = [
   { key: 'present', breve: 'P', label: 'Presente', on: 'bg-verde/18 text-verde ring-verde/35' },
-  { key: 'absent', breve: 'A', label: 'Assente', on: 'bg-rosso/16 text-rosso ring-rosso/35' },
-  { key: 'excused', breve: 'G', label: 'Giustificato', on: 'bg-ambra/16 text-ambra ring-ambra/35' }
+  { key: 'absent', breve: 'A', label: 'Assente', on: 'bg-rosso/16 text-rosso ring-rosso/35' }
 ];
 
 export function FoglioPresenze({ allenamento, onChiudi }) {
-  const [stati, setStati] = useState(null);      // { playerId: 'present' | ... }
+  const [stati, setStati] = useState(null);      // { playerId: 'present' | 'absent' }
+  const [avvisi, setAvvisi] = useState({});      // { playerId: nota }  chi ha avvisato prima
   const [foto, setFoto] = useState({});
   const [errore, setErrore] = useState(null);
   const [cerca, setCerca] = useState('');
@@ -53,6 +63,16 @@ export function FoglioPresenze({ allenamento, onChiudi }) {
       })
       .catch(e => { if (vivo) setErrore(e); });
     fetchPlayerPhotoUrls(rosa).then(f => { if (vivo) setFoto(f || {}); }).catch(() => {});
+    // Gli avvisi non bloccano niente: se la migrazione 041 non c'è ancora, il
+    // foglio funziona come prima e la riga «ha avvisato» semplicemente non c'è.
+    fetchAbsenceNotices([allenamento.id])
+      .then(righe => {
+        if (!vivo) return;
+        const m = {};
+        (righe || []).forEach(r => { m[r.player_id] = r.note || ''; });
+        setAvvisi(m);
+      })
+      .catch(() => {});
     return () => { vivo = false; };
   }, [allenamento.id]);
 
@@ -74,26 +94,36 @@ export function FoglioPresenze({ allenamento, onChiudi }) {
     }
   }
 
-  // «Tutti presenti» tocca solo chi non ha ancora uno stato: chi è già stato
-  // segnato assente non deve tornare presente per una scorciatoia.
+  /* «Tutti presenti» tocca solo chi non ha ancora uno stato: chi è già stato
+   * segnato assente non deve tornare presente per una scorciatoia.
+   *
+   * E chi ha avvisato che non veniva parte assente, non presente. È il senso
+   * dell'avviso: se poi si presenta lo stesso, un tocco lo rimette a posto —
+   * ma il caso normale è che chi ha avvisato davvero non c'è, e la scorciatoia
+   * deve indovinare il caso normale. */
   async function tuttiPresenti() {
     const daFare = rosa.filter(p => !(stati || {})[p.id]);
     if (daFare.length === 0) return;
+    const proposto = (p) => (avvisi[p.id] != null ? 'absent' : 'present');
     setStati(s => {
       const n = { ...s };
-      daFare.forEach(p => { n[p.id] = 'present'; });
+      daFare.forEach(p => { n[p.id] = proposto(p); });
       return n;
     });
     if (inCampione()) return;
     try {
-      for (const p of daFare) await setAttendance(allenamento.id, p.id, 'present');
-      avvisa(daFare.length === 1 ? 'Segnato presente' : daFare.length + ' segnati presenti');
+      for (const p of daFare) await setAttendance(allenamento.id, p.id, proposto(p));
+      const avvisati = daFare.filter(p => avvisi[p.id] != null).length;
+      avvisa(avvisati > 0
+        ? `${daFare.length - avvisati} presenti, ${avvisati} assenti (avevano avvisato)`
+        : (daFare.length === 1 ? 'Segnato presente' : daFare.length + ' segnati presenti'));
     } catch (e) {
       avvisa('Qualche presenza non è stata salvata: controlla la connessione.', 'errore');
     }
   }
 
   const conta = (k) => rosa.filter(p => (stati || {})[p.id] === k).length;
+  const avvisatiInRosa = rosa.filter(p => avvisi[p.id] != null).length;
   const mancanti = rosa.length - rosa.filter(p => (stati || {})[p.id]).length;
   const visibili = rosa.filter(p => contiene(p.name + ' ' + (p.number || ''), cerca));
 
@@ -129,7 +159,7 @@ export function FoglioPresenze({ allenamento, onChiudi }) {
             <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12.5px]">
               <span className="font-bold text-verde">{conta('present')} presenti</span>
               {conta('absent') > 0 && <span className="font-bold text-rosso">{conta('absent')} assenti</span>}
-              {conta('excused') > 0 && <span className="font-bold text-ambra">{conta('excused')} giustificati</span>}
+              {avvisatiInRosa > 0 && <span className="text-ambra">{avvisatiInRosa} hanno avvisato</span>}
               {mancanti > 0 && <span className="text-tenue">{mancanti} da segnare</span>}
             </div>
             {mancanti > 0 && (
@@ -168,9 +198,16 @@ export function FoglioPresenze({ allenamento, onChiudi }) {
                     <Avatar nome={p.name} url={foto[p.id]} dim={32} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[13.5px] font-semibold leading-tight">{p.name}</div>
-                      {p.number != null && String(p.number).trim() !== '' && (
+                      {/* Chi ha avvisato lo dice qui, con la sua motivazione se
+                          l'ha scritta: è l'unica cosa che l'allenatore non
+                          sapeva già guardando la palestra. */}
+                      {avvisi[p.id] != null ? (
+                        <div className="truncate text-[12px] font-semibold text-ambra">
+                          ha avvisato{avvisi[p.id] ? ' · ' + avvisi[p.id] : ''}
+                        </div>
+                      ) : p.number != null && String(p.number).trim() !== '' ? (
                         <div className="text-[12px] text-tenue">#{p.number}</div>
-                      )}
+                      ) : null}
                     </div>
 
                     {/* Le tre lettere su schermo stretto, le parole quando c'è

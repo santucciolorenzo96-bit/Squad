@@ -34,6 +34,7 @@ export const TIPI = {
   training_changed: { sezione: 'allenamenti', azione: 'Allenamento spostato' },
   training_cancelled: { sezione: 'allenamenti', azione: 'Allenamento annullato' },
   training_recurrence_changed: { sezione: 'allenamenti', azione: 'Programma fisso' },
+  absence_announced: { sezione: 'allenamenti', azione: 'Assenza annunciata' },
   next_match_changed: { sezione: 'home', azione: 'Prossima partita' },
   document_uploaded: { sezione: 'anagrafica', azione: 'Documento da verificare' },
   document_reviewed: { sezione: 'anagrafica', azione: 'Esito del documento' },
