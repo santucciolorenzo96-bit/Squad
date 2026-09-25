@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
 import { currentSport } from '../utils/sports/index.js';
 import { refertoPartita, tabellaTabellino, quota } from '../utils/referto.js';
 import { generaRefertoPdf } from '../utils/refertoPdf.js';
 import { downloadCsv, safeName } from '../utils/csv.js';
 import { sectorFullName } from '../utils/sectors.js';
-import { canDeleteGame } from '../utils/permissions.js';
+import { canDeleteGame, canFixGame, ORE_PER_CORREGGERE } from '../utils/permissions.js';
+import { reopenGameForFix, fetchGameCorrections } from '../api/games.js';
 import { deleteGame } from '../api/games.js';
 import { inCampione } from './campione.js';
 import { Etichetta, Pannello, Pulsante, Vuoto, cx } from './ui.jsx';
@@ -248,6 +249,19 @@ function fmtData(d) {
   return isNaN(x) ? '' : x.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
+/* Il nome di chi ha corretto, se lo conosciamo.
+ *
+ * `state.staff` esclude genitori e atleti, e un segnapunti di famiglia
+ * abilitato al tabellino non ci sta dentro: in quel caso resta senza nome, che
+ * e' meglio di un identificativo lungo trenta caratteri. La data e il
+ * punteggio, che sono la parte che conta, ci sono comunque. */
+function nomeDi(id) {
+  if (!id) return '';
+  if (state.currentUser && state.currentUser.id === id) return 'tu';
+  const p = (state.staff || []).find(x => x.id === id);
+  return p ? (p.display_name || '') : '';
+}
+
 function nomeCategoria() {
   const s = (state.sectors || []).find(x => x.id === state.activeSectorId);
   return s ? sectorFullName(s, state.sectors) : '';
@@ -257,6 +271,8 @@ export function Referto({ partita, onChiudi, onEliminata }) {
   const sport = currentSport();
   const [lavora, setLavora] = useState(null);
   const [daEliminare, setDaEliminare] = useState(false);
+  const [daCorreggere, setDaCorreggere] = useState(false);
+  const [correzioni, setCorrezioni] = useState([]);
   const avvisa = useAvviso();
 
   /* La cancellazione sta QUI e non nell'elenco, di proposito.
@@ -272,6 +288,24 @@ export function Referto({ partita, onChiudi, onEliminata }) {
    * decide. Una piccola icona in un elenco si tocca per sbaglio. */
   const puoiEliminare = !!onEliminata
     && canDeleteGame(state.currentUser, state.activeSectorId, state.staffSectors);
+
+  /* CORREGGERE, CHE NON E' CANCELLARE.
+   *
+   * Un canestro battuto male non vale la perdita di tutta la partita, ed era
+   * l'unica strada che c'era. Si riapre il tabellino nello scout e si corregge
+   * con la stessa interfaccia con cui lo si e' segnato. */
+  const puoiCorreggere = canFixGame(
+    state.currentUser, state.activeSectorId, state.staffSectors, partita.date
+  );
+
+  useEffect(() => {
+    let vivo = true;
+    if (inCampione() || !partita.id) return undefined;
+    fetchGameCorrections(partita.id)
+      .then(r => { if (vivo) setCorrezioni(r || []); })
+      .catch(() => {});
+    return () => { vivo = false; };
+  }, [partita.id]);
 
   const conf = sport.scout;
   // «set» nella pallavolo, «periodo» nel basket: la parola la dice lo sport.
@@ -322,6 +356,15 @@ export function Referto({ partita, onChiudi, onEliminata }) {
             </Pulsante>
             <Pulsante className="shrink-0" onClick={scaricaCsv}>CSV</Pulsante>
           </div>
+          {puoiCorreggere && (
+            <button
+              type="button"
+              onClick={() => setDaCorreggere(true)}
+              className="mt-3 w-full rounded-lg vetro orlo py-2 text-[12.5px] font-semibold text-soffuso transition-colors hover:text-testo"
+            >
+              Correggi il tabellino
+            </button>
+          )}
           {puoiEliminare && (
             // Lontano dagli altri due e senza colore: si trova quando la si
             // cerca, e non si incontra quando si voleva il PDF.
@@ -527,6 +570,53 @@ export function Referto({ partita, onChiudi, onEliminata }) {
           la partita, ma la sera dopo, decidendo chi far entrare la prossima
           volta in un finale punto a punto. */}
       {r.quintetti.length > 0 && <Quintetti quintetti={r.quintetti} />}
+
+      {/* CHI HA MESSO LE MANI SU QUESTI NUMERI.
+          Un tabellino che cambia dopo la partita, senza che si sappia chi
+          l'ha cambiato, e' un tabellino di cui non ci si fida piu'. Non e'
+          sospetto: e' la ragione per cui esiste la firma in fondo a un
+          referto di carta. */}
+      {correzioni.length > 0 && (
+        <div className="mt-7">
+          <Etichetta className="mb-2">Correzioni</Etichetta>
+          <div className="space-y-1">
+            {correzioni.map(c => (
+              <p key={c.id} className="text-[12.5px] leading-relaxed text-tenue">
+                {c.azione === 'riaperta' ? 'Riaperta' : 'Richiusa'} il{' '}
+                {new Date(c.quando).toLocaleString('it-IT', {
+                  day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
+                })}
+                {c.punteggio ? <> — punteggio <span className="cifra text-soffuso">{c.punteggio}</span></> : null}
+                {nomeDi(c.chi) ? ' · ' + nomeDi(c.chi) : ''}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {daCorreggere && (
+        <Conferma
+          titolo="Correggere il tabellino?"
+          testo={
+            'La partita torna «in corso» e si apre nello Scout: correggi con la stessa '
+            + 'interfaccia con cui l’hai segnata, poi la richiudi. Finché è aperta sparisce '
+            + 'dallo storico e dalle statistiche, e resta scritto chi l’ha riaperta e quando.'
+          }
+          etichetta="Riapri nello Scout"
+          pericolo={false}
+          onChiudi={() => setDaCorreggere(false)}
+          onConferma={async () => {
+            if (inCampione()) {
+              throw new Error('Nell’anteprima con dati di esempio non si corregge niente.');
+            }
+            await reopenGameForFix(partita.id);
+            // La sezione aperta sta nell'indirizzo: cambiarlo porta allo Scout
+            // senza dover far passare una richiamata da tre schermate.
+            window.location.hash = '#/partita';
+            onChiudi();
+          }}
+        />
+      )}
 
       {daEliminare && (
         <Conferma

@@ -192,6 +192,32 @@ export function canDeleteGame(user, sectorId, staffSectors, { aperta = false } =
   return managesSector(user, sectorId, staffSectors) || !!user.can_score_matches;
 }
 
+/* Correggere un tabellino gia' chiuso (migrazione 044).
+ *
+ * Non e' cancellarlo: e' rimettere a posto un canestro battuto male. Finora
+ * l'unico rimedio era buttare via la partita e rifarla a memoria.
+ *
+ * Entro 48 ore lo fa chi poteva tenerla — un errore ci si accorge la sera
+ * stessa o il giorno dopo. Passata una settimana quel numero e' gia' entrato
+ * in medie, classifiche e discorsi: rimetterlo a posto e' una decisione, non
+ * una correzione, e le decisioni le prende un amministratore.
+ *
+ * `finitaAlle` e' la data di fine partita; `adesso` si passa da fuori perche'
+ * una funzione che legge l'orologio da sola non si puo' provare.
+ *
+ * Deve dire la stessa cosa di riapri_tabellino() nel database.
+ */
+export const ORE_PER_CORREGGERE = 48;
+
+export function canFixGame(user, sectorId, staffSectors, finitaAlle, adesso = Date.now()) {
+  if (!user) return false;
+  if (isAdmin(user)) return true;
+  const fine = finitaAlle ? new Date(finitaAlle).getTime() : NaN;
+  if (!isFinite(fine)) return false;
+  if (adesso - fine > ORE_PER_CORREGGERE * 3600 * 1000) return false;
+  return managesSector(user, sectorId, staffSectors) || !!user.can_score_matches;
+}
+
 export function canReviewDocuments(user) {
   return !!user && MANAGER_ROLES.includes(user.role);
 }

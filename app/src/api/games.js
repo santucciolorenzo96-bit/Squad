@@ -196,3 +196,34 @@ export async function deleteGame(gameId) {
     );
   }
 }
+
+/* ============== Correggere un tabellino chiuso (migrazione 044) ==============
+ *
+ * Si riapre nello scout invece di aprire un secondo editor: chi corregge ha
+ * gia' in mano l'interfaccia con cui ha segnato, e venti caselle numeriche su
+ * un telefono sarebbero solo un posto nuovo dove sbagliare.
+ *
+ * Mentre e' riaperta la partita sparisce dallo storico e dalle statistiche: in
+ * quel momento e' un tabellino che non e' ancora vero.
+ */
+export async function reopenGameForFix(gameId) {
+  const { data, error } = await supabase.rpc('riapri_tabellino', { p_game: gameId });
+  if (error) throw descriviErroreCorrezione(error);
+  return data;
+}
+
+// La traccia: chi ha riaperto e chi ha richiuso, con il punteggio prima e dopo.
+export async function fetchGameCorrections(gameId) {
+  const { data, error } = await supabase.from('game_corrections')
+    .select('*').eq('game_id', gameId).order('quando');
+  if (error) throw error;
+  return data || [];
+}
+
+function descriviErroreCorrezione(error) {
+  const msg = (error && error.message) || '';
+  if (/riapri_tabellino|game_corrections/.test(msg) && /does not exist|schema cache/.test(msg)) {
+    return new Error('Manca la correzione del tabellino: esegui la migrazione 044 su Supabase, poi riprova.');
+  }
+  return error;
+}
