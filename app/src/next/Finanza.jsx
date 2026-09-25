@@ -6,7 +6,10 @@ import { fetchFiscalYears } from '../api/financeFiscalYears.js';
 import { canManageFinance } from '../utils/permissions.js';
 import { inCampione, FINANZA_CAMPIONE } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, cx } from './ui.jsx';
-import { Interruttore, ErroreCaricamento, useAvviso } from './moduli.jsx';
+import { Interruttore, ErroreCaricamento, Modulo, Conferma, Campo, Scelta, Testo, useAvviso } from './moduli.jsx';
+import {
+  fetchPaymentClaims, confirmPaymentClaim, rejectPaymentClaim
+} from '../api/financePayments.js';
 import { IconaSezione, Chevron } from './icone.jsx';
 import { euro, euroPreciso, Avanzamento, Impilata, ColonneAffrontate, Anello, COLORI_FETTA, raggruppa } from './grafici.jsx';
 import { Movimenti } from './finanzaMovimenti.jsx';
@@ -48,12 +51,15 @@ export function Finanza() {
       fetchEntries(teamId, 'income'),
       fetchEntries(teamId, 'expense'),
       fetchDeadlines(teamId),
-      fetchFiscalYears(teamId)
-    ]).then(([conti, saldi, entrate, uscite, scadenze, esercizi]) => {
+      fetchFiscalYears(teamId),
+      // Le dichiarazioni non devono poter rompere il quadro: se la migrazione
+      // 045 non c'e' ancora, la finanza si apre come sempre.
+      fetchPaymentClaims('in_attesa').catch(() => [])
+    ]).then(([conti, saldi, entrate, uscite, scadenze, esercizi, dichiarate]) => {
       state.financeAccounts = conti;
       state.financeAccountBalances = saldi;
       state.financeFiscalYears = esercizi;
-      setDati({ conti, saldi, entrate, uscite, scadenze, esercizi });
+      setDati({ conti, saldi, entrate, uscite, scadenze, esercizi, dichiarate });
     }).catch(setErrore);
   }
   useEffect(carica, []);
@@ -84,9 +90,132 @@ export function Finanza() {
   );
 }
 
+/* ==================================================== «ho pagato» da confermare */
+/* Il contante passato al presidente in palestra esisteva solo se il presidente
+ * si ricordava di segnarlo, e a maggio si discuteva. Adesso la famiglia lo
+ * dichiara, e qui il tesoriere lo guarda.
+ *
+ * Confermare crea il pagamento vero — per questo chiede il conto, che è
+ * l'unica informazione che la famiglia non poteva dare, ed è quella che fa
+ * muovere la cassa. Finché nessuno conferma, in cassa non è entrato niente.
+ */
+function Dichiarazioni({ righe, conti }) {
+  const [conferma, setConferma] = useState(null);
+  const [rifiuta, setRifiuta] = useState(null);
+  const [elenco, setElenco] = useState(righe);
+  const avvisa = useAvviso();
+
+  if (elenco.length === 0) return null;
+  const puoi = canManageFinance(state.currentUser);
+
+  return (
+    <div>
+      <Etichetta className="mb-2.5">
+        {elenco.length === 1 ? 'Una famiglia dice di aver pagato' : elenco.length + ' famiglie dicono di aver pagato'}
+      </Etichetta>
+      <Pannello className="overflow-hidden">
+        {elenco.map((d, i) => (
+          <div key={d.id} className={cx('px-4 py-3.5 sm:px-5', i > 0 && 'border-t border-bordo/6')}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate text-[13.5px] font-semibold leading-tight">
+                  {(d.finance_entries && d.finance_entries.description) || 'Quota'}
+                </div>
+                <div className="mt-1 text-[12.5px] text-tenue">
+                  {new Date(d.paid_at + 'T00:00:00').toLocaleDateString('it-IT')} · {d.method}
+                  {d.note ? ' · ' + d.note : ''}
+                </div>
+              </div>
+              <span className="cifra shrink-0 text-[15px] font-bold text-verde">{euro(d.amount)}</span>
+            </div>
+            {puoi && (
+              <div className="mt-2.5 flex flex-wrap justify-end gap-2">
+                <Pulsante className="py-1.5 text-[12.5px]" onClick={() => setRifiuta(d)}>
+                  Non risulta
+                </Pulsante>
+                <Pulsante variante="primario" className="py-1.5 text-[12.5px]" onClick={() => setConferma(d)}>
+                  Conferma l’incasso
+                </Pulsante>
+              </div>
+            )}
+          </div>
+        ))}
+      </Pannello>
+      <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
+        Finché non confermi, in cassa non è entrato niente: la dichiarazione è una traccia,
+        non un incasso. Se registri tu il pagamento dai Movimenti, questa si chiude da sola.
+      </p>
+
+      {conferma && (
+        <ConfermaIncasso
+          d={conferma}
+          conti={conti}
+          onChiudi={() => setConferma(null)}
+          onFatto={() => {
+            setElenco(x => x.filter(y => y.id !== conferma.id));
+            avvisa('Incasso registrato');
+          }}
+        />
+      )}
+
+      {rifiuta && (
+        <Conferma
+          titolo="Non risulta?"
+          testo={
+            'La dichiarazione resta scritta, con la tua risposta: la famiglia vede che '
+            + 'non è stata confermata. Non cambia niente in cassa.'
+          }
+          etichetta="Non risulta"
+          onChiudi={() => setRifiuta(null)}
+          onConferma={async () => {
+            await rejectPaymentClaim(rifiuta.id, null, state.currentUser.id);
+            setElenco(x => x.filter(y => y.id !== rifiuta.id));
+            avvisa('Segnato come non risultante');
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ConfermaIncasso({ d, conti, onChiudi, onFatto }) {
+  const attivi = (conti || []).filter(c => c.active !== false);
+  const [conto, setConto] = useState(attivi.length === 1 ? attivi[0].id : '');
+
+  return (
+    <Modulo
+      titolo="Conferma l’incasso"
+      sotto={euro(d.amount) + ' · ' + new Date(d.paid_at + 'T00:00:00').toLocaleDateString('it-IT')}
+      etichettaInvia="Registra"
+      onChiudi={onChiudi}
+      onInvia={async () => {
+        if (!conto) return 'Scegli su quale conto è entrato.';
+        if (inCampione()) return 'Nell’anteprima con dati di esempio non si salva niente.';
+        await confirmPaymentClaim(d.id, conto);
+        onFatto();
+      }}
+    >
+      <Campo
+        etichetta="Su quale conto"
+        aiuto="È l’unica cosa che la famiglia non poteva dire, ed è quella che fa muovere la cassa."
+      >
+        <Scelta value={conto} onChange={e => setConto(e.target.value)}>
+          <option value="">— scegli —</option>
+          {attivi.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </Scelta>
+      </Campo>
+
+      <p className="text-[12.5px] leading-relaxed text-tenue">
+        Nasce un incasso di {euro(d.amount)} con la data che ha indicato la famiglia,
+        non quella di oggi: è il giorno in cui i soldi sono passati di mano.
+      </p>
+    </Modulo>
+  );
+}
+
 /* ==================================================================== quadro */
 function Quadro({ dati, onVista }) {
-  const { conti, saldi, entrate, uscite, scadenze } = dati;
+  const { conti, saldi, entrate, uscite, scadenze, dichiarate } = dati;
   const oggi = oggiISO();
 
   const saldoTotale = conti.reduce((s, c) => s + (saldi[c.id] ?? 0), 0);
@@ -213,6 +342,11 @@ function Quadro({ dati, onVista }) {
           <Avanzamento fatto={pagato} totale={previstoOut} tono="rosso" className="mt-3" />
         </Pannello>
       </div>
+
+      {/* «Ho pagato»: sta in cima a quello che c'e' da sistemare perche' e'
+          l'unica riga di questa schermata in cui qualcuno sta aspettando una
+          risposta da noi. Le altre sono numeri; questa e' una persona. */}
+      {(dichiarate || []).length > 0 && <Dichiarazioni righe={dichiarate} conti={conti} />}
 
       {/* ------------------------------------------------- da sistemare */}
       {(daIncassare.length > 0 || daPagare.length > 0) && (

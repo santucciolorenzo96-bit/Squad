@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { state } from '../state.js';
 import { updateMyProfile, uploadMyAvatar, setMyAvatar, removeMyAvatar, getAvatarUrl } from '../api/profiles.js';
 import { resizeImageFile } from '../utils/image.js';
@@ -8,8 +8,13 @@ import { sectorFullName } from '../utils/sectors.js';
 import { PASSWORD_MIN, passwordProblem } from '../utils/format.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Avatar, Stato, cx } from './ui.jsx';
-import { Modulo, Conferma, Campo, Testo, useAvviso } from './moduli.jsx';
+import { Modulo, Conferma, Campo, Testo, Data, Scelta, useAvviso } from './moduli.jsx';
 import { ScegliCentro } from './ritaglio.jsx';
+import { fetchEntriesForPlayers } from '../api/financeEntries.js';
+import {
+  fetchPaymentClaims, declarePayment, withdrawPaymentClaim
+} from '../api/financePayments.js';
+import { oggiISO } from '../utils/format.js';
 
 /* Il profilo.
  *
@@ -151,6 +156,8 @@ export function Profilo({ tema, onTema }) {
         </div>
       )}
 
+      {isLinkedUser(u) && state.linkedPlayers.length > 0 && <LeMieQuote />}
+
       {/* -------------------------------------------------- impostazioni */}
       <div>
         <Etichetta className="mb-2.5">Aspetto</Etichetta>
@@ -280,6 +287,198 @@ export function Profilo({ tema, onTema }) {
         />
       )}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------ le mie quote */
+/* La famiglia vede quanto deve, e può dire di aver pagato.
+ *
+ * Vedere quanto si deve mancava del tutto: c'era nella vecchia interfaccia ed
+ * è rimasta indietro nel ridisegno, quindi da mesi un genitore non aveva
+ * nessun posto dove leggere la propria quota. Dirlo mancava da sempre.
+ *
+ * La dichiarazione NON è un pagamento e non muove la cassa di un euro: un
+ * pagamento dice anche su quale conto è entrato il denaro, e quello un
+ * genitore non lo sa. È una traccia con una data e un nome — ed è il modo in
+ * cui si smette di discutere a maggio, quando nessuno si ricorda più della
+ * busta consegnata in palestra a novembre.
+ */
+const COME_PAGATO = [
+  ['contanti', 'Contanti'],
+  ['bonifico', 'Bonifico'],
+  ['carta', 'Carta'],
+  ['assegno', 'Assegno'],
+  ['paypal', 'PayPal'],
+  ['altro', 'Altro']
+];
+
+function euro(n) {
+  const v = Number(n || 0);
+  return v.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+}
+
+function LeMieQuote() {
+  const [quote, setQuote] = useState(null);
+  const [dichiarazioni, setDichiarazioni] = useState([]);
+  const [dichiara, setDichiara] = useState(null);   // la quota che si sta dichiarando
+  const avvisa = useAvviso();
+
+  function carica() {
+    if (inCampione()) { setQuote([]); return; }
+    fetchEntriesForPlayers(state.linkedPlayers.map(p => p.id))
+      .then(e => setQuote(e || []))
+      .catch(() => setQuote([]));
+    // Se la migrazione 045 non c'è ancora, le quote si vedono lo stesso: è la
+    // parte che mancava da più tempo, e non deve dipendere dall'altra.
+    fetchPaymentClaims().then(setDichiarazioni).catch(() => setDichiarazioni([]));
+  }
+  useEffect(carica, []);
+
+  if (quote === null) return null;
+
+  const miaDichiarazione = (entryId) => dichiarazioni.find(
+    d => d.entry_id === entryId && d.stato !== 'rifiutata'
+  ) || null;
+
+  return (
+    <div>
+      <Etichetta className="mb-2.5">Le tue quote</Etichetta>
+      <Pannello className="overflow-hidden">
+        {quote.length === 0 ? (
+          <p className="px-4 py-4 text-[13px] text-tenue sm:px-5">
+            Nessuna quota in sospeso.
+          </p>
+        ) : quote.map((q, i) => {
+          const d = miaDichiarazione(q.id);
+          const residuo = q._status ? q._status.residual_amount : q.planned_amount;
+          const scaduta = q.due_date && q.due_date < oggiISO();
+          return (
+            <div key={q.id} className={cx('px-4 py-3.5 sm:px-5', i > 0 && 'border-t border-bordo/6')}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-[13.5px] font-semibold leading-tight">{q.description}</div>
+                  <div className={cx('mt-1 text-[12.5px]', scaduta ? 'text-rosso' : 'text-tenue')}>
+                    {q.due_date
+                      ? (scaduta ? 'scaduta il ' : 'entro il ')
+                        + new Date(q.due_date + 'T00:00:00').toLocaleDateString('it-IT')
+                      : 'senza scadenza'}
+                  </div>
+                </div>
+                <span className="cifra shrink-0 text-[15px] font-bold">{euro(residuo)}</span>
+              </div>
+
+              {d ? (
+                /* Chi ha dichiarato deve rivederlo: una dichiarazione che
+                   sparisce viene rifatta tre volte. */
+                <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[12.5px] font-semibold text-ambra">
+                    Hai dichiarato {euro(d.amount)} il{' '}
+                    {new Date(d.paid_at + 'T00:00:00').toLocaleDateString('it-IT')} — in attesa
+                  </span>
+                  <button
+                    className="text-[12px] text-tenue underline-offset-2 transition-colors hover:text-soffuso hover:underline"
+                    onClick={async () => {
+                      try {
+                        await withdrawPaymentClaim(d.id);
+                        setDichiarazioni(x => x.filter(y => y.id !== d.id));
+                        avvisa('Dichiarazione ritirata');
+                      } catch (e) {
+                        avvisa((e && e.message) || 'Non riuscito.', 'errore');
+                      }
+                    }}
+                  >
+                    ritira
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-2.5 flex justify-end">
+                  <Pulsante className="py-1.5 text-[12.5px]" onClick={() => setDichiara(q)}>
+                    Ho pagato
+                  </Pulsante>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </Pannello>
+
+      <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
+        «Ho pagato» non registra un incasso: avvisa la società, che controlla e conferma.
+        Finché non lo fa, la quota resta aperta.
+      </p>
+
+      {dichiara && (
+        <ModuloDichiarazione
+          quota={dichiara}
+          onChiudi={() => setDichiara(null)}
+          onFatto={(riga) => {
+            setDichiarazioni(x => [riga, ...x]);
+            avvisa('Dichiarazione inviata alla società');
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ModuloDichiarazione({ quota, onChiudi, onFatto }) {
+  const residuo = quota._status ? quota._status.residual_amount : quota.planned_amount;
+  const [importo, setImporto] = useState(String(residuo || ''));
+  const [quando, setQuando] = useState(oggiISO());
+  const [come, setCome] = useState('contanti');
+  const [nota, setNota] = useState('');
+
+  return (
+    <Modulo
+      titolo="Ho pagato"
+      sotto={quota.description}
+      etichettaInvia="Avvisa la società"
+      onChiudi={onChiudi}
+      onInvia={async () => {
+        const v = Number(String(importo).replace(',', '.'));
+        if (!isFinite(v) || v <= 0) return 'Scrivi quanto hai pagato.';
+        if (!quando) return 'Scrivi quando hai pagato.';
+        if (inCampione()) return 'Nell’anteprima con dati di esempio non si salva niente.';
+        const riga = await declarePayment(state.teamProfile.id, quota.id, {
+          amount: v, paid_at: quando, method: come, note: nota
+        }, state.currentUser.id);
+        onFatto(riga);
+      }}
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Campo etichetta="Quanto" aiuto={'In sospeso: ' + euro(residuo)}>
+          <Testo
+            value={importo}
+            onChange={e => setImporto(e.target.value.replace(/[^0-9.,]/g, ''))}
+            inputMode="decimal"
+            autoFocus
+          />
+        </Campo>
+        <Campo etichetta="Quando">
+          <Data value={quando} onChange={e => setQuando(e.target.value)} max={oggiISO()} />
+        </Campo>
+      </div>
+
+      <Campo etichetta="Come">
+        <Scelta value={come} onChange={e => setCome(e.target.value)}>
+          {COME_PAGATO.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        </Scelta>
+      </Campo>
+
+      <Campo etichetta="Nota" aiuto="Facoltativa. Serve a ritrovare il pagamento: a chi l’hai consegnato, o la causale del bonifico.">
+        <Testo
+          value={nota}
+          onChange={e => setNota(e.target.value)}
+          placeholder="consegnati in palestra a Marco"
+          maxLength={120}
+        />
+      </Campo>
+
+      <p className="text-[12.5px] leading-relaxed text-tenue">
+        Questo non registra un incasso: la società controlla e conferma. Serve a lasciare
+        una traccia con una data, così non se ne discute a fine anno.
+      </p>
+    </Modulo>
   );
 }
 
