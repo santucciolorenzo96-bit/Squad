@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
 import { contiene } from '../utils/format.js';
 import { tipiDocumento } from '../utils/sports/index.js';
-import { fetchPlayerPhotoUrls, fetchDocumentsForPlayers, addPlayer } from '../api/roster.js';
+import { fetchPlayerPhotoUrls, fetchDocumentsForPlayers, addPlayer, updatePlayer } from '../api/roster.js';
+import { senzaNumero, normalizzaNumero, numeriOccupati, doppioniNelModulo } from '../utils/maglie.js';
 import { canEditRoster, managesSector } from '../utils/permissions.js';
 import { docStatus, worstStatus, ageFrom, DOC_STATE } from '../utils/docStatus.js';
 import { inCampione, DOCUMENTI_CAMPIONE } from './campione.js';
@@ -39,6 +40,7 @@ export function Anagrafica() {
   const [soloProblemi, setSoloProblemi] = useState(false);
   const [cerca, setCerca] = useState('');
   const [nuovo, setNuovo] = useState(false);
+  const [numeri, setNumeri] = useState(false);
   const [scheda, setScheda] = useState(null);
   const [, ridisegna] = useState(0);
   const avvisa = useAvviso();
@@ -78,6 +80,7 @@ export function Anagrafica() {
   // Il registro di una societa' vera e' lungo: la ricerca non e' un di piu', e'
   // il modo normale di arrivare a una persona. Nome e numero insieme, perche' in
   // palestra un atleta si chiama tanto col nome quanto col numero.
+  const senzaIlNumero = rosa.filter(senzaNumero);
   const perNome = righe.filter(r => contiene(r.p.name + ' ' + (r.p.number || ''), cerca));
   const visibili = soloProblemi ? perNome.filter(r => DOC_STATE[r.peggiore].tone !== 'ok') : perNome;
 
@@ -113,6 +116,29 @@ export function Anagrafica() {
             sotto={`${aPosto} su ${righe.length}`}
           />
         </div>
+      )}
+
+      {/* Un atleta senza numero non è un errore da segnalare in rosso: è una
+          cosa rimasta a metà, e finché resta così nel tabellino e nello scout
+          quel ragazzo si distingue solo dal nome. L'avviso compare solo se
+          c'è, e sparisce da solo quando i numeri ci sono tutti. */}
+      {puoiModificare && senzaIlNumero.length > 0 && (
+        <Pannello className="flex flex-wrap items-center justify-between gap-3 pad-pannello-stretto">
+          <div className="min-w-0">
+            <div className="text-[13.5px] font-semibold leading-tight">
+              {senzaIlNumero.length === 1
+                ? 'Un atleta è senza numero di maglia'
+                : `${senzaIlNumero.length} atleti sono senza numero di maglia`}
+            </div>
+            <p className="mt-1 text-[12.5px] leading-snug text-tenue">
+              Nel tabellino e nello scout si distinguono solo dal nome. Puoi darglielo
+              tu, oppure lo sceglie ciascuno dalla propria scheda.
+            </p>
+          </div>
+          <Pulsante className="shrink-0 py-1.5 text-[12.5px]" onClick={() => setNumeri(true)}>
+            Assegna i numeri
+          </Pulsante>
+        </Pannello>
       )}
 
       {!caricato ? (
@@ -248,6 +274,18 @@ export function Anagrafica() {
 
       {scheda && <SchedaAtleta playerId={scheda} onChiudi={() => { setScheda(null); }} />}
 
+      {numeri && (
+        <ModuloNumeri
+          senza={senzaIlNumero}
+          rosa={rosa}
+          onChiudi={() => setNumeri(false)}
+          onFatto={(quanti) => {
+            ridisegna(n => n + 1);
+            avvisa(quanti === 1 ? 'Numero assegnato' : `${quanti} numeri assegnati`);
+          }}
+        />
+      )}
+
       {nuovo && (
         <ModuloAtleta
           onChiudi={() => setNuovo(false)}
@@ -259,6 +297,82 @@ export function Anagrafica() {
         />
       )}
     </div>
+  );
+}
+
+/* ------------------------------------------------------- tutti i numeri */
+/* Undici atleti senza numero volevano dire undici giri dentro «Modifica la
+ * scheda», undici volte la stessa apertura e la stessa chiusura. Qui si vedono
+ * tutti insieme, con accanto i numeri già presi: assegnarli diventa una cosa
+ * sola, e chi lascia una casella vuota semplicemente non decide adesso.
+ *
+ * Le caselle vuote non sono un errore: si salva quello che c'è.
+ */
+function ModuloNumeri({ senza, rosa, onChiudi, onFatto }) {
+  const [scelte, setScelte] = useState({});
+  const presi = numeriOccupati(rosa, senza.map(p => p.id));
+  const elenco = Object.keys(presi).sort((a, b) => Number(a) - Number(b));
+
+  return (
+    <Modulo
+      titolo="I numeri di maglia"
+      sotto={senza.length === 1 ? 'Un atleta senza numero' : `${senza.length} atleti senza numero`}
+      etichettaInvia="Assegna"
+      onChiudi={onChiudi}
+      onInvia={async () => {
+        const doppi = doppioniNelModulo(scelte);
+        const ripetuto = Object.keys(doppi)[0];
+        if (ripetuto) return `Il numero ${ripetuto} l'hai scritto due volte.`;
+
+        const daSalvare = [];
+        for (const p of senza) {
+          const grezzo = (scelte[p.id] || '').trim();
+          if (!grezzo) continue;
+          const n = normalizzaNumero(grezzo);
+          if (!n) return `«${grezzo}» non è un numero di maglia.`;
+          if (presi[n]) return `Il numero ${n} ce l'ha già ${presi[n]}.`;
+          daSalvare.push({ p, n });
+        }
+        if (daSalvare.length === 0) return 'Non hai scritto nessun numero.';
+        if (inCampione()) return 'Nell’anteprima con dati di esempio non si salva niente.';
+
+        for (const { p, n } of daSalvare) {
+          await updatePlayer(p.id, { number: n });
+          p.number = n;
+        }
+        onFatto(daSalvare.length);
+      }}
+    >
+      <div className="space-y-2">
+        {senza.map(p => (
+          <div key={p.id} className="flex items-center gap-3">
+            <Testo
+              className="w-16 text-center"
+              value={scelte[p.id] || ''}
+              onChange={e => {
+                const v = e.target.value.replace(/\D/g, '');
+                setScelte(s => ({ ...s, [p.id]: v }));
+              }}
+              inputMode="numeric"
+              maxLength={3}
+              placeholder="—"
+            />
+            <span className="min-w-0 flex-1 truncate text-[13.5px]">{p.name}</span>
+          </div>
+        ))}
+      </div>
+
+      {elenco.length > 0 && (
+        <p className="mt-1 text-[12.5px] leading-relaxed text-tenue">
+          Già presi in questa categoria:{' '}
+          <span className="cifra text-soffuso">{elenco.join(', ')}</span>.
+        </p>
+      )}
+      <p className="text-[12.5px] leading-relaxed text-tenue">
+        Le caselle che lasci vuote restano come sono: il numero potrà sceglierlo
+        l’atleta dalla propria scheda.
+      </p>
+    </Modulo>
   );
 }
 

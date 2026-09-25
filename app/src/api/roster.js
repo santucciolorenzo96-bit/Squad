@@ -69,6 +69,29 @@ export async function updatePlayer(id, fields) {
   return data;
 }
 
+/* Il numero di maglia scelto da chi lo indossa (migrazione 040).
+ *
+ * Una porta stretta e separata da updateLinkedPlayerDetails, che il numero lo
+ * esclude apposta: qui si scrive SOLO il numero, solo sul proprio atleta, solo
+ * se non ce l'ha ancora, e solo se nessun compagno ce l'ha addosso. Il
+ * database rifa' tutti e quattro i controlli — quelli dell'app sono cortesia,
+ * non difesa. */
+export async function chooseMyNumber(playerId, numero) {
+  const { data, error } = await supabase.rpc('choose_my_number', {
+    p_player_id: playerId, p_number: String(numero)
+  });
+  if (error) throw descriviErroreNumero(error);
+  return data;
+}
+
+function descriviErroreNumero(error) {
+  const msg = (error && error.message) || '';
+  if (/choose_my_number/.test(msg) && /does not exist|schema cache/.test(msg)) {
+    return new Error('Manca la scelta del numero: esegui la migrazione 040 su Supabase, poi riprova.');
+  }
+  return error;
+}
+
 // Percorso per gli account famiglia: RLS non filtra per colonna, quindi il
 // giocatore collegato si aggiorna tramite una funzione che scrive i soli campi
 // anagrafici (niente numero di maglia, nome o squadra).

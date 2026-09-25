@@ -3,8 +3,9 @@ import { state } from '../state.js';
 import {
   fetchPlayer, updatePlayer, updateLinkedPlayerDetails, fetchPlayerDocuments,
   uploadPlayerDocument, getDocumentSignedUrl, reviewDocument,
-  uploadPlayerPhoto, getPlayerPhotoSignedUrl
+  uploadPlayerPhoto, getPlayerPhotoSignedUrl, chooseMyNumber
 } from '../api/roster.js';
+import { senzaNumero, numeriLiberi, obiezioneNumero, normalizzaNumero } from '../utils/maglie.js';
 import { fetchDevelopment, saveDevelopment } from '../api/development.js';
 import { canReviewDocuments, isLinkedUser, canEditHome, managesSector, canManagePlayer } from '../utils/permissions.js';
 import { tipiDocumento } from '../utils/sports/index.js';
@@ -178,6 +179,23 @@ export function SchedaAtleta({ playerId, onChiudi }) {
           </div>
         </div>
 
+        {/* ------------------------------------------- il numero di maglia */}
+        {/* Solo a chi quella maglia la indossa, e solo finché il numero non
+            c'è: sceglierlo una volta è un diritto, cambiarlo a stagione in
+            corso — quando è già in dieci tabellini — è una decisione della
+            società. Per tutti gli altri il numero sta in «Modifica». */}
+        {famiglia && senzaNumero(p) && state.linkedPlayers.some(lp => lp.id === playerId) && (
+          <SceltaNumero
+            p={p}
+            onFatto={(n) => {
+              const inRosa = state.roster.find(x => x.id === p.id);
+              if (inRosa) inRosa.number = n;
+              setP({ ...p, number: n });
+              avvisa(`Numero ${n}: da adesso è il tuo.`);
+            }}
+          />
+        )}
+
         {/* ---------------------------------------------------- anagrafica */}
         <div className="mt-6">
           <div className="mb-2.5 flex items-center justify-between gap-3">
@@ -347,6 +365,83 @@ export function SchedaAtleta({ playerId, onChiudi }) {
         />
       )}
     </>
+  );
+}
+
+/* --------------------------------------------------- scegliersi il numero */
+/* Undici su tredici non avevano un numero, e il numero è la prima cosa con cui
+ * un ragazzo si riconosce in una squadra. Qui lo sceglie lui.
+ *
+ * I suggerimenti sono la parte che conta: scrivere in una casella vuota
+ * significa indovinare quali siano liberi e scoprire il no dopo aver premuto.
+ * Toccare un numero già filtrato non può sbagliare. La casella resta per chi
+ * il suo numero ce l'ha già in testa e non è fra i primi dieci.
+ */
+function SceltaNumero({ p, onFatto }) {
+  const [valore, setValore] = useState('');
+  const [lavora, setLavora] = useState(false);
+  const [errore, setErrore] = useState('');
+  const liberi = numeriLiberi(state.roster, p.id, 10);
+
+  async function scegli(testo) {
+    const obiezione = obiezioneNumero(testo, state.roster, p.id);
+    if (obiezione) { setErrore(obiezione); return; }
+    setErrore('');
+    setLavora(true);
+    try {
+      if (inCampione()) throw new Error('Nell’anteprima con dati di esempio non si salva niente.');
+      const salvato = await chooseMyNumber(p.id, normalizzaNumero(testo));
+      onFatto(salvato || normalizzaNumero(testo));
+    } catch (e) {
+      console.error(e);
+      setErrore((e && e.message) || 'Non è stato possibile salvare il numero.');
+    } finally {
+      setLavora(false);
+    }
+  }
+
+  return (
+    <Pannello alto className="mt-5 px-4 py-4">
+      <Etichetta>Il tuo numero di maglia</Etichetta>
+      <p className="mt-1.5 text-[13px] leading-relaxed text-soffuso">
+        Non ne hai ancora uno. Scegli il tuo: puoi farlo una volta sola, poi per
+        cambiarlo serve la società.
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {liberi.map(n => (
+          <button
+            key={n}
+            disabled={lavora}
+            onClick={() => scegli(n)}
+            className="cifra min-w-[2.6rem] rounded-xl border border-bordo/15 bg-pannello/10 px-2.5 py-2 text-[15px] font-bold transition-colors hover:bg-pannello/20 disabled:opacity-50"
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-3 flex items-center gap-2">
+        <Testo
+          className="w-20"
+          value={valore}
+          onChange={e => { setValore(e.target.value.replace(/\D/g, '')); setErrore(''); }}
+          placeholder="altro"
+          inputMode="numeric"
+          maxLength={3}
+        />
+        <Pulsante
+          variante="primario"
+          className="py-2 text-[13px]"
+          disabled={lavora || !valore}
+          onClick={() => scegli(valore)}
+        >
+          {lavora ? 'Salvo…' : 'Scegli'}
+        </Pulsante>
+      </div>
+
+      {errore && <p className="mt-2.5 text-[12.5px] leading-snug text-rosso">{errore}</p>}
+    </Pannello>
   );
 }
 
