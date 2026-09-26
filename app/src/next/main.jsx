@@ -135,6 +135,44 @@ function NastroOspite({ societa }) {
 /* ------------------------------------------------------------------- ignota */
 // Rete di sicurezza: una voce di menu senza schermata. Non dovrebbe capitare,
 // e se capita e' meglio dirlo che mostrare una pagina bianca.
+/* Quando l'avvio si rompe con la sessione aperta.
+ *
+ * Non è «non sei entrato»: sei entrato, ed è il database che non ha risposto.
+ * Mandare alla schermata d'accesso una persona già autenticata le fa cercare
+ * il problema nella password, che è il posto sbagliato — e se il guasto è una
+ * migrazione, il messaggio qui sotto dice già quale.
+ */
+function Guasto({ errore, onEsci }) {
+  const testo = (errore && errore.message) || 'Il database non ha risposto.';
+  return (
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center px-5 py-10">
+      <div className="w-full max-w-md text-center">
+        <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-rosso/14 text-[22px]">
+          !
+        </div>
+        <h1 className="mt-5 text-[22px] font-bold leading-tight">Sei entrato, ma i dati no</h1>
+        <p className="mt-3 text-[13.5px] leading-relaxed text-soffuso">{testo}</p>
+        <p className="mt-3 text-[12.5px] leading-relaxed text-tenue">
+          Il tuo accesso è a posto: è la lettura dei dati che si è fermata. Non è una
+          questione di password.
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-6 w-full rounded-lg vivo py-2.5 text-[13px] font-semibold text-white"
+        >
+          Riprova
+        </button>
+        <button
+          onClick={onEsci}
+          className="mt-2 w-full rounded-lg vetro orlo py-2.5 text-[13px] font-semibold text-soffuso transition-colors hover:text-testo"
+        >
+          Esci
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* L'anticamera.
  *
  * Non è un errore e non è un divieto: è una persona che ha bussato e sta
@@ -243,6 +281,7 @@ function App() {
   const [categoriaResa, setCategoriaResa] = useState(null);
   const richiestaCategoria = useRef(0);
   const [tema, setTema] = useState(temaIniziale);
+  const [guasto, setGuasto] = useState(null);   // l'avvio e' fallito, e non perche' manchi la sessione
 
   useEffect(() => { applicaTema(tema); }, [tema]);
 
@@ -431,8 +470,21 @@ function App() {
         // sulle schermate d'accesso: da lì si riprova o si guarda l'app con i
         // dati di esempio. Una pagina bianca sarebbe l'unico esito davvero
         // inutile.
+        //
+        // MA se la sessione c'è, rimandare all'accesso è una bugia: la persona
+        // è entrata, ed è il database che non ha risposto. È successo davvero
+        // con la migrazione 046 — una policy che si richiamava da sola — e per
+        // tutti sembrava «non mi fa più entrare», che è la diagnosi sbagliata.
         console.error(e);
         if (!vivo) return;
+        let conSessione = false;
+        try {
+          const { supabase } = await import('../supabaseClient.js');
+          const { data } = await supabase.auth.getSession();
+          conSessione = !!(data && data.session);
+        } catch (e2) { /* se non si sa, si ripiega sull'accesso */ }
+        if (!vivo) return;
+        if (conSessione) { setGuasto(e); setFase('guasto'); return; }
         setFase('accesso');
       } finally {
         clearTimeout(orologio);
@@ -515,6 +567,10 @@ function App() {
         />
       </ProvvederAvvisi>
     );
+  }
+
+  if (fase === 'guasto') {
+    return <Guasto errore={guasto} onEsci={() => { logout(); window.location.reload(); }} />;
   }
 
   if (fase === 'attesa') {

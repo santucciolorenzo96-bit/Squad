@@ -9,8 +9,28 @@ export async function fetchMyProfile() {
   const utente = auth && auth.session ? auth.session.user : null;
   if (!utente) return null;
   const { data, error } = await supabase.from('profiles').select('*').eq('id', utente.id).maybeSingle();
-  if (error) throw error;
+  if (error) throw descriviErroreProfilo(error);
   return data ? { ...data, email: utente.email } : null;
+}
+
+/* Questa lettura e' la prima cosa che l'app fa: se fallisce, l'utente finisce
+ * sulla schermata d'accesso e sembra che non riesca piu' a entrare. Il motivo
+ * vero va detto, altrimenti l'unico sintomo e' una porta che non si apre.
+ *
+ * La ricorsione e' successa davvero, con la migrazione 046: una policy su
+ * profiles che leggeva profiles. Ha chiuso fuori tutti, SuperAdmin compreso. */
+function descriviErroreProfilo(error) {
+  const msg = (error && error.message) || '';
+  if (/infinite recursion/i.test(msg)) {
+    return new Error(
+      'Le regole di accesso ai profili si richiamano fra loro e il database si ferma: '
+      + 'esegui la migrazione 048 su Supabase, poi ricarica.'
+    );
+  }
+  if (/approved_at|claim_note/.test(msg) && /does not exist|schema cache/.test(msg)) {
+    return new Error('Manca l’approvazione degli iscritti: esegui la migrazione 046 su Supabase, poi ricarica.');
+  }
+  return error;
 }
 
 export async function fetchTeamStaff(teamId) {
