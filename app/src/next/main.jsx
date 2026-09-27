@@ -385,21 +385,44 @@ function App() {
 
         // Un SuperAdmin con una societa' propria che e' entrato altrove: il
         // database gli sta gia' rispondendo con l'altra, e l'app deve saperlo.
-        if (profilo && !profilo.daPiattaforma && segnoOspite()) {
+        /* UN SUPERADMIN CHE E' ENTRATO IN UN'ALTRA SOCIETA'.
+         *
+         * Il database gli sta gia' rispondendo con quella, e l'app deve
+         * saperlo: current_team_id() guarda la presenza PRIMA del profilo,
+         * quindi chiedere la propria societa' mentre si e' dentro un'altra
+         * torna a mani vuote — e il messaggio che ne esce parla di JSON.
+         *
+         * `segnoOspite()` e' solo la scorciatoia: un segnaposto nel browser
+         * che dice «quasi certamente sei dentro qualcuno», e che evita una
+         * richiesta in piu' a tutti gli altri. Ma e' nel browser, e il browser
+         * si cambia, si svuota, si apre in incognito: quando il segnaposto
+         * manca e la presenza c'e', l'app chiedeva la societa' sbagliata e si
+         * fermava all'avvio. E' successo davvero, con una presenza rimasta
+         * aperta da tre giorni.
+         *
+         * Percio' la scorciatoia resta, ma non e' piu' l'unica strada: se il
+         * nucleo non si carica, si chiede al database dove siamo davvero e si
+         * riprova. La verita' su dove sei sta li', non nel localStorage. */
+        async function entraDaOspite() {
           const dentro = await currentSociety().catch(() => null);
+          if (!dentro || !dentro.team_id || dentro.team_id === profilo.team_id) return false;
+          setOspite(dentro);
+          profilo = {
+            ...profilo,
+            team_id: dentro.team_id,
+            role: 'admin',
+            finance_role: 'admin',
+            can_upload_documents: true,
+            can_score_matches: true,
+            daPiattaforma: true
+          };
+          return true;
+        }
+
+        if (profilo && !profilo.daPiattaforma && segnoOspite()) {
+          const cambiato = await entraDaOspite();
           if (!vivo) return;
-          if (dentro && dentro.team_id && dentro.team_id !== profilo.team_id) {
-            setOspite(dentro);
-            profilo = {
-              ...profilo,
-              team_id: dentro.team_id,
-              role: 'admin',
-              finance_role: 'admin',
-              can_upload_documents: true,
-              can_score_matches: true,
-              daPiattaforma: true
-            };
-          }
+          if (cambiato) { /* la societa' e' quella visitata */ }
         }
 
         /* CHI ASPETTA DI ESSERE CONFERMATO NON ENTRA.
@@ -427,12 +450,25 @@ function App() {
         // sono quelli che fanno vedere a un allenatore anche la categoria in
         // cui gioca. Un account senza collegamenti li risolve a vuoto, e una
         // richiesta a vuoto in parallelo non rallenta l'avvio.
-        await Promise.all([
-          loadTeamCore(),
-          isAdmin(profilo)
-            ? Promise.resolve()
-            : loadFamilyLinks().catch(() => { state.familySectorIds = []; })
-        ]);
+        /* Se il nucleo non si carica, prima di arrendersi si chiede al
+           database dove siamo: e' l'unico caso in cui vale la pena di una
+           richiesta in piu', perche' l'alternativa e' una schermata di
+           errore. Un solo tentativo — se fallisce anche con la societa'
+           giusta, il problema e' un altro e va detto. */
+        const collegamenti = isAdmin(profilo)
+          ? Promise.resolve()
+          : loadFamilyLinks().catch(() => { state.familySectorIds = []; });
+        try {
+          await loadTeamCore();
+        } catch (e) {
+          if (!vivo) return;
+          const cambiato = profilo.daPiattaforma ? false : await entraDaOspite();
+          if (!vivo) return;
+          if (!cambiato) throw e;
+          state.currentUser = profilo;
+          await loadTeamCore();
+        }
+        await collegamenti;
 
         // Stessa preferenza dell'app: se non c'è, la prima categoria
         // accessibile in ordine.
