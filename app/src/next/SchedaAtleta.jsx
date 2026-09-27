@@ -9,7 +9,9 @@ import {
 import { senzaNumero, numeriLiberi, obiezioneNumero, normalizzaNumero } from '../utils/maglie.js';
 import {
   fetchDevelopment, saveDevelopment,
-  fetchObjectives, addObjective, achieveObjective, reopenObjective
+  fetchObjectives, addObjective, achieveObjective, reopenObjective,
+  fetchTrainingPlans, uploadTrainingPlan, removeTrainingPlan, getTrainingPlanUrl,
+  MAX_SCHEDA_MB, TIPI_SCHEDA
 } from '../api/development.js';
 import { canReviewDocuments, isLinkedUser, canEditHome, managesSector, canManagePlayer } from '../utils/permissions.js';
 import { tipiDocumento } from '../utils/sports/index.js';
@@ -58,6 +60,7 @@ export function SchedaAtleta({ playerId, onChiudi }) {
   const [foto, setFoto] = useState(null);
   const [sviluppo, setSviluppo] = useState(null);
   const [obiettivi, setObiettivi] = useState([]);
+  const [schede, setSchede] = useState([]);
   const [errore, setErrore] = useState(null);
 
   const [modAnagrafica, setModAnagrafica] = useState(false);
@@ -94,12 +97,16 @@ export function SchedaAtleta({ playerId, onChiudi }) {
       fetchPlayerDocuments(playerId).catch(() => []),
       fetchDevelopment(playerId).catch(() => null),
       // Se la migrazione 043 non c'e' ancora, la scheda mostra il resto.
-      fetchObjectives(playerId).catch(() => [])
-    ]).then(([giocatore, docs, dev, obs]) => {
+      fetchObjectives(playerId).catch(() => []),
+      // Se la migrazione 050 non c'e' ancora, la scheda evolutiva si apre lo
+      // stesso e la sezione semplicemente non compare.
+      fetchTrainingPlans(playerId).catch(() => [])
+    ]).then(([giocatore, docs, dev, obs, piani]) => {
       setP(giocatore);
       setDocumenti(docs);
       setSviluppo(dev);
       setObiettivi(obs || []);
+      setSchede(piani || []);
       if (giocatore && giocatore.photo_path) {
         getPlayerPhotoSignedUrl(giocatore.photo_path).then(setFoto).catch(() => {});
       }
@@ -334,6 +341,14 @@ export function SchedaAtleta({ playerId, onChiudi }) {
               avvisa={avvisa}
             />
 
+            <SchedeAllenamento
+              p={p}
+              righe={schede}
+              puoiCaricare={!famiglia && canManagePlayer(state.currentUser, state.activeSectorId, state.staffSectors)}
+              onCambiato={setSchede}
+              avvisa={avvisa}
+            />
+
             {/* La nota dell'allenatore non la vede la famiglia: è uno
                 strumento di lavoro fra tecnici, e saperla letta la renderebbe
                 diplomatica invece che utile. */}
@@ -406,6 +421,205 @@ export function SchedaAtleta({ playerId, onChiudi }) {
         />
       )}
     </>
+  );
+}
+
+/* ------------------------------------------------- la scheda di allenamento */
+/* Il programma della sala pesi. Sta qui e non fra i documenti perché non è un
+ * documento: i documenti hanno uno stato, una scadenza e un'approvazione, e
+ * servono a rispondere a «questo ragazzo può giocare?». Una scheda non si
+ * approva e non scade — si sostituisce.
+ *
+ * La carica il tecnico, la apre e la scarica anche l'atleta. Il pulsante
+ * «Scarica» esiste separato da «Apri» per una ragione sola: in sala pesi la
+ * rete spesso non c'è, e un PDF aperto nel visore non resta sul telefono.
+ *
+ * La più recente sta in cima ed è marcata «in corso»: quando un tecnico ne
+ * carica una nuova, quella è la scheda che vale. Le vecchie restano sotto,
+ * perché a marzo serve sapere cosa si faceva a ottobre.
+ */
+function SchedeAllenamento({ p, righe, puoiCaricare, onCambiato, avvisa }) {
+  const [carica, setCarica] = useState(null);   // { file }
+  const [daTogliere, setDaTogliere] = useState(null);
+  const [apre, setApre] = useState(null);
+  const input = useRef(null);
+
+  if (righe.length === 0 && !puoiCaricare) return null;
+
+  function scegli(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (inCampione()) { avvisa('Nell’anteprima con dati di esempio non si carica niente.'); return; }
+    if (file.size > MAX_SCHEDA_MB * 1024 * 1024) {
+      avvisa(`Il file pesa troppo: il limite è ${MAX_SCHEDA_MB} MB. Se è una fotografia, riscattala più piccola o esportala in PDF.`, 'errore');
+      return;
+    }
+    setCarica({ file });
+  }
+
+  async function apri(piano, scarica) {
+    setApre(piano.id + (scarica ? 'd' : 'a'));
+    try {
+      const url = await getTrainingPlanUrl(piano.file_path, { scarica, nome: piano.file_name });
+      window.open(url, '_blank', 'noopener');
+    } catch (e) {
+      console.error(e);
+      avvisa((e && e.message) || 'Non si apre.', 'errore');
+    } finally {
+      setApre(null);
+    }
+  }
+
+  return (
+    <div className="mt-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <Etichetta>Scheda di allenamento</Etichetta>
+        {puoiCaricare && (
+          <>
+            <Pulsante className="py-1 text-[12.5px]" onClick={() => input.current && input.current.click()}>
+              {righe.length > 0 ? '+ Nuova' : '+ Carica'}
+            </Pulsante>
+            <input
+              ref={input}
+              type="file"
+              accept={TIPI_SCHEDA}
+              className="hidden"
+              onChange={scegli}
+            />
+          </>
+        )}
+      </div>
+
+      {righe.length === 0 ? (
+        <Pannello className="pad-pannello-stretto">
+          <p className="text-[12.5px] leading-relaxed text-tenue">
+            Nessuna scheda. Serve a chi fa anche sala pesi: carichi una foto o un PDF, e
+            l’atleta se lo porta in palestra.
+          </p>
+        </Pannello>
+      ) : (
+        <div className="space-y-2">
+          {righe.map((r, i) => (
+            <Pannello key={r.id} className="pad-pannello-stretto">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="truncate text-[13.5px] font-semibold leading-tight">{r.titolo}</span>
+                    {i === 0 && (
+                      <span className="shrink-0 rounded-full bg-verde/16 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-etichetta text-verde">
+                        in corso
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1 text-[12px] text-tenue">
+                    {fmtData(String(r.uploaded_at).slice(0, 10))}
+                    {r.bytes ? ' · ' + Math.max(1, Math.round(r.bytes / 1024)) + ' KB' : ''}
+                  </div>
+                  {r.nota && (
+                    <p className="mt-1.5 text-[12.5px] leading-relaxed text-soffuso">{r.nota}</p>
+                  )}
+                </div>
+                {puoiCaricare && (
+                  <button
+                    onClick={() => setDaTogliere(r)}
+                    aria-label="Elimina"
+                    className="shrink-0 rounded-lg px-2 py-1 text-[12px] text-tenue transition-colors hover:text-rosso"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                <Pulsante
+                  className="py-1.5 text-[12.5px]"
+                  disabled={!!apre}
+                  onClick={() => apri(r, false)}
+                >
+                  {apre === r.id + 'a' ? 'Apro…' : 'Apri'}
+                </Pulsante>
+                {/* Separato da «Apri» perché in sala pesi la rete spesso non
+                    c'è, e un PDF aperto nel visore non resta sul telefono. */}
+                <Pulsante
+                  className="py-1.5 text-[12.5px]"
+                  disabled={!!apre}
+                  onClick={() => apri(r, true)}
+                >
+                  {apre === r.id + 'd' ? 'Scarico…' : 'Scarica'}
+                </Pulsante>
+              </div>
+            </Pannello>
+          ))}
+        </div>
+      )}
+
+      {carica && (
+        <ModuloScheda
+          p={p}
+          file={carica.file}
+          onChiudi={() => setCarica(null)}
+          onFatto={(riga) => {
+            onCambiato([riga, ...righe]);
+            avvisa('Scheda caricata: l’atleta la vede subito.');
+          }}
+        />
+      )}
+
+      {daTogliere && (
+        <Conferma
+          titolo="Togliere questa scheda?"
+          testo={`«${daTogliere.titolo}» sparisce anche all’atleta, e il file viene cancellato. Non si recupera.`}
+          etichetta="Togli"
+          onChiudi={() => setDaTogliere(null)}
+          onConferma={async () => {
+            await removeTrainingPlan(daTogliere);
+            onCambiato(righe.filter(x => x.id !== daTogliere.id));
+            avvisa('Scheda tolta');
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ModuloScheda({ p, file, onChiudi, onFatto }) {
+  const oggi = new Date();
+  const [titolo, setTitolo] = useState(
+    'Sala pesi · ' + oggi.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
+  );
+  const [nota, setNota] = useState('');
+
+  return (
+    <Modulo
+      titolo="Nuova scheda di allenamento"
+      sotto={p.name}
+      etichettaInvia="Carica"
+      onChiudi={onChiudi}
+      onInvia={async () => {
+        if (!titolo.trim()) return 'Dalle un nome: serve a ritrovarla fra tre mesi.';
+        const riga = await uploadTrainingPlan(state.teamProfile.id, p.id, file, {
+          titolo, nota, userId: state.currentUser.id
+        });
+        onFatto(riga);
+      }}
+    >
+      <div className="rounded-lg bg-pannello/8 px-3.5 py-3">
+        <div className="truncate text-[13px] font-semibold">{file.name}</div>
+        <div className="mt-0.5 text-[12px] text-tenue">
+          {Math.max(1, Math.round(file.size / 1024))} KB
+          {file.type ? ' · ' + (file.type === 'application/pdf' ? 'PDF' : 'immagine') : ''}
+        </div>
+      </div>
+
+      <Campo etichetta="Nome" aiuto="Come la chiameresti parlandone: «Sala pesi gennaio», «Prevenzione caviglia».">
+        <Testo value={titolo} onChange={e => setTitolo(e.target.value)} maxLength={80} autoFocus />
+      </Campo>
+
+      <Campo etichetta="Nota" aiuto="Facoltativa. La legge l’atleta: è il posto per «tre volte a settimana» o «prima fai riscaldamento».">
+        <Testo value={nota} onChange={e => setNota(e.target.value)} maxLength={160} />
+      </Campo>
+    </Modulo>
   );
 }
 

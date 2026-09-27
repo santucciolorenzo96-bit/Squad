@@ -39,6 +39,7 @@ export const TIPI = {
   document_uploaded: { sezione: 'anagrafica', azione: 'Documento da verificare' },
   photo_proposed: { sezione: 'anagrafica', azione: 'Fotografia proposta' },
   dato_sensibile: { sezione: 'anagrafica', azione: 'Dato del tesseramento' },
+  scheda_allenamento: { sezione: 'anagrafica', azione: 'Scheda di allenamento' },
   document_reviewed: { sezione: 'anagrafica', azione: 'Esito del documento' },
   comunicazione: { sezione: 'comunicazioni', azione: 'Comunicazione' }
 };

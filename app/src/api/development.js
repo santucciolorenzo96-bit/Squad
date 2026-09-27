@@ -88,3 +88,89 @@ function descriviErroreObiettivo(error) {
   }
   return error;
 }
+
+/* ============ La scheda di allenamento (migrazione 050) ============
+ *
+ * Il programma della sala pesi. Sta accanto all'obiettivo perche' e' la stessa
+ * cosa detta in modo operativo: l'obiettivo dice dove si va, la scheda dice
+ * come. La carica il tecnico, la apre e la scarica anche l'atleta — una scheda
+ * che chi si allena non puo' aprire non serve a niente.
+ *
+ * Non e' un documento: i documenti hanno uno stato, una scadenza e
+ * un'approvazione, e servono a rispondere a «questo ragazzo puo' giocare?».
+ * Una scheda non si approva e non scade, si sostituisce.
+ */
+
+// Quanto puo' pesare. Una scansione A4 a colori sta sotto i due megabyte; sopra
+// i dieci c'e' quasi sempre una fotografia non ridotta, e in palestra si
+// scarica con la rete che c'e'.
+export const MAX_SCHEDA_MB = 10;
+
+export const TIPI_SCHEDA = 'image/*,application/pdf';
+
+export async function fetchTrainingPlans(playerId) {
+  const { data, error } = await supabase.from('player_training_plans')
+    .select('*').eq('player_id', playerId).order('uploaded_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function uploadTrainingPlan(teamId, playerId, file, { titolo, nota, userId }) {
+  const pulito = String(file.name || 'scheda').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-60);
+  const path = `${teamId}/${playerId}/${Date.now()}_${pulito}`;
+  const { error: upErr } = await supabase.storage.from('training-plans')
+    .upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false });
+  if (upErr) throw descriviErroreScheda(upErr);
+
+  const { data, error } = await supabase.from('player_training_plans').insert({
+    team_id: teamId, player_id: playerId,
+    titolo: String(titolo || '').trim() || 'Scheda di allenamento',
+    nota: (nota || '').trim() || null,
+    file_path: path, file_name: file.name || pulito,
+    mime: file.type || null, bytes: file.size || null,
+    uploaded_by: userId
+  }).select().single();
+  if (error) {
+    // La riga non e' entrata: il file da solo non lo vede nessuno, e resterebbe
+    // li' per sempre. Stesso rimedio del giocatore creato a meta'.
+    try { await supabase.storage.from('training-plans').remove([path]); } catch (e) { /* pazienza */ }
+    throw descriviErroreScheda(error);
+  }
+  return data;
+}
+
+export async function removeTrainingPlan(piano) {
+  const { error } = await supabase.from('player_training_plans').delete().eq('id', piano.id);
+  if (error) throw descriviErroreScheda(error);
+  if (piano.file_path) {
+    try { await supabase.storage.from('training-plans').remove([piano.file_path]); } catch (e) { /* pazienza */ }
+  }
+}
+
+/* Due indirizzi diversi per due gesti diversi: aprire e scaricare.
+ *
+ * `download` fa arrivare il file con l'intestazione che dice al browser di
+ * salvarlo invece di mostrarlo. Senza, su telefono un PDF si apre nel visore e
+ * non resta niente sul dispositivo — e la scheda serve proprio quando la rete
+ * in palestra non c'e'. Un'ora di validita': il tempo di un allenamento.
+ */
+export async function getTrainingPlanUrl(filePath, { scarica = false, nome } = {}) {
+  const { data, error } = await supabase.storage.from('training-plans')
+    .createSignedUrl(filePath, 3600, scarica ? { download: nome || true } : undefined);
+  if (error) throw descriviErroreScheda(error);
+  return data.signedUrl;
+}
+
+function descriviErroreScheda(error) {
+  const msg = (error && error.message) || '';
+  if (/Bucket not found/i.test(msg)) {
+    return new Error('Manca il deposito delle schede: esegui la migrazione 050 su Supabase, poi riprova.');
+  }
+  if (/player_training_plans/.test(msg) && /does not exist|schema cache/.test(msg)) {
+    return new Error('Manca la scheda di allenamento: esegui la migrazione 050 su Supabase, poi riprova.');
+  }
+  if (/row-level security|violates row-level/i.test(msg)) {
+    return new Error('Per caricare una scheda servono i permessi su questa categoria.');
+  }
+  return error;
+}
