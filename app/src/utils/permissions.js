@@ -78,7 +78,20 @@ export const TABS = [
   // «Scout» e non «Partita»: dentro la macro Partite, «Partite > Partita» non
   // diceva cosa fosse. Scout e' anche la parola che si usa in palestra — «chi
   // tiene lo scout stasera?» — e il ruolo nell'app si chiama gia' cosi'.
-  { id: 'partita', label: 'Scout', group: 'settore', roles: [...ROSTER_ROLES, 'segnapunti'], alsoIf: 'can_score_matches', primary: true },
+  /* Lo Scout non lo vede un atleta, mai.
+   *
+   * Per ruolo era gia' cosi'. L'unica porta era `alsoIf`: il permesso che un
+   * amministratore da' a chi tiene il tabellino pur non essendo staff — quasi
+   * sempre un genitore, e quella e' una figura vera in ogni palestra. Su un
+   * atleta no: sta giocando, e il tabellino della propria squadra non e' una
+   * cosa che si tiene dal campo. `alsoIfNon` chiude quella porta per lui e la
+   * lascia aperta al genitore.
+   *
+   * Lo dice anche family_can_score_matches() nel database (migrazione 051): se
+   * le due si scollassero, la voce sparirebbe dal menu ma l'indirizzo
+   * funzionerebbe lo stesso. */
+  { id: 'partita', label: 'Scout', group: 'settore', roles: [...ROSTER_ROLES, 'segnapunti'],
+    alsoIf: 'can_score_matches', alsoIfNon: ['atleta'], primary: true },
   { id: 'allenamenti', label: 'Allenamenti', group: 'settore', roles: [...MANAGER_ROLES, 'segnapunti', ...LINKED_ROLES], primary: true },
   { id: 'presenze', label: 'Presenze', group: 'settore', roles: MANAGER_ROLES },
   { id: 'comunicazioni', label: 'Comunicazioni', group: 'settore', roles: [...MANAGER_ROLES, ...LINKED_ROLES] },
@@ -137,7 +150,7 @@ export function macroDiSezione(id) {
 export function canSeeTab(tab, user) {
   if (!user) return false;
   if (tab.financeGated) return !!user.finance_role;
-  if (tab.alsoIf && user[tab.alsoIf]) return true;
+  if (tab.alsoIf && user[tab.alsoIf] && !(tab.alsoIfNon || []).includes(user.role)) return true;
   return tab.roles.includes(user.role);
 }
 
