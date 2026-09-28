@@ -3,7 +3,7 @@ import { state } from '../state.js';
 import {
   fetchPlayer, updatePlayer, updateLinkedPlayerDetails, fetchPlayerDocuments,
   uploadPlayerDocument, getDocumentSignedUrl, reviewDocument,
-  uploadPlayerPhoto, getPlayerPhotoSignedUrl, chooseMyNumber,
+  uploadPlayerPhoto, getPlayerPhotoSignedUrl, chooseMyNumber, chooseMyPosition,
   proposePlayerPhoto, publishProposedPhoto, rejectProposedPhoto
 } from '../api/roster.js';
 import { senzaNumero, numeriLiberi, obiezioneNumero, normalizzaNumero } from '../utils/maglie.js';
@@ -1157,6 +1157,22 @@ function ModuloAnagrafica({ p, famiglia, sport, tesserato, onChiudi, onFatto }) 
           // le policy sono per riga, non per colonna, e senza di essa un
           // genitore potrebbe cambiarsi il numero di maglia o il nome.
           await updateLinkedPlayerDetails(p.id, comuni);
+
+          /* Il ruolo ha una porta sua, e si apre una volta sola: finché il
+           * campo è vuoto lo dice chi gioca, dopo lo cambia la società. Sta
+           * dopo il salvataggio degli altri campi perché se questo non riesce
+           * — migrazione non eseguita, ruolo già messo da qualcun altro nel
+           * frattempo — quello che l'utente ha scritto è comunque salvato, e
+           * il messaggio dice solo cosa manca. */
+          const scelto = ruolo.trim();
+          if (scelto && !(p.role_position || '').trim()) {
+            try {
+              await chooseMyPosition(p.id, scelto);
+            } catch (e) {
+              console.error(e);
+              return (e && e.message) || 'Il ruolo non è stato salvato.';
+            }
+          }
         } else {
           await updatePlayer(p.id, {
             ...comuni,
@@ -1210,9 +1226,18 @@ function ModuloAnagrafica({ p, famiglia, sport, tesserato, onChiudi, onFatto }) 
         <Campo etichetta="Email"><Testo type="email" value={email} onChange={e => setEmail(e.target.value)} inputMode="email" /></Campo>
       </div>
 
+      {/* IL RUOLO IN CAMPO.
+          Alla società sempre. Alla famiglia solo finché è vuoto: chi gioca il
+          proprio ruolo lo sa, ed è la stessa situazione del numero di maglia —
+          la persona che ha l'informazione non era quella che poteva scriverla.
+          Una volta messo lo cambia la società, perché nella pallavolo «Libero»
+          e «Centrale» fanno funzionare il cambio automatico a ogni rotazione. */}
       <div className="grid gap-4 sm:grid-cols-2">
-        {!famiglia && (
-          <Campo etichetta="Ruolo">
+        {(!famiglia || !(p.role_position || '').trim()) && (
+          <Campo
+            etichetta="Ruolo"
+            aiuto={famiglia ? 'Puoi sceglierlo una volta: dopo lo cambia la società.' : null}
+          >
             <Scelta value={ruolo} onChange={e => setRuolo(e.target.value)}>
               <option value="">— nessuno —</option>
               {(sport.positions || []).map(r => <option key={r} value={r}>{r}</option>)}

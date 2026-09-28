@@ -84,6 +84,33 @@ export async function chooseMyNumber(playerId, numero) {
   return data;
 }
 
+/* Il ruolo in campo, detto da chi gioca (migrazione 052).
+ *
+ * Stessa porta stretta del numero, e per due motivi. Il primo: due campi
+ * adiacenti nella stessa schermata con due regole diverse sarebbero solo
+ * confusi. Il secondo e' tecnico, e riguarda la pallavolo — «Libero» e
+ * «Centrale» fanno funzionare il cambio automatico del libero a ogni
+ * rotazione, e un genitore che li cambiasse a meta' stagione sposterebbe le
+ * persone in campo durante una partita, in silenzio.
+ *
+ * Quali ruoli siano validi lo sa lo sport, non il database: l'elenco sta in
+ * `sport.positions` ed e' l'app a proporlo. */
+export async function chooseMyPosition(playerId, ruolo) {
+  const { data, error } = await supabase.rpc('choose_my_position', {
+    p_player_id: playerId, p_position: String(ruolo || '')
+  });
+  if (error) throw descriviErroreRuolo(error);
+  return data;
+}
+
+function descriviErroreRuolo(error) {
+  const msg = (error && error.message) || '';
+  if (/choose_my_position/.test(msg) && /does not exist|schema cache/.test(msg)) {
+    return new Error('Manca la scelta del ruolo: esegui la migrazione 052 su Supabase, poi riprova.');
+  }
+  return error;
+}
+
 function descriviErroreNumero(error) {
   const msg = (error && error.message) || '';
   if (/choose_my_number/.test(msg) && /does not exist|schema cache/.test(msg)) {
