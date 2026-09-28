@@ -365,6 +365,20 @@ export const PALLAVOLO = {
     // vorrebbe dire dedurre chi serviva, e un errore di deduzione a inizio set
     // sposta tutti i sei per tutto il set senza che nessuno se ne accorga.
     rotazione: { etichetta: 'Ruota', descrizione: 'Zona 1 va in 6, e tutti girano' },
+
+    /* IL CAMBIO DEL LIBERO, DA SOLO.
+     *
+     * A differenza della rotazione, qui non c'è niente da dedurre: il libero
+     * gioca al posto del centrale che sta in seconda linea e non può battere,
+     * e da queste due cose discende esattamente quando esce e quando entra.
+     * Non è una scommessa sul gioco — è una regola, e le regole le può
+     * applicare l'app.
+     *
+     * Serve che i ruoli siano compilati in anagrafica: senza «Libero» e
+     * «Centrale» la funzione non tocca niente, e il sestetto resta come
+     * l'ha lasciato chi segna. La regola sta in utils/rotazione.js, dove si
+     * prova un set intero di rotazioni una dopo l'altra. */
+    cambioLibero: true,
     tileStat: { key: 'points', short: 'PT' }
   },
 

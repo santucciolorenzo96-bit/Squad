@@ -12,6 +12,7 @@ import {
 } from '../utils/regole.js';
 import { Pannello, Etichetta, Pulsante, Stato, Amichevole, Vuoto, cx } from './ui.jsx';
 import { oggiISO } from '../utils/format.js';
+import { ruotaSestetto, cambioLibero, applicaCambio, raccontaCambio, zonaDi } from '../utils/rotazione.js';
 import { Modulo, Conferma, Campo, Testo, Finestra, useAvviso, useTendina } from './moduli.jsx';
 import { inCampione } from './campione.js';
 import { scriviCopia, segnaSincronizzata, cancellaCopia } from './partitaLocale.js';
@@ -137,6 +138,12 @@ export function Tracker({ onFinita, onEsci }) {
   const [mappa, setMappa] = useState(leggiMappa);
   const [tiroDaPiazzare, setTiroDaPiazzare] = useState(null);   // { giocatore, azione }
   const [traiettoria, setTraiettoria] = useState(null);         // { giocatore, azione, foto }
+  const [posti, setPosti] = useState(false);                    // il modulo dei posti in campo
+  /* Per quale centrale è entrato il libero. Sta in un ref e non nella
+   * partita: serve solo a far rientrare quello giusto quando in panchina
+   * ce ne sono due, e nel caso normale — due centrali, uno dentro e uno
+   * fuori — la regola lo indovina da sola. Ricaricando si riparte da lì. */
+  const liberoPer = useRef(null);
   const [chiudiPeriodo, setChiudiPeriodo] = useState(false);
   const [finePartita, setFinePartita] = useState(false);
   const salvataggioRotto = useRef(false);
@@ -266,6 +273,28 @@ export function Tracker({ onFinita, onEsci }) {
       }
       riprova.current = setTimeout(() => { if (salvataggioRotto.current) salva(); }, 10000);
     });
+  }
+
+  /* I POSTI IN CAMPO.
+   *
+   * L'ordine del sestetto È la disposizione in campo: primo dell'elenco in
+   * zona 1, e così via. Finora quell'ordine nasceva da come i sei erano stati
+   * scelti all'avvio, e non c'era nessun modo di sistemarlo — con la
+   * rotazione a mano e il cambio del libero automatico, sbagliare la
+   * disposizione iniziale voleva dire sbagliarla per tutto il set.
+   */
+  function scambiaPosti(i, j) {
+    if (i === j) return;
+    const campo = g.players.filter(p => p.onCourt);
+    if (!campo[i] || !campo[j]) return;
+    memorizza('Posti in campo');
+    const nuovo = campo.slice();
+    nuovo[i] = campo[j];
+    nuovo[j] = campo[i];
+    let k = 0;
+    g.players = g.players.map(p => (p.onCourt ? nuovo[k++] : p));
+    aggiorna();
+    salva();
   }
 
   // Insieme allo stato si memorizza COSA si sta per annullare. Durante una
@@ -438,16 +467,44 @@ export function Tracker({ onFinita, onEsci }) {
   // perche' adesso lo chiama anche il motore degli scambi.
   function giraSestetto() {
     const campo = g.players.filter(p => p.onCourt);
-    if (campo.length < 2) return false;
-    const girati = campo.slice(1).concat([campo[0]]);
+    if (campo.length < 2) return null;
+    let girati = ruotaSestetto(campo);
+
+    /* IL CAMBIO DEL LIBERO STA QUI DENTRO, non nel pulsante.
+     *
+     * Si ruota in due modi: a mano, quando chi segna preme «Ruota», e da solo,
+     * quando uno scambio vinto in ricezione ci restituisce il servizio. Se il
+     * cambio del libero stesse nel pulsante, nella seconda metà delle
+     * rotazioni — che sono la maggioranza — non succederebbe. */
+    let cambio = null;
+    if (conf.cambioLibero) {
+      const panca = g.players.filter(p => !p.onCourt);
+      cambio = cambioLibero(girati, panca, liberoPer.current);
+      if (cambio) {
+        girati = applicaCambio(girati, cambio);
+        cambio.esce.onCourt = false;
+        cambio.entra.onCourt = true;
+        // Chi è appena uscito per far posto al libero è quello che dovrà
+        // rientrare fra tre rotazioni.
+        liberoPer.current = cambio.motivo === 'seconda-linea' ? cambio.esce.id : null;
+      }
+    }
+
+    // L'ordine in campo è l'ordine nell'elenco: si riscrivono le posizioni di
+    // chi è in campo ADESSO, cioè dopo l'eventuale cambio.
     let k = 0;
     g.players = g.players.map(p => (p.onCourt ? girati[k++] : p));
-    return true;
+    return cambio || true;
   }
 
   function ruota() {
-    if (!giraSestetto()) return;
+    // `memorizza` PRIMA di girare: fotografa lo stato da cui si torna
+    // indietro. Fotografandolo dopo, «Annulla rotazione» rimetteva il
+    // sestetto già girato — cioè non annullava niente.
     memorizza('Rotazione');
+    const cambio = giraSestetto();
+    if (!cambio) { state.undoStack.pop(); if (state.undoTesti) state.undoTesti.pop(); return; }
+    if (cambio !== true) avvisa(raccontaCambio(cambio));
     const idx = (g.quarter || 1) - 1;
     g.periodScores = g.periodScores || [];
     const riga = g.periodScores[idx] || { us: 0, them: 0 };
@@ -467,7 +524,10 @@ export function Tracker({ onFinita, onEsci }) {
     g.periodScores = g.periodScores || [];
     const esito = scambioFinito(g.periodScores[idx] || { us: 0, them: 0 }, lato);
     if (!esito) return;                 // non sappiamo chi batteva: non si conta
-    if (esito.gira) giraSestetto();
+    if (esito.gira) {
+      const cambio = giraSestetto();
+      if (cambio && cambio !== true) avvisa(raccontaCambio(cambio));
+    }
     g.periodScores[idx] = esito.riga;
   }
 
@@ -863,6 +923,13 @@ export function Tracker({ onFinita, onEsci }) {
                 </svg>
                 {conf.rotazione.etichetta}
               </button>
+              <button
+                onClick={() => setPosti(true)}
+                title="Chi sta in quale zona"
+                className="flex shrink-0 items-center gap-1.5 rounded-lg vetro orlo px-2.5 py-1.5 text-[12.5px] font-semibold text-soffuso transition-all hover:text-testo active:scale-95"
+              >
+                Posti
+              </button>
               </div>
             ) : (
               <span className="text-[12.5px] text-tenue">{inCampo.length} di {sport.match.minOnField}</span>
@@ -975,6 +1042,15 @@ export function Tracker({ onFinita, onEsci }) {
             </div>
           )}
         </Finestra>
+      )}
+
+      {posti && (
+        <PostiInCampo
+          sestetto={g.players.filter(p => p.onCourt)}
+          foto={foto}
+          onScambia={scambiaPosti}
+          onChiudi={() => setPosti(false)}
+        />
       )}
 
       {/* ================================================== la traiettoria */}
@@ -1480,6 +1556,99 @@ function MappaTiro({ sport, tiro, onPunto, onChiudi }) {
       </div>
     </div>,
     document.body
+  );
+}
+
+/* ------------------------------------------------------- i posti in campo */
+/* Dove sta ciascuno, disegnato come il campo.
+ *
+ * L'ordine del sestetto È la disposizione: primo dell'elenco in zona 1, e così
+ * via. Finora quell'ordine nasceva da come i sei erano stati scelti all'avvio
+ * — cioè da niente — e non si poteva sistemare. Con la rotazione e il cambio
+ * del libero che ci si appoggiano, una disposizione sbagliata all'inizio è
+ * sbagliata per tutto il set.
+ *
+ * Si tocca uno e poi l'altro, e si scambiano. Non un elenco di tendine: chi
+ * segna sta guardando il campo vero, e deve ritrovare la stessa forma.
+ *
+ * Le zone sono disposte come si vedono da dietro il proprio campo: la rete in
+ * alto, la zona 1 in basso a destra — che è da dove si batte.
+ */
+const GRIGLIA_ZONE = [3, 2, 1, 4, 5, 0];   // indici: 4 3 2 sopra, 5 6 1 sotto
+
+function PostiInCampo({ sestetto, foto, onScambia, onChiudi }) {
+  const [preso, setPreso] = useState(null);
+
+  function tocca(indice) {
+    if (preso == null) { setPreso(indice); return; }
+    if (preso === indice) { setPreso(null); return; }
+    onScambia(preso, indice);
+    setPreso(null);
+  }
+
+  return (
+    <Finestra
+      titolo="I posti in campo"
+      sotto="Tocca due giocatori per scambiarli di zona"
+      onChiudi={onChiudi}
+      azioni={
+        <button
+          onClick={onChiudi}
+          className="w-full rounded-lg vetro orlo py-2.5 text-[13px] font-semibold text-soffuso transition-colors hover:text-testo"
+        >
+          Fatto
+        </button>
+      }
+    >
+      <div className="rounded-xl bg-pannello/6 p-2.5">
+        <div className="mb-2 text-center text-[10.5px] font-bold uppercase tracking-etichetta text-tenue">
+          rete
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {GRIGLIA_ZONE.map(indice => {
+            const p = sestetto[indice];
+            const scelto = preso === indice;
+            return (
+              <button
+                key={indice}
+                onClick={() => tocca(indice)}
+                className={cx(
+                  'min-w-0 rounded-lg px-1.5 py-2.5 text-center ring-1 transition-all active:scale-[0.97]',
+                  scelto
+                    ? 'bg-blu/18 text-blu ring-blu/40'
+                    : 'vetro text-testo ring-bordo/12 hover:bg-pannello/14'
+                )}
+              >
+                <div className="text-[10px] font-bold uppercase tracking-etichetta text-tenue">
+                  zona {zonaDi(indice)}
+                </div>
+                <div className="cifra mt-1 text-[17px] font-bold leading-none">
+                  {p ? p.number : '—'}
+                </div>
+                <div className="mt-1 truncate text-[11px] leading-tight text-soffuso">
+                  {p ? (p.name || '').split(' ')[0] : ''}
+                </div>
+                {p && p.role_position && (
+                  <div className="truncate text-[10px] leading-tight text-tenue">
+                    {p.role_position}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <p className="mt-3 text-[12.5px] leading-relaxed text-tenue">
+        In <b className="text-soffuso">zona 1</b> c'è chi batte. Ruotando, chi è in zona 1 va in
+        zona 6 e tutti gli altri avanzano di un posto.
+      </p>
+      <p className="text-[12.5px] leading-relaxed text-tenue">
+        Se i ruoli sono compilati in anagrafica, il libero esce e rientra da solo: esce quando
+        la rotazione lo porterebbe in prima linea, rientra quando un centrale arriva in zona 6
+        dopo aver battuto.
+      </p>
+    </Finestra>
   );
 }
 
