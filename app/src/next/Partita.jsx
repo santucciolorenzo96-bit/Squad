@@ -159,9 +159,31 @@ export function Partita() {
       const locale = leggiCopia(state.activeSectorId);
 
       if (viva && locale && locale.gameId === viva.id && !locale.sincronizzata) {
-        // La copia di qui non era ancora arrivata al server: e' quella avanti,
-        // e riparte lei. La `daRisincronizzare` fa spedire subito il recupero.
-        viva = { ...locale.gioco, daRisincronizzare: true };
+        /* La copia di qui non era ancora arrivata al server: e' quella avanti,
+         * e riparte lei. La `daRisincronizzare` fa spedire subito il recupero.
+         *
+         * MA IL CONTENUTO SI PRENDE DALLA COPIA, NON IL SEGNAPOSTO.
+         *
+         * `revisione`, `tenutoDa` e `tenutoAlle` non sono dati della partita:
+         * sono lo stato della RIGA sul server — «da quale versione parti» e
+         * «chi l'ha toccata per ultimo». La copia locale li porta com'erano
+         * quando e' stata scritta, cioe' vecchi per definizione: la copia si
+         * scrive PRIMA del salvataggio, e si marca sincronizzata solo dopo.
+         *
+         * Prendendoli dalla copia, il primo salvataggio dichiarava una
+         * revisione superata e il database rispondeva «un altro e' arrivato
+         * prima» — a un utente solo, su un dispositivo solo. Da li' la
+         * finestra «la sta segnando qualcun altro, ricarica», ogni volta.
+         *
+         * Il contenuto e' nostro ed e' il piu' recente; la versione da cui
+         * partire e' quella che il server ha adesso. */
+        viva = {
+          ...locale.gioco,
+          revisione: viva.revisione,
+          tenutoDa: viva.tenutoDa,
+          tenutoAlle: viva.tenutoAlle,
+          daRisincronizzare: true
+        };
         avvisa('Ripresa dalla copia salvata su questo dispositivo');
       } else if (!viva && locale) {
         // Il server dice che non c'e' nessuna partita aperta: e' stata chiusa

@@ -84,7 +84,12 @@ export function refertoPartita(g, sport) {
   const tiri = tiriPartita(g, sport);
   const traiettorie = traiettoriePartita(g);
 
-  return { set, fasi, rotazioni, quintetti, attacco, tiri, traiettorie, tabellino, chiusi: chiusi.length };
+  const traiettorieAtleti = traiettoriePerAtleta(g);
+
+  return {
+    set, fasi, rotazioni, quintetti, attacco, tiri,
+    traiettorie, traiettorieAtleti, tabellino, chiusi: chiusi.length
+  };
 }
 
 /* La riga della squadra.
@@ -200,6 +205,34 @@ export function traiettoriePartita(g) {
     });
   });
   return linee.length ? linee : null;
+}
+
+/* Le stesse traiettorie, divise per chi le ha giocate.
+ *
+ * La mappa di squadra risponde a «dove cadono i nostri punti». È una domanda
+ * buona, ma non è quella che ci si fa guardando un referto: quella è «dove
+ * attacca la 4». Un allenatore avversario la prepara per nome, e una mappa in
+ * cui dodici righe hanno tutte lo stesso colore non gliela dice.
+ *
+ * Ordinate per quante ne hanno: chi ha attaccato di più sta in cima, ed è
+ * quella di cui si parla per prima.
+ */
+export function traiettoriePerAtleta(g) {
+  const per = new Map();
+  (g.players || []).forEach(p => {
+    const sue = (p.stats || {}).traiettorie || [];
+    if (sue.length === 0) return;
+    per.set(p.id, {
+      id: p.id,
+      numero: p.number,
+      nome: p.name,
+      linee: sue.map(t => ({ ...t })),
+      // I punti veri, cioè le traiettorie di un attacco vincente: le altre
+      // azioni con traiettoria, se un domani ce ne saranno, non sono punti.
+      punti: sue.filter(t => t.act === 'kill').length
+    });
+  });
+  return Array.from(per.values()).sort((a, b) => b.linee.length - a.linee.length);
 }
 
 // Percentuale, o null dove non c'è ancora niente da dire. Uno zero inventato

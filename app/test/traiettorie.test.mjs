@@ -62,3 +62,54 @@ describe('le traiettorie nel referto', () => {
     ok(Array.isArray(PALLAVOLO.newStats().traiettorie));
   });
 });
+
+/* ---------------------------------------------------------- per atleta ---- */
+/* La mappa di squadra risponde a «dove cadono i nostri punti». Il referto lo
+ * si guarda per un'altra domanda: «dove attacca la 4». */
+describe('le traiettorie divise per chi le ha giocate', () => {
+  const due = {
+    oppName: 'Riccione', teamScore: 3, oppScore: 0, quarter: 3, chiusi: 3,
+    periodScores: [{ us: 25, them: 20 }, { us: 25, them: 22 }, { us: 25, them: 19 }],
+    players: [
+      { id: 'a', number: '4', name: 'Baroncini', stats: Object.assign(PALLAVOLO.newStats(), {
+        traiettorie: [
+          { x1: 20, y1: 40, x2: 80, y2: 70, act: 'kill', q: 1 },
+          { x1: 22, y1: 41, x2: 79, y2: 72, act: 'kill', q: 2 }
+        ]
+      }) },
+      { id: 'b', number: '9', name: 'Conti', stats: Object.assign(PALLAVOLO.newStats(), {
+        traiettorie: [{ x1: 60, y1: 40, x2: 30, y2: 75, act: 'kill', q: 1 }]
+      }) },
+      { id: 'c', number: '7', name: 'Senza', stats: PALLAVOLO.newStats() }
+    ]
+  };
+
+  const r = refertoPartita(due, PALLAVOLO);
+
+  test('c e una riga per ogni atleta che ha attaccato', () => {
+    is(r.traiettorieAtleti.length, 2);
+  });
+
+  test('e nessuna per chi non ha traiettorie', () => {
+    is(r.traiettorieAtleti.some(x => x.id === 'c'), false);
+  });
+
+  test('chi ha attaccato di piu sta in cima', () => {
+    is(r.traiettorieAtleti[0].numero, '4');
+    is(r.traiettorieAtleti[0].linee.length, 2);
+  });
+
+  test('ognuno si porta nome e numero: la mappa senza nome non serve', () => {
+    is(r.traiettorieAtleti[1].nome, 'Conti');
+    is(r.traiettorieAtleti[1].numero, '9');
+  });
+
+  test('la mappa di squadra resta, con tutte e tre', () => {
+    is(r.traiettorie.length, 3);
+  });
+
+  test('e senza traiettorie l elenco e vuoto, non nullo', () => {
+    const vuoto = refertoPartita(conLinee([]), PALLAVOLO);
+    is(vuoto.traiettorieAtleti.length, 0);
+  });
+});

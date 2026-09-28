@@ -123,6 +123,61 @@ function Traiettorie({ sport, linee }) {
   );
 }
 
+/* LE STESSE TRAIETTORIE, MA DI CHI.
+ *
+ * La mappa di squadra risponde a «dove cadono i nostri punti»: è una domanda
+ * buona, ma non è quella che ci si fa guardando un referto. Quella è «dove
+ * attacca la 4» — e un allenatore avversario la prepara per nome.
+ *
+ * Campi piccoli e affiancati, non uno grande per volta: il confronto è il
+ * punto. Due attaccanti che colpiscono sempre nello stesso metro si vedono
+ * mettendo le due mappe una accanto all'altra, non sfogliandole.
+ */
+function TraiettoriePerAtleta({ sport, righe }) {
+  return (
+    <div className="mb-6">
+      <Etichetta className="mb-2.5">Dove attacca ciascuno</Etichetta>
+
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+        {righe.map(r => (
+          <Pannello key={r.id} className="overflow-hidden">
+            <div className="campo-cornice" style={{ '--proporzione': sport.campoInteroRatio }}>
+              <div className="campo parquet relative w-full">
+                <div className="righe-campo" dangerouslySetInnerHTML={{ __html: sport.campoIntero }} />
+                <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                  {r.linee.map((t, i) => (
+                    <g key={i}>
+                      <line
+                        x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
+                        stroke="rgb(var(--verde))" strokeOpacity="0.6" strokeWidth="1"
+                        strokeLinecap="round" vectorEffect="non-scaling-stroke"
+                      />
+                      <circle cx={t.x1} cy={t.y1} r="1.1" fill="rgb(var(--verde))" fillOpacity="0.85" />
+                    </g>
+                  ))}
+                </svg>
+              </div>
+            </div>
+            <div className="flex items-baseline gap-2 px-2.5 py-2">
+              <span className="cifra shrink-0 text-[13px] font-bold text-soffuso">{r.numero}</span>
+              <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold leading-tight">
+                {r.nome}
+              </span>
+              <span className="cifra shrink-0 text-[12px] text-tenue">{r.linee.length}</span>
+            </div>
+          </Pannello>
+        ))}
+      </div>
+
+      <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
+        Il numero a destra è quante palle ha giocato con la traiettoria segnata. Le mappe
+        sono affiancate apposta: due attaccanti che colpiscono sempre nello stesso metro si
+        vedono confrontandole, non sfogliandole una per volta.
+      </p>
+    </div>
+  );
+}
+
 /* CON QUALI CINQUE SIAMO ANDATI MEGLIO.
  *
  * Il dato e' semplice — quanti punti ha guadagnato la squadra con quei
@@ -470,6 +525,9 @@ export function Referto({ partita, onChiudi, onEliminata }) {
 
       {r.tiri && <MappaTiri sport={sport} tiri={r.tiri} />}
       {r.traiettorie && sport.campoIntero && <Traiettorie sport={sport} linee={r.traiettorie} />}
+      {sport.campoIntero && (r.traiettorieAtleti || []).length > 0 && (
+        <TraiettoriePerAtleta sport={sport} righe={r.traiettorieAtleti} />
+      )}
 
       {/* -------------------------------------------- come abbiamo attaccato */}
       {conf.possessi && r.attacco && (
