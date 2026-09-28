@@ -88,6 +88,18 @@ export function descriviNotifica(n, settori, adesso = Date.now()) {
     // sa, per esempio, che un documento verificato va in anagrafica e non
     // nella sezione da cui è partito.
     destinazione: n.link_tab || c.sezione || null,
+    /* DI CHI PARLA, E DI QUALE CATEGORIA.
+     *
+     * Senza questi due il tocco portava alla sezione e basta: all'Anagrafica
+     * della categoria aperta in quel momento, con l'elenco di tutti. Se la
+     * persona era in un'altra categoria si arrivava dove non c'era, e se era
+     * in questa bisognava cercarla fra tredici nomi. Da fuori, in tutti e due
+     * i casi, sembrava che il tocco non avesse fatto niente.
+     *
+     * `atleta` manca sulle notifiche scritte prima della migrazione 053: quelle
+     * continuano a portare alla sezione, che è il comportamento di prima. */
+    atleta: n.link_player_id || null,
+    categoria: n.sector_id || null,
     settore: settore ? settore.name : '',
     // Le notifiche con un destinatario sono rivolte a una persona sola: il
     // resto del settore non le vede nemmeno.

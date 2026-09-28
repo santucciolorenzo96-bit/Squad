@@ -2,6 +2,10 @@ export const state = {
   teamProfile: null,   // { id, name, city, category, sport, logo_url, primary_color, secondary_color, invite_code }
   currentUser: null,   // profile row + email: { id, team_id, display_name, role, email, phone, avatar_path, privacy_accepted_at, finance_role, can_upload_documents, can_score_matches }
   staff: [],
+  // L'atleta di cui aprire la scheda appena la sezione è pronta. Lo scrive chi
+  // tocca una notifica che parla di una persona, lo legge e lo azzera
+  // l'Anagrafica: un messaggio a senso unico, che vive un disegno solo.
+  apriAtleta: null,
   staffSectors: {},    // { [profileId]: sectorId[] }
   sectors: [],
   activeSectorId: null,
@@ -43,6 +47,7 @@ export function resetState() {
   state.teamProfile = null;
   state.currentUser = null;
   state.staff = [];
+  state.apriAtleta = null;
   state.staffSectors = {};
   state.sectors = [];
   state.activeSectorId = null;

@@ -139,3 +139,57 @@ describe('le notifiche: raggruppate per giorno', () => {
     is(raggruppaPerGiorno(null, ADESSO).length, 0);
   });
 });
+
+/* ------------------------------------------- dove porta una notifica ----- */
+/* «Mario ha inserito la data di nascita» — si tocca e non succede niente.
+ * Qualcosa succedeva: si finiva in Anagrafica della categoria aperta in quel
+ * momento, con l'elenco di tutti. Se Mario era in un'altra categoria si
+ * arrivava dove lui non c'è; se era in questa, bisognava cercarlo fra tredici
+ * nomi. Da fuori, in tutti e due i casi, sembra che il tocco non faccia
+ * niente. */
+describe('una notifica che parla di una persona porta a quella persona', () => {
+  const SETTORI = [{ id: 's1', name: 'DR2' }, { id: 's2', name: 'Under 15' }];
+
+  test('porta la persona e la categoria di cui parla', () => {
+    const d = descriviNotifica({
+      id: 'n1', type: 'dato_sensibile', title: 'Data di nascita di Mario',
+      body: 'Da vuota a 12/03/2009', sector_id: 's2', link_tab: 'anagrafica',
+      link_player_id: 'g9', created_at: new Date().toISOString()
+    }, SETTORI);
+    is(d.destinazione, 'anagrafica');
+    is(d.atleta, 'g9');
+    is(d.categoria, 's2');
+    is(d.settore, 'Under 15');
+  });
+
+  test('una notifica che non parla di nessuno non porta nessuno', () => {
+    const d = descriviNotifica({
+      id: 'n2', type: 'training_created', title: 'Martedì sera',
+      sector_id: 's1', link_tab: 'allenamenti', created_at: new Date().toISOString()
+    }, SETTORI);
+    is(d.atleta, null);
+    is(d.categoria, 's1');
+  });
+
+  /* Le notifiche scritte prima della migrazione 053 non hanno il collegamento:
+   * continuano a portare alla sezione, che è il comportamento di prima. Non
+   * devono rompersi né portare a `undefined`. */
+  test('una notifica vecchia non si rompe: porta alla sezione e basta', () => {
+    const d = descriviNotifica({
+      id: 'n3', type: 'document_uploaded', title: 'Certificato medico di Mario',
+      sector_id: 's1', link_tab: 'anagrafica', created_at: new Date().toISOString()
+    }, SETTORI);
+    is(d.destinazione, 'anagrafica');
+    is(d.atleta, null);
+  });
+
+  test('anche l assenza annunciata sa di chi parla, pur portando altrove', () => {
+    const d = descriviNotifica({
+      id: 'n4', type: 'absence_announced', title: 'Mario non viene',
+      sector_id: 's1', link_tab: 'allenamenti', link_player_id: 'g9',
+      created_at: new Date().toISOString()
+    }, SETTORI);
+    is(d.destinazione, 'allenamenti');
+    is(d.atleta, 'g9');
+  });
+});

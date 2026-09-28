@@ -554,6 +554,24 @@ function App() {
     setFase('dentro');
   }
 
+  /* DOVE PORTA UNA NOTIFICA.
+   *
+   * Tre cose insieme, e servono tutte e tre: la sezione, la categoria di cui
+   * la notifica parla, e la persona. Senza la categoria si arriva in
+   * Anagrafica dove quell'atleta non c'è; senza la persona si arriva a un
+   * elenco di tredici nomi da cercare.
+   *
+   * L'atleta passa da `state` e non da una proprietà: fra il tocco e il
+   * disegno dell'Anagrafica ci sono un cambio di sezione e forse un
+   * caricamento di categoria, e farlo attraversare tre componenti vorrebbe
+   * dire tre proprietà nuove per un messaggio che vive un disegno solo.
+   */
+  function vaiA(sezione, categoria, atleta) {
+    state.apriAtleta = atleta || null;
+    if (categoria && categoria !== sectorId) cambiaSettore(categoria);
+    setSezione(sezione);
+  }
+
   async function cambiaSettore(id) {
     state.activeSectorId = id;
     setSectorId(id);
@@ -682,7 +700,7 @@ function App() {
     <ProvvederAvvisi>
       <Guscio
         sezione={sezione}
-        onSezione={setSezione}
+        onSezione={vaiA}
         sectorId={sectorId}
         onSettore={cambiaSettore}
         nastro={

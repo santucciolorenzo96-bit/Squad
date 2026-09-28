@@ -48,7 +48,7 @@ function Riga({ n, ultima, onVai }) {
       n.read = true;
       if (!inCampione()) markNotificationsRead([n.id]).catch(() => { /* la riga resta segnata qui */ });
     }
-    if (d.destinazione) onVai(d.destinazione);
+    if (d.destinazione) onVai(d.destinazione, d.categoria, d.atleta);
   }
 
   return (
@@ -121,9 +121,9 @@ export function Campanella({ onSezione }) {
     if (!inCampione()) markNotificationsRead(null).catch(() => { /* restano segnate qui */ });
   }
 
-  function vai(sezione) {
+  function vai(sezione, categoria, atleta) {
     setAperto(false);
-    onSezione(sezione);
+    onSezione(sezione, categoria, atleta);
   }
 
   const gruppi = raggruppaPerGiorno(state.notifications);

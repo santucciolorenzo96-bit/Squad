@@ -66,6 +66,19 @@ export function Anagrafica() {
     return () => { vivo = false; };
   }, [rosa]);
 
+  /* La scheda che una notifica ha chiesto di aprire.
+   *
+   * Si legge una volta e si azzera: è un messaggio, non uno stato. Se l'atleta
+   * non è in questa categoria — può succedere se la rosa non è ancora
+   * arrivata — non si apre niente e il messaggio si consuma lo stesso, perché
+   * riproporlo al disegno dopo vorrebbe dire aprirlo mentre si guarda altro. */
+  useEffect(() => {
+    const chiesto = state.apriAtleta;
+    if (!chiesto) return;
+    state.apriAtleta = null;
+    if (rosa.some(p => p.id === chiesto)) setScheda(chiesto);
+  }, [rosa]);
+
   const oggi = oggiISO();
   const righe = rosa.map(p => {
     const suoi = documenti[p.id] || [];
