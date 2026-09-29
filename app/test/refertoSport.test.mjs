@@ -136,3 +136,33 @@ describe('il referto completo di una partita di pallavolo', () => {
     is(r.ciambellePeriodi, null);
   });
 });
+
+/* --------------------------------------------- i tre esiti dell'attacco --- */
+/* Un attacco finisce in un modo solo dei tre: punto, errore, oppure la palla è
+ * entrata nel campo avversario e loro l'hanno difesa. Il numero che prima non
+ * si leggeva da nessuna parte è il terzo. */
+describe('gli attacchi difesi', () => {
+  const conAttacchi = (s) => PALLAVOLO.riepilogo(Object.assign(PALLAVOLO.newStats(), s));
+
+  test('sono i tentati meno i vincenti meno gli errori', () => {
+    const r = conAttacchi({ attacks: 44, kills: 18, attackErrors: 6, attackPos: 20 });
+    is(r.find(x => x.etichetta === 'attacchi difesi').valore, 20);
+  });
+
+  /* Il conto torna anche sulle partite archiviate, dove gli attacchi rimasti
+   * in gioco erano divisi in «positivo» e «negativo». */
+  test('e tornano anche su una partita di prima, con positivi e negativi', () => {
+    const r = conAttacchi({ attacks: 44, kills: 18, attackErrors: 6, attackPos: 12, attackNeg: 8 });
+    is(r.find(x => x.etichetta === 'attacchi difesi').valore, 20);
+  });
+
+  test('senza attacchi sono zero, non un numero negativo', () => {
+    is(conAttacchi({}).find(x => x.etichetta === 'attacchi difesi').valore, 0);
+  });
+
+  test('i tre esiti sommati fanno i tentati', () => {
+    const s = Object.assign(PALLAVOLO.newStats(), { attacks: 44, kills: 18, attackErrors: 6, attackPos: 20 });
+    const difesi = PALLAVOLO.aggregate.attackDug({ stats: s });
+    is(18 + 6 + difesi, 44);
+  });
+});

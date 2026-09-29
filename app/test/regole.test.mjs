@@ -141,9 +141,17 @@ describe('pallavolo: efficienza in attacco', () => {
 describe('pallavolo: ogni attacco conta come tentativo', () => {
   const azioni = PALLAVOLO.scout.groups.find(g => g.label === 'Attacco').actions;
 
-  test('i quattro esiti stanno nello stesso gruppo', () => is(azioni.length, 4));
+  /* Tre esiti, non quattro. Un attacco finisce in un modo solo dei tre: punto,
+   * errore, oppure la palla è entrata e loro l'hanno difesa. Prima gli esiti
+   * «in gioco» erano due — positivo e negativo — e la distinzione la doveva
+   * fare chi segna in mezzo secondo: è un giudizio, non un fatto. */
+  test('i tre esiti stanno nello stesso gruppo', () => is(azioni.length, 3));
 
-  test('tutti e quattro alzano il totale degli attacchi', () => {
+  test('e sono punto, errore, difeso', () => {
+    is(azioni.map(a => a.act).join(','), 'kill,attack_err,attack_dug');
+  });
+
+  test('tutti e tre alzano il totale degli attacchi', () => {
     // Se uno solo non lo alzasse, l'efficienza avrebbe un denominatore più
     // piccolo del vero e direbbe che si attacca meglio di come si attacca.
     azioni.forEach(a => is(a.apply.attacks, 1, a.act + ' non conta un attacco'));
@@ -151,9 +159,19 @@ describe('pallavolo: ogni attacco conta come tentativo', () => {
 
   test('solo il punto fa punto', () => {
     is(azioni.find(a => a.act === 'kill').apply.points, 1);
-    ['attack_err', 'attack_pos', 'attack_neg'].forEach(k => {
+    ['attack_err', 'attack_dug'].forEach(k => {
       is(azioni.find(a => a.act === k).apply.points, undefined);
     });
+  });
+
+  /* Gli attacchi difesi sono i tentati meno i vincenti meno gli errori, e il
+   * conto torna anche sulle partite archiviate: quelle hanno «positivo» e
+   * «negativo» separati, ma `attacks` li contava già tutti e due. */
+  test('i difesi si ricavano, e tornano anche sulle partite vecchie', () => {
+    const vecchia = { attacks: 40, kills: 15, attackErrors: 5, attackPos: 12, attackNeg: 8 };
+    is(PALLAVOLO.aggregate.attackDug({ stats: vecchia }), 20);
+    const nuova = { attacks: 40, kills: 15, attackErrors: 5, attackPos: 20 };
+    is(PALLAVOLO.aggregate.attackDug({ stats: nuova }), 20);
   });
 
   test('l’errore in attacco è un punto per loro', () => {

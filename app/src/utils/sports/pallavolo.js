@@ -140,7 +140,20 @@ export const PALLAVOLO = {
     kills: (p) => (p.stats || {}).kills || 0,
     attacks: (p) => (p.stats || {}).attacks || 0,
     attackPos: (p) => (p.stats || {}).attackPos || 0,
+    // Resta per le partite archiviate, che avevano «positivo» e «negativo»
+    // separati. Da oggi non lo scrive più nessuno.
     attackNeg: (p) => (p.stats || {}).attackNeg || 0,
+    /* GLI ATTACCHI DIFESI SI RICAVANO, NON SI CONTANO.
+     *
+     * Sono i tentati meno i vincenti meno gli errori, e il conto torna anche
+     * sulle partite di prima: là gli attacchi rimasti in gioco erano divisi in
+     * «positivo» e «negativo», ma `attacks` li contava già tutti e due. Una
+     * sottrazione fa tornare i numeri di ieri e di oggi senza doverli
+     * convertire. */
+    attackDug: (p) => {
+      const s = p.stats || {};
+      return Math.max(0, (s.attacks || 0) - (s.kills || 0) - (s.attackErrors || 0));
+    },
     attackBlocked: (p) => (p.stats || {}).attackBlocked || 0,
     attackOut: (p) => (p.stats || {}).attackOut || 0,
     digNeg: (p) => (p.stats || {}).digNeg || 0,
@@ -269,7 +282,12 @@ export const PALLAVOLO = {
       { valore: t.aces || 0, etichetta: 'ace' },
       { valore: eff == null ? '\u2014' : eff + '%', etichetta: 'efficienza att.',
         tono: eff != null && eff < 0 ? 'rosso' : null },
-      { valore: attacchi, etichetta: 'attacchi tentati' },
+      // I difesi e non i tentati: i tentati sono la somma dei tre esiti, e due
+      // dei tre — vincenti ed errori — stanno gia' nell'anello dell'attacco.
+      // Questo e' l'unico dei tre che altrimenti non si leggerebbe da nessuna
+      // parte.
+      { valore: Math.max(0, attacchi - (t.kills || 0) - (t.attackErrors || 0)),
+        etichetta: 'attacchi difesi' },
       { valore: t.assists || 0, etichetta: 'alzate vincenti' },
       { valore: t.attackBlocked || 0, etichetta: 'attacchi murati' },
       // I punti regalati sono l'altra meta' del punteggio: in pallavolo ogni
@@ -359,10 +377,24 @@ export const PALLAVOLO = {
         // allenamento, e finora erano lo stesso numero.
         { act: 'attack_err', label: 'Errore', etichettaBreve: 'Errore in attacco', tone: 'miss',
           apply: { attackErrors: 1, attacks: 1 }, puntoLoro: true, poi: 'comeErrore' },
-        { act: 'attack_pos', label: 'Positivo', etichettaBreve: 'Attacco positivo', tone: 'neutral',
-          apply: { attackPos: 1, attacks: 1 } },
-        { act: 'attack_neg', label: 'Negativo', etichettaBreve: 'Attacco negativo', tone: 'warn',
-          apply: { attackNeg: 1, attacks: 1 } }
+        /* IL TERZO ESITO, E SONO TRE IN TUTTO.
+         *
+         * Un attacco finisce in un modo solo dei tre: è punto, è errore,
+         * oppure la palla è entrata nel campo avversario e loro l'hanno
+         * difesa. Non c'è un quarto caso.
+         *
+         * Prima erano due — «positivo» e «negativo» — e la distinzione la
+         * doveva fare chi segna, in mezzo secondo, mentre lo scambio
+         * continuava: quanto ha messo in difficoltà quella palla. È un
+         * giudizio, non un fatto, e un giudizio dato di fretta vale meno di
+         * niente perché poi si somma come se fosse un dato.
+         *
+         * Il conto continua a tornare con le partite già archiviate: quelle
+         * hanno «positivo» e «negativo» separati, ma `attacks` li contava già
+         * tutti e due — gli attacchi difesi sono i tentati meno i vincenti
+         * meno gli errori, ieri come oggi. */
+        { act: 'attack_dug', label: 'Difeso', etichettaBreve: 'Attacco difeso', tone: 'neutral',
+          apply: { attackPos: 1, attacks: 1 } }
       ]},
 
       { label: 'Difesa', actions: [
