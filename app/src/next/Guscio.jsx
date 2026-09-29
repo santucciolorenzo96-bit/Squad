@@ -505,7 +505,16 @@ export function Guscio({ sezione, onSezione, sectorId, onSettore, chiaveContenut
       <Testata onSezione={onSezione} sectorId={sectorId} onSettore={onSettore} strumenti={strumenti} />
       <div className="flex min-h-0 flex-1">
         <Colonna sezione={sezione} onSezione={onSezione} />
-        <main id="contenuto" className="min-w-0 flex-1 overflow-y-auto px-4 pb-[calc(6.25rem+env(safe-area-inset-bottom))] pt-6 sm:px-6 sm:pt-7 md:pb-10 md:pr-6 lg:pb-12 lg:pr-8">
+        {/* `relative` non serve a posizionare niente qui dentro: serve a fare
+            di questa l'origine delle distanze. Una schermata che deve misurare
+            quanto spazio ha — lo scout, che sta in una pagina sola — somma gli
+            `offsetTop` fino a qui; senza un antenato posizionato quella somma
+            risalirebbe fino al documento e si porterebbe dentro anche
+            l'altezza della testata, cioe' misurerebbe meno spazio di quello
+            che c'e'. Gli `offsetTop` sono posizioni di impaginazione e non si
+            muovono con le animazioni, che e' il motivo per cui si usano al
+            posto dei rettangoli sullo schermo. */}
+        <main id="contenuto" className="relative min-w-0 flex-1 overflow-y-auto px-4 pb-[calc(6.25rem+env(safe-area-inset-bottom))] pt-6 sm:px-6 sm:pt-7 md:pb-10 md:pr-6 lg:pb-12 lg:pr-8">
           <div className="mx-auto w-full max-w-[1120px]">
             <SottoBarra sezione={sezione} onSezione={onSezione} />
             {/* LA CHIAVE E' TUTTA LA TRANSIZIONE.

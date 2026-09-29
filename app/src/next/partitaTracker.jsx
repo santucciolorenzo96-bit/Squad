@@ -185,8 +185,21 @@ export function Tracker({ onFinita, onEsci }) {
        * nel documento e non si muove con le animazioni.
        */
       let sopra = 0;
-      for (let n = el; n && n !== area; n = n.offsetParent) sopra += n.offsetTop;
-      const respiro = parseFloat(getComputedStyle(area).paddingBottom) || 0;
+      let n = el;
+      // Si risale fino all'area, che è posizionata apposta per essere
+      // l'origine (vedi Guscio). Se per qualunque ragione non la si
+      // incontrasse, si smette invece di sommare anche la testata: meglio una
+      // misura prudente che una sbagliata per eccesso.
+      while (n && n.offsetParent && n.offsetParent !== area) {
+        sopra += n.offsetTop;
+        n = n.offsetParent;
+      }
+      if (n && n.offsetParent === area) sopra += n.offsetTop;
+
+      const stile = getComputedStyle(area);
+      const respiro = parseFloat(stile.paddingBottom) || 0;
+      // `clientHeight` comprende i due respiri: quello in alto è già dentro
+      // `sopra`, quello in basso va tolto.
       const spazio = area.clientHeight - respiro - sopra;
 
       // Sotto una certa altezza la pagina unica non ha più senso: meglio
