@@ -1,4 +1,7 @@
-import { createDoc, drawHeader, drawParagraph, drawTable, drawSection, drawScore, drawTiles, save } from './pdf.js';
+import {
+  createDoc, drawHeader, drawParagraph, drawTable, drawSection, drawScore, drawTiles,
+  drawDonut, drawMiniDonut, drawShotChart, contentWidth, spazioPagina, TINTE, save
+} from './pdf.js';
 import { refertoPartita, tabellaTabellino, quota } from './referto.js';
 
 /* Il referto in PDF.
@@ -85,9 +88,121 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
     y += 6;
   }
 
+  /* ----------------------------------------------------- come abbiamo tirato
+   *
+   * Quattro ciambelle: dal campo, da due, da tre, ai liberi. «Dal campo» non
+   * e' la somma di tutto — sono due piu' tre senza i liberi — ed e' la
+   * percentuale che si guarda per prima.
+   *
+   * Due per riga e non quattro: con quattro, l'etichetta e i due conteggi
+   * accanto alla ciambella non ci starebbero, e resterebbe solo la
+   * percentuale. Il rapporto segnati/sbagliati e' meta' dell'informazione.
+   */
+  if (r.tiro) {
+    y = drawSection(doc, 'Come abbiamo tirato', y);
+    const meta = contentWidth() / 2;
+    const voci = [
+      [r.tiro.campo, 'Dal campo'],
+      [r.tiro.due, 'Da due'],
+      [r.tiro.tre, 'Da tre'],
+      [r.tiro.liberi, 'Tiri liberi']
+    ];
+    for (let i = 0; i < voci.length; i += 2) {
+      y = spazioPagina(doc, y, 26);
+      let sotto = y;
+      for (let k = 0; k < 2 && voci[i + k]; k++) {
+        const fine = drawDonut(doc, 20 + k * meta, y, voci[i + k][0], voci[i + k][1]);
+        if (fine > sotto) sotto = fine;
+      }
+      y = sotto + 4;
+    }
+    y += 2;
+  }
+
+  /* ------------------------------------------------------- quarto per quarto
+   *
+   * Serve a rispondere a «dove si e' fermata». Una squadra che tira il 45% in
+   * tutta la partita puo' averlo fatto con un terzo quarto al 20%, e quel
+   * terzo quarto e' tutta la storia.
+   */
+  if (r.tiroPeriodi && r.tiroPeriodi.length > 0) {
+    const colonne = ['Dal campo', 'Da due', 'Da tre', 'Liberi'];
+    const chiavi = ['campo', 'due', 'tre', 'liberi'];
+    const altezza = 16;
+    y = drawSection(doc, 'Come abbiamo tirato, ' + per + ' per ' + per, y);
+
+    const larga = (contentWidth() - 16) / colonne.length;
+    doc.setFont('helvetica', 'bold').setFontSize(7);
+    doc.setTextColor(TINTE.tenue[0], TINTE.tenue[1], TINTE.tenue[2]);
+    colonne.forEach((c, i) => {
+      doc.text(c, 20 + 16 + larga * i + larga / 2, y, { align: 'center' });
+    });
+    doc.setTextColor(TINTE.testo[0], TINTE.testo[1], TINTE.testo[2]);
+    y += 3;
+
+    r.tiroPeriodi.forEach((p, i) => {
+      // Una riga di ciambelle che parte a due millimetri dal fondo non finisce
+      // sulla pagina dopo: finisce fuori dal foglio.
+      y = spazioPagina(doc, y, altezza + 4);
+      const cy = y + altezza / 2;
+      doc.setFont('helvetica', 'bold').setFontSize(9);
+      doc.text(String(i + 1) + 'º', 20 + 6, cy + 1, { align: 'center' });
+      chiavi.forEach((k, j) => {
+        drawMiniDonut(doc, 20 + 16 + larga * j + larga / 2, cy - 1, p ? p[k] : null);
+      });
+      y += altezza + 2;
+    });
+    doc.setFont('helvetica', 'normal').setFontSize(10);
+    y += 2;
+  }
+
+  /* ------------------------------------------------------- i numeri di squadra */
+  if (r.contatori) {
+    const c = r.contatori;
+    y = drawSection(doc, 'I numeri di squadra', y);
+    y = drawTiles(doc, [
+      { valore: c.rimbalzi, etichetta: 'rimbalzi' },
+      { valore: c.offensivi, etichetta: 'offensivi' },
+      { valore: c.difensivi, etichetta: 'difensivi' },
+      { valore: c.assist, etichetta: 'assist' }
+    ], y);
+    y = drawTiles(doc, [
+      { valore: c.perse, etichetta: 'palle perse' },
+      { valore: c.rubate, etichetta: 'palle rubate' },
+      { valore: c.stoppate, etichetta: 'stoppate' },
+      { valore: c.falli, etichetta: 'falli' }
+    ], y);
+    y += 2;
+  }
+
+  /* --------------------------------------------------------------- com'e' andata
+   *
+   * Due numeri che nei totali non esistono. Il massimo vantaggio dice quanto
+   * si e' stati avanti davvero; il parziale dice quando la partita e' girata.
+   */
+  if (r.andamento) {
+    const a = r.andamento;
+    y = drawSection(doc, 'Com’è andata', y);
+    y = drawTiles(doc, [
+      { valore: '+' + a.maxVantaggio, etichetta: 'massimo vantaggio', tono: a.maxVantaggio > 0 ? 'verde' : null },
+      { valore: a.maxSvantaggio ? '−' + a.maxSvantaggio : '0', etichetta: 'massimo svantaggio', tono: a.maxSvantaggio > 0 ? 'rosso' : null },
+      { valore: a.parzialeNostro, etichetta: 'parziale nostro' },
+      { valore: a.parzialeLoro, etichetta: 'parziale subito' }
+    ], y);
+    y = drawParagraph(
+      doc,
+      'Il parziale è il numero di punti fatti di fila senza che l’altra squadra rispondesse: '
+      + 'è il momento in cui la partita è girata, e nel tabellino non lascia traccia.',
+      y, { size: 8 }
+    );
+    y += 2;
+  }
+
   // ------------------------------------------------------ da dove si e' tirato
-  // Sul foglio le zone in cifre e non il disegno: una mappa di pallini
-  // stampata in bianco e nero non si legge, e tre righe di numeri si'.
+  // Le zone in cifre E il disegno: la tabella si legge anche stampata in
+  // bianco e nero, la mappa dice in un colpo d'occhio quello che tre righe di
+  // numeri dicono in tre letture. Sono due modi di guardare la stessa cosa, e
+  // su carta c'e' posto per tutti e due.
   if (r.tiri) {
     y = drawSection(doc, 'Da dove abbiamo tirato', y);
     y = drawTable(
@@ -97,7 +212,9 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
       [60, 30, 30, 30],
       y
     );
-    y += 6;
+    y += 4;
+    y = drawShotChart(doc, r.tiri.punti, y);
+    y += 2;
   }
 
   // ------------------------------------------------ come abbiamo attaccato

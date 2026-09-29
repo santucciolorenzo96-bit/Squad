@@ -264,6 +264,12 @@ export function drawSignature(doc, y, { place = '', label = 'Il legale rappresen
   return y;
 }
 
+/* Il controllo di fine pagina. Esportato perche' chi disegna a mano — le
+ * ciambelle dei quarti, la mappa dei tiri — deve poterlo chiedere prima di
+ * mettere giu' qualcosa: una riga che parte a due millimetri dal fondo non
+ * finisce sulla pagina dopo, finisce fuori dal foglio. */
+export function spazioPagina(doc, y, serve) { return pageBreakIfNeeded(doc, y, serve); }
+
 function pageBreakIfNeeded(doc, y, needed = 8) {
   if (y + needed > PAGE_H - MM.bottom) {
     doc.addPage();
@@ -274,4 +280,159 @@ function pageBreakIfNeeded(doc, y, needed = 8) {
 
 export function save(doc, filename) {
   doc.save(filename.replace(/[^a-zA-Z0-9._-]/g, '_'));
+}
+
+/* ======================================================================== */
+/* LE CIAMBELLE DEL TIRO                                                    */
+/* ======================================================================== */
+/*
+ * Un anello con la percentuale dentro, e segnati/sbagliati accanto. È la forma
+ * con cui Eurolega e NBA raccontano il tiro, e funziona per una ragione sola:
+ * la percentuale si legge da lontano e il rapporto si legge da vicino, e in un
+ * referto servono tutte e due in momenti diversi.
+ *
+ * jsPDF non disegna archi, quindi l'anello si costruisce a segmenti: si va a
+ * passi di qualche grado con delle linee spesse e la testa tonda. Con
+ * `lineCap round` le giunture spariscono, e a questa dimensione nessuno
+ * distingue un arco vero da uno fatto di ventiquattro pezzi.
+ */
+function arco(doc, cx, cy, raggio, gradi, spessore, colore) {
+  if (gradi <= 0) return;
+  traccia(doc, colore);
+  doc.setLineWidth(spessore);
+  doc.setLineCap('round');
+  const passo = 6;
+  const n = Math.max(1, Math.ceil(gradi / passo));
+  let a0 = -90;
+  for (let i = 0; i < n; i++) {
+    const a1 = a0 + Math.min(passo, gradi - i * passo);
+    const r0 = (a0 * Math.PI) / 180;
+    const r1 = (a1 * Math.PI) / 180;
+    doc.line(
+      cx + raggio * Math.cos(r0), cy + raggio * Math.sin(r0),
+      cx + raggio * Math.cos(r1), cy + raggio * Math.sin(r1)
+    );
+    a0 = a1;
+  }
+  doc.setLineCap('butt');
+  doc.setLineWidth(0.2);
+}
+
+/* Una ciambella con l'etichetta e i due conteggi accanto.
+ *
+ * `dato` è { v, t, pct }: segnati, tentati, percentuale. La percentuale può
+ * essere null — nessun tiro tentato — e allora l'anello resta vuoto e dentro
+ * c'è un trattino: uno zero per cento su zero tiri sarebbe un dato falso che
+ * sembra vero.
+ */
+export function drawDonut(doc, x, y, dato, etichetta, { raggio = 9, spessore = 2.6 } = {}) {
+  const cx = x + raggio + spessore / 2;
+  const cy = y + raggio + spessore / 2;
+
+  arco(doc, cx, cy, raggio, 360, spessore, COLORI.riga);
+  if (dato && dato.t > 0 && dato.pct != null) {
+    arco(doc, cx, cy, raggio, (dato.pct / 100) * 360, spessore, COLORI.verde);
+  }
+
+  scrivi(doc, COLORI.testo);
+  doc.setFont('helvetica', 'bold').setFontSize(9);
+  doc.text(dato && dato.pct != null ? dato.pct + '%' : '—', cx, cy + 1.3, { align: 'center' });
+
+  const xt = cx + raggio + spessore / 2 + 3;
+  scrivi(doc, COLORI.testo);
+  doc.setFont('helvetica', 'bold').setFontSize(7.5);
+  doc.text(String(etichetta), xt, cy - 3.4);
+
+  const sbagliati = dato ? Math.max(0, (dato.t || 0) - (dato.v || 0)) : 0;
+  doc.setFont('helvetica', 'normal').setFontSize(7.5);
+  scrivi(doc, COLORI.verde);
+  doc.text(String((dato && dato.v) || 0), xt, cy + 1.2);
+  scrivi(doc, COLORI.tenue);
+  doc.text('segnati', xt + 5, cy + 1.2);
+  scrivi(doc, COLORI.testo);
+  doc.text(String(sbagliati), xt, cy + 5.4);
+  scrivi(doc, COLORI.tenue);
+  doc.text('sbagliati', xt + 5, cy + 5.4);
+
+  scrivi(doc, COLORI.testo);
+  doc.setFont('helvetica', 'normal').setFontSize(10);
+  return cy + raggio + spessore;
+}
+
+// La stessa cosa in piccolo: solo l'anello e la percentuale dentro, con il
+// rapporto sotto. Per la griglia dei quarti, dove le ciambelle sono sedici.
+export function drawMiniDonut(doc, cx, cy, dato, { raggio = 5, spessore = 1.7 } = {}) {
+  arco(doc, cx, cy, raggio, 360, spessore, COLORI.riga);
+  if (dato && dato.t > 0 && dato.pct != null) {
+    arco(doc, cx, cy, raggio, (dato.pct / 100) * 360, spessore, COLORI.verde);
+  }
+  scrivi(doc, COLORI.testo);
+  doc.setFont('helvetica', 'bold').setFontSize(6.5);
+  doc.text(dato && dato.pct != null ? String(dato.pct) : '—', cx, cy + 0.9, { align: 'center' });
+  scrivi(doc, COLORI.tenue);
+  doc.setFont('helvetica', 'normal').setFontSize(5.8);
+  doc.text(dato && dato.t ? dato.v + '/' + dato.t : '—', cx, cy + raggio + 3, { align: 'center' });
+  scrivi(doc, COLORI.testo);
+  doc.setFontSize(10);
+}
+
+/* LA MAPPA DEI TIRI.
+ *
+ * Mezzo campo visto dall'alto, con un pallino per ogni tiro: pieno se è
+ * entrato, vuoto se no. Le proporzioni sono quelle del campo vero, e i punti
+ * arrivano già in percentuale — zero è il fondo del campo sotto canestro,
+ * cento è la metà campo.
+ *
+ * Disegnata a mano e non copiata dall'SVG dell'app: qui servono tre righe (il
+ * perimetro, l'arco da tre, l'area) e ridisegnarle costa meno che portarsi
+ * dietro un convertitore.
+ */
+export function drawShotChart(doc, tiri, y, { larghezza = 78 } = {}) {
+  if (!tiri || tiri.length === 0) return y;
+  const altezza = larghezza * (110 / 90);
+  y = pageBreakIfNeeded(doc, y, altezza + 10);
+  const x0 = MM.left + (contentWidth() - larghezza) / 2;
+  const y0 = y;
+
+  // Il campo. Il canestro sta in basso al centro; l'asse y del dato cresce
+  // andando verso meta' campo, quindi si ribalta.
+  traccia(doc, COLORI.linea);
+  doc.setLineWidth(0.3);
+  doc.rect(x0, y0, larghezza, altezza);
+
+  const cx = x0 + larghezza / 2;
+  const fondo = y0 + altezza;
+  // L'area: 4,9 m su 5,8 m in un campo di 9 x 11 (mezzo campo piu' la zona).
+  const areaL = larghezza * (4.9 / 9);
+  const areaH = altezza * (5.8 / 11);
+  doc.rect(cx - areaL / 2, fondo - areaH, areaL, areaH);
+  // Il ferro.
+  riempi(doc, COLORI.linea);
+  doc.circle(cx, fondo - altezza * (1.575 / 11), 0.9, 'F');
+
+  tiri.forEach(t => {
+    if (t.x == null || t.y == null) return;
+    const px = x0 + (t.x / 100) * larghezza;
+    const py = fondo - (t.y / 100) * altezza;
+    if (t.dentro) {
+      riempi(doc, COLORI.verde);
+      doc.circle(px, py, 1.1, 'F');
+    } else {
+      traccia(doc, COLORI.rosso);
+      doc.setLineWidth(0.4);
+      doc.circle(px, py, 1.1, 'S');
+    }
+  });
+
+  doc.setLineWidth(0.2);
+  scrivi(doc, COLORI.tenue);
+  doc.setFontSize(7.5);
+  const dentro = tiri.filter(t => t.dentro).length;
+  doc.text(
+    `${dentro} segnati (pieni) su ${tiri.length} tirati`,
+    cx, fondo + 4.5, { align: 'center' }
+  );
+  scrivi(doc, COLORI.testo);
+  doc.setFontSize(10);
+  return fondo + 9;
 }
