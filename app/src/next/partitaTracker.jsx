@@ -1083,6 +1083,8 @@ export function Tracker({ onFinita, onEsci }) {
       {posti && (
         <PostiInCampo
           sestetto={g.players.filter(p => p.onCourt)}
+          tutti={g.players}
+          conCambioLibero={!!conf.cambioLibero}
           foto={foto}
           onScambia={scambiaPosti}
           onChiudi={() => setPosti(false)}
@@ -1612,8 +1614,26 @@ function MappaTiro({ sport, tiro, onPunto, onChiudi }) {
  */
 const GRIGLIA_ZONE = [3, 2, 1, 4, 5, 0];   // indici: 4 3 2 sopra, 5 6 1 sotto
 
-function PostiInCampo({ sestetto, foto, onScambia, onChiudi }) {
+function PostiInCampo({ sestetto, tutti, conCambioLibero, foto, onScambia, onChiudi }) {
   const [preso, setPreso] = useState(null);
+
+  /* PERCHE' IL CAMBIO AUTOMATICO NON STA FUNZIONANDO.
+   *
+   * Senza i ruoli la regola non tocca niente — ed e' la scelta giusta, perche'
+   * un cambio indovinato sposta le persone in campo per tutto il set. Ma
+   * finora non toccava niente IN SILENZIO: chi segna se lo aspetta, non
+   * succede, e non ha modo di capire perche'.
+   *
+   * Si dice qui e non in un avviso che passa: questa e' la schermata dei
+   * posti, cioe' il posto in cui uno ci arriva proprio quando si chiede come
+   * mai il libero non si e' mosso. */
+  const ruolo = (p) => String((p && p.role_position) || '').trim().toLowerCase();
+  const liberi = (tutti || []).filter(p => ruolo(p) === 'libero').length;
+  const centrali = (tutti || []).filter(p => ruolo(p) === 'centrale').length;
+  const manca = !conCambioLibero ? null
+    : liberi === 0 ? 'Nessun libero in distinta: il cambio automatico non può funzionare.'
+    : centrali < 2 ? 'C’è un solo centrale in distinta: per il cambio automatico ne servono due.'
+    : null;
 
   function tocca(indice) {
     if (preso == null) { setPreso(indice); return; }
@@ -1684,6 +1704,13 @@ function PostiInCampo({ sestetto, foto, onScambia, onChiudi }) {
         la rotazione lo porterebbe in prima linea, rientra quando un centrale arriva in zona 6
         dopo aver battuto.
       </p>
+
+      {manca && (
+        <p className="mt-2 rounded-lg bg-ambra/10 px-3 py-2.5 text-[12.5px] leading-relaxed text-ambra">
+          {manca} La rotazione funziona lo stesso — il cambio del libero lo fai a mano da qui.
+          I ruoli si assegnano in Anagrafica, dalla scheda dell’atleta.
+        </p>
+      )}
     </Finestra>
   );
 }
