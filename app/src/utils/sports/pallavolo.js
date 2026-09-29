@@ -1,19 +1,39 @@
 // Pallavolo. Sei in campo nella disposizione delle zone: zona 1 in basso a
 // destra (chi serve), poi in senso antiorario fino alla 6. È l'unico sport dei
 // tre in cui la posizione sul campo ha un nome che l'allenatore usa davvero.
+/* Le sei posizioni, in percentuale sul riquadro del campo.
+ *
+ * La prima linea sta FRA la rete e la linea dei tre metri (che nel disegno
+ * passa al 31%), la seconda fra i tre metri e il fondo campo (91%). Prima la
+ * prima linea era proprio sopra la riga dei tre metri e la seconda schiacciata
+ * sul fondo: adesso stanno in mezzo alla zona che occupano davvero, ed è anche
+ * più facile distinguerle con un'occhiata.
+ */
 const SLOTS = [
-  { top: '76%', left: '78%' },  // zona 1
-  { top: '30%', left: '78%' },  // zona 2
-  { top: '30%', left: '50%' },  // zona 3
-  { top: '30%', left: '22%' },  // zona 4
-  { top: '76%', left: '22%' },  // zona 5
-  { top: '76%', left: '50%' }   // zona 6
+  { top: '70%', left: '78%' },  // zona 1
+  { top: '19%', left: '78%' },  // zona 2
+  { top: '19%', left: '50%' },  // zona 3
+  { top: '19%', left: '22%' },  // zona 4
+  { top: '70%', left: '22%' },  // zona 5
+  { top: '70%', left: '50%' }   // zona 6
 ];
 
-// Metà campo da pallavolo (9m × 9m più la zona di servizio → viewBox 90×110,
-// rete in alto). La linea dei 3 metri è quella che si riconosce a colpo d'occhio.
+/* Metà campo da pallavolo: 9m × 9m, rete in alto, e un accenno di zona di
+ * servizio dietro. La linea dei 3 metri è quella che si riconosce a colpo
+ * d'occhio.
+ *
+ * LA ZONA DI SERVIZIO È UN ACCENNO E NON DUE METRI VERI, e non è una licenza:
+ * è l'unico campo dei tre sport più alto che largo, e in una schermata che
+ * deve stare in una pagina sola l'altezza è la risorsa scarsa. Due metri di
+ * zona dietro valevano il quindici per cento dell'altezza, non ci sta nessuno
+ * dentro — le sei posizioni sono tutte dentro il campo — e ogni unità spesa lì
+ * è larghezza tolta al campo vero.
+ *
+ * Da 90×110 a 90×98: il campo diventa quasi quadrato, cresce di un decimo in
+ * larghezza a parità di altezza, e la battuta si vede lo stesso.
+ */
 const FIELD_SVG = `
-<svg class="court-lines" viewBox="0 0 90 110" preserveAspectRatio="none" fill="none"
+<svg class="court-lines" viewBox="0 0 90 98" preserveAspectRatio="none" fill="none"
      stroke="currentColor" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round">
   <!-- Il campo: nove metri per nove, rete in alto, zona di servizio sotto. -->
   <rect x="0.6" y="0.6" width="88.8" height="88.8" rx="1"/>
@@ -26,19 +46,19 @@ const FIELD_SVG = `
        divide chi puo' attaccare da chi no. -->
   <path d="M0.6 30.6h88.8" stroke-width="0.7"/>
 
-  <!-- Il fondo campo e la zona di servizio dietro. -->
+  <!-- Il fondo campo e l'accenno di zona di servizio dietro. -->
   <path d="M0.6 89.4h88.8" stroke-width="0.7"/>
-  <path d="M0.6 106h88.8" stroke-dasharray="3 3" stroke-opacity="0.5"/>
-  <path d="M0.6 89.4v16.6M89.4 89.4v16.6" stroke-dasharray="3 3" stroke-opacity="0.5"/>
+  <path d="M0.6 97.4h88.8" stroke-dasharray="3 3" stroke-opacity="0.5"/>
+  <path d="M0.6 89.4v8M89.4 89.4v8" stroke-dasharray="3 3" stroke-opacity="0.5"/>
 
   <!-- I numeri di zona, scritti dove stanno davvero. Sono il nome che
        l'allenatore usa per parlare: "sta in quattro", "gira in uno". -->
   <g fill="currentColor" fill-opacity="0.3" stroke="none"
      font-family="inherit" font-size="7" font-weight="700" text-anchor="middle">
     <text x="70" y="86">1</text>
-    <text x="70" y="20">2</text>
-    <text x="45" y="20">3</text>
-    <text x="20" y="20">4</text>
+    <text x="70" y="10">2</text>
+    <text x="45" y="10">3</text>
+    <text x="20" y="10">4</text>
     <text x="20" y="86">5</text>
     <text x="45" y="86">6</text>
   </g>
@@ -127,7 +147,7 @@ export const PALLAVOLO = {
   positions: ['Palleggiatore', 'Opposto', 'Schiacciatore', 'Centrale', 'Libero'],
   positionPlaceholder: 'Es. Centrale',
 
-  field: { svg: FIELD_SVG, slots: SLOTS, ratio: 90 / 110, onFieldLabel: 'Sestetto', benchLabel: 'Panchina' },
+  field: { svg: FIELD_SVG, slots: SLOTS, ratio: 90 / 98, onFieldLabel: 'Sestetto', benchLabel: 'Panchina' },
 
   headline: [
     { key: 'points', short: 'PT', label: 'Punti' },

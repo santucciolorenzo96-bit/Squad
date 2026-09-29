@@ -460,11 +460,43 @@
 
   .campo-cornice .campo { aspect-ratio: var(--proporzione, 1); width: 100%; }
 
+  /* ------------------------------------------------ lo scout in una pagina
+   *
+   * Durante una partita non si scorre: quello che serve o è sotto gli occhi o
+   * non esiste. Lo scout misura da solo lo spazio che ha — la finestra meno
+   * quello che gli sta sopra — e ci si dispone dentro, invece di crescere e
+   * lasciare scorrere la pagina.
+   *
+   * Il campo, in quella pagina, è alto QUANTO PUÒ e largo di conseguenza: il
+   * contrario di prima, dove era largo quanto la colonna e alto di
+   * conseguenza, cioè fuori schermo. `width: auto` con `aspect-ratio` fa il
+   * resto, e il margine automatico lo tiene in mezzo.
+   */
+  .scout-pagina { display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Le proporzioni stanno sull'INVOLUCRO e non sul campo.
+     Il campo è un contenitore di query (`container-type: inline-size`), e su
+     un contenitore la larghezza automatica si calcola senza guardare dentro:
+     farla dipendere da lì sarebbe appoggiarsi a un comportamento al limite.
+     L'involucro non ha contenimento, prende l'altezza e ne ricava la
+     larghezza; il campo dentro riempie e basta. */
+  .campo-alto { display: flex; min-height: 0; flex: 1 1 auto; justify-content: center; }
+  .campo-scatola {
+    height: 100%;
+    max-width: 100%;
+    aspect-ratio: var(--proporzione, 1);
+  }
+  .campo-scatola .campo { width: 100%; height: 100%; }
+
   /* Il gettone sul campo dello scout: si tocca, quindi ha bisogno di essere
      grande abbastanza, ma il campo non deve diventare un elenco. */
   .gettone-scout {
-    width: clamp(3.2rem, 15cqw, 6.5rem);
-    --volto: clamp(2.3rem, 11cqw, 4.4rem);
+    /* Piu' grandi di prima. Il gettone e' il bersaglio del primo dei due
+       tocchi, e su un campo che adesso occupa tutta l'altezza disponibile
+       c'era spazio per renderlo piu' facile da prendere — in palestra si
+       tocca in piedi, spesso senza guardare. */
+    width: clamp(3.6rem, 17cqw, 7.4rem);
+    --volto: clamp(2.6rem, 12.5cqw, 5rem);
     --numero: clamp(0.85rem, 4cqw, 1.6rem);
     --nome: clamp(0.55rem, 2.3cqw, 0.85rem);
     --media: clamp(0.55rem, 2.3cqw, 0.85rem);

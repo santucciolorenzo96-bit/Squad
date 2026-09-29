@@ -151,6 +151,46 @@ export function Tracker({ onFinita, onEsci }) {
    * ce ne sono due, e nel caso normale — due centrali, uno dentro e uno
    * fuori — la regola lo indovina da sola. Ricaricando si riparte da lì. */
   const liberoPer = useRef(null);
+
+  /* LO SCOUT STA IN UNA PAGINA SOLA.
+   *
+   * Durante una partita non si scorre: quello che serve o è sotto gli occhi o
+   * non esiste. Scorrere per ritrovare il campo mentre l'azione corre è il
+   * gesto che costa un evento.
+   *
+   * L'altezza non si scrive a mano e non si calcola da una formula con dentro
+   * l'altezza della testata: quella cambia con il ritaglio del telefono, con
+   * il nastro del SuperAdmin, con la sottobarra. Si MISURA — dal punto in cui
+   * lo scout comincia fino a dove finisce l'area che lo contiene — e si
+   * rimisura quando la finestra cambia. Una misura presa vale più di tre
+   * costanti che sembrano giuste.
+   */
+  const pagina = useRef(null);
+  const [altezza, setAltezza] = useState(null);
+
+  useEffect(() => {
+    function misura() {
+      const el = pagina.current;
+      const area = document.getElementById('contenuto');
+      if (!el || !area) return;
+      const mio = el.getBoundingClientRect();
+      const suo = area.getBoundingClientRect();
+      // Il fondo utile è quello dell'area meno il suo respiro inferiore: là
+      // sotto, su telefono, c'è la barra di navigazione.
+      const respiro = parseFloat(getComputedStyle(area).paddingBottom) || 0;
+      const spazio = (suo.bottom - respiro) - mio.top;
+      // Sotto una certa altezza la pagina unica non ha più senso: meglio
+      // lasciare scorrere che schiacciare il campo in una striscia.
+      setAltezza(spazio > 380 ? Math.floor(spazio) : null);
+    }
+    misura();
+    window.addEventListener('resize', misura);
+    window.addEventListener('orientationchange', misura);
+    return () => {
+      window.removeEventListener('resize', misura);
+      window.removeEventListener('orientationchange', misura);
+    };
+  }, []);
   const [chiudiPeriodo, setChiudiPeriodo] = useState(false);
   const [finePartita, setFinePartita] = useState(false);
   const salvataggioRotto = useRef(false);
@@ -730,14 +770,15 @@ export function Tracker({ onFinita, onEsci }) {
   const manoLoro = !(decisa && decisa.finita);
 
   const corpo = (
-    <div className="relative pb-4">
+    <div ref={pagina} className="scout-pagina relative" style={altezza ? { height: altezza } : undefined}>
       {/* ============================================================ tabellone */}
-      {/* Resta in cima mentre si scorre: è il numero che si controlla a ogni
-          interruzione, e cercarlo scorrendo all'insù durante una partita è
-          esattamente il gesto da togliere. */}
+      {/* In cima e fermo. Prima restava appiccicato mentre si scorreva: adesso
+          non si scorre più, e la differenza è che il numero è sempre nello
+          stesso punto invece di essere sempre in cima a un contenuto che si
+          muove. */}
       <div className={cx(
-        'sticky top-0 z-20 -mx-4 mb-4 px-4 pt-1 sm:-mx-6 sm:px-6',
-        onEsci && 'bg-fondo/85 pb-1 backdrop-blur-sm'
+        'z-20 -mx-4 mb-3 shrink-0 px-4 pt-1 sm:-mx-6 sm:px-6',
+        onEsci && 'pb-1'
       )}>
         {/* La via d'uscita sta dentro la parte che resta in cima: se scorresse
             via, per uscire da una partita bisognerebbe prima ritrovarla. */}
@@ -935,12 +976,13 @@ export function Tracker({ onFinita, onEsci }) {
       </div>
 
       {/* ============================================== campo e panchina */}
-      {/* Affiancati da tablet in su: è lì che si segna quasi sempre, e due
-          colonne tolgono lo scorrimento proprio mentre il gioco corre. */}
-      <div className="md:grid md:grid-cols-[minmax(0,1fr)_14rem] md:items-start md:gap-5 lg:grid-cols-[minmax(0,1fr)_16rem]">
+      {/* Affiancati da tablet in su, e insieme riempiono quello che resta
+          della pagina: il campo prende tutta l'altezza che avanza, la panchina
+          sta di fianco e scorre dentro di sé se è lunga. La pagina no. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 md:grid md:grid-cols-[minmax(0,1fr)_13rem] md:items-stretch md:gap-4 lg:grid-cols-[minmax(0,1fr)_15rem]">
 
-        <div className="campo-cornice" style={{ '--proporzione': sport.field.ratio }}>
-          <div className="mb-2.5 flex items-center justify-between gap-3">
+        <div className="flex min-h-0 flex-col" style={{ '--proporzione': sport.field.ratio }}>
+          <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
             <Etichetta>{sport.field.onFieldLabel} · tocca per assegnare</Etichetta>
             {conf.rotazione ? (
               <div className="flex shrink-0 items-center gap-2">
@@ -972,8 +1014,9 @@ export function Tracker({ onFinita, onEsci }) {
             )}
           </div>
 
-          <Pannello alto className="overflow-hidden">
-            <div className="campo parquet relative w-full">
+          <div className="campo-alto">
+            <Pannello alto className="campo-scatola overflow-hidden">
+            <div className="campo parquet relative">
               <RigheCampo svg={sport.field.svg} />
               {inCampo.map((p, i) => {
                 const posto = sport.field.slots[i];
@@ -992,12 +1035,15 @@ export function Tracker({ onFinita, onEsci }) {
                 );
               })}
             </div>
-          </Pannello>
+            </Pannello>
+          </div>
         </div>
 
-        <div className="mt-6 md:mt-0">
-          <Etichetta className="mb-2.5">{sport.field.benchLabel}</Etichetta>
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-2">
+        {/* La panchina scorre DENTRO DI SÉ quando è lunga: una rosa di quindici
+            non deve far scorrere la pagina e portarsi via il campo. */}
+        <div className="flex min-h-0 flex-col overflow-y-auto overscroll-contain">
+          <Etichetta className="mb-2 shrink-0">{sport.field.benchLabel}</Etichetta>
+          <div className="grid shrink-0 grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-2">
             {inPanca.length === 0 ? (
               <p className="col-span-full text-[12.5px] text-tenue">Nessuno in panchina.</p>
             ) : inPanca.map(p => (
@@ -1022,9 +1068,10 @@ export function Tracker({ onFinita, onEsci }) {
             ))}
           </div>
 
-          {/* Tre righe, non un foglietto di istruzioni: durante una partita
-              nessuno legge, e quello che resta a schermo va guadagnato. */}
-          <ul className="mt-4 space-y-1.5 text-[12.5px] leading-relaxed text-tenue">
+          {/* Le istruzioni stanno in fondo alla colonna che scorre, non nella
+              pagina: durante una partita nessuno legge, e lo spazio a vista
+              va al campo. Chi le cerca le trova scorrendo qui. */}
+          <ul className="mt-4 shrink-0 space-y-1.5 pb-1 text-[12.5px] leading-relaxed text-tenue">
             <li>Tocca un giocatore, poi l’azione.</li>
             <li>Le domande che seguono (rimbalzo, assist) si saltano toccando fuori.</li>
             <li>Il ⇄ sul gettone apre il cambio: chi entra si sceglie davanti.</li>
