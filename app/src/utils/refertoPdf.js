@@ -1,6 +1,6 @@
 import {
   createDoc, drawHeader, drawParagraph, drawTable, drawSection, drawScore, drawTiles,
-  drawDonut, drawMiniDonut, drawShotChart, contentWidth, spazioPagina, TINTE, save
+  drawDonut, drawMiniDonut, drawShotChart, contentWidth, spazioPagina, caricaLogo, MARGINE, TINTE, save
 } from './pdf.js';
 import { refertoPartita, tabellaTabellino, quota } from './referto.js';
 
@@ -33,7 +33,11 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
   // «I set» nella pallavolo, «I periodi» nel basket: la parola la dice lo sport.
   const per = (sport.scout.period.label || 'periodo').toLowerCase();
   const nomePeriodi = per === 'set' ? 'I set' : 'I ' + per + 'i';
-  let y = drawHeader(doc, team || {}, titolo);
+  // Il logo si carica prima di cominciare: se non arriva, il referto esce
+  // senza. Un documento senza logo e' un documento; un documento che non si
+  // genera non e' niente.
+  const logo = await caricaLogo((team || {}).logo_url);
+  let y = drawHeader(doc, team || {}, titolo, logo);
 
   const riga = [
     sectorName,
@@ -88,67 +92,65 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
     y += 6;
   }
 
-  /* ----------------------------------------------------- come abbiamo tirato
+  /* ------------------------------------------------------- i fondamentali
    *
-   * Quattro ciambelle: dal campo, da due, da tre, ai liberi. «Dal campo» non
-   * e' la somma di tutto — sono due piu' tre senza i liberi — ed e' la
-   * percentuale che si guarda per prima.
+   * Quali siano lo dice lo sport, non il referto: nel basket sono le quattro
+   * percentuali al tiro, nella pallavolo sono attacco, ricezione, difesa e
+   * servizio. Prima questo blocco leggeva i campi del basket e basta, e sul
+   * referto di una partita di pallavolo comparivano quattro anelli vuoti e i
+   * rimbalzi a zero — il referto di un altro gioco.
    *
-   * Due per riga e non quattro: con quattro, l'etichetta e i due conteggi
-   * accanto alla ciambella non ci starebbero, e resterebbe solo la
-   * percentuale. Il rapporto segnati/sbagliati e' meta' dell'informazione.
+   * Due ciambelle per riga e non quattro: con quattro, l'etichetta e i due
+   * conteggi accanto non ci starebbero e resterebbe solo la percentuale. Il
+   * rapporto e' meta' dell'informazione.
    */
-  if (r.tiro) {
-    y = drawSection(doc, 'Come abbiamo tirato', y);
+  if (r.ciambelle) {
+    y = drawSection(doc, sport.key === 'basket' ? 'Come abbiamo tirato' : 'I fondamentali', y);
     const meta = contentWidth() / 2;
-    const voci = [
-      [r.tiro.campo, 'Dal campo'],
-      [r.tiro.due, 'Da due'],
-      [r.tiro.tre, 'Da tre'],
-      [r.tiro.liberi, 'Tiri liberi']
-    ];
-    for (let i = 0; i < voci.length; i += 2) {
+    for (let i = 0; i < r.ciambelle.length; i += 2) {
       y = spazioPagina(doc, y, 26);
       let sotto = y;
-      for (let k = 0; k < 2 && voci[i + k]; k++) {
-        const fine = drawDonut(doc, 20 + k * meta, y, voci[i + k][0], voci[i + k][1]);
+      for (let k = 0; k < 2 && r.ciambelle[i + k]; k++) {
+        const fine = drawDonut(doc, MARGINE + k * meta, y, r.ciambelle[i + k]);
         if (fine > sotto) sotto = fine;
       }
-      y = sotto + 4;
+      y = sotto + 5;
     }
-    y += 2;
+    y += 1;
   }
 
-  /* ------------------------------------------------------- quarto per quarto
+  /* --------------------------------------------------- periodo per periodo
    *
-   * Serve a rispondere a «dove si e' fermata». Una squadra che tira il 45% in
-   * tutta la partita puo' averlo fatto con un terzo quarto al 20%, e quel
-   * terzo quarto e' tutta la storia.
+   * Serve a rispondere a «dove si e' fermata». Una squadra al 45% in tutta la
+   * partita puo' averlo fatto con un terzo quarto al 20%, e quel terzo quarto
+   * e' tutta la storia.
    */
-  if (r.tiroPeriodi && r.tiroPeriodi.length > 0) {
-    const colonne = ['Dal campo', 'Da due', 'Da tre', 'Liberi'];
-    const chiavi = ['campo', 'due', 'tre', 'liberi'];
-    const altezza = 16;
-    y = drawSection(doc, 'Come abbiamo tirato, ' + per + ' per ' + per, y);
+  if (r.ciambellePeriodi && r.ciambellePeriodi.some(Boolean)) {
+    const modello = r.ciambellePeriodi.find(Boolean);
+    const colonne = modello.map(v => v.etichetta);
+    const altezza = 17;
+    const corsia = 14;
+    y = drawSection(doc, per === 'set' ? 'Set per set' : 'Periodo per periodo', y);
+    y = spazioPagina(doc, y, altezza + 10);
 
-    const larga = (contentWidth() - 16) / colonne.length;
+    const larga = (contentWidth() - corsia) / colonne.length;
     doc.setFont('helvetica', 'bold').setFontSize(7);
     doc.setTextColor(TINTE.tenue[0], TINTE.tenue[1], TINTE.tenue[2]);
     colonne.forEach((c, i) => {
-      doc.text(c, 20 + 16 + larga * i + larga / 2, y, { align: 'center' });
+      doc.text(c, MARGINE + corsia + larga * i + larga / 2, y, { align: 'center' });
     });
     doc.setTextColor(TINTE.testo[0], TINTE.testo[1], TINTE.testo[2]);
-    y += 3;
+    y += 3.5;
 
-    r.tiroPeriodi.forEach((p, i) => {
+    r.ciambellePeriodi.forEach((p, i) => {
       // Una riga di ciambelle che parte a due millimetri dal fondo non finisce
       // sulla pagina dopo: finisce fuori dal foglio.
-      y = spazioPagina(doc, y, altezza + 4);
-      const cy = y + altezza / 2;
+      y = spazioPagina(doc, y, altezza + 3);
+      const cy = y + altezza / 2 - 1;
       doc.setFont('helvetica', 'bold').setFontSize(9);
-      doc.text(String(i + 1) + 'º', 20 + 6, cy + 1, { align: 'center' });
-      chiavi.forEach((k, j) => {
-        drawMiniDonut(doc, 20 + 16 + larga * j + larga / 2, cy - 1, p ? p[k] : null);
+      doc.text(String(i + 1) + '\u00ba', MARGINE + corsia / 2, cy + 1, { align: 'center' });
+      colonne.forEach((c, k) => {
+        drawMiniDonut(doc, MARGINE + corsia + larga * k + larga / 2, cy - 1, p ? p[k] : null);
       });
       y += altezza + 2;
     });
@@ -156,43 +158,37 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
     y += 2;
   }
 
-  /* ------------------------------------------------------- i numeri di squadra */
-  if (r.contatori) {
-    const c = r.contatori;
+  /* ------------------------------------------------------ i numeri di squadra
+   *
+   * Otto conteggi, quattro per riga. Anche questi li decide lo sport: rimbalzi
+   * e palle perse nel basket, muri e punti regalati nella pallavolo.
+   */
+  if (r.riepilogo && r.riepilogo.length) {
     y = drawSection(doc, 'I numeri di squadra', y);
-    y = drawTiles(doc, [
-      { valore: c.rimbalzi, etichetta: 'rimbalzi' },
-      { valore: c.offensivi, etichetta: 'offensivi' },
-      { valore: c.difensivi, etichetta: 'difensivi' },
-      { valore: c.assist, etichetta: 'assist' }
-    ], y);
-    y = drawTiles(doc, [
-      { valore: c.perse, etichetta: 'palle perse' },
-      { valore: c.rubate, etichetta: 'palle rubate' },
-      { valore: c.stoppate, etichetta: 'stoppate' },
-      { valore: c.falli, etichetta: 'falli' }
-    ], y);
+    for (let i = 0; i < r.riepilogo.length; i += 4) {
+      y = drawTiles(doc, r.riepilogo.slice(i, i + 4), y);
+    }
     y += 2;
   }
 
-  /* --------------------------------------------------------------- com'e' andata
+  /* --------------------------------------------------------- com'e' andata
    *
    * Due numeri che nei totali non esistono. Il massimo vantaggio dice quanto
    * si e' stati avanti davvero; il parziale dice quando la partita e' girata.
    */
   if (r.andamento) {
     const a = r.andamento;
-    y = drawSection(doc, 'Com’è andata', y);
+    y = drawSection(doc, 'Com\u2019\u00e8 andata', y);
     y = drawTiles(doc, [
       { valore: '+' + a.maxVantaggio, etichetta: 'massimo vantaggio', tono: a.maxVantaggio > 0 ? 'verde' : null },
-      { valore: a.maxSvantaggio ? '−' + a.maxSvantaggio : '0', etichetta: 'massimo svantaggio', tono: a.maxSvantaggio > 0 ? 'rosso' : null },
+      { valore: a.maxSvantaggio ? '\u2212' + a.maxSvantaggio : '0', etichetta: 'massimo svantaggio', tono: a.maxSvantaggio > 0 ? 'rosso' : null },
       { valore: a.parzialeNostro, etichetta: 'parziale nostro' },
       { valore: a.parzialeLoro, etichetta: 'parziale subito' }
     ], y);
     y = drawParagraph(
       doc,
-      'Il parziale è il numero di punti fatti di fila senza che l’altra squadra rispondesse: '
-      + 'è il momento in cui la partita è girata, e nel tabellino non lascia traccia.',
+      'Il parziale \u00e8 il numero di punti fatti di fila senza che l\u2019altra squadra rispondesse: '
+      + '\u00e8 il momento in cui la partita \u00e8 girata, e nel tabellino non lascia traccia.',
       y, { size: 8 }
     );
     y += 2;

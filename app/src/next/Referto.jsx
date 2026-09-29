@@ -179,74 +179,65 @@ function TraiettoriePerAtleta({ sport, righe }) {
 }
 
 /* ------------------------------------------------------------- la ciambella */
-/* La percentuale dentro il cerchio, segnati e sbagliati accanto.
+/* La percentuale dentro il cerchio, i due conteggi accanto.
  *
- * L'anello è la percentuale e basta: niente fette, niente legenda. Una fetta
+ * L'anello e' la percentuale e basta: niente fette, niente legenda. Una fetta
  * vuole due colori e due etichette per dire quello che una percentuale dice
  * con un numero, e in un referto che si guarda di corsa il numero vince.
  *
- * Segnati e sbagliati stanno accanto e non dentro: dentro c'è spazio per una
- * cosa sola, e quella cosa è la percentuale.
+ * Cosa siano i due conteggi lo decide lo sport: «segnati / sbagliati» nel
+ * basket, «vincenti / errori» nella pallavolo. Qui arrivano gia' scritti.
  */
-function Ciambella({ etichetta, dato, dim = 66, spesso = 7 }) {
+function Ciambella({ voce, dim = 66, spesso = 7 }) {
   const raggio = (dim - spesso) / 2;
   const giro = 2 * Math.PI * raggio;
-  const quota = dato.pct == null ? 0 : dato.pct;
-  const sbagliati = Math.max(0, (dato.t || 0) - (dato.v || 0));
+  const quota = voce.pct == null ? 0 : voce.pct;
 
   return (
     <div className="flex items-center gap-3">
       <svg width={dim} height={dim} viewBox={`0 0 ${dim} ${dim}`} className="shrink-0" aria-hidden="true">
-        <circle
-          cx={dim / 2} cy={dim / 2} r={raggio}
-          fill="none" stroke="rgb(var(--pannello) / 0.18)" strokeWidth={spesso}
-        />
-        {dato.t > 0 && (
-          <circle
-            cx={dim / 2} cy={dim / 2} r={raggio}
-            fill="none" stroke="rgb(var(--verde))" strokeWidth={spesso} strokeLinecap="round"
+        <circle cx={dim / 2} cy={dim / 2} r={raggio} fill="none"
+          stroke="rgb(var(--pannello) / 0.18)" strokeWidth={spesso} />
+        {voce.tot > 0 && voce.pct != null && (
+          <circle cx={dim / 2} cy={dim / 2} r={raggio} fill="none"
+            stroke="rgb(var(--verde))" strokeWidth={spesso} strokeLinecap="round"
             strokeDasharray={`${(giro * quota) / 100} ${giro}`}
-            transform={`rotate(-90 ${dim / 2} ${dim / 2})`}
-          />
+            transform={`rotate(-90 ${dim / 2} ${dim / 2})`} />
         )}
-        <text
-          x="50%" y="50%" dominantBaseline="central" textAnchor="middle"
+        <text x="50%" y="50%" dominantBaseline="central" textAnchor="middle"
           className="cifra" fill="rgb(var(--testo))"
-          style={{ fontSize: dim * 0.28 + 'px', fontWeight: 700 }}
-        >
-          {dato.pct == null ? '—' : dato.pct + '%'}
+          style={{ fontSize: dim * 0.28 + 'px', fontWeight: 700 }}>
+          {voce.pct == null ? '\u2014' : voce.pct + '%'}
         </text>
       </svg>
 
       <div className="min-w-0">
-        <div className="text-[12px] font-semibold leading-tight text-soffuso">{etichetta}</div>
-        <div className="mt-1 text-[12.5px] leading-tight">
-          <span className="cifra font-bold text-verde">{dato.v}</span>
-          <span className="text-tenue"> segnati</span>
-        </div>
-        <div className="text-[12.5px] leading-tight">
-          <span className="cifra font-bold text-soffuso">{sbagliati}</span>
-          <span className="text-tenue"> sbagliati</span>
-        </div>
+        <div className="truncate text-[12px] font-semibold leading-tight text-soffuso">{voce.etichetta}</div>
+        {voce.righe.map(([n, parola], i) => (
+          <div key={parola} className="mt-1 text-[12.5px] leading-tight">
+            <span className={cx('cifra font-bold', i === 0 ? 'text-verde' : 'text-soffuso')}>{n}</span>
+            <span className="text-tenue"> {parola}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-// La stessa cosa in piccolo, per la griglia dei quarti: qui lo spazio per una
-// sola cifra c'è, per due no.
-function Pastiglia({ dato, dim = 40 }) {
+// La stessa cosa in piccolo, per la griglia dei periodi: qui lo spazio per una
+// sola cifra c'e', per due no.
+function Pastiglia({ voce, dim = 40 }) {
   const spesso = 5;
   const raggio = (dim - spesso) / 2;
   const giro = 2 * Math.PI * raggio;
-  const quota = dato && dato.pct != null ? dato.pct : 0;
+  const quota = voce && voce.pct != null ? voce.pct : 0;
 
   return (
     <div className="flex flex-col items-center gap-1">
       <svg width={dim} height={dim} viewBox={`0 0 ${dim} ${dim}`} aria-hidden="true">
         <circle cx={dim / 2} cy={dim / 2} r={raggio} fill="none"
           stroke="rgb(var(--pannello) / 0.18)" strokeWidth={spesso} />
-        {dato && dato.t > 0 && (
+        {voce && voce.tot > 0 && voce.pct != null && (
           <circle cx={dim / 2} cy={dim / 2} r={raggio} fill="none"
             stroke="rgb(var(--verde))" strokeWidth={spesso} strokeLinecap="round"
             strokeDasharray={`${(giro * quota) / 100} ${giro}`}
@@ -255,52 +246,54 @@ function Pastiglia({ dato, dim = 40 }) {
         <text x="50%" y="50%" dominantBaseline="central" textAnchor="middle"
           className="cifra" fill="rgb(var(--testo))"
           style={{ fontSize: dim * 0.3 + 'px', fontWeight: 700 }}>
-          {dato && dato.pct != null ? dato.pct : '—'}
+          {voce && voce.pct != null ? voce.pct : '\u2014'}
         </text>
       </svg>
       <span className="cifra text-[10.5px] leading-none text-tenue">
-        {dato && dato.t ? dato.v + '/' + dato.t : '—'}
+        {voce && voce.tot ? voce.righe[0][0] + '/' + voce.tot : '\u2014'}
       </span>
     </div>
   );
 }
 
-const VOCI_TIRO = [
-  ['campo', 'Dal campo'],
-  ['due', 'Da due'],
-  ['tre', 'Da tre'],
-  ['liberi', 'Tiri liberi']
-];
-
-function ComeAbbiamoTirato({ tiro, perPeriodo, nomePeriodo }) {
+/* I FONDAMENTALI, IN ANELLI.
+ *
+ * Quali siano lo dice lo sport: nel basket sono le quattro percentuali al
+ * tiro, nella pallavolo sono attacco, ricezione, difesa e servizio. Il
+ * componente non sa niente di nessuno dei due — riceve un elenco di
+ * { etichetta, pct, righe } e lo disegna.
+ *
+ * E' il motivo per cui il referto della pallavolo non mostra piu' i rimbalzi a
+ * zero: non e' un caso da escludere, e' una cosa che non esiste in quel gioco.
+ */
+function Fondamentali({ voci, perPeriodo, nomePeriodo, titolo }) {
+  const quanti = voci.length;
   return (
     <div className="mb-6">
-      <Etichetta className="mb-2.5">Come abbiamo tirato</Etichetta>
+      <Etichetta className="mb-2.5">{titolo}</Etichetta>
 
       <Pannello alto className="px-4 py-4">
         <div className="grid grid-cols-2 gap-x-4 gap-y-4 lg:grid-cols-4">
-          {VOCI_TIRO.map(([chiave, nome]) => (
-            <Ciambella key={chiave} etichetta={nome} dato={tiro[chiave]} />
-          ))}
+          {voci.map(v => <Ciambella key={v.etichetta} voce={v} />)}
         </div>
       </Pannello>
 
-      {/* Quarto per quarto. Serve a rispondere a «dove si è fermata»: una
-          squadra che tira il 45% in tutta la partita può averlo fatto con un
-          terzo quarto al 20%, e quel terzo quarto è tutta la storia. */}
-      {perPeriodo && perPeriodo.length > 0 && (
+      {/* Periodo per periodo. Serve a rispondere a «dove si e' fermata»: una
+          squadra al 45% in tutta la partita puo' averlo fatto con un terzo
+          quarto al 20%, e quel terzo quarto e' tutta la storia. */}
+      {perPeriodo && perPeriodo.length > 0 && perPeriodo.some(Boolean) && (
         <>
           <Etichetta className="mb-2 mt-4">
-            {nomePeriodo === 'set' ? 'Set per set' : 'Quarto per quarto'}
+            {nomePeriodo === 'set' ? 'Set per set' : 'Periodo per periodo'}
           </Etichetta>
           <Pannello className="overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[22rem] border-collapse">
+              <table className="w-full border-collapse" style={{ minWidth: 6 + quanti * 5 + 'rem' }}>
                 <thead>
                   <tr className="border-b border-bordo/10">
                     <th className="etichetta px-3 py-2.5 text-left">{nomePeriodo}</th>
-                    {VOCI_TIRO.map(([k, nome]) => (
-                      <th key={k} className="etichetta px-2 py-2.5 text-center">{nome}</th>
+                    {voci.map(v => (
+                      <th key={v.etichetta} className="etichetta px-2 py-2.5 text-center">{v.etichetta}</th>
                     ))}
                   </tr>
                 </thead>
@@ -308,10 +301,10 @@ function ComeAbbiamoTirato({ tiro, perPeriodo, nomePeriodo }) {
                   {perPeriodo.map((p, i) => (
                     <tr key={i} className="border-b border-bordo/6 last:border-b-0">
                       <td className="cifra px-3 py-2.5 text-[13px] font-bold text-tenue">{i + 1}º</td>
-                      {VOCI_TIRO.map(([k]) => (
-                        <td key={k} className="px-2 py-2">
+                      {voci.map((v, k) => (
+                        <td key={v.etichetta} className="px-2 py-2">
                           <div className="flex justify-center">
-                            <Pastiglia dato={p ? p[k] : null} />
+                            <Pastiglia voce={p ? p[k] : null} />
                           </div>
                         </td>
                       ))}
@@ -327,53 +320,26 @@ function ComeAbbiamoTirato({ tiro, perPeriodo, nomePeriodo }) {
   );
 }
 
-/* I contatori.
+/* I conteggi.
  *
- * I rimbalzi stanno in grande e da soli: sono l'unico numero di questo gruppo
- * che si divide in due, e la divisione fra offensivi e difensivi dice cose
- * diverse — gli offensivi sono secondi possessi, i difensivi sono la fine
- * dell'attacco avversario.
+ * Numeri e basta, in una griglia che si adatta a quanti sono: otto nel basket,
+ * otto nella pallavolo, ma il componente non li conta — li dispone.
  */
-function Contatori({ c }) {
-  const voci = [
-    ['Assist', c.assist],
-    ['Palle perse', c.perse],
-    ['Palle rubate', c.rubate],
-    ['Stoppate', c.stoppate],
-    ['Falli', c.falli]
-  ];
-
+function Riepilogo({ voci }) {
   return (
     <div className="mb-6">
       <Etichetta className="mb-2.5">I numeri di squadra</Etichetta>
-
-      <div className="grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)]">
-        <Pannello alto className="flex items-center gap-4 px-4 py-4">
-          <div>
-            <div className="cifra text-[34px] font-bold leading-none">{c.rimbalzi}</div>
-            <Etichetta className="mt-1.5">Rimbalzi</Etichetta>
+      <Pannello className="grid grid-cols-2 gap-y-4 px-4 py-4 sm:grid-cols-4">
+        {voci.map(v => (
+          <div key={v.etichetta} className="min-w-0 px-1 text-center">
+            <div className={cx('cifra text-[21px] font-bold leading-none',
+              v.tono === 'rosso' ? 'text-rosso' : 'text-testo')}>
+              {v.valore}
+            </div>
+            <div className="mt-1.5 text-[11px] leading-tight text-tenue">{v.etichetta}</div>
           </div>
-          <div className="border-l border-bordo/12 pl-4">
-            <div className="text-[12.5px] leading-tight">
-              <span className="cifra font-bold">{c.offensivi}</span>
-              <span className="text-tenue"> offensivi</span>
-            </div>
-            <div className="mt-1 text-[12.5px] leading-tight">
-              <span className="cifra font-bold">{c.difensivi}</span>
-              <span className="text-tenue"> difensivi</span>
-            </div>
-          </div>
-        </Pannello>
-
-        <Pannello className="grid grid-cols-3 gap-y-3 px-4 py-4 sm:grid-cols-5">
-          {voci.map(([nome, v]) => (
-            <div key={nome} className="min-w-0 text-center">
-              <div className="cifra text-[20px] font-bold leading-none">{v}</div>
-              <div className="mt-1 truncate text-[11px] leading-tight text-tenue">{nome}</div>
-            </div>
-          ))}
-        </Pannello>
-      </div>
+        ))}
+      </Pannello>
     </div>
   );
 }
@@ -749,8 +715,15 @@ export function Referto({ partita, onChiudi, onEliminata }) {
         </div>
       )}
 
-      {r.tiro && <ComeAbbiamoTirato tiro={r.tiro} perPeriodo={r.tiroPeriodi} nomePeriodo={nomePeriodo} />}
-      {r.contatori && <Contatori c={r.contatori} />}
+      {r.ciambelle && (
+        <Fondamentali
+          voci={r.ciambelle}
+          perPeriodo={r.ciambellePeriodi}
+          nomePeriodo={nomePeriodo}
+          titolo={sport.key === 'basket' ? 'Come abbiamo tirato' : 'I fondamentali'}
+        />
+      )}
+      {r.riepilogo && <Riepilogo voci={r.riepilogo} />}
       {r.andamento && <Andamento a={r.andamento} />}
 
       {r.tiri && <MappaTiri sport={sport} tiri={r.tiri} />}

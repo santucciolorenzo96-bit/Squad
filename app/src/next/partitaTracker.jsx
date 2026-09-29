@@ -12,7 +12,10 @@ import {
 } from '../utils/regole.js';
 import { Pannello, Etichetta, Pulsante, Stato, Amichevole, Vuoto, cx } from './ui.jsx';
 import { oggiISO } from '../utils/format.js';
-import { ruotaSestetto, cambioLibero, applicaCambio, raccontaCambio, zonaDi } from '../utils/rotazione.js';
+import {
+  ruotaSestetto, cambioLibero, applicaCambio, raccontaCambio, zonaDi,
+  versoGiusto, perchePalla
+} from '../utils/rotazione.js';
 import { Modulo, Conferma, Campo, Testo, Finestra, useAvviso, useTendina } from './moduli.jsx';
 import { inCampione } from './campione.js';
 import { scriviCopia, segnaSincronizzata, cancellaCopia } from './partitaLocale.js';
@@ -1705,6 +1708,7 @@ function CampoTraiettoria({ sport, tiro, onFatto, onChiudi }) {
   const tendina = useTendina(onChiudi);
   const [da, setDa] = useState(null);
   const [a, setA] = useState(null);
+  const [obiezione, setObiezione] = useState(null);
 
   useEffect(() => {
     const tasto = (e) => { if (e.key === 'Escape') onChiudi(); };
@@ -1722,6 +1726,7 @@ function CampoTraiettoria({ sport, tiro, onFatto, onChiudi }) {
   function giu(e) {
     const q = punto(e);
     if (!q) return;
+    setObiezione(null);
     setDa(q);
     setA(q);
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* niente */ }
@@ -1740,9 +1745,30 @@ function CampoTraiettoria({ sport, tiro, onFatto, onChiudi }) {
     // che parte e arriva nello stesso posto.
     const lungo = Math.hypot(a.x - da.x, a.y - da.y) > 6;
     if (!lungo) { setDa(null); setA(null); return; }
+
+    /* LA PALLA VA SEMPRE DA NOI VERSO LORO.
+     *
+     * Non è una convenzione di disegno: è il gioco. Una riga tirata al
+     * contrario descrive un attacco avversario, e sulla mappa dei NOSTRI punti
+     * non ci deve stare — una volta registrata resta nel referto per sempre.
+     *
+     * Non si raddrizza da sola: scambiare i due capi vorrebbe dire spostare il
+     * punto di partenza dove la palla è caduta, cioè inventare un dato. Si
+     * dice cosa non va e si lascia rifare. */
+    if (!versoGiusto(da, a)) {
+      setObiezione(perchePalla(da, a));
+      setDa(null);
+      setA(null);
+      return;
+    }
+
     if (navigator.vibrate) navigator.vibrate(10);
     onFatto({ x1: da.x, y1: da.y, x2: a.x, y2: a.y });
   }
+
+  // Mentre si trascina: verde se va bene, rosso se no. Ci si accorge prima di
+  // alzare il dito, che è il momento in cui si può ancora correggere.
+  const buona = !da || !a || versoGiusto(da, a);
 
   return createPortal(
     <div className="fixed inset-0 z-[75] flex flex-col justify-end" onMouseDown={onChiudi}>
@@ -1788,13 +1814,17 @@ function CampoTraiettoria({ sport, tiro, onFatto, onChiudi }) {
           >
             <RigheCampo svg={sport.campoIntero} />
 
-            {/* La riga mentre si tira: si vede quello che si sta dicendo. */}
+            {/* La riga mentre si tira: si vede quello che si sta dicendo, e
+                si vede SUBITO se va nel verso sbagliato. Rossa mentre il dito
+                è ancora giù è un'informazione; rossa dopo sarebbe un rimprovero. */}
             {da && a && (
               <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100"
                    preserveAspectRatio="none">
                 <line
                   x1={da.x} y1={da.y} x2={a.x} y2={a.y}
-                  stroke="rgb(var(--verde))" strokeWidth="1.1" strokeLinecap="round"
+                  stroke={buona ? 'rgb(var(--verde))' : 'rgb(var(--rosso))'}
+                  strokeWidth="1.1" strokeLinecap="round"
+                  strokeDasharray={buona ? undefined : '3 2'}
                   vectorEffect="non-scaling-stroke"
                 />
               </svg>
@@ -1802,16 +1832,29 @@ function CampoTraiettoria({ sport, tiro, onFatto, onChiudi }) {
             {da && (
               <span
                 style={{ left: da.x + '%', top: da.y + '%' }}
-                className="pointer-events-none absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-verde"
+                className={cx(
+                  'pointer-events-none absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white',
+                  buona ? 'bg-verde' : 'bg-rosso'
+                )}
               />
             )}
             {a && (
               <span
                 style={{ left: a.x + '%', top: a.y + '%' }}
-                className="pointer-events-none absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-verde ring-2 ring-white"
+                className={cx(
+                  'pointer-events-none absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-white',
+                  buona ? 'bg-verde' : 'bg-rosso'
+                )}
               />
             )}
           </div>
+
+          {/* Perché non è stata registrata. Tre casi diversi e tre frasi
+              diverse: «parte dal campo sbagliato» e «non supera la rete» si
+              correggono con due gesti diversi. */}
+          {obiezione && (
+            <p className="mt-2.5 text-[12.5px] leading-snug text-rosso">{obiezione}</p>
+          )}
         </div>
       </div>
     </div>,

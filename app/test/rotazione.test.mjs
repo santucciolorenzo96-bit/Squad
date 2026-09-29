@@ -1,6 +1,7 @@
 import { describe, test, is, ok } from './run.mjs';
 import {
-  ruotaSestetto, cambioLibero, applicaCambio, raccontaCambio, zonaDi
+  ruotaSestetto, cambioLibero, applicaCambio, raccontaCambio, zonaDi,
+  versoGiusto, perchePalla, RETE
 } from '../src/utils/rotazione.js';
 
 /* La rotazione e il cambio del libero.
@@ -183,5 +184,57 @@ describe('un set intero: il libero non finisce mai in prima linea', () => {
       // E non c'e' mai piu' di un libero, ne' due volte lo stesso giocatore.
       is(new Set(campo.map(x => x.id)).size, 6);
     }
+  });
+});
+
+/* -------------------------------------------------- la direzione della palla */
+/* Un attacco parte dal nostro campo e cade nel loro: non è una convenzione di
+ * disegno, è il gioco. Una traiettoria tirata al contrario descrive un attacco
+ * avversario, e sulla mappa dei nostri punti non ci deve stare. */
+describe('le traiettorie vanno sempre da noi verso loro', () => {
+  test('dal nostro campo al loro va bene', () => {
+    is(versoGiusto({ x: 20, y: 40 }, { x: 80, y: 70 }), true);
+  });
+
+  test('al contrario no', () => {
+    is(versoGiusto({ x: 80, y: 40 }, { x: 20, y: 70 }), false);
+  });
+
+  test('e nemmeno una che resta tutta nel nostro campo', () => {
+    is(versoGiusto({ x: 10, y: 40 }, { x: 45, y: 70 }), false);
+  });
+
+  test('ne una tutta nel loro', () => {
+    is(versoGiusto({ x: 60, y: 40 }, { x: 90, y: 70 }), false);
+  });
+
+  test('la rete non e ne di qua ne di la', () => {
+    is(versoGiusto({ x: RETE, y: 40 }, { x: 80, y: 70 }), false);
+    is(versoGiusto({ x: 20, y: 40 }, { x: RETE, y: 70 }), false);
+  });
+
+  test('senza punti non si giudica niente', () => {
+    is(versoGiusto(null, { x: 80, y: 1 }), false);
+  });
+});
+
+describe('e quando non va, si dice perche', () => {
+  test('disegnata al contrario', () => {
+    const m = perchePalla({ x: 80, y: 40 }, { x: 20, y: 70 });
+    ok(m && m.indexOf('contrario') > 0);
+  });
+
+  test('parte dal campo sbagliato', () => {
+    const m = perchePalla({ x: 80, y: 40 }, { x: 95, y: 70 });
+    ok(m && m.indexOf('parte dal nostro campo') > 0);
+  });
+
+  test('non supera la rete', () => {
+    const m = perchePalla({ x: 20, y: 40 }, { x: 40, y: 70 });
+    ok(m && m.indexOf('oltre la rete') > 0);
+  });
+
+  test('e quando va bene non c e niente da dire', () => {
+    is(perchePalla({ x: 20, y: 40 }, { x: 80, y: 70 }), null);
   });
 });

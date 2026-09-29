@@ -96,6 +96,19 @@ export const CALCIO = {
   // da ricordarsi di far partire, e dimenticarla produce un dato peggiore di
   // non averlo. Se servono i minuti giocati per il minutaggio giovanile,
   // bastano hasClock, direction 'up' e trackSeconds.
+  /* Il calcio non ha percentuali da anello: tira poco e segna ancora meno, e
+   * una percentuale su otto tiri non vuol dire niente. Solo i conteggi. */
+  riepilogo: (t) => [
+    { valore: t.goals || 0, etichetta: 'gol' },
+    { valore: t.assists || 0, etichetta: 'assist' },
+    { valore: t.shots || 0, etichetta: 'tiri' },
+    { valore: t.shotsOnTarget || 0, etichetta: 'nello specchio' },
+    { valore: t.saves || 0, etichetta: 'parate' },
+    { valore: t.goalsAgainst || 0, etichetta: 'gol subiti' },
+    { valore: t.yellow || 0, etichetta: 'ammonizioni' },
+    { valore: t.red || 0, etichetta: 'espulsioni', tono: 'rosso' }
+  ],
+
   scout: {
     period: {
       label: 'Tempo', short: 'T', count: 2, minutes: null,

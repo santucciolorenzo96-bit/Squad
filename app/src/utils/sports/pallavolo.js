@@ -214,6 +214,70 @@ export const PALLAVOLO = {
   // La pallavolo non ha cronometro, e il punteggio del set non si ricava dai
   // soli punti dei nostri: dentro ci sono gli errori avversari, che non si
   // assegnano a nessuno. Quindi a fine set si scrivono i due punteggi.
+  /* IL REFERTO DELLA SQUADRA.
+   *
+   * Questi sono i numeri della pallavolo, e non somigliano a quelli del
+   * basket: non ci sono rimbalzi e non ci sono tiri da tre. Ci sono i quattro
+   * fondamentali, e per ciascuno la domanda e' sempre la stessa — su quante
+   * palle giocate quante sono andate bene.
+   *
+   * L'anello dell'attacco e' la percentuale di attacchi VINCENTI sui tentati,
+   * che e' la «Att%» dei referti internazionali. L'efficienza — vincenti meno
+   * errori sui tentati — sta fra i numeri e non fra gli anelli per una ragione
+   * pratica: puo' essere negativa, e un anello al meno dodici per cento non si
+   * disegna.
+   */
+  ciambelle: (t) => {
+    const q = (v, tot) => (tot ? Math.round((v / tot) * 100) : null);
+
+    const attacchi = t.attacks || 0;
+    const ricezioni = (t.recPerf || 0) + (t.recPos || 0) + (t.recNeg || 0) + (t.receptionErrors || 0);
+    const difese = (t.digs || 0) + (t.digNeg || 0) + (t.digErrors || 0);
+    const servizi = (t.aces || 0) + (t.servePos || 0) + (t.serveErrors || 0);
+
+    const voci = [
+      {
+        etichetta: 'Attacco', tot: attacchi, pct: q(t.kills || 0, attacchi),
+        righe: [[t.kills || 0, 'vincenti'], [t.attackErrors || 0, 'errori']]
+      },
+      {
+        etichetta: 'Ricezione', tot: ricezioni,
+        pct: q((t.recPerf || 0) + (t.recPos || 0), ricezioni),
+        righe: [[(t.recPerf || 0) + (t.recPos || 0), 'positive'], [t.receptionErrors || 0, 'errori']]
+      },
+      {
+        etichetta: 'Difesa', tot: difese, pct: q(t.digs || 0, difese),
+        righe: [[t.digs || 0, 'positive'], [t.digErrors || 0, 'errori']]
+      },
+      {
+        etichetta: 'Servizio', tot: servizi,
+        pct: q((t.aces || 0) + (t.servePos || 0), servizi),
+        righe: [[t.aces || 0, 'ace'], [t.serveErrors || 0, 'errori']]
+      }
+    ];
+    return voci.some(v => v.tot > 0) ? voci : null;
+  },
+
+  riepilogo: (t) => {
+    const attacchi = t.attacks || 0;
+    const eff = attacchi ? Math.round((((t.kills || 0) - (t.attackErrors || 0)) / attacchi) * 100) : null;
+    const regalati = (t.attackErrors || 0) + (t.serveErrors || 0)
+      + (t.receptionErrors || 0) + (t.digErrors || 0);
+    return [
+      { valore: t.points || 0, etichetta: 'punti' },
+      { valore: t.blocks || 0, etichetta: 'muri punto' },
+      { valore: t.aces || 0, etichetta: 'ace' },
+      { valore: eff == null ? '\u2014' : eff + '%', etichetta: 'efficienza att.',
+        tono: eff != null && eff < 0 ? 'rosso' : null },
+      { valore: attacchi, etichetta: 'attacchi tentati' },
+      { valore: t.assists || 0, etichetta: 'alzate vincenti' },
+      { valore: t.attackBlocked || 0, etichetta: 'attacchi murati' },
+      // I punti regalati sono l'altra meta' del punteggio: in pallavolo ogni
+      // nostro errore e' un punto loro, e in nessun altro numero si vede.
+      { valore: regalati, etichetta: 'punti regalati', tono: 'rosso' }
+    ];
+  },
+
   scout: {
     period: {
       label: 'Set', short: 'S', count: 3, minutes: null,

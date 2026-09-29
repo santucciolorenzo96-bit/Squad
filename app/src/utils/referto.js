@@ -89,16 +89,22 @@ export function refertoPartita(g, sport) {
   /* Il referto completo. Le prime due si ricavano dai totali, le altre due
      vogliono il registro delle azioni e valgono null senza. */
   const somma = tabellino.length ? totaleTabellino(tabellino) : null;
-  const tiro = tiroSquadra(somma);
-  const contatori = contatoriSquadra(somma);
+
+  /* Le percentuali e i conteggi li decide LO SPORT, non il referto. Un referto
+     di pallavolo con i rimbalzi a zero non e' incompleto: e' il referto di un
+     altro gioco. */
+  const ciambelle = somma && sport.ciambelle ? sport.ciambelle(somma) : null;
+  const riepilogo = somma && sport.riepilogo ? sport.riepilogo(somma) : null;
   const periodi = statistichePerPeriodo(g, sport);
-  const tiroPeriodi = periodi ? periodi.map(tiroSquadra) : null;
+  const ciambellePeriodi = periodi && sport.ciambelle
+    ? periodi.map(p => sport.ciambelle(p))
+    : null;
   const andamento = andamentoPartita(g, sport);
 
   return {
     set, fasi, rotazioni, quintetti, attacco, tiri,
     traiettorie, traiettorieAtleti, tabellino,
-    tiro, contatori, tiroPeriodi, andamento,
+    ciambelle, riepilogo, ciambellePeriodi, andamento,
     chiusi: chiusi.length
   };
 }

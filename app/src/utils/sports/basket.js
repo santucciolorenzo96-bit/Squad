@@ -225,6 +225,45 @@ export const BASKET = {
   // liberi regala novanta secondi fantasma a cinque giocatori insieme, in
   // silenzio. Ogni altro dato nasce da un tocco, quindi se manca è un buco che
   // si vede. Riattivarlo un domani è una riga: hasClock e trackSeconds.
+  /* IL REFERTO DELLA SQUADRA.
+   *
+   * Due blocchi, e li dichiara lo sport perche' sono lo sport. Un referto di
+   * pallavolo con i rimbalzi a zero non e' un referto incompleto: e' il
+   * referto di un altro gioco.
+   *
+   * `ciambelle` sono le percentuali che si guardano per prime, quelle da
+   * disegnare come un anello. `riepilogo` sono i conteggi, che si leggono come
+   * numeri e basta.
+   */
+  ciambelle: (t) => {
+    const q = (v, tot) => (tot ? Math.round((v / tot) * 100) : null);
+    const voce = (etichetta, v, tot) => ({
+      etichetta, pct: q(v, tot), tot,
+      righe: [[v, 'segnati'], [Math.max(0, tot - v), 'sbagliati']]
+    });
+    const campo = voce('Dal campo', (t.fgm2 || 0) + (t.fgm3 || 0), (t.fga2 || 0) + (t.fga3 || 0));
+    const voci = [
+      campo,
+      voce('Da due', t.fgm2 || 0, t.fga2 || 0),
+      voce('Da tre', t.fgm3 || 0, t.fga3 || 0),
+      voce('Tiri liberi', t.ftm || 0, t.fta || 0)
+    ];
+    // Nessun tiro tentato in nessuna categoria: non c'e' niente da disegnare,
+    // e quattro anelli vuoti sarebbero peggio di niente.
+    return voci.some(v => v.tot > 0) ? voci : null;
+  },
+
+  riepilogo: (t) => [
+    { valore: (t.orb || 0) + (t.drb || 0), etichetta: 'rimbalzi' },
+    { valore: t.orb || 0, etichetta: 'offensivi' },
+    { valore: t.drb || 0, etichetta: 'difensivi' },
+    { valore: t.ast || 0, etichetta: 'assist' },
+    { valore: t.tov || 0, etichetta: 'palle perse' },
+    { valore: t.stl || 0, etichetta: 'palle rubate' },
+    { valore: t.blk || 0, etichetta: 'stoppate' },
+    { valore: t.pf || 0, etichetta: 'falli' }
+  ],
+
   scout: {
     period: {
       label: 'Periodo', short: 'P', count: 4, minutes: null,

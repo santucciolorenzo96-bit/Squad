@@ -120,6 +120,41 @@ export function applicaCambio(sestetto, cambio) {
   return sestetto.map((p, i) => (i === cambio.indice ? cambio.entra : p));
 }
 
+/* ======================================================================== */
+/* LA DIREZIONE DI UNA TRAIETTORIA                                          */
+/* ======================================================================== */
+/*
+ * Un attacco parte dal nostro campo e cade nel loro. Non è una convenzione di
+ * disegno: è il gioco. Una traiettoria tirata al contrario — dal loro campo
+ * verso il nostro — descrive un attacco avversario, e sulla mappa dei nostri
+ * punti non ci deve stare.
+ *
+ * Il campo intero va da 0 a 100 in larghezza con la rete in mezzo: fino a 50
+ * siamo noi, oltre sono loro. Chi disegna lo vede scritto sul campo, ma il
+ * dito su un telefono parte dove capita — e una riga sbagliata registrata una
+ * volta resta nel referto per sempre.
+ */
+export const RETE = 50;
+
+export function versoGiusto(da, a) {
+  if (!da || !a) return false;
+  return da.x < RETE && a.x > RETE;
+}
+
+/* Perché non va bene, detto a chi sta segnando.
+ *
+ * Tre casi diversi e tre frasi diverse: «parte dal campo sbagliato» e «non
+ * supera la rete» si correggono con due gesti diversi, e un messaggio unico
+ * costringerebbe a indovinare quale.
+ */
+export function perchePalla(da, a) {
+  if (!da || !a) return 'Traccia la traiettoria con un dito, dal nostro campo al loro.';
+  if (da.x >= RETE && a.x <= RETE) return 'L’hai disegnata al contrario: parte dal nostro campo e cade nel loro.';
+  if (da.x >= RETE) return 'La palla parte dal nostro campo, a sinistra della rete.';
+  if (a.x <= RETE) return 'La palla deve cadere oltre la rete, nel campo avversario.';
+  return null;
+}
+
 // Come si dice a voce, per l'avviso che compare a chi segna.
 export function raccontaCambio(cambio) {
   if (!cambio) return '';

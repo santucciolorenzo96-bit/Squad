@@ -2,6 +2,9 @@
 // non pesa sull'avvio dell'app (finisce in un chunk separato).
 
 const MM = { left: 20, right: 20, top: 18, bottom: 18 };
+// Il margine sinistro, per chi disegna a mano: scriverlo 20 in tre file vuol
+// dire tre posti da cambiare il giorno in cui il foglio cambia.
+export const MARGINE = 20;
 const PAGE_W = 210, PAGE_H = 297; // A4 in mm
 
 /* I COLORI DEL DOCUMENTO.
@@ -45,16 +48,30 @@ export function contentWidth() {
 }
 
 /** Intestazione con i dati della società. Restituisce la y da cui proseguire. */
-export function drawHeader(doc, team, title) {
+export function drawHeader(doc, team, title, logo) {
   // Una fascia di colore in cima, alta quanto basta a dire dove finisce
   // l'intestazione e comincia il documento. Prima era una riga grigia.
   riempi(doc, COLORI.blu);
   doc.rect(0, 0, PAGE_W, 6, 'F');
 
+  /* Il logo a sinistra e il testo accanto, quando c'e'.
+   *
+   * Il testo si sposta di una quantita' fissa e non «quanto serve»: se
+   * dipendesse dal logo, due societa' avrebbero due intestazioni diverse e il
+   * documento smetterebbe di essere riconoscibile. Il quadrato e' sempre lo
+   * stesso, il logo ci sta dentro come puo'. */
+  const lato = 18;
+  const rientro = logo ? lato + 5 : 0;
+  if (logo) {
+    try {
+      doc.addImage(logo.dati, 'PNG', MM.left, MM.top - 5, lato, lato);
+    } catch (e) { /* un logo che non entra non ferma il referto */ }
+  }
+
   let y = MM.top;
   scrivi(doc, COLORI.testo);
   doc.setFont('helvetica', 'bold').setFontSize(14);
-  doc.text(team.name || '', MM.left, y);
+  doc.text(team.name || '', MM.left + rientro, y);
   y += 5;
 
   scrivi(doc, COLORI.tenue);
@@ -65,9 +82,11 @@ export function drawHeader(doc, team, title) {
     team.registry_number ? `Registro attività sportive n. ${team.registry_number}` : '',
     [team.contact_email, team.contact_phone].filter(Boolean).join(' — ')
   ].filter(Boolean);
-  rows.forEach(r => { doc.text(r, MM.left, y); y += 4; });
+  rows.forEach(r => { doc.text(r, MM.left + rientro, y); y += 4; });
 
-  y += 4;
+  // La riga non parte mai sopra al logo: con un'anagrafica corta il testo
+  // finirebbe prima del quadrato, e la linea gli passerebbe in mezzo.
+  y = Math.max(y, MM.top - 5 + (logo ? lato : 0)) + 4;
   traccia(doc, COLORI.linea);
   doc.setLineWidth(0.3).line(MM.left, y, PAGE_W - MM.right, y);
   y += 9;
@@ -325,34 +344,38 @@ function arco(doc, cx, cy, raggio, gradi, spessore, colore) {
  * c'è un trattino: uno zero per cento su zero tiri sarebbe un dato falso che
  * sembra vero.
  */
-export function drawDonut(doc, x, y, dato, etichetta, { raggio = 9, spessore = 2.6 } = {}) {
+export function drawDonut(doc, x, y, voce, { raggio = 9, spessore = 2.6 } = {}) {
+  const dato = { v: voce.righe[0][0], t: voce.tot, pct: voce.pct };
+  const etichetta = voce.etichetta;
   const cx = x + raggio + spessore / 2;
   const cy = y + raggio + spessore / 2;
 
   arco(doc, cx, cy, raggio, 360, spessore, COLORI.riga);
-  if (dato && dato.t > 0 && dato.pct != null) {
+  if (dato.t > 0 && dato.pct != null) {
     arco(doc, cx, cy, raggio, (dato.pct / 100) * 360, spessore, COLORI.verde);
   }
 
   scrivi(doc, COLORI.testo);
   doc.setFont('helvetica', 'bold').setFontSize(9);
-  doc.text(dato && dato.pct != null ? dato.pct + '%' : '—', cx, cy + 1.3, { align: 'center' });
+  doc.text(dato.pct != null ? dato.pct + '%' : '—', cx, cy + 1.3, { align: 'center' });
 
   const xt = cx + raggio + spessore / 2 + 3;
   scrivi(doc, COLORI.testo);
   doc.setFont('helvetica', 'bold').setFontSize(7.5);
   doc.text(String(etichetta), xt, cy - 3.4);
 
-  const sbagliati = dato ? Math.max(0, (dato.t || 0) - (dato.v || 0)) : 0;
+  // I due conteggi arrivano gia' scritti dallo sport: «segnati / sbagliati» nel
+  // basket, «vincenti / errori» nella pallavolo. Il numero e' allineato a
+  // sinistra e la parola comincia sempre nello stesso punto, cosi' le righe di
+  // due ciambelle accanto restano incolonnate anche con cifre diverse.
   doc.setFont('helvetica', 'normal').setFontSize(7.5);
-  scrivi(doc, COLORI.verde);
-  doc.text(String((dato && dato.v) || 0), xt, cy + 1.2);
-  scrivi(doc, COLORI.tenue);
-  doc.text('segnati', xt + 5, cy + 1.2);
-  scrivi(doc, COLORI.testo);
-  doc.text(String(sbagliati), xt, cy + 5.4);
-  scrivi(doc, COLORI.tenue);
-  doc.text('sbagliati', xt + 5, cy + 5.4);
+  (voce.righe || []).slice(0, 2).forEach((riga, i) => {
+    const yr = cy + 1.2 + i * 4.2;
+    scrivi(doc, i === 0 ? COLORI.verde : COLORI.testo);
+    doc.text(String(riga[0]), xt, yr);
+    scrivi(doc, COLORI.tenue);
+    doc.text(String(riga[1]), xt + 6, yr);
+  });
 
   scrivi(doc, COLORI.testo);
   doc.setFont('helvetica', 'normal').setFontSize(10);
@@ -361,17 +384,17 @@ export function drawDonut(doc, x, y, dato, etichetta, { raggio = 9, spessore = 2
 
 // La stessa cosa in piccolo: solo l'anello e la percentuale dentro, con il
 // rapporto sotto. Per la griglia dei quarti, dove le ciambelle sono sedici.
-export function drawMiniDonut(doc, cx, cy, dato, { raggio = 5, spessore = 1.7 } = {}) {
+export function drawMiniDonut(doc, cx, cy, voce, { raggio = 5, spessore = 1.7 } = {}) {
   arco(doc, cx, cy, raggio, 360, spessore, COLORI.riga);
-  if (dato && dato.t > 0 && dato.pct != null) {
-    arco(doc, cx, cy, raggio, (dato.pct / 100) * 360, spessore, COLORI.verde);
+  if (voce && voce.tot > 0 && voce.pct != null) {
+    arco(doc, cx, cy, raggio, (voce.pct / 100) * 360, spessore, COLORI.verde);
   }
   scrivi(doc, COLORI.testo);
   doc.setFont('helvetica', 'bold').setFontSize(6.5);
-  doc.text(dato && dato.pct != null ? String(dato.pct) : '—', cx, cy + 0.9, { align: 'center' });
+  doc.text(voce && voce.pct != null ? String(voce.pct) : '—', cx, cy + 0.9, { align: 'center' });
   scrivi(doc, COLORI.tenue);
   doc.setFont('helvetica', 'normal').setFontSize(5.8);
-  doc.text(dato && dato.t ? dato.v + '/' + dato.t : '—', cx, cy + raggio + 3, { align: 'center' });
+  doc.text(voce && voce.tot ? voce.righe[0][0] + '/' + voce.tot : '—', cx, cy + raggio + 3, { align: 'center' });
   scrivi(doc, COLORI.testo);
   doc.setFontSize(10);
 }
@@ -435,4 +458,44 @@ export function drawShotChart(doc, tiri, y, { larghezza = 78 } = {}) {
   scrivi(doc, COLORI.testo);
   doc.setFontSize(10);
   return fondo + 9;
+}
+
+/* ======================================================================== */
+/* IL LOGO DELLA SOCIETA'                                                   */
+/* ======================================================================== */
+/*
+ * jsPDF vuole i pixel, non un indirizzo: l'immagine va scaricata e convertita
+ * prima di poterla mettere sul foglio. Passa da un canvas e non direttamente
+ * dai byte perche' il logo puo' essere un PNG, un JPG o un WebP, e il canvas
+ * li legge tutti e ne restituisce uno solo.
+ *
+ * Se non si carica — rete assente, indirizzo scaduto, formato che il browser
+ * non apre — si torna null e il referto esce senza. Un documento senza logo e'
+ * un documento; un documento che non si genera non e' niente.
+ */
+export async function caricaLogo(url) {
+  if (!url) return null;
+  try {
+    const img = await new Promise((risolvi, rifiuta) => {
+      const i = new Image();
+      i.crossOrigin = 'anonymous';
+      i.onload = () => risolvi(i);
+      i.onerror = rifiuta;
+      i.src = url;
+    });
+    const lato = 256;
+    const tela = document.createElement('canvas');
+    tela.width = lato;
+    tela.height = lato;
+    const c = tela.getContext('2d');
+    // Dentro un quadrato, senza deformare: un logo stirato e' peggio di un
+    // logo assente.
+    const scala = Math.min(lato / img.width, lato / img.height);
+    const w = img.width * scala;
+    const h = img.height * scala;
+    c.drawImage(img, (lato - w) / 2, (lato - h) / 2, w, h);
+    return { dati: tela.toDataURL('image/png'), proporzione: img.width / img.height };
+  } catch (e) {
+    return null;
+  }
 }
