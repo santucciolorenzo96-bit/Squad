@@ -12,6 +12,7 @@ import {
 } from '../utils/regole.js';
 import { Pannello, Etichetta, Pulsante, Stato, Amichevole, Vuoto, cx } from './ui.jsx';
 import { oggiISO } from '../utils/format.js';
+import { quantiChiusi } from '../utils/referto.js';
 import {
   ruotaSestetto, cambioLibero, applicaCambio, raccontaCambio, zonaDi,
   versoGiusto, perchePalla
@@ -80,9 +81,12 @@ function sigla(p) {
 // partita gia' decisa si chiude senza aprirne un altro — il sesto set non
 // esiste — e allora il numero del set in corso non basta piu' a dirlo: senza
 // questo, una partita vinta 3-0 mostrava 2-0.
-function quantiChiusi(g) {
-  return Math.max(g.chiusi || 0, Math.max(0, (g.quarter || 1) - 1));
-}
+/* `quantiChiusi` sta in referto.js e si importa.
+ *
+ * Era scritta qui e là, identica, e la copia ha fatto esattamente quello che
+ * fanno le copie: una delle due ha smesso di bastare — il campo `chiusi` non
+ * veniva salvato — e il referto archiviato ha cominciato a contraddire il
+ * punteggio. Una regola, un posto. */
 
 const CHIAVE_DETTAGLIO = 'squad_scout_dettaglio';
 

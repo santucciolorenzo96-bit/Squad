@@ -15,10 +15,30 @@ import { quintettiOrdinati } from './regole.js';
  * cosa.
  */
 
-// Quanti set sono finiti davvero. L'ultimo set di una partita già decisa si
-// chiude senza aprirne un altro, quindi il numero del set in corso non basta.
-function quantiChiusi(g) {
-  return Math.max(g.chiusi || 0, Math.max(0, (g.quarter || 1) - 1));
+/* QUANTI PERIODI SONO FINITI DAVVERO.
+ *
+ * L'ultimo set di una partita già decisa si chiude senza aprirne un altro,
+ * quindi «il numero del set in corso meno uno» non basta: dopo il terzo set di
+ * un 3-0 il contatore dice ancora tre, e quel meno uno ne perde uno.
+ *
+ * Per questo c'è `chiusi`. Ma `chiusi` non veniva salvato nel database — era
+ * un campo che viveva solo in memoria — e alla rilettura di una partita
+ * archiviata si ripiegava sul conto sbagliato: il referto di un 0-3 mostrava
+ * due set. Il punteggio invece era giusto, perché calcolato mentre il dato
+ * c'era ancora, e il documento finiva per contraddirsi da solo.
+ *
+ * Adesso `chiusi` si salva (migrazione 055). Il terzo ramo qui sotto serve
+ * alle partite archiviate PRIMA, che quel campo non ce l'hanno: a partita
+ * finita, i periodi giocati sono tutti quelli in cui qualcuno ha segnato. Si
+ * guardano i punti e non l'esistenza della riga, perché una riga può nascere
+ * anche solo da una rotazione registrata.
+ */
+export function quantiChiusi(g) {
+  const noti = Math.max(g.chiusi || 0, Math.max(0, (g.quarter || 1) - 1));
+  if (g.status !== 'finished') return noti;
+  const conPunti = (g.periodScores || [])
+    .filter(x => x && (((x.us || 0) + (x.them || 0)) > 0)).length;
+  return Math.max(noti, conPunti);
 }
 
 export function refertoPartita(g, sport) {

@@ -23,6 +23,16 @@ function fromDbGame(row) {
     // tornerebbe indietro senza dire niente.
     quintetti: row.quintetti || {},
     turno: row.turno || null,
+    /* Quanti periodi sono finiti, e se la partita è finita.
+     *
+     * `chiusi` non veniva né letto né scritto: viveva solo in memoria durante
+     * la partita e spariva al primo salvataggio. Il referto di un 3-0
+     * archiviato ne mostrava due, perché senza quel numero ripiega sul set in
+     * corso meno uno — e l'ultimo set di una partita decisa non ne apre un
+     * altro. Il punteggio invece era giusto, calcolato mentre il dato c'era:
+     * il documento si contraddiceva da solo. */
+    chiusi: row.chiusi || 0,
+    status: row.status,
     /* Il registro delle azioni, in ordine. I totali dicono quanto, questo dice
      * quando — ed e' l'unico modo per sapere il massimo vantaggio, il parziale
      * piu' lungo e com'e' andato ogni quarto. Le partite archiviate prima
@@ -57,6 +67,7 @@ function toDbPatch(g) {
   if ('quintetti' in g) patch.quintetti = g.quintetti || {};
   if ('turno' in g) patch.turno = g.turno || null;
   if ('storia' in g) patch.storia = g.storia || [];
+  if ('chiusi' in g) patch.chiusi = g.chiusi || 0;
   if ('players' in g) patch.players = g.players;
   return patch;
 }
@@ -74,6 +85,9 @@ function describeWriteError(error) {
   }
   if (/\bstoria\b/.test(msg)) {
     return new Error('Manca la colonna storia sulla tabella games: esegui la migrazione 054 su Supabase, poi riprova.');
+  }
+  if (/\bchiusi\b/.test(msg)) {
+    return new Error('Manca la colonna chiusi sulla tabella games: esegui la migrazione 055 su Supabase, poi riprova.');
   }
   if (/salva_tabellino|revisione|tenuto_/.test(msg)) {
     return new Error('Manca la funzione salva_tabellino: esegui la migrazione 038 su Supabase, poi riprova.');
