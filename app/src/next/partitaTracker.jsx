@@ -169,24 +169,49 @@ export function Tracker({ onFinita, onEsci }) {
   const [altezza, setAltezza] = useState(null);
 
   useEffect(() => {
+    let vivo = true;
+
     function misura() {
       const el = pagina.current;
       const area = document.getElementById('contenuto');
-      if (!el || !area) return;
-      const mio = el.getBoundingClientRect();
-      const suo = area.getBoundingClientRect();
-      // Il fondo utile è quello dell'area meno il suo respiro inferiore: là
-      // sotto, su telefono, c'è la barra di navigazione.
+      if (!vivo || !el || !area) return;
+
+      /* La distanza dal fondo si prende SENZA i rettangoli sullo schermo.
+       *
+       * Al primo disegno la sezione entra con un'animazione che la sposta di
+       * qualche pixel: `getBoundingClientRect()` la misura spostata, e la
+       * pagina veniva fuori più alta dello spazio vero — di poco, ma quanto
+       * basta a far ricomparire lo scorrimento. `offsetTop` è la posizione
+       * nel documento e non si muove con le animazioni.
+       */
+      let sopra = 0;
+      for (let n = el; n && n !== area; n = n.offsetParent) sopra += n.offsetTop;
       const respiro = parseFloat(getComputedStyle(area).paddingBottom) || 0;
-      const spazio = (suo.bottom - respiro) - mio.top;
+      const spazio = area.clientHeight - respiro - sopra;
+
       // Sotto una certa altezza la pagina unica non ha più senso: meglio
       // lasciare scorrere che schiacciare il campo in una striscia.
       setAltezza(spazio > 380 ? Math.floor(spazio) : null);
     }
+
+    // Due giri: il primo appena montato, il secondo dopo che il disegno si è
+    // assestato. La seconda misura è quella che vale.
     misura();
+    const giro = requestAnimationFrame(() => requestAnimationFrame(misura));
+
+    // Tutto quello che può cambiare l'altezza disponibile: la finestra, la
+    // rotazione, e l'area stessa — che si accorcia quando compare il nastro
+    // del SuperAdmin o cambia la sottobarra.
+    const area = document.getElementById('contenuto');
+    const osserva = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(misura) : null;
+    if (osserva && area) osserva.observe(area);
     window.addEventListener('resize', misura);
     window.addEventListener('orientationchange', misura);
+
     return () => {
+      vivo = false;
+      cancelAnimationFrame(giro);
+      if (osserva) osserva.disconnect();
       window.removeEventListener('resize', misura);
       window.removeEventListener('orientationchange', misura);
     };
@@ -771,6 +796,22 @@ export function Tracker({ onFinita, onEsci }) {
 
   const corpo = (
     <div ref={pagina} className="scout-pagina relative" style={altezza ? { height: altezza } : undefined}>
+
+      {/* ===================================================== la pagina intera
+          Su schermo largo TRE COLONNE: tabellone, campo, panchina.
+
+          Non e' una scelta estetica. Il campo e' alto quanto lo spazio che
+          avanza e largo di conseguenza, quindi ogni pixel di altezza portato
+          via dal tabellone e' larghezza tolta al campo — e su un monitor da
+          lavoro il tabellone in cima lasciava mezzo schermo vuoto a destra e a
+          sinistra del campo, che restava un quadrato in mezzo al nulla.
+          Spostandolo di fianco, quella larghezza sprecata diventa altezza, e
+          l'altezza diventa campo.
+
+          Sotto, dove la larghezza non avanza, resta impilato: li' il tabellone
+          in cima e' giusto, perche' e' la prima cosa che si guarda. */}
+      <div className="flex min-h-0 flex-1 flex-col xl:grid xl:grid-cols-[19rem_minmax(0,1fr)_13rem] xl:gap-4">
+
       {/* ============================================================ tabellone */}
       {/* In cima e fermo. Prima restava appiccicato mentre si scorreva: adesso
           non si scorre più, e la differenza è che il numero è sempre nello
@@ -778,6 +819,7 @@ export function Tracker({ onFinita, onEsci }) {
           muove. */}
       <div className={cx(
         'z-20 -mx-4 mb-3 shrink-0 px-4 pt-1 sm:-mx-6 sm:px-6',
+        'xl:mx-0 xl:mb-0 xl:flex xl:min-h-0 xl:flex-col xl:px-0',
         onEsci && 'pb-1'
       )}>
         {/* La via d'uscita sta dentro la parte che resta in cima: se scorresse
@@ -800,8 +842,12 @@ export function Tracker({ onFinita, onEsci }) {
             tabellone a tutta pagina allontana i due punteggi di mezzo metro
             l'uno dall'altro, e il confronto fra i due numeri e' esattamente
             la cosa per cui lo si guarda. */}
-        <Pannello alto className="mx-auto max-w-[54rem] overflow-hidden">
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-3.5 sm:px-4">
+        <Pannello alto className="mx-auto max-w-[54rem] overflow-hidden xl:mx-0 xl:min-h-0 xl:w-full xl:max-w-none xl:overflow-y-auto">
+          {/* Nella colonna stretta i due punteggi si impilano: affiancati in
+              diciannove rem diventerebbero due cifre piccole con in mezzo il
+              periodo schiacciato, e il punteggio e' la cosa che si guarda da
+              lontano. */}
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-3.5 sm:px-4 xl:grid-cols-1 xl:gap-1 xl:py-4">
             <div className="min-w-0 text-center">
               <div className="flex items-center justify-center gap-1.5">
                 {/* Chi ha il servizio, detto come lo direbbe un tabellone: un
@@ -814,7 +860,7 @@ export function Tracker({ onFinita, onEsci }) {
                   {(state.teamProfile || {}).name}
                 </span>
               </div>
-              <div className="mt-1 text-[clamp(30px,9vw,46px)] font-bold leading-none text-verde">
+              <div className="mt-1 text-[clamp(30px,9vw,46px)] xl:text-[46px] font-bold leading-none text-verde">
                 {grandeNostro}
               </div>
               <ManoPunteggio
@@ -855,7 +901,7 @@ export function Tracker({ onFinita, onEsci }) {
                   {g.oppName}
                 </span>
               </div>
-              <div className="mt-1 text-[clamp(30px,9vw,46px)] font-bold leading-none">
+              <div className="mt-1 text-[clamp(30px,9vw,46px)] xl:text-[46px] font-bold leading-none">
                 {grandeLoro}
               </div>
               <ManoPunteggio
@@ -979,7 +1025,10 @@ export function Tracker({ onFinita, onEsci }) {
       {/* Affiancati da tablet in su, e insieme riempiono quello che resta
           della pagina: il campo prende tutta l'altezza che avanza, la panchina
           sta di fianco e scorre dentro di sé se è lunga. La pagina no. */}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 md:grid md:grid-cols-[minmax(0,1fr)_13rem] md:items-stretch md:gap-4 lg:grid-cols-[minmax(0,1fr)_15rem]">
+      {/* A xl questo involucro sparisce (`display: contents`) e campo e
+          panchina diventano due colonne della griglia grande, accanto al
+          tabellone. Sotto, resta lui a tenerli insieme. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 md:grid md:grid-cols-[minmax(0,1fr)_13rem] md:items-stretch md:gap-4 lg:grid-cols-[minmax(0,1fr)_15rem] xl:contents">
 
         <div className="flex min-h-0 flex-col" style={{ '--proporzione': sport.field.ratio }}>
           <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
@@ -1078,6 +1127,7 @@ export function Tracker({ onFinita, onEsci }) {
             <li>I punti senza autore si mettono col + e col − sotto al punteggio.</li>
           </ul>
         </div>
+      </div>
       </div>
 
       {/* ====================================================== il cambio */}
