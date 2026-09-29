@@ -23,6 +23,12 @@ function fromDbGame(row) {
     // tornerebbe indietro senza dire niente.
     quintetti: row.quintetti || {},
     turno: row.turno || null,
+    /* Il registro delle azioni, in ordine. I totali dicono quanto, questo dice
+     * quando — ed e' l'unico modo per sapere il massimo vantaggio, il parziale
+     * piu' lungo e com'e' andato ogni quarto. Le partite archiviate prima
+     * della migrazione 054 non ce l'hanno, e le sezioni che ci si appoggiano
+     * semplicemente non compaiono. */
+    storia: row.storia || [],
     // Da quale versione parte questo dispositivo, e chi ha scritto per ultimo.
     revisione: row.revisione || 0,
     tenutoDa: row.tenuto_da || null,
@@ -50,6 +56,7 @@ function toDbPatch(g) {
   if ('friendly' in g) patch.friendly = !!g.friendly;
   if ('quintetti' in g) patch.quintetti = g.quintetti || {};
   if ('turno' in g) patch.turno = g.turno || null;
+  if ('storia' in g) patch.storia = g.storia || [];
   if ('players' in g) patch.players = g.players;
   return patch;
 }
@@ -64,6 +71,9 @@ function describeWriteError(error) {
   }
   if (/quintetti|turno/.test(msg)) {
     return new Error('Mancano le colonne quintetti e turno sulla tabella games: esegui la migrazione 036 su Supabase, poi riprova.');
+  }
+  if (/\bstoria\b/.test(msg)) {
+    return new Error('Manca la colonna storia sulla tabella games: esegui la migrazione 054 su Supabase, poi riprova.');
   }
   if (/salva_tabellino|revisione|tenuto_/.test(msg)) {
     return new Error('Manca la funzione salva_tabellino: esegui la migrazione 038 su Supabase, poi riprova.');

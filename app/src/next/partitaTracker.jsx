@@ -362,6 +362,11 @@ export function Tracker({ onFinita, onEsci }) {
       s.traiettorie = [...(s.traiettorie || []), { ...linea, act: azione.act, q: g.quarter || 1 }];
     }
 
+    // Nel registro ci va OGNI azione, non solo quelle che fanno punti: un
+    // rimbalzo e una palla persa non muovono il tabellone ma dicono com'e'
+    // andato quel quarto.
+    annota({ a: azione.act, p: giocatore.id });
+
     // Il punteggio del periodo in corso cresce subito: e' il numero che chi
     // segna confronta col tabellone della palestra, e un numero che si aggiorna
     // solo a fine set non serve a confrontare niente.
@@ -375,6 +380,7 @@ export function Tracker({ onFinita, onEsci }) {
     // doveva applicare a mano chi segnava — due tocchi per un evento solo, e
     // quello dimenticato falsava il punteggio senza dirlo.
     if (azione.puntoLoro) {
+      annota({ a: 'loro', n: 1 });
       segnaPeriodo('them', 1);
       chiudiScambio('them');
     }
@@ -427,6 +433,28 @@ export function Tracker({ onFinita, onEsci }) {
   // pallavolo, i punti che prendiamo NOI per un errore avversario, che non si
   // possono assegnare a nessun giocatore. Senza questo, quel punteggio
   // resterebbe fermo per tutto il set.
+  /* IL REGISTRO DELLE AZIONI.
+   *
+   * Una riga per ogni cosa che succede, in ordine, con il periodo in cui e'
+   * successa. I totali dicono QUANTO; questo dice QUANDO — ed e' l'unico modo
+   * per avere il massimo vantaggio, il parziale piu' lungo e le statistiche
+   * quarto per quarto, che dai totali non si ricavano.
+   *
+   * Tre forme sole: una nostra azione (`a` e' il nome dell'azione, `p` chi
+   * l'ha fatta), i punti degli avversari (`a: 'loro'`), una correzione del
+   * nostro punteggio fatta a mano (`a: 'noi'`). I punti non si scrivono: si
+   * ricavano rileggendo l'azione nella configurazione, cosi' restano una
+   * verita' sola.
+   *
+   * Non fa niente di piu' che aggiungere in fondo. E' importante: se un
+   * domani questa riga sbagliasse, il punteggio e il tabellino resterebbero
+   * giusti lo stesso — a mancare sarebbero solo le sezioni nuove del referto.
+   */
+  function annota(voce) {
+    if (!voce) return;
+    g.storia = [...(g.storia || []), { q: g.quarter || 1, ...voce }];
+  }
+
   function segnaPeriodo(lato, delta) {
     const idx = (g.quarter || 1) - 1;
     g.periodScores = g.periodScores || [];
@@ -440,6 +468,7 @@ export function Tracker({ onFinita, onEsci }) {
 
   function manoPunteggio(lato, delta) {
     memorizza((lato === 'us' ? 'Noi' : g.oppName) + ' ' + (delta > 0 ? '+' + delta : '−' + Math.abs(delta)));
+    annota({ a: lato === 'us' ? 'noi' : 'loro', n: delta });
     segnaPeriodo(lato, delta);
     // Solo il piu' chiude uno scambio. Il meno e' una correzione, e una
     // correzione non ha una fase ne' una rotazione: per disfare uno scambio
@@ -2148,6 +2177,20 @@ function ChiusuraPeriodo({ g, sport, onChiudi, onFatto }) {
         if (impossibile) return impossibile + ' Confronta col tabellone e correggi i punti prima di chiudere.';
 
         g.periodScores = g.periodScores || [];
+
+        /* LA CORREZIONE DEGLI AVVERSARI FINISCE ANCHE NEL REGISTRO.
+         *
+         * Qui il punteggio avversario si ricopia dal tabellone, e quello che
+         * si scrive vince su quello che era stato segnato coi tasti durante il
+         * periodo. Senza questa riga il registro resterebbe fermo al conto
+         * vecchio, e il massimo vantaggio verrebbe calcolato su un punteggio
+         * che non e' mai esistito. Si annota solo la differenza, perche' il
+         * registro racconta cosa e' cambiato, non quanto vale il totale. */
+        const primaLoro = (g.periodScores[idx] || {}).them || 0;
+        if (n !== primaLoro) {
+          g.storia = [...(g.storia || []), { q: g.quarter || 1, a: 'loro', n: n - primaLoro }];
+        }
+
         // Si scrivono i due numeri e basta: chi batteva, la rotazione e i conti
         // delle fasi restano dov'erano, perche' sono la storia di quel set.
         g.periodScores[idx] = { ...(g.periodScores[idx] || {}), us: nostriOra, them: n };

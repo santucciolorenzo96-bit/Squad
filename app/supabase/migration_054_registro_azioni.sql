@@ -1,0 +1,34 @@
+-- ============================================================================
+-- SQUAD — migrazione 054
+-- Il registro delle azioni: i totali dicono quanto, questo dice quando
+-- ============================================================================
+--
+-- Il tabellino sa che Rossi ha fatto quattordici punti. Non sa in quale quarto
+-- li ha fatti, né se sono arrivati tutti insieme in tre minuti mentre la
+-- partita girava. Sono due informazioni diverse, e la seconda si perde nel
+-- momento in cui si sommano i totali.
+--
+-- Da qui in poi ogni azione lascia una riga in ordine, con il periodo in cui è
+-- successa. Da quella riga escono tre cose che finora non c'erano:
+--
+--   · le statistiche quarto per quarto (come abbiamo tirato nel terzo);
+--   · il massimo vantaggio e il massimo svantaggio;
+--   · il parziale più lungo — quanti punti di fila senza che l'altra
+--     rispondesse, che è il momento in cui la partita è girata.
+--
+-- È lo stesso dato su cui Eurolega e NBA costruiscono i loro referti, e non è
+-- un caso: il referto che si guarda il giorno dopo racconta la partita, e una
+-- partita è una sequenza.
+--
+-- NON CAMBIA NIENTE DI QUELLO CHE C'È
+--
+-- Il registro si aggiunge in fondo e non viene letto da nessuno mentre si
+-- segna: punteggio, tabellino e statistiche restano calcolati come prima, dai
+-- totali. Se un giorno il registro sbagliasse, a mancare sarebbero solo le
+-- sezioni nuove del referto — non il tabellino.
+--
+-- Le partite già archiviate non ce l'hanno e restano leggibili come sono: le
+-- sezioni che dipendono dal registro non compaiono, invece di comparire con
+-- numeri inventati.
+
+alter table games add column if not exists storia jsonb not null default '[]'::jsonb;

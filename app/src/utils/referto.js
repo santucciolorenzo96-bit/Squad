@@ -86,9 +86,20 @@ export function refertoPartita(g, sport) {
 
   const traiettorieAtleti = traiettoriePerAtleta(g);
 
+  /* Il referto completo. Le prime due si ricavano dai totali, le altre due
+     vogliono il registro delle azioni e valgono null senza. */
+  const somma = tabellino.length ? totaleTabellino(tabellino) : null;
+  const tiro = tiroSquadra(somma);
+  const contatori = contatoriSquadra(somma);
+  const periodi = statistichePerPeriodo(g, sport);
+  const tiroPeriodi = periodi ? periodi.map(tiroSquadra) : null;
+  const andamento = andamentoPartita(g, sport);
+
   return {
     set, fasi, rotazioni, quintetti, attacco, tiri,
-    traiettorie, traiettorieAtleti, tabellino, chiusi: chiusi.length
+    traiettorie, traiettorieAtleti, tabellino,
+    tiro, contatori, tiroPeriodi, andamento,
+    chiusi: chiusi.length
   };
 }
 
@@ -286,4 +297,183 @@ export function tabellaTabellino(referto, sport) {
     : null;
 
   return { intestazioni: colonne.map(c => c.label), righe, totale };
+}
+
+/* ======================================================================== */
+/* IL REFERTO COMPLETO: TIRO, CONTATORI, ANDAMENTO                          */
+/* ======================================================================== */
+/*
+ * Un referto di Eurolega o NBA non è il tabellino con più colonne: è un altro
+ * documento. Risponde a domande che il tabellino non fa — come abbiamo tirato
+ * da tre rispetto a da due, in quale quarto ci siamo fermati, quanto siamo
+ * stati avanti, quanti punti di fila abbiamo preso nel momento in cui la
+ * partita è girata.
+ *
+ * Le prime due si ricavano dai totali che già ci sono. Le altre no: vogliono
+ * l'ORDINE in cui le cose sono successe, e i totali l'ordine l'hanno perso.
+ * Per quelle c'è `storia`, il registro delle azioni che lo scout scrive
+ * mentre si segna (migrazione 054). Le partite archiviate prima non ce l'hanno
+ * e le sezioni che dipendono da lui semplicemente non compaiono: meglio una
+ * sezione in meno che un numero inventato.
+ */
+
+/* L'azione con quel nome, dentro la configurazione dello sport.
+ *
+ * Sta qui e non in tre posti diversi: la usano il referto per rileggere il
+ * registro e i test per simulare una partita, e due copie della stessa ricerca
+ * divergono al primo gruppo nuovo.
+ */
+export function azioneDi(sport, act) {
+  const conf = (sport && sport.scout) || {};
+  const gruppi = conf.groups || [];
+  for (let i = 0; i < gruppi.length; i++) {
+    const a = (gruppi[i].actions || []).find(x => x.act === act);
+    if (a) return a;
+  }
+  const catene = conf.chains || {};
+  const nomi = Object.keys(catene);
+  for (let i = 0; i < nomi.length; i++) {
+    const c = catene[nomi[i]];
+    if (c && c.azione && c.azione.act === act) return c.azione;
+  }
+  return null;
+}
+
+// Quanti punti vale un'azione. Si misura invece di leggerla da una proprietà:
+// i punti li decide `score()` sulle statistiche, ed è l'unica versione vera.
+function puntiAzione(sport, azione) {
+  const s = sport.newStats();
+  Object.entries((azione && azione.apply) || {}).forEach(([k, v]) => { s[k] = (s[k] || 0) + v; });
+  return sport.score(s);
+}
+
+/* COME ABBIAMO TIRATO.
+ *
+ * Quattro numeri, e il quarto non è una somma qualunque: «dal campo» sono i
+ * tiri da due più quelli da tre, senza i liberi. È la percentuale che si
+ * guarda per prima, e tenerla separata dai liberi è il motivo per cui esiste.
+ */
+export function tiroSquadra(s) {
+  if (!s) return null;
+  const q = (v, t) => (t ? Math.round((v / t) * 100) : null);
+  const due = { v: s.fgm2 || 0, t: s.fga2 || 0 };
+  const tre = { v: s.fgm3 || 0, t: s.fga3 || 0 };
+  const liberi = { v: s.ftm || 0, t: s.fta || 0 };
+  const campo = { v: due.v + tre.v, t: due.t + tre.t };
+  [due, tre, liberi, campo].forEach(x => { x.pct = q(x.v, x.t); });
+  if (!due.t && !tre.t && !liberi.t) return null;
+  return { liberi, due, tre, campo };
+}
+
+/* I CONTATORI.
+ *
+ * Rimbalzi con la divisione fra offensivi e difensivi, e poi le cinque voci
+ * che in ogni referto stanno su una riga sola. Non sono percentuali: sono
+ * quante volte è successo, e si leggono come tali.
+ */
+export function contatoriSquadra(s) {
+  if (!s) return null;
+  const orb = s.orb || 0;
+  const drb = s.drb || 0;
+  return {
+    rimbalzi: orb + drb,
+    offensivi: orb,
+    difensivi: drb,
+    assist: s.ast || 0,
+    perse: s.tov || 0,
+    rubate: s.stl || 0,
+    stoppate: s.blk || 0,
+    falli: s.pf || 0
+  };
+}
+
+/* LE STATISTICHE QUARTO PER QUARTO.
+ *
+ * Si ricostruiscono rileggendo il registro: ogni azione sa in quale periodo è
+ * successa, e riapplicarla a un contatore per periodo dà le stesse colonne del
+ * tabellino, divise in quattro. È lo stesso gesto che fa lo scout mentre si
+ * segna, rifatto a posteriori.
+ *
+ * Null senza registro: una partita archiviata prima della 054 non ha l'ordine
+ * delle cose, e non c'è modo di inventarlo.
+ */
+export function statistichePerPeriodo(g, sport) {
+  if (!g || !Array.isArray(g.storia) || g.storia.length === 0) return null;
+  const quanti = g.storia.reduce((n, e) => Math.max(n, (e && e.q) || 1), 1);
+  const per = [];
+  for (let i = 0; i < quanti; i++) per.push(sport.newStats());
+
+  g.storia.forEach(e => {
+    if (!e || !e.a || e.a === 'loro' || e.a === 'noi') return;
+    const azione = azioneDi(sport, e.a);
+    const s = per[((e.q || 1) - 1)];
+    if (!azione || !s) return;
+    Object.entries(azione.apply || {}).forEach(([k, v]) => { s[k] = (s[k] || 0) + v; });
+  });
+
+  return per;
+}
+
+/* L'ANDAMENTO: quanto siamo stati avanti, e i parziali.
+ *
+ * Il punteggio si ricostruisce azione per azione, e da quella riga di numeri
+ * escono le due cose che in un referto si leggono per prime: il massimo
+ * vantaggio, e il parziale più lungo — quanti punti di fila ha fatto una
+ * squadra senza che l'altra rispondesse. È il momento in cui la partita è
+ * girata, e nei totali non si vede.
+ *
+ * Un parziale si chiude quando segna l'altra: per questo si contano i punti e
+ * non le azioni. Sette punti di fila fatti con due triple e un libero sono un
+ * 7-0, non un 3-0.
+ */
+export function andamentoPartita(g, sport) {
+  if (!g || !Array.isArray(g.storia) || g.storia.length === 0) return null;
+
+  let us = 0;
+  let them = 0;
+  let maxV = 0;
+  let maxS = 0;
+  let correnteNoi = 0;
+  let correnteLoro = 0;
+  let runNoi = 0;
+  let runLoro = 0;
+  const serie = [{ us: 0, them: 0 }];
+
+  const segna = (lato, punti) => {
+    if (!punti) return;
+    if (lato === 'us') {
+      us += punti;
+      correnteNoi += punti;
+      correnteLoro = 0;
+      if (correnteNoi > runNoi) runNoi = correnteNoi;
+    } else {
+      them += punti;
+      correnteLoro += punti;
+      correnteNoi = 0;
+      if (correnteLoro > runLoro) runLoro = correnteLoro;
+    }
+    if (us - them > maxV) maxV = us - them;
+    if (them - us > maxS) maxS = them - us;
+    serie.push({ us, them });
+  };
+
+  g.storia.forEach(e => {
+    if (!e || !e.a) return;
+    if (e.a === 'loro') { segna('them', e.n || 0); return; }
+    if (e.a === 'noi') { segna('us', e.n || 0); return; }
+    const azione = azioneDi(sport, e.a);
+    if (azione) segna('us', puntiAzione(sport, azione));
+  });
+
+  return {
+    serie,
+    maxVantaggio: maxV,
+    maxSvantaggio: maxS,
+    parzialeNostro: runNoi,
+    parzialeLoro: runLoro,
+    // Il punteggio ricostruito dal registro. Se non coincide con quello della
+    // partita vuol dire che qualcosa è stato corretto senza passare dal
+    // registro: chi legge deve poterlo sapere invece di fidarsi.
+    ricostruito: { us, them }
+  };
 }
