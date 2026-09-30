@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient.js';
 import { stagioneAttiva } from './stagione.js';
+import { motivoDelRifiuto, SPIEGAZIONE, siRiprova } from '../utils/salvataggio.js';
 
 function fromDbGame(row) {
   if (!row) return null;
@@ -147,22 +148,44 @@ export async function startGame(teamId, sectorId, liveGame, startedByProfileId) 
  * richieste separate lascia in mezzo lo spazio perche' l'altro dispositivo
  * scriva, che e' il difetto che stiamo chiudendo.
  */
+/* Perche' un salvataggio non ha scritto niente: la regola sta in
+ * `utils/salvataggio.js`, dove si puo' provare. Qui c'e' solo la lettura.
+ *
+ * Costa una richiesta in piu' SOLO quando qualcosa e' andato storto, cioe'
+ * quasi mai. */
+async function perche(gameId, revisioneNostra) {
+  try {
+    const { data } = await supabase.from('games')
+      .select('status, revisione, tenuto_da, tenuto_alle')
+      .eq('id', gameId).maybeSingle();
+    return motivoDelRifiuto(data, revisioneNostra);
+  } catch (e) {
+    // Se nemmeno questa lettura passa, non c'e' rete: e allora il salvataggio
+    // non era un conflitto, era la palestra.
+    return { motivo: 'rete' };
+  }
+}
+
 export async function saveLiveGame(gameId, liveGame) {
+  const mia = liveGame.revisione || 0;
   const { data, error } = await supabase.rpc('salva_tabellino', {
     p_game: gameId,
-    p_revisione: liveGame.revisione || 0,
+    p_revisione: mia,
     p_patch: toDbPatch(liveGame)
   });
   if (error) throw describeWriteError(error);
   if (data == null) {
-    const e = new Error(
-      'Questa partita e’ stata modificata da un altro dispositivo: le ultime azioni '
-      + 'segnate qui non sono state salvate.'
-    );
-    // Il richiamante deve poterlo distinguere da «non c'e' rete»: uno si
-    // riprova da solo, l'altro no — riprovare vorrebbe dire insistere a
-    // sovrascrivere il lavoro di qualcun altro.
-    e.conflitto = true;
+    const esito = await perche(gameId, mia);
+    const e = new Error(SPIEGAZIONE[esito.motivo] || SPIEGAZIONE.superata);
+    /* `motivo` dice QUALE delle tre, e il chiamante si comporta di
+     * conseguenza: su una partita chiusa non c'e' niente da riprovare, su un
+     * sorpasso riprovare vorrebbe dire scrivere sopra al lavoro di un altro,
+     * e sulla rete assente riprovare e' esattamente la cosa giusta. */
+    e.motivo = esito.motivo;
+    e.dettagli = esito;
+    // Resta per compatibilita': tutto cio' che non e' rete si comporta come
+    // un conflitto, cioe' non si riprova da solo.
+    e.conflitto = !siRiprova(esito.motivo);
     throw e;
   }
   // La revisione nuova diventa quella da cui parte il prossimo salvataggio.

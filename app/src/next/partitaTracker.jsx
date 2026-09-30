@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { state } from '../state.js';
-import { saveLiveGame, endGame } from '../api/games.js';
+import { saveLiveGame, endGame, reopenGameForFix } from '../api/games.js';
 import { fetchPlayerPhotoUrls } from '../api/roster.js';
 import { updateCalendarMatch } from '../api/calendar.js';
 import { currentSport } from '../utils/sports/index.js';
@@ -11,6 +11,7 @@ import {
   saldoTurno, sommaQuintetto, abbinaCalendario
 } from '../utils/regole.js';
 import { Pannello, Etichetta, Pulsante, Stato, Amichevole, Vuoto, cx } from './ui.jsx';
+import { managesSector } from '../utils/permissions.js';
 import { oggiISO } from '../utils/format.js';
 import { quantiChiusi } from '../utils/referto.js';
 import { calcolaPunteggi } from '../utils/punteggio.js';
@@ -226,7 +227,9 @@ export function Tracker({ onFinita, onEsci }) {
   // Un altro dispositivo ha scritto: da qui in poi non si salva piu' niente
   // finche' non si decide cosa fare. Continuare vorrebbe dire insistere a
   // sovrascrivere il lavoro di qualcun altro.
-  const [conflitto, setConflitto] = useState(false);
+  // Non un sì/no: il motivo. «Chiusa», «superata» e «assente» sono tre guai
+  // diversi, e per anni sono stati raccontati tutti come il secondo.
+  const [conflitto, setConflitto] = useState(null);
   // I volti della rosa: { [idGiocatore]: indirizzo firmato }. Si chiedono una
   // volta all'apertura e valgono sei ore, quanto basta a una partita e a un
   // torneo di tre. Se non arrivano restano le iniziali, che e' esattamente
@@ -288,6 +291,26 @@ export function Tracker({ onFinita, onEsci }) {
   // senza chiedere, e su un giocatore senza `stats` lancerebbe.
   g.players.forEach(p => { if (!p.stats) p.stats = sport.newStats(); });
   calcolaPunteggi(g, sport);
+
+  /* Chi puo` riaprire una partita chiusa per sbaglio.
+   *
+   * Non si usa `canFixGame`, che guarda da quante ore la partita e` finita:
+   * quella serve a correggere un tabellino in archivio giorni dopo. Qui la
+   * partita e` ancora sullo schermo di chi la sta segnando e la chiusura e` di
+   * un minuto fa — chi ha il diritto di segnarla ha il diritto di rimediare. */
+  const puoiCorreggere = !inCampione() && (
+    managesSector(state.currentUser, g.sectorId, state.staffSectors)
+    || !!(state.currentUser || {}).can_score_matches
+  );
+
+  /* Quanti periodi restano da chiudere. Serve alla finestra di «fine
+   * partita»: e` la differenza fra una conferma di routine e un avviso.
+   * `situazionePeriodo` non basta — vive sul regolamento della pallavolo, e
+   * nel basket non c'e`. Questo conto vale per tutti e tre gli sport. */
+  const periodiRestanti = Math.max(
+    0,
+    (g.numQuarters || conf.period.count || 1) - quantiChiusi(g)
+  );
 
   const aggiorna = () => ridisegna(n => n + 1);
 
@@ -368,7 +391,7 @@ export function Tracker({ onFinita, onEsci }) {
        * dispositivo sta segnando — e prima o poi ci riuscirebbe. */
       if (e && e.conflitto) {
         clearTimeout(riprova.current);
-        setConflitto(true);
+        setConflitto({ motivo: e.motivo || 'superata', testo: e.message });
         return;
       }
 
@@ -1077,7 +1100,17 @@ export function Tracker({ onFinita, onEsci }) {
             </div>
           )}
 
-          <div className="flex gap-px border-t border-bordo/10 bg-bordo/10">
+          {/* «FINE PARTITA» NON STA ATTACCATO A «CHIUDI PERIODO».
+              Erano tre pulsanti in fila, tutti della stessa larghezza, a un
+              pixel l'uno dall'altro, e i due di destra facevano cose
+              incomparabili: uno chiude un quarto, l'altro manda il tabellino
+              in archivio e non si torna indietro. Una partita e` stata chiusa
+              a metà del primo quarto sul 14-9, e da quel momento lo scout non
+              ha piu` potuto salvare niente.
+              Adesso c'e` uno stacco vero e il pulsante che archivia e` piu`
+              piccolo degli altri: chi sbaglia mira prende il bordo, non
+              l'archivio. */}
+          <div className="flex items-stretch gap-px border-t border-bordo/10 bg-bordo/10">
             <button
               onClick={annulla}
               disabled={state.undoStack.length === 0}
@@ -1100,10 +1133,13 @@ export function Tracker({ onFinita, onEsci }) {
                 Chiudi {conf.period.label.toLowerCase()}
               </button>
             )}
+            {/* Lo stacco. Non e` decorazione: e` la distanza fra chiudere un
+                periodo e archiviare la partita. */}
+            <div className="w-2 shrink-0 bg-fondo/70" aria-hidden="true" />
             <button
               onClick={() => setFinePartita(true)}
               className={cx(
-                'flex-1 py-2.5 text-[13px] transition-all',
+                'shrink-0 basis-[7.5rem] px-2 py-2.5 text-[12.5px] transition-all',
                 avviso && avviso.chiusa
                   ? 'bg-ambra/16 font-bold text-ambra hover:brightness-110'
                   : 'bg-fondo/40 font-semibold text-ambra hover:brightness-125'
@@ -1377,20 +1413,80 @@ export function Tracker({ onFinita, onEsci }) {
           quello che c'e' sul server sono due partite diverse, e continuare a
           segnare qui vorrebbe dire accumulare azioni che non arriveranno mai.
           Si dice cosa e' successo, e si offre l'unica uscita onesta. */}
-      {conflitto && (
+      {/* ================================ il salvataggio non ha scritto niente
+          Tre guai diversi, e per molto tempo li ha raccontati tutti come il
+          secondo: «la sta segnando qualcun altro, ricarica». Su una partita
+          CHIUSA quel messaggio era falso, non aveva via d'uscita, e l'unico
+          pulsante cancellava la copia locale — cioe` l'unico posto dove le
+          azioni non salvate esistevano ancora. */}
+      {conflitto && conflitto.motivo === 'chiusa' && (
+        <Conferma
+          titolo="Questa partita è stata chiusa"
+          testo={'Il tabellino è andato in archivio — da un altro dispositivo, oppure '
+            + '«Fine partita» premuto per sbaglio da qui. Da quel momento niente di quello '
+            + 'che hai segnato è stato salvato sul server: è però tutto su questo '
+            + 'dispositivo, e non lo tocco.'
+            + (puoiCorreggere
+                ? ' Posso riaprirla e farti continuare da dove eri.'
+                : ' Per riaprirla serve chi amministra la categoria: non chiudere questa scheda.')}
+          etichetta={puoiCorreggere ? 'Riapri e continua' : 'Ho capito'}
+          pericolo={false}
+          onChiudi={() => { /* non si chiude da sola: bisogna decidere */ }}
+          onConferma={async () => {
+            if (!puoiCorreggere) { setConflitto(null); return; }
+            try {
+              /* Si riapre e si riparte dalla revisione che il database ha
+               * adesso: il contenuto buono e` quello che sta qui: dentro ci
+               * sono le azioni che il server non ha mai visto. */
+              const r = await reopenGameForFix(g.id);
+              g.status = 'live';
+              if (r && r.revisione != null) g.revisione = r.revisione;
+              else if (typeof r === 'number') g.revisione = r;
+              setConflitto(null);
+              salva(g);
+              avvisa('Partita riaperta: continua a segnare.');
+            } catch (e) {
+              avvisa((e && e.message) || 'Non riesco a riaprirla.', 'errore');
+            }
+          }}
+        />
+      )}
+
+      {conflitto && conflitto.motivo === 'assente' && (
+        <Conferma
+          titolo="Questa partita non c’è più"
+          testo={'È stata scartata da un altro dispositivo. Quello che hai segnato resta '
+            + 'su questo dispositivo, e non lo tocco: se serve, dillo a chi l’ha scartata '
+            + 'prima di chiudere la scheda.'}
+          etichetta="Ho capito"
+          pericolo={false}
+          onChiudi={() => { /* si decide */ }}
+          onConferma={() => setConflitto(null)}
+        />
+      )}
+
+      {conflitto && conflitto.motivo !== 'chiusa' && conflitto.motivo !== 'assente' && (
         <Conferma
           titolo="Questa partita la sta segnando qualcun altro"
           testo={'Un altro dispositivo ha salvato il tabellino dopo di te, e le ultime azioni '
-            + 'segnate qui non sono state salvate. Ricaricando riprendi dalla versione vera; '
+            + 'segnate qui non sono state salvate. Ricaricando riprendi dalla versione sua; '
             + 'se invece il tabellino buono è questo, chiedi all’altro di uscire dallo scout '
-            + 'e poi ricarica.'}
+            + 'e poi ricarica. In tutti i casi quello che hai segnato resta su questo '
+            + 'dispositivo: la copia non la cancello.'}
           etichetta="Ricarica la partita"
           pericolo={false}
           onChiudi={() => { /* non si chiude: non c'e' una via che non sia decidere */ }}
           onConferma={async () => {
             state.undoStack = [];
             state.undoTesti = [];
-            cancellaCopia(g.sectorId);
+            /* LA COPIA LOCALE NON SI CANCELLA.
+             *
+             * Prima si cancellava, e poi si ricaricava. Cioe`: nel momento in
+             * cui il server ha rifiutato il lavoro di chi stava segnando, si
+             * buttava via anche l'ultimo posto dove quel lavoro esisteva. Al
+             * ricaricamento, se il server ha una versione piu` avanzata, e`
+             * quella a vincere — ma se non ce l'ha, adesso si puo` ancora
+             * recuperare da qui. */
             window.location.reload();
           }}
         />
@@ -1398,13 +1494,33 @@ export function Tracker({ onFinita, onEsci }) {
 
       {finePartita && (
         <Conferma
-          titolo="Chiudere la partita?"
-          testo={`${g.teamScore}–${g.oppScore} contro ${g.oppName}. Il tabellino va in archivio e non si modifica più.`
+          /* QUANDO LA PARTITA NON È FINITA, LO DICE PRIMA DEL RESTO.
+           *
+           * Prima questa finestra diceva solo il punteggio e che il tabellino
+           * andava in archivio. Un punteggio da solo non suona come un
+           * allarme: «14–9» è un punteggio plausibile, e chi ha premuto per
+           * sbaglio non ha nessun motivo di fermarsi a guardarlo.
+           *
+           * Quello che ferma la mano è la frase che dice in che momento della
+           * partita sei. Con quattro periodi ancora da giocare, «chiudere» non
+           * è una conferma di routine: è un errore, e la finestra lo deve dire
+           * come tale — titolo diverso e pulsante rosso. */
+          titolo={periodiRestanti > 0
+            ? 'Non è finita: vuoi archiviarla comunque?'
+            : 'Chiudere la partita?'}
+          testo={(periodiRestanti > 0
+              ? `Sei nel ${g.quarter || 1}º ${conf.period.label.toLowerCase()} e `
+                + `${periodiRestanti === 1
+                    ? `ne resta ancora uno da chiudere`
+                    : `ne restano ancora ${periodiRestanti} da chiudere`}. `
+                + 'Se volevi solo chiudere questo, il pulsante è quello accanto. '
+              : '')
+            + `${g.teamScore}–${g.oppScore} contro ${g.oppName}. Il tabellino va in archivio e non si modifica più.`
             + (rigaCalendario
                 ? ' Il risultato torna anche sulla riga di calendario.'
                 : ' In calendario non c’è nessuna riga che corrisponde: il risultato lì va scritto a mano.')}
-          etichetta="Chiudi la partita"
-          pericolo={false}
+          etichetta={periodiRestanti > 0 ? 'Archivia comunque' : 'Chiudi la partita'}
+          pericolo={periodiRestanti > 0}
           onChiudi={() => setFinePartita(false)}
           onConferma={async () => {
             calcolaPunteggi(g, sport);

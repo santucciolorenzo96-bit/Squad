@@ -187,10 +187,30 @@ export function Partita() {
         };
         avvisa('Ripresa dalla copia salvata su questo dispositivo');
       } else if (!viva && locale) {
-        // Il server dice che non c'e' nessuna partita aperta: e' stata chiusa
-        // o scartata altrove. La copia qui non serve piu', e tenerla vorrebbe
-        // dire riproporre un fantasma a ogni apertura.
-        cancellaCopia(state.activeSectorId);
+        /* IL SERVER NON HA NESSUNA PARTITA APERTA. LA COPIA NON SI BUTTA.
+         *
+         * Prima si cancellava, col ragionamento che una partita chiusa o
+         * scartata altrove rende la copia un fantasma. Il ragionamento regge
+         * solo se la chiusura era voluta.
+         *
+         * Il 30 settembre non lo era: una partita e` stata archiviata a meta`
+         * del primo quarto, e da quel momento lo scout non ha piu` potuto
+         * salvare niente. Tutto quello che e` stato segnato dopo esisteva in
+         * un posto solo — questa copia — e aprire l'app su quel dispositivo
+         * la cancellava, senza chiedere e senza dirlo.
+         *
+         * Se la copia NON era ancora arrivata al server, dentro c'e` del
+         * lavoro che non esiste da nessun'altra parte: si propone di
+         * recuperarla e si lascia decidere. Una copia gia` sincronizzata non
+         * ha niente da dire, e quella si puo` togliere. */
+        if (locale.sincronizzata) {
+          cancellaCopia(state.activeSectorId);
+        } else {
+          setRecupero({ ...locale, motivo: 'chiusa' });
+          setFase('recupero');
+          setAperte((tutte || []).filter(x => x.sector_id !== state.activeSectorId));
+          return;
+        }
       }
 
       state.liveGame = viva;
@@ -227,14 +247,26 @@ export function Partita() {
         <Titolo sopra="Categoria">Scout</Titolo>
         <div className="mt-5">
           <Pannello alto className="pad-pannello-stretto">
-            <Etichetta className="!text-ambra">Server non raggiungibile</Etichetta>
+            {/* Due situazioni diverse, e una sola schermata diceva sempre
+                «server non raggiungibile». La seconda è peggiore e va
+                raccontata per quello che è: il server c’è, la partita là è
+                chiusa, e quello che sta qui non è mai arrivato. */}
+            <Etichetta className="!text-ambra">
+              {recupero.motivo === 'chiusa'
+                ? 'La partita è chiusa sul server'
+                : 'Server non raggiungibile'}
+            </Etichetta>
             <p className="mt-3 text-[13.5px] leading-relaxed">
               Su questo dispositivo c’è una partita contro{' '}
               <b>{recupero.gioco.oppName}</b>, aggiornata {daQuanto(recupero)}
               {recupero.sincronizzata ? '' : ' e non ancora spedita'}.
             </p>
             <p className="mt-2 text-[12.5px] leading-relaxed text-tenue">
-              Puoi continuare a segnare da qui: quando la rete torna, il tabellino riparte da solo.
+              {recupero.motivo === 'chiusa'
+                ? 'Sul server quella partita risulta chiusa o scartata, quindi quello che vedi '
+                  + 'qui non c’è da nessun’altra parte. Non la cancello: aprila per '
+                  + 'guardarla, e se è quella buona chiedi di riaprire il tabellino.'
+                : 'Puoi continuare a segnare da qui: quando la rete torna, il tabellino riparte da solo.'}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Pulsante
@@ -247,7 +279,9 @@ export function Partita() {
               >
                 Continua da qui
               </Pulsante>
-              <Pulsante onClick={carica}>Riprova a collegarti</Pulsante>
+              {recupero.motivo === 'chiusa'
+                ? <Pulsante onClick={carica}>Ricontrolla</Pulsante>
+                : <Pulsante onClick={carica}>Riprova a collegarti</Pulsante>}
             </div>
           </Pannello>
         </div>
