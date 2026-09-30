@@ -481,7 +481,7 @@ export function drawMiniDonut(doc, cx, cy, voce, { raggio = 5, spessore = 1.7 } 
  * perimetro, l'arco da tre, l'area) e ridisegnarle costa meno che portarsi
  * dietro un convertitore.
  */
-export function drawShotChart(doc, tiri, y, { larghezza = 78 } = {}) {
+export function drawShotChart(doc, tiri, y, { larghezza = 78, soloSegnati = false } = {}) {
   if (!tiri || tiri.length === 0) return y;
   const altezza = larghezza * (110 / 90);
   y = pageBreakIfNeeded(doc, y, altezza + 10);
@@ -522,8 +522,12 @@ export function drawShotChart(doc, tiri, y, { larghezza = 78 } = {}) {
   scrivi(doc, COLORI.tenue);
   doc.setFontSize(7.5);
   const dentro = tiri.filter(t => t.dentro).length;
+  // Con i soli canestri non c'e' niente da mettere a rapporto: dire
+  // «venti su venti» sarebbe un cento per cento che non esiste.
   doc.text(
-    `${dentro} segnati (pieni) su ${tiri.length} tirati`,
+    soloSegnati
+      ? `${dentro} canestri, da dove sono partiti`
+      : `${dentro} segnati (pieni) su ${tiri.length} tirati`,
     cx, fondo + 4.5, { align: 'center' }
   );
   scrivi(doc, COLORI.testo);

@@ -228,17 +228,31 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
   // numeri dicono in tre letture. Sono due modi di guardare la stessa cosa, e
   // su carta c'e' posto per tutti e due.
   if (r.tiri) {
-    y = drawSection(doc, 'Da dove abbiamo tirato', y);
-    y = drawTable(
-      doc,
-      ['Zona', 'Segnati', 'Tentati', '%'],
-      r.tiri.zone.map(z => [z.label, String(z.fatti), String(z.tentati), z.quota + '%']),
-      [60, 30, 30, 30],
-      y,
-      { allineaDa: 1 }
-    );
+    /* Con i soli tiri segnati non ci sono percentuali da dare: «tentati»
+     * sarebbe uguale a «segnati» e ogni zona direbbe cento per cento. Si dice
+     * quello che la mappa dice davvero — dove questa squadra segna — invece
+     * di stampare un numero falso che sembra vero. */
+    const soloSegnati = !!r.tiri.soloSegnati;
+    y = drawSection(doc, soloSegnati ? 'Da dove abbiamo segnato' : 'Da dove abbiamo tirato', y);
+    y = soloSegnati
+      ? drawTable(
+        doc,
+        ['Zona', 'Canestri'],
+        r.tiri.zone.map(z => [z.label, String(z.fatti)]),
+        [110, 40],
+        y,
+        { allineaDa: 1 }
+      )
+      : drawTable(
+        doc,
+        ['Zona', 'Segnati', 'Tentati', '%'],
+        r.tiri.zone.map(z => [z.label, String(z.fatti), String(z.tentati), z.quota + '%']),
+        [60, 30, 30, 30],
+        y,
+        { allineaDa: 1 }
+      );
     y += 4;
-    y = drawShotChart(doc, r.tiri.punti, y);
+    y = drawShotChart(doc, r.tiri.punti, y, { soloSegnati });
     y += 2;
   }
 

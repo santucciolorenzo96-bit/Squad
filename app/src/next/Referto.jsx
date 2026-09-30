@@ -36,9 +36,20 @@ import { Finestra, Conferma, useAvviso } from './moduli.jsx';
  * sbaglia spesso, e a occhio non si distingue.
  */
 function MappaTiri({ sport, tiri }) {
+  /* Con i soli canestri non ci sono percentuali da dare.
+   *
+   * La posizione la si chiede solo sul canestro: sull'errore erano due
+   * domande di fila mentre il gioco correva. La conseguenza e` che
+   * «tentati» sarebbe uguale a «segnati» e ogni zona direbbe cento per
+   * cento — un numero falso che sembra vero, il peggiore dei tipi. Quindi
+   * si dice quello che la mappa dice davvero: dove questa squadra segna. */
+  const soloSegnati = !!tiri.soloSegnati;
+
   return (
     <div className="mb-6">
-      <Etichetta className="mb-2.5">Da dove abbiamo tirato</Etichetta>
+      <Etichetta className="mb-2.5">
+        {soloSegnati ? 'Da dove abbiamo segnato' : 'Da dove abbiamo tirato'}
+      </Etichetta>
 
       <Pannello alto className="overflow-hidden">
         <div className="campo-cornice" style={{ '--proporzione': sport.field.ratio }}>
@@ -62,15 +73,23 @@ function MappaTiri({ sport, tiri }) {
         {tiri.zone.map(z => (
           <Pannello key={z.key} className="px-3 py-2.5 text-center">
             <div className="text-[11px] font-bold uppercase tracking-etichetta text-tenue">{z.label}</div>
-            <div className="cifra mt-1 text-[18px] font-bold leading-none">{z.quota}%</div>
-            <div className="cifra mt-1 text-[11.5px] text-tenue">{z.fatti}/{z.tentati}</div>
+            <div className="cifra mt-1 text-[18px] font-bold leading-none">
+              {soloSegnati ? z.fatti : z.quota + '%'}
+            </div>
+            <div className="cifra mt-1 text-[11.5px] text-tenue">
+              {soloSegnati ? (z.fatti === 1 ? 'canestro' : 'canestri') : z.fatti + '/' + z.tentati}
+            </div>
           </Pannello>
         ))}
       </div>
 
       <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
-        Pieno verde i tiri entrati, cerchio vuoto quelli sbagliati. La zona non è scritta da
-        nessuna parte: si ricava dal punto, arco da tre e angoli compresi.
+        {soloSegnati
+          ? 'Ogni pallino è un canestro, nel punto da cui è partito. Degli errori la posizione '
+            + 'non si chiede — sarebbe una domanda in più ogni quaranta secondi — quindi qui '
+            + 'non ci sono percentuali per zona, solo dove questa squadra segna.'
+          : 'Pieno verde i tiri entrati, cerchio vuoto quelli sbagliati. La zona non è scritta da '
+            + 'nessuna parte: si ricava dal punto, arco da tre e angoli compresi.'}
       </p>
     </div>
   );

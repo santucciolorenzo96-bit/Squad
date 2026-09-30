@@ -221,7 +221,23 @@ export function tiriPartita(g, sport) {
     return { ...z, fatti, tentati: suoi.length, quota: suoi.length ? Math.round((fatti / suoi.length) * 100) : null };
   }).filter(z => z.tentati > 0);
 
-  return { punti, zone };
+  /* SE DEGLI ERRORI NON SI SA DOVE SONO PARTITI, NON CI SONO PERCENTUALI.
+   *
+   * La posizione la si chiede solo sul canestro: l'errore al tiro arriva ogni
+   * quaranta secondi e due domande di seguito sono troppe mentre il gioco
+   * corre. La conseguenza sta qui e va detta, non nascosta.
+   *
+   * Con i soli tiri segnati, «tentati» è uguale a «segnati» e ogni zona
+   * direbbe cento per cento. Sarebbe un numero falso che sembra vero — il
+   * peggiore dei tipi, perché un allenatore lo leggerebbe e ci crederebbe.
+   *
+   * Quindi lo si dichiara: `soloSegnati`. Chi disegna la mappa smette di
+   * parlare di percentuali e dice quello che la mappa dice davvero, cioè dove
+   * quella squadra segna.
+   */
+  const soloSegnati = punti.every(t => t.dentro);
+
+  return { punti, zone, soloSegnati };
 }
 
 /* LE TRAIETTORIE DEI PUNTI.

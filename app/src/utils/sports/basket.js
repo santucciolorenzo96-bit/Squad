@@ -350,17 +350,30 @@ export const BASKET = {
       // `zona` dice che questo tiro ha un punto di partenza: con la mappa
       // accesa, prima di registrarlo l'app chiede da dove. I tiri liberi no,
       // si tirano sempre dallo stesso posto.
+      /* L'ERRORE AL TIRO NON CHIEDE PIÙ NIENTE.
+       *
+       * Aveva due seguiti: da dove era partito il tiro, e chi aveva preso il
+       * rimbalzo. Due domande su un'azione che in partita arriva ogni
+       * quaranta secondi, e mentre si risponde il gioco è già ripartito.
+       *
+       * Il canestro le domande le tiene — è l'azione che conta, ed è quella
+       * per cui vale la pena fermarsi mezzo secondo. L'errore no.
+       *
+       * Conseguenza da sapere: senza la posizione degli errori, la mappa dice
+       * DOVE SI SEGNA e non più le percentuali per zona. Il referto lo dice,
+       * invece di stampare cento per cento dappertutto.
+       */
       { label: 'Tiro da 2', layout: 'pair', actions: [
         { act: 'fg2_made', label: '\u2713 Canestro', tone: 'made', apply: { fgm2: 1, fga2: 1 }, score: 2, zona: true, dentro: true, poi: 'assist' },
-        { act: 'fg2_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga2: 1 }, zona: true, poi: 'rimbalzo' }
+        { act: 'fg2_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga2: 1 } }
       ]},
       { label: 'Tiro da 3', layout: 'pair', actions: [
         { act: 'fg3_made', label: '\u2713 Canestro', tone: 'made', apply: { fgm3: 1, fga3: 1 }, score: 3, zona: true, dentro: true, poi: 'assist' },
-        { act: 'fg3_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga3: 1 }, zona: true, poi: 'rimbalzo' }
+        { act: 'fg3_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga3: 1 } }
       ]},
       { label: 'Tiro libero', layout: 'pair', actions: [
         { act: 'ft_made', label: '\u2713 Segnato', tone: 'made', apply: { ftm: 1, fta: 1 }, score: 1 },
-        { act: 'ft_miss', label: '\u2717 Sbagliato', tone: 'miss', apply: { fta: 1 }, poi: 'rimbalzo' }
+        { act: 'ft_miss', label: '\u2717 Sbagliato', tone: 'miss', apply: { fta: 1 } }
       ]},
       { label: 'Rimbalzo', layout: 'pair', actions: [
         { act: 'orb', label: 'Offensivo', tone: 'neutral', apply: { orb: 1 } },

@@ -280,15 +280,99 @@ describe('basket: la mappa nel referto', () => {
 describe('basket: la mappa è una scelta, non un obbligo', () => {
   test('lo sport la offre', () => is(BASKET.scout.mappaTiri, true));
 
-  test('solo i tiri dal campo hanno un punto: i liberi si tirano da fermi', () => {
+  /* La posizione la si chiede SOLO SUL CANESTRO.
+   *
+   * Prima la si chiedeva anche sull'errore, e sull'errore arrivava pure la
+   * domanda su chi avesse preso il rimbalzo: due domande di seguito su
+   * un'azione che in partita capita ogni quaranta secondi, mentre il gioco è
+   * già ripartito. Il canestro vale mezzo secondo di pausa, l'errore no.
+   *
+   * I liberi non l'hanno mai avuta: si tirano sempre dallo stesso posto. */
+  test('la posizione si chiede solo sul canestro dal campo', () => {
     const azioni = BASKET.scout.groups.flatMap(gr => gr.actions);
     const conZona = azioni.filter(a => a.zona).map(a => a.act).sort();
-    is(conZona.join(','), 'fg2_made,fg2_miss,fg3_made,fg3_miss');
+    is(conZona.join(','), 'fg2_made,fg3_made');
+  });
+
+  test('e l errore al tiro non fa partire nessuna domanda', () => {
+    const azioni = BASKET.scout.groups.flatMap(gr => gr.actions);
+    ['fg2_miss', 'fg3_miss', 'ft_miss'].forEach(act => {
+      const a = azioni.find(x => x.act === act);
+      ok(a, act + ' non esiste piu`');
+      ok(!a.zona, act + ' chiede ancora da dove');
+      ok(!a.poi, act + ' fa ancora la domanda «' + a.poi + '»');
+    });
+  });
+
+  test('il canestro invece la domanda dell assist la tiene', () => {
+    const azioni = BASKET.scout.groups.flatMap(gr => gr.actions);
+    is(azioni.find(a => a.act === 'fg2_made').poi, 'assist');
+    is(azioni.find(a => a.act === 'fg3_made').poi, 'assist');
   });
 
   test('i canestri sanno di essere entrati, gli errori no', () => {
     const azioni = BASKET.scout.groups.flatMap(gr => gr.actions);
     is(azioni.find(a => a.act === 'fg3_made').dentro, true);
     ok(!azioni.find(a => a.act === 'fg3_miss').dentro);
+  });
+});
+
+/* LA MAPPA QUANDO CI SONO SOLO I CANESTRI.
+ *
+ * La posizione si chiede solo sul canestro, quindi nella mappa non c'è nessun
+ * tiro sbagliato. La conseguenza va detta, non nascosta: «tentati» sarebbe
+ * uguale a «segnati» e ogni zona direbbe cento per cento.
+ *
+ * Sarebbe un numero falso che sembra vero — il peggiore dei tipi, perché un
+ * allenatore lo legge e ci crede.
+ */
+describe('la mappa con i soli canestri non inventa percentuali', () => {
+  const conTiri = (tiri) => ({
+    oppName: 'X', quarter: 1, chiusi: 1, periodScores: [{ us: 10, them: 8 }],
+    players: [{ id: 'p1', number: '4', name: 'Chi Segna', stats: Object.assign(BASKET.newStats(), { tiri }) }],
+    storia: []
+  });
+
+  test('con soli canestri lo dichiara', () => {
+    const r = refertoPartita(conTiri([
+      { x: 20, y: 80, act: 'fg2_made', dentro: true, q: 1 },
+      { x: 50, y: 30, act: 'fg3_made', dentro: true, q: 1 }
+    ]), BASKET);
+    is(r.tiri.soloSegnati, true);
+  });
+
+  test('con dentro anche un errore, no: le percentuali valgono', () => {
+    const r = refertoPartita(conTiri([
+      { x: 20, y: 80, act: 'fg2_made', dentro: true, q: 1 },
+      { x: 50, y: 30, act: 'fg3_miss', dentro: false, q: 1 }
+    ]), BASKET);
+    is(r.tiri.soloSegnati, false);
+  });
+
+  /* Il numero che NON si deve leggere sul foglio. Senza la dichiarazione, la
+   * tabella delle zone stamperebbe questo per ogni riga. */
+  test('senza la dichiarazione ogni zona direbbe cento per cento', () => {
+    const r = refertoPartita(conTiri([
+      { x: 20, y: 80, act: 'fg2_made', dentro: true, q: 1 },
+      { x: 22, y: 78, act: 'fg2_made', dentro: true, q: 1 }
+    ]), BASKET);
+    r.tiri.zone.forEach(z => {
+      is(z.quota, 100, 'la prova che senza `soloSegnati` il foglio mentirebbe');
+      is(z.tentati, z.fatti);
+    });
+    // Ed è proprio per questo che c'è.
+    is(r.tiri.soloSegnati, true);
+  });
+
+  test('i canestri restano contati per zona: quello la mappa lo sa dire', () => {
+    const r = refertoPartita(conTiri([
+      { x: 20, y: 80, act: 'fg2_made', dentro: true, q: 1 },
+      { x: 22, y: 78, act: 'fg2_made', dentro: true, q: 1 }
+    ]), BASKET);
+    is(r.tiri.zone.reduce((n, z) => n + z.fatti, 0), 2);
+  });
+
+  test('senza nessun tiro con la posizione non c e nessuna mappa', () => {
+    is(refertoPartita(conTiri([]), BASKET).tiri, null);
   });
 });
