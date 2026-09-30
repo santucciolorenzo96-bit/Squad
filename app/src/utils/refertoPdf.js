@@ -181,7 +181,14 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
     y = drawSection(doc, 'Com\u2019\u00e8 andata', y);
     y = drawTiles(doc, [
       { valore: '+' + a.maxVantaggio, etichetta: 'massimo vantaggio', tono: a.maxVantaggio > 0 ? 'verde' : null },
-      { valore: a.maxSvantaggio ? '\u2212' + a.maxSvantaggio : '0', etichetta: 'massimo svantaggio', tono: a.maxSvantaggio > 0 ? 'rosso' : null },
+      /* Il trattino ASCII e non il segno meno tipografico.
+       *
+       * Sul foglio usciva una virgoletta: i caratteri predefiniti di jsPDF
+       * sono codificati WinAnsi, e il meno \u00abvero\u00bb (U+2212) non ci sta dentro \u2014
+       * il disegnatore ci mette quello che trova a quel posto. Sullo schermo
+       * il meno tipografico va benissimo ed e' piu' bello; su carta bisogna
+       * stare a quello che il carattere conosce. */
+      { valore: a.maxSvantaggio ? '-' + a.maxSvantaggio : '0', etichetta: 'massimo svantaggio', tono: a.maxSvantaggio > 0 ? 'rosso' : null },
       { valore: a.parzialeNostro, etichetta: 'parziale nostro' },
       { valore: a.parzialeLoro, etichetta: 'parziale subito' }
     ], y);
