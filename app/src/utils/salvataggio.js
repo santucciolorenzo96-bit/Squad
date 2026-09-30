@@ -71,3 +71,37 @@ export const SPIEGAZIONE = {
 export function siRiprova(motivo) {
   return motivo === 'rete';
 }
+
+/* COSA APPARTIENE ALLA PARTITA, E COSA ALLA RIGA SUL SERVER.
+ *
+ * `revisione`, `tenutoDa` e `tenutoAlle` non sono dati della partita: sono lo
+ * stato della RIGA nel database — «da quale versione parti» e «chi l'ha toccata
+ * per ultimo». Viaggiano dentro lo stesso oggetto di punti e statistiche, e per
+ * questo si portano dietro per sbaglio ogni volta che quell'oggetto viene
+ * sostituito con una copia.
+ *
+ * È già successo due volte, in due posti diversi:
+ *
+ *   — riprendendo la copia locale all'apertura: la copia si scrive PRIMA del
+ *     salvataggio, quindi porta una revisione vecchia per definizione, e il
+ *     primo salvataggio si sentiva rispondere «un altro è arrivato prima» a un
+ *     utente solo su un dispositivo solo;
+ *
+ *   — ANNULLANDO un'azione: l'annulla sostituisce la partita con la copia
+ *     fotografata prima del tocco, e quella copia è stata scattata prima del
+ *     salvataggio che è seguito. Ripristinandola per intero si torna indietro
+ *     anche di una revisione, e il salvataggio successivo viene rifiutato.
+ *
+ * La regola è una sola e sta qui: IL CONTENUTO SI PRENDE DALLA COPIA, LO STATO
+ * DELLA RIGA DA QUELLO CHE C'È ADESSO.
+ */
+export const STATO_DELLA_RIGA = ['revisione', 'tenutoDa', 'tenutoAlle'];
+
+export function conStatoDellaRiga(copia, corrente) {
+  if (!copia) return copia;
+  const fuori = { ...copia };
+  STATO_DELLA_RIGA.forEach(k => {
+    if (corrente && corrente[k] !== undefined) fuori[k] = corrente[k];
+  });
+  return fuori;
+}

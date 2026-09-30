@@ -6,6 +6,7 @@ import { managesSector, canDeleteGame } from '../utils/permissions.js';
 import { tabellinoInAltraMano } from '../utils/regole.js';
 import { inCampione } from './campione.js';
 import { leggiCopia, cancellaCopia, daQuanto } from './partitaLocale.js';
+import { conStatoDellaRiga } from '../utils/salvataggio.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, cx } from './ui.jsx';
 import { Conferma, ErroreCaricamento, useAvviso } from './moduli.jsx';
 import { Rete } from './Rete.jsx';
@@ -178,13 +179,10 @@ export function Partita() {
          *
          * Il contenuto e' nostro ed e' il piu' recente; la versione da cui
          * partire e' quella che il server ha adesso. */
-        viva = {
-          ...locale.gioco,
-          revisione: viva.revisione,
-          tenutoDa: viva.tenutoDa,
-          tenutoAlle: viva.tenutoAlle,
-          daRisincronizzare: true
-        };
+        // La regola sta in `utils/salvataggio.js`, in un posto solo: la
+        // stessa dimenticanza e` gia` costata due difetti in due punti
+        // diversi, e il secondo era il pulsante Annulla.
+        viva = { ...conStatoDellaRiga(locale.gioco, viva), daRisincronizzare: true };
         avvisa('Ripresa dalla copia salvata su questo dispositivo');
       } else if (!viva && locale) {
         /* IL SERVER NON HA NESSUNA PARTITA APERTA. LA COPIA NON SI BUTTA.

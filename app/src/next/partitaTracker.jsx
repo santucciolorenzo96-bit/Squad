@@ -16,6 +16,7 @@ import { oggiISO } from '../utils/format.js';
 import { quantiChiusi } from '../utils/referto.js';
 import { calcolaPunteggi } from '../utils/punteggio.js';
 import { applicaAzione, annota, segnaPeriodo } from '../utils/azione.js';
+import { conStatoDellaRiga } from '../utils/salvataggio.js';
 import {
   ruotaSestetto, cambioLibero, applicaCambio, raccontaCambio, zonaDi,
   versoGiusto, perchePalla
@@ -460,6 +461,17 @@ export function Tracker({ onFinita, onEsci }) {
       return;
     }
     if (state.undoTesti) state.undoTesti.pop();
+
+    /* IL CONTENUTO DALLA COPIA, LO STATO DELLA RIGA DA ADESSO.
+     *
+     * La fotografia e` stata scattata PRIMA del tocco, e quindi prima del
+     * salvataggio che e` seguito: dentro c'e` la revisione di allora. Se si
+     * ripristinasse anche quella, il salvataggio dopo l'annulla dichiarerebbe
+     * al database una versione che il database ha gia` superato — e si
+     * sentirebbe rispondere «un altro dispositivo e` arrivato prima», a un
+     * utente solo, su un dispositivo solo. E` esattamente quello che
+     * succedeva premendo Annulla. */
+    prima = conStatoDellaRiga(prima, g);
     state.liveGame = prima;
 
     /* TUTTO QUELLO CHE TENEVA IN MANO UN PEZZO DELLA PARTITA DI PRIMA.
