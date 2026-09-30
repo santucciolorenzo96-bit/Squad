@@ -491,25 +491,70 @@
   /* Il gettone sul campo dello scout: si tocca, quindi ha bisogno di essere
      grande abbastanza, ma il campo non deve diventare un elenco. */
   .gettone-scout {
-    /* Piu' grandi di prima. Il gettone e' il bersaglio del primo dei due
-       tocchi, e su un campo che adesso occupa tutta l'altezza disponibile
-       c'era spazio per renderlo piu' facile da prendere — in palestra si
-       tocca in piedi, spesso senza guardare. */
-    width: clamp(3.6rem, 17cqw, 7.4rem);
-    --volto: clamp(2.6rem, 12.5cqw, 5rem);
-    --numero: clamp(0.85rem, 4cqw, 1.6rem);
+    /* IL GETTONE È LA COSA PIÙ GRANDE DEL CAMPO.
+       È il bersaglio del primo dei due tocchi, e in palestra si tocca in
+       piedi, spesso senza guardare. Su un tablet in orizzontale il campo
+       prende quasi tutto lo schermo, e quello spazio va a chi deve essere
+       preso al primo colpo — non al parquet disegnato sotto. */
+    width: clamp(4rem, 20cqw, 8.8rem);
+    --volto: clamp(3rem, 15cqw, 6.4rem);
+    --numero: clamp(0.95rem, 4.6cqw, 1.9rem);
     --nome: clamp(0.55rem, 2.3cqw, 0.85rem);
-    --media: clamp(0.55rem, 2.3cqw, 0.85rem);
-    /* Anche il ⇄ si misura sul campo. Fisso a 24px, su un campo piccolo
-       copriva il numero di maglia: il distintivo diventava piu' importante
-       del giocatore. */
-    --scambio: clamp(1.05rem, 4.4cqw, 1.75rem);
-    /* La canotta col numero, in basso a destra rispetto al volto.
-       Poco piu' grande del ⇄: dentro ci sta un numero a due cifre, e un
-       numero di maglia che non si legge non serve a niente. Ma nemmeno puo'
-       mangiarsi il volto — sta intorno alla meta' della faccia, non di piu',
-       altrimenti torna a essere lei la cosa che si guarda per prima. */
-    --canotta: clamp(1.2rem, 4.9cqw, 2rem);
+    --media: clamp(0.58rem, 2.5cqw, 0.95rem);
+    /* Il ⇄ si misura sul campo come tutto il resto: fisso, su un campo
+       piccolo coprirebbe il numero di maglia. */
+    --scambio: clamp(1.15rem, 5cqw, 2.1rem);
+    /* Il pallino col numero, in basso a destra rispetto al volto.
+       Più grande del ⇄, perché dentro ci va un numero a due cifre e un
+       numero di maglia che non si legge non serve a niente. Ma non può
+       mangiarsi il volto: sta intorno a un terzo della faccia, non di più,
+       altrimenti torna a essere lui la cosa che si guarda per prima. */
+    --pallino: clamp(1.4rem, 5.8cqw, 2.5rem);
+  }
+
+  /* ==================== La panchina, tutta a vista ====================
+
+     Prima era una griglia a misura fissa dentro una colonna che scorreva:
+     con una rosa lunga, trovare chi doveva entrare voleva dire cercare col
+     dito mentre l'arbitro aspettava.
+
+     Adesso le facce si misurano sulla COLONNA, non su un numero deciso a
+     tavolino. La colonna è un contenitore di query e la faccia è una
+     frazione della sua larghezza divisa per le colonne che servono: due fino
+     a otto, tre da nove in su. Il risultato è che la panchina ci sta sempre,
+     e le facce sono grandi quanto lo spazio concede — non un pixel di meno.
+
+     Il limite in alto serve sul telefono, dove la colonna è larga come lo
+     schermo: senza, sei gettoni diventerebbero sei ritratti. */
+  .panca-colonna { container-type: inline-size; }
+
+  /* `--c` è il numero di colonne che vale DAVVERO, e cambia padrone a
+     seconda della larghezza: sul telefono la panchina sta sotto al campo ed
+     è larga tutto lo schermo, quindi le colonne le decide qui il CSS; da
+     tablet in su sta in una colonna stretta di fianco, e allora il numero
+     arriva da chi ha misurato l'altezza della pagina. */
+  .panca-griglia {
+    --c: 4;
+    display: grid;
+    grid-template-columns: repeat(var(--c), minmax(0, 1fr));
+    gap: 0.4rem;
+    align-content: start;
+    /* La rete, non il piano. Le colonne si scelgono perché ci stiano tutti:
+       se per qualche misura imprevista non bastasse, scorrere è brutto ma
+       tagliare via una giocatrice che deve entrare è peggio. */
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  @media (min-width: 640px) { .panca-griglia { --c: 6; } }
+  @media (min-width: 768px) { .panca-griglia { --c: var(--colonne, 2); } }
+
+  .panca-gettone {
+    padding: 0.3rem 0.15rem 0.35rem;
+    --faccia: min(
+      calc((100cqw - (var(--c) - 1) * 0.4rem) / var(--c) * 0.66),
+      3.1rem
+    );
+    --nomino: clamp(0.56rem, calc(var(--faccia) * 0.26), 0.72rem);
   }
 
   /* I numeri si incolonnano sempre: in una tabella di dati le cifre che
