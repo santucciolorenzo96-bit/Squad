@@ -222,3 +222,57 @@ describe('un azione sconosciuta non rompe il referto', () => {
     is(per[0].fga2, 1);
   });
 });
+
+/* ------------------------------------------- le azioni che non ci sono più */
+import { PALLAVOLO } from '../src/utils/sports/pallavolo.js';
+
+/* Il registro è la cronaca di una partita, e una cronaca si rilegge anni dopo.
+ * Quando «positivo» e «negativo» in attacco sono diventati un «difeso» solo,
+ * le righe già scritte con il vecchio nome hanno smesso di trovare
+ * corrispondenza — e i loro numeri sono spariti dalle statistiche set per set,
+ * in silenzio, con i primi set che uscivano vuoti. */
+describe('una partita segnata prima che un azione fosse ritirata', () => {
+  const vecchia = {
+    oppName: 'Liotri', status: 'finished', quarter: 3, chiusi: 3,
+    periodScores: [{ us: 25, them: 20 }, { us: 20, them: 25 }, { us: 25, them: 18 }],
+    players: [],
+    storia: [
+      { q: 1, a: 'kill', p: 'x' }, { q: 1, a: 'attack_pos', p: 'x' },
+      { q: 1, a: 'attack_neg', p: 'x' }, { q: 1, a: 'attack_err', p: 'x' },
+      { q: 2, a: 'attack_pos', p: 'x' },
+      { q: 3, a: 'attack_dug', p: 'x' }
+    ]
+  };
+
+  test('le azioni ritirate si ritrovano lo stesso', () => {
+    ok(azioneDi(PALLAVOLO, 'attack_pos'));
+    ok(azioneDi(PALLAVOLO, 'attack_neg'));
+  });
+
+  test('ma non sono pulsanti: dal pannello sono sparite', () => {
+    const azioni = PALLAVOLO.scout.groups.find(g => g.label === 'Attacco').actions;
+    is(azioni.some(a => a.act === 'attack_pos'), false);
+  });
+
+  /* IL SINTOMO SEGNALATO: i primi set vuoti nelle grafiche a cerchio. */
+  test('il primo set ha i suoi quattro attacchi, non zero', () => {
+    const per = statistichePerPeriodo(vecchia, PALLAVOLO);
+    is(per[0].attacks, 4);
+    is(per[0].kills, 1);
+    is(per[0].attackErrors, 1);
+  });
+
+  test('e anche il secondo, che ne aveva uno solo', () => {
+    is(statistichePerPeriodo(vecchia, PALLAVOLO)[1].attacks, 1);
+  });
+
+  test('il terzo, segnato col nome nuovo, continua a tornare', () => {
+    is(statistichePerPeriodo(vecchia, PALLAVOLO)[2].attacks, 1);
+  });
+
+  test('i tre esiti si leggono uguali, vecchi e nuovi insieme', () => {
+    const tutti = statistichePerPeriodo(vecchia, PALLAVOLO)
+      .reduce((n, p) => n + (p.attacks || 0), 0);
+    is(tutti, 6);
+  });
+});

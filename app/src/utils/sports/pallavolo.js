@@ -480,6 +480,20 @@ export const PALLAVOLO = {
     // conquista il servizio, e chi segna lo sa prima dell'app. Automatizzarla
     // vorrebbe dire dedurre chi serviva, e un errore di deduzione a inizio set
     // sposta tutti i sei per tutto il set senza che nessuno se ne accorga.
+    /* LE AZIONI RITIRATE, ancora leggibili.
+     *
+     * «Positivo» e «negativo» in attacco sono usciti dal pannello quando i
+     * tre esiti sono diventati punto, errore e difeso. Ma le partite già
+     * segnate hanno quei nomi nel registro, e il registro è la cronaca: se
+     * non si trovano più, i loro numeri spariscono dalle statistiche set per
+     * set e dai parziali — in silenzio, con i primi set che escono vuoti.
+     *
+     * Qui non compaiono come pulsanti: esistono solo per essere rilette. */
+    azioniStoriche: {
+      attack_pos: { act: 'attack_pos', label: 'Attacco positivo', apply: { attackPos: 1, attacks: 1 } },
+      attack_neg: { act: 'attack_neg', label: 'Attacco negativo', apply: { attackNeg: 1, attacks: 1 } }
+    },
+
     rotazione: { etichetta: 'Ruota', descrizione: 'Zona 1 va in 6, e tutti girano' },
 
     /* IL CAMBIO DEL LIBERO, DA SOLO.

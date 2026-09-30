@@ -362,6 +362,23 @@ export function azioneDi(sport, act) {
     const c = catene[nomi[i]];
     if (c && c.azione && c.azione.act === act) return c.azione;
   }
+
+  /* LE AZIONI CHE NON CI SONO PIÙ.
+   *
+   * Il registro è la cronaca di una partita, e una cronaca si rilegge anni
+   * dopo. Se un'azione viene tolta dal pannello — com'è successo con
+   * «positivo» e «negativo» in attacco, diventati un «difeso» solo — le righe
+   * già scritte con il vecchio nome smettono di trovare corrispondenza, e i
+   * loro numeri spariscono dalle sezioni che rileggono il registro: le
+   * statistiche periodo per periodo, il massimo vantaggio, i parziali.
+   *
+   * Spariscono in silenzio, per giunta: il referto esce, ma con i primi set
+   * vuoti. Per questo le azioni ritirate restano qui, fuori dal pannello e
+   * ancora leggibili.
+   */
+  const storiche = conf.azioniStoriche || {};
+  if (storiche[act]) return storiche[act];
+
   return null;
 }
 

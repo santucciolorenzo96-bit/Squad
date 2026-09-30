@@ -2378,7 +2378,32 @@ function ChiusuraPeriodo({ g, sport, onChiudi, onFatto }) {
         // Si scrivono i due numeri e basta: chi batteva, la rotazione e i conti
         // delle fasi restano dov'erano, perche' sono la storia di quel set.
         g.periodScores[idx] = { ...(g.periodScores[idx] || {}), us: nostriOra, them: n };
-        g.chiusi = Math.max(g.chiusi || 0, idx + 1);
+        const giaChiusi = g.chiusi || 0;
+        g.chiusi = Math.max(giaChiusi, idx + 1);
+
+        /* I SET GIOCATI SI CONTANO QUI.
+         *
+         * La colonna c'era nel tabellino da sempre, ed era zero per tutte:
+         * dichiarata, mostrata, e mai incrementata da nessuno. In un referto
+         * di pallavolo è la colonna che dà senso a tutte le altre — quattordici
+         * punti in due set e quattordici in cinque non sono lo stesso numero.
+         *
+         * Si contano alla chiusura, per chi è in campo in quel momento. Chi è
+         * entrato e uscito dentro lo stesso set non lo prende: sarebbe da
+         * tenere traccia di ogni istante in cui qualcuno è stato in campo, e
+         * nella pallavolo chi esce può rientrare solo al posto di chi l'ha
+         * sostituito — il caso è raro e il prezzo per coprirlo alto.
+         *
+         * `giaChiusi` evita il doppio conteggio: si può riaprire la finestra e
+         * salvare due volte lo stesso set, e allora i set giocati sarebbero
+         * uno in più per tutte. */
+        if (idx + 1 > giaChiusi) {
+          g.players.forEach(p => {
+            if (!p.onCourt) return;
+            p.stats = p.stats || {};
+            p.stats.setsPlayed = (p.stats.setsPlayed || 0) + 1;
+          });
+        }
 
         const deciso = partitaDecisa(conf, g.periodScores.slice(0, idx + 1));
         // Non si apre un set che non si giochera' mai: ne' il sesto, ne' quello
