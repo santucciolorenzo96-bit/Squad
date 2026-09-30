@@ -8,6 +8,7 @@ import { inCampione } from './campione.js';
 import { leggiCopia, cancellaCopia, daQuanto } from './partitaLocale.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, cx } from './ui.jsx';
 import { Conferma, ErroreCaricamento, useAvviso } from './moduli.jsx';
+import { Rete } from './Rete.jsx';
 import { AvvioPartita } from './partitaSetup.jsx';
 import { Tracker } from './partitaTracker.jsx';
 
@@ -307,7 +308,13 @@ export function Partita() {
     if (scout) {
       return (
         <>
-          <Tracker onEsci={() => setScout(false)} onFinita={finita} />
+          {/* La rete sta QUI e non solo intorno all'app: se lo scout lancia,
+              quello che deve restare in piedi e` tutto il resto — e quello
+              che deve poter ripartire senza ricaricare la pagina e` solo
+              lui. In palestra ricaricare vuol dire sperare che ci sia rete. */}
+          <Rete dove="scout">
+            <Tracker onEsci={() => setScout(false)} onFinita={finita} />
+          </Rete>
           {confermaScarto}
         </>
       );

@@ -32,6 +32,7 @@ import { getPendingAction, runPendingAction, clearPendingAction, logout } from '
 import { Etichetta, Vuoto, Scheletro, Titolo, cx } from './ui.jsx';
 import { ProvvederAvvisi } from './moduli.jsx';
 import { caricaCampione } from './campione.js';
+import { Rete, ascoltaErroriSparsi } from './Rete.jsx';
 
 /* SQUAD.
  *
@@ -750,6 +751,11 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 
 // Con il ricaricamento a caldo Vite riesegue questo modulo, e un secondo
 // createRoot sullo stesso nodo fa esplodere React durante lo sviluppo.
+/* Gli errori che non passano da React — una promessa rifiutata senza `catch`,
+ * un listener che lancia — non smontano niente e quindi non li vede nessuno.
+ * Si annotano allo stesso posto degli altri. */
+ascoltaErroriSparsi();
+
 const nodo = document.getElementById('radice');
 if (!nodo.__radice) nodo.__radice = createRoot(nodo);
-nodo.__radice.render(<App />);
+nodo.__radice.render(<Rete dove="app"><App /></Rete>);

@@ -13,6 +13,7 @@ import {
 import { Pannello, Etichetta, Pulsante, Stato, Amichevole, Vuoto, cx } from './ui.jsx';
 import { oggiISO } from '../utils/format.js';
 import { quantiChiusi } from '../utils/referto.js';
+import { calcolaPunteggi } from '../utils/punteggio.js';
 import {
   ruotaSestetto, cambioLibero, applicaCambio, raccontaCambio, zonaDi,
   versoGiusto, perchePalla
@@ -114,20 +115,6 @@ function ricordaMappa(v) {
   catch (e) { /* niente */ }
 }
 
-function calcolaPunteggi(g, sport) {
-  const conf = sport.scout;
-  const periodi = g.periodScores || [];
-  if (conf.scoreDisplay === 'setsWon') {
-    const chiusi = periodi.slice(0, quantiChiusi(g));
-    g.teamScore = chiusi.filter(x => x && x.us > x.them).length;
-    g.oppScore = chiusi.filter(x => x && x.them > x.us).length;
-    return;
-  }
-  g.teamScore = conf.ourScore === 'fromActions'
-    ? g.players.reduce((n, p) => n + sport.score(p.stats || {}), 0)
-    : periodi.reduce((n, x) => n + ((x && x.us) || 0), 0);
-  g.oppScore = periodi.reduce((n, x) => n + ((x && x.them) || 0), 0);
-}
 
 export function Tracker({ onFinita, onEsci }) {
   const sport = currentSport();
@@ -282,7 +269,24 @@ export function Tracker({ onFinita, onEsci }) {
 
   const g = state.liveGame;
   if (!g) return null;
+  /* LA FORMA DELLA PARTITA SI CONTROLLA UNA VOLTA SOLA, QUI.
+   *
+   * `g.players` viene dato per un elenco in una ventina di punti — i filtri di
+   * chi e` in campo, la somma dei punti, la ricerca di chi e` stato scelto — e
+   * nessuno di quei punti lo verifica. Basta che arrivi null una volta (una
+   * copia locale scritta a meta`, una riga vecchia, un conflitto risolto male)
+   * e lo scout non muore in un posto: muore in tutti, e in mezzo a una
+   * partita.
+   *
+   * Un `players` mancante non e` una cosa da cui si recupera segnando: e` una
+   * partita da riaprire. Ma uno scout che resta in piedi e dice cosa manca e`
+   * un'altra cosa rispetto a uno schermo bianco. */
+  if (!Array.isArray(g.players)) g.players = [];
   if (!g.periodScores) g.periodScores = [];
+  if (!Array.isArray(g.storia)) g.storia = [];
+  // Ogni giocatore deve avere le sue statistiche: `esegui` ci scrive dentro
+  // senza chiedere, e su un giocatore senza `stats` lancerebbe.
+  g.players.forEach(p => { if (!p.stats) p.stats = sport.newStats(); });
   calcolaPunteggi(g, sport);
 
   const aggiorna = () => ridisegna(n => n + 1);
@@ -298,8 +302,24 @@ export function Tracker({ onFinita, onEsci }) {
   // dieci secondi: chi sta segnando non deve ricordarsi di riprovare, e se si
   // ferma a guardare la partita senza toccare niente non ci sarebbe nessuna
   // azione a fare da innesco.
-  function salva() {
-    const timbro = scriviCopia(g);
+  /* IL DIFETTO DELL'ANNULLA.
+   *
+   * `salva()` leggeva `g`, che e` la partita di QUESTO disegno. L'annulla
+   * sostituisce `state.liveGame` con una copia di prima e poi chiama
+   * `salva()`: dentro c'era ancora la partita NON annullata, e quella
+   * finiva scritta sul dispositivo e spedita al server — con la revisione
+   * che avanzava.
+   *
+   * A schermo l'annulla funzionava. Nel database no. Chi annullava un'azione
+   * e poi ricaricava la pagina — o passava il tabellino a un altro
+   * dispositivo — se la ritrovava. Il pulsante che serve a correggere un
+   * errore era quello che ne faceva uno piu` difficile da vedere.
+   *
+   * Da qui in avanti si dice QUALE partita salvare, e chi non lo dice salva
+   * quella del disegno come prima. */
+  function salva(gioco) {
+    const gg = gioco || g;
+    const timbro = scriviCopia(gg);
 
     /* LA RETE DI SICUREZZA CHE POTEVA NON ESSERCI.
      *
@@ -331,8 +351,8 @@ export function Tracker({ onFinita, onEsci }) {
     if (conflitto) return;
 
     clearTimeout(riprova.current);
-    saveLiveGame(g.id, g).then(() => {
-      segnaSincronizzata(g.sectorId, timbro);
+    saveLiveGame(gg.id, gg).then(() => {
+      segnaSincronizzata(gg.sectorId, timbro);
       if (salvataggioRotto.current) {
         salvataggioRotto.current = false;
         avvisa('Salvataggio ripreso');
@@ -356,7 +376,7 @@ export function Tracker({ onFinita, onEsci }) {
         salvataggioRotto.current = true;
         avvisa('Rete assente: la partita e’ al sicuro su questo dispositivo e riparte da sola.', 'errore');
       }
-      riprova.current = setTimeout(() => { if (salvataggioRotto.current) salva(); }, 10000);
+      riprova.current = setTimeout(() => { if (salvataggioRotto.current) salva(gg); }, 10000);
     });
   }
 
@@ -389,17 +409,58 @@ export function Tracker({ onFinita, onEsci }) {
     state.undoStack.push(JSON.stringify(g));
     state.undoTesti = state.undoTesti || [];
     state.undoTesti.push(testo || '');
-    if (state.undoStack.length > 60) { state.undoStack.shift(); state.undoTesti.shift(); }
+    /* Trenta passi e non sessanta.
+     *
+     * Ogni passo e` una copia INTERA della partita in forma di testo, e la
+     * partita e` cresciuta: adesso porta con se` il registro di tutte le
+     * azioni e la mappa dei tiri di ogni giocatore. A fine partita
+     * sessanta copie sono qualche megabyte di stringhe tenute in memoria su
+     * un tablet che deve solo far toccare dei pulsanti.
+     *
+     * Trenta azioni indietro non le annulla nessuno: si annulla quella
+     * appena fatta, o quella prima. */
+    if (state.undoStack.length > 30) { state.undoStack.shift(); state.undoTesti.shift(); }
   }
 
   function annulla() {
     if (state.undoStack.length === 0) { avvisa('Niente da annullare'); return; }
-    state.liveGame = JSON.parse(state.undoStack.pop());
+
+    let prima;
+    try {
+      prima = JSON.parse(state.undoStack.pop());
+    } catch (e) {
+      // Una copia illeggibile si butta: annullare non deve poter rompere la
+      // partita in corso, che e` la cosa piu` preziosa sullo schermo.
+      if (state.undoTesti) state.undoTesti.pop();
+      avvisa('Non riesco ad annullare quell’azione: il resto della partita e’ a posto.', 'errore');
+      return;
+    }
     if (state.undoTesti) state.undoTesti.pop();
+    state.liveGame = prima;
+
+    /* TUTTO QUELLO CHE TENEVA IN MANO UN PEZZO DELLA PARTITA DI PRIMA.
+     *
+     * L'annulla non modifica la partita: la SOSTITUISCE con una copia. Ogni
+     * pannello aperto che si era messo da parte un giocatore — la mappa del
+     * tiro, la traiettoria, la sostituzione in corso — da questo momento
+     * punta a un oggetto che non fa piu` parte della partita. Quello che ci
+     * si scrive dentro non finisce da nessuna parte: l'azione sembra presa e
+     * non esiste.
+     *
+     * Quindi si chiude tutto. Chi aveva un pannello aperto lo riapre: e`
+     * fastidioso una volta, l'altra cosa e` un dato perso in silenzio. */
     setScelto(null);
     setCatena(null);
+    setTiroDaPiazzare(null);
+    setTraiettoria(null);
+    setSostituzione(null);
+    setPosti(false);
+    setLampo(null);
+
     aggiorna();
-    salva();
+    // La partita da salvare e` quella ANNULLATA, non quella di questo
+    // disegno: `g` qui dentro e` ancora la vecchia.
+    salva(prima);
   }
 
   const daAnnullare = (state.undoTesti || [])[(state.undoTesti || []).length - 1] || '';
@@ -416,7 +477,13 @@ export function Tracker({ onFinita, onEsci }) {
     : abbinaCalendario(state.calendar, g.oppName, oggiISO());
 
   function esegui(giocatore, azione, senzaCatena, punto, linea) {
+    if (!giocatore || !azione) return;
     memorizza(sigla(giocatore) + ' ' + (azione.etichettaBreve || azione.label));
+    // Due righe sotto si scrive dentro `s` senza chiedere. La lettura era
+    // prudente (`s || {}`) e la scrittura no: una statistica mancante — un
+    // giocatore aggiunto alla partita da un'altra parte, una copia vecchia —
+    // faceva lanciare qui, cioe` al primo tocco su quel gettone.
+    if (!giocatore.stats) giocatore.stats = sport.newStats();
     const s = giocatore.stats;
     // Quanto vale questa azione in punti lo dice lo sport, non l'azione: nel
     // basket sta scritto (2, 3, 1), nella pallavolo e' un `points: 1` dentro le
@@ -497,6 +564,14 @@ export function Tracker({ onFinita, onEsci }) {
    * sbagliato, perche' la domanda riguarda il suo errore.
    */
   function rispondiCatena(risposta) {
+    /* La domanda puo` non esserci piu`.
+     *
+     * Il pannello si chiude da solo appena si risponde, ma fra il tocco e la
+     * scomparsa c'e` il tempo di un disegno: due tocchi rapidi — ed e` cosi`
+     * che si segna una partita — arrivavano il secondo a domanda chiusa, e
+     * `catena.tipo` su un niente lanciava. Senza rete di sicurezza, schermo
+     * bianco in mezzo a un'amichevole. */
+    if (!catena) return;
     const c = (conf.chains || {})[catena.tipo];
     const autore = catena.autore;
     setCatena(null);
@@ -508,7 +583,13 @@ export function Tracker({ onFinita, onEsci }) {
       esegui(chi, { ...risposta, etichettaBreve: risposta.label }, true);
       return;
     }
-    esegui(risposta, { ...c.azione, etichettaBreve: c.azione.label }, true);
+    // Qui la risposta deve essere un GIOCATORE. Se per qualunque ragione
+    // arrivasse altro, si lascia perdere invece di scrivere statistiche
+    // addosso a un oggetto che non e` nessuno.
+    if (!c.azione || !risposta.id) return;
+    const chi = g.players.find(p => p.id === risposta.id);
+    if (!chi) return;
+    esegui(chi, { ...c.azione, etichettaBreve: c.azione.label }, true);
   }
 
   // Il punteggio del periodo in corso, da una parte o dall'altra.
