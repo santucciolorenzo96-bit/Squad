@@ -223,8 +223,33 @@ export const PALLAVOLO = {
     { key: 'attackErrors', short: 'EA', label: 'Errori in attacco' },
     { key: 'attackBlocked', short: 'MUS', label: 'Attacchi murati' },
     { key: 'serveErrors', short: 'ES', label: 'Errori al servizio' },
-    { key: 'setsPlayed', short: 'SET', label: 'Set giocati' }
+    // `nonSommare`: quattordici giocatrici per quattro set farebbero
+    // cinquantasei set nella riga della squadra, in una partita che di set
+    // ne ha avuti quattro. I set li ha giocati la squadra, non la somma
+    // delle sue giocatrici.
+    { key: 'setsPlayed', short: 'SET', label: 'Set giocati', nonSommare: true }
   ],
+  /* La legenda, una sigla alla volta: chi disegna prende solo quelle che ha
+   * messo in tabella. Su carta la frase intera spiegava «PG = partite
+   * giocate» sotto il tabellino di una partita, dove la colonna PG non
+   * esiste — e con quattordici sigle di pallavolo, una spiegazione sbagliata
+   * fa dubitare anche di quelle giuste. */
+  glossario: {
+    PG: 'partite giocate',
+    'P/S': 'punti a partita',
+    AT: 'attacchi vincenti',
+    TOT: 'palloni attaccati',
+    EFF: '(vincenti meno errori) diviso gli attacchi',
+    MU: 'muri punto',
+    DIF: 'difese positive',
+    'DIF%': 'difese positive sul totale difeso',
+    RIC: 'ricezioni ++ e + sul totale ricevuto',
+    ALZ: 'alzate che hanno prodotto un punto',
+    EA: 'errori in attacco',
+    MUS: 'attacchi finiti sul muro avversario',
+    ES: 'errori al servizio',
+    SET: 'set giocati'
+  },
   seasonLegend: 'PG = partite giocate · P/S = punti a partita · TOT = palloni attaccati · EFF = (vincenti meno errori) diviso gli attacchi · RIC = ricezioni ++ e + sul totale ricevuto · DIF% = difese positive sul totale difeso · MUS = attacchi finiti sul muro avversario · ALZ = alzate che hanno prodotto un punto · EA/ES = errori in attacco e al servizio',
   showMinutes: false,
 
@@ -268,23 +293,33 @@ export const PALLAVOLO = {
     const difese = (t.digs || 0) + (t.digNeg || 0) + (t.digErrors || 0);
     const servizi = (t.aces || 0) + (t.servePos || 0) + (t.serveErrors || 0);
 
+    /* `v` e' il numeratore dell'anello, e non sempre e' il primo dei due
+     * conteggi scritti accanto.
+     *
+     * Nei primi tre coincidono. Nel SERVIZIO no: l'anello dice la
+     * positivita' — ace piu' servizi rimasti in gioco sul totale — mentre
+     * accanto vanno gli ace e gli errori, che sono le due cose che si
+     * guardano. Senza `v`, sotto un anello al novanta per cento finiva
+     * scritto «2/21»: i due ace sul totale dei servizi, un rapporto che non
+     * era quello dell'anello. */
+    const positive = (t.recPerf || 0) + (t.recPos || 0);
+    const serviziBuoni = (t.aces || 0) + (t.servePos || 0);
+
     const voci = [
       {
-        etichetta: 'Attacco', tot: attacchi, pct: q(t.kills || 0, attacchi),
+        etichetta: 'Attacco', tot: attacchi, v: t.kills || 0, pct: q(t.kills || 0, attacchi),
         righe: [[t.kills || 0, 'vincenti'], [t.attackErrors || 0, 'errori']]
       },
       {
-        etichetta: 'Ricezione', tot: ricezioni,
-        pct: q((t.recPerf || 0) + (t.recPos || 0), ricezioni),
-        righe: [[(t.recPerf || 0) + (t.recPos || 0), 'positive'], [t.receptionErrors || 0, 'errori']]
+        etichetta: 'Ricezione', tot: ricezioni, v: positive, pct: q(positive, ricezioni),
+        righe: [[positive, 'positive'], [t.receptionErrors || 0, 'errori']]
       },
       {
-        etichetta: 'Difesa', tot: difese, pct: q(t.digs || 0, difese),
+        etichetta: 'Difesa', tot: difese, v: t.digs || 0, pct: q(t.digs || 0, difese),
         righe: [[t.digs || 0, 'positive'], [t.digErrors || 0, 'errori']]
       },
       {
-        etichetta: 'Servizio', tot: servizi,
-        pct: q((t.aces || 0) + (t.servePos || 0), servizi),
+        etichetta: 'Servizio', tot: servizi, v: serviziBuoni, pct: q(serviziBuoni, servizi),
         righe: [[t.aces || 0, 'ace'], [t.serveErrors || 0, 'errori']]
       }
     ];
@@ -318,7 +353,7 @@ export const PALLAVOLO = {
 
   scout: {
     period: {
-      label: 'Set', short: 'S', count: 3, minutes: null,
+      label: 'Set', plural: 'Set', short: 'S', count: 3, minutes: null,
       hasClock: false, direction: null,
       // Non si chiede quanti: al meglio dei cinque se ne giocano tre, quattro
       // o cinque, e lo si scopre giocando. Si parte dal minimo e i successivi

@@ -317,12 +317,53 @@ export function tabellaTabellino(referto, sport) {
   // con un tratto sopra, non come una tredicesima giocatrice.
   const somma = referto.tabellino.length ? totaleTabellino(referto.tabellino) : null;
   const totale = somma
-    // Alcune colonne nella riga squadra non hanno senso e restano vuote: il
-    // piu'/meno sommato fra dodici giocatori darebbe cinque volte lo scarto.
-    ? colonne.map(c => (c.nonSommare ? '' : cella(c, somma)))
+    /* Alcune colonne nella riga squadra non hanno senso e restano vuote.
+     *
+     * Il piu'/meno sommato fra dodici giocatori darebbe cinque volte lo
+     * scarto vero. I set giocati sommati darebbero cinquantasei set in una
+     * partita di quattro. E il numero di maglia sommato darebbe 172, che
+     * non e' il numero di nessuno: a schermo la prima cella della riga
+     * squadra era gia' vuota, su carta no, e la somma ci finiva stampata. */
+    ? colonne.map((c, i) => (i === 0 || c.nonSommare ? '' : cella(c, somma)))
     : null;
 
-  return { intestazioni: colonne.map(c => c.label), righe, totale };
+  /* QUANTO LARGA VA OGNI COLONNA, IN PARTI.
+   *
+   * Non tutte le colonne portano la stessa quantita' di testo. «6/13 (46%)»
+   * e' tre volte «+12», e finche' le colonne sono state divise in parti
+   * uguali il tabellino del basket usciva sul foglio come «286/13 (46%) 3/9
+   * (33%)7/10 (70%)»: tre tiri e i punti, tutto attaccato, illeggibile.
+   *
+   * Qui la tabella dice quanto le serve e chi disegna divide di conseguenza.
+   * Il peso di una frazione e' quello misurato: «63/108 (58%)» sta in due
+   * volte e otto decimi di «+12» piu' il bianco che le separa. */
+  const pesi = colonne.map(c => (c.frazione ? 2.8 : 1));
+
+  return { intestazioni: colonne.map(c => c.label), righe, totale, pesi };
+}
+
+/* LA LEGENDA DELLE SIGLE CHE CI SONO DAVVERO.
+ *
+ * Il tabellino di una partita e quello di una stagione non hanno le stesse
+ * colonne: nella stagione c'e' «PG», partite giocate, e nella partita no.
+ * Finche' la legenda e' stata una frase sola scritta a mano, la stessa frase
+ * e' finita sotto tutte e due, e sul referto di una partita di pallavolo
+ * spiegava due sigle che in tabella non comparivano.
+ *
+ * Non e' un dettaglio tipografico: un foglio che spiega una colonna
+ * inesistente fa cercare la colonna, e chi non la trova smette di fidarsi
+ * anche delle altre quattordici.
+ *
+ * Qui la legenda si costruisce dalle intestazioni che si stanno per
+ * stampare. Le sigle ovvie non stanno nel glossario e quindi non compaiono;
+ * quelle spiegate ma assenti spariscono da sole.
+ */
+export function legendaColonne(sport, intestazioni) {
+  const g = sport && sport.glossario;
+  if (!g) return (sport && sport.seasonLegend) || '';
+  const viste = new Set((intestazioni || []).map(h => String(h)));
+  const pezzi = Object.keys(g).filter(k => viste.has(k)).map(k => k + ' = ' + g[k]);
+  return pezzi.join(' · ');
 }
 
 /* ======================================================================== */

@@ -2,7 +2,7 @@ import {
   createDoc, drawHeader, drawParagraph, drawTable, drawSection, drawScore, drawTiles,
   drawDonut, drawMiniDonut, drawShotChart, contentWidth, spazioPagina, caricaLogo, MARGINE, TINTE, save
 } from './pdf.js';
-import { refertoPartita, tabellaTabellino, quota } from './referto.js';
+import { refertoPartita, tabellaTabellino, quota, legendaColonne } from './referto.js';
 
 /* Il referto in PDF.
  *
@@ -31,8 +31,11 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
 
   const titolo = `${nostri} — ${game.oppName}`;
   // «I set» nella pallavolo, «I periodi» nel basket: la parola la dice lo sport.
-  const per = (sport.scout.period.label || 'periodo').toLowerCase();
-  const nomePeriodi = per === 'set' ? 'I set' : 'I ' + per + 'i';
+  const per = (sport.scout.period.label || 'Periodo');
+  // «Set» resta «Set», «Periodo» diventa «Periodi», «Tempo» diventa «Tempi».
+  // Il plurale lo dichiara lo sport: sul foglio del basket c'era scritto «I
+  // periodoi», che e' quello che si ottiene attaccando una «i» a una parola.
+  const nomePeriodi = 'I ' + (sport.scout.period.plural || per + 'i').toLowerCase();
   // Il logo si carica prima di cominciare: se non arriva, il referto esce
   // senza. Un documento senza logo e' un documento; un documento che non si
   // genera non e' niente.
@@ -56,15 +59,31 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
   if (r.set.length) {
     y = drawSection(doc, nomePeriodi, y);
 
-    y = drawTable(doc,
-      ['Set', 'Punteggio', 'Cambio palla', 'Break'],
-      r.set.map(s => [
-        String(s.n),
-        `${s.us}-${s.them}`,
-        quota(s.so) == null ? '—' : `${quota(s.so)}%  (${s.so.v}/${s.so.t})`,
-        quota(s.bp) == null ? '—' : `${quota(s.bp)}%  (${s.bp.v}/${s.bp.t})`
-      ]),
-      [22, 34, 52, 52], y);
+    /* Le due fasi sono della pallavolo, e si stampano solo se qualcuno le ha
+     * segnate. Sul referto del basket uscivano due colonne intitolate
+     * «Cambio palla» e «Break» piene di trattini: due colonne che in quel
+     * gioco non vogliono dire niente, sotto un titolo che diceva «I
+     * periodoi». Chi legge un referto di pallacanestro non deve trovarci
+     * mezza pallavolo. */
+    const conFasi = !!(r.fasi && (r.fasi.so.t || r.fasi.bp.t));
+
+    y = conFasi
+      ? drawTable(doc,
+        [per, 'Punteggio', 'Cambio palla', 'Break'],
+        r.set.map(s => [
+          String(s.n),
+          `${s.us}-${s.them}`,
+          quota(s.so) == null ? '—' : `${quota(s.so)}%  (${s.so.v}/${s.so.t})`,
+          quota(s.bp) == null ? '—' : `${quota(s.bp)}%  (${s.bp.v}/${s.bp.t})`
+        ]),
+        [22, 34, 52, 52], y)
+      : drawTable(doc,
+        [per, 'Noi', 'Loro', 'Scarto'],
+        r.set.map(s => [
+          String(s.n), String(s.us), String(s.them),
+          (s.us - s.them > 0 ? '+' : '') + (s.us - s.them)
+        ]),
+        [34, 38, 38, 30], y, { allineaDa: 1 });
     y += 4;
 
     if (r.fasi.so.t || r.fasi.bp.t) {
@@ -88,7 +107,7 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
         String(x.s),
         (x.saldo > 0 ? '+' : '') + x.saldo
       ]),
-      [34, 38, 38, 30], y);
+      [34, 38, 38, 30], y, { allineaDa: 1 });
     y += 6;
   }
 
@@ -130,7 +149,9 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
     const colonne = modello.map(v => v.etichetta);
     const altezza = 17;
     const corsia = 14;
-    y = drawSection(doc, per === 'set' ? 'Set per set' : 'Periodo per periodo', y);
+    // «Set per set», «Periodo per periodo», «Tempo per tempo»: la parola
+    // la porta lo sport, e il titolo si costruisce da quella.
+    y = drawSection(doc, per + ' per ' + per.toLowerCase(), y, { serve: altezza + 24 });
     y = spazioPagina(doc, y, altezza + 10);
 
     const larga = (contentWidth() - corsia) / colonne.length;
@@ -213,7 +234,8 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
       ['Zona', 'Segnati', 'Tentati', '%'],
       r.tiri.zone.map(z => [z.label, String(z.fatti), String(z.tentati), z.quota + '%']),
       [60, 30, 30, 30],
-      y
+      y,
+      { allineaDa: 1 }
     );
     y += 4;
     y = drawShotChart(doc, r.tiri.punti, y);
@@ -247,15 +269,23 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
   const DISPONIBILE = 170;             // A4 meno i due margini da 20
   const nStat = Math.max(1, t.intestazioni.length - 2);
   const nome = nStat > 8 ? 34 : 44;
+  // I pesi li dichiara la tabella: una colonna con «63/108 (58%)» dentro non
+  // puo' essere larga come una con «+12».
+  const pesi = (t.pesi || t.intestazioni.map(() => 1)).slice(2);
+  const totalePesi = pesi.reduce((a, b) => a + b, 0) || 1;
+  const resto = DISPONIBILE - 9 - nome;
   const larghezze = t.intestazioni.map((_, i) =>
-    i === 0 ? 9 : i === 1 ? nome : (DISPONIBILE - 9 - nome) / nStat
+    i === 0 ? 9 : i === 1 ? nome : (resto * pesi[i - 2]) / totalePesi
   );
   y = drawTable(doc, t.intestazioni, t.righe, larghezze, y, { totale: t.totale });
 
-  if (sport.seasonLegend) {
+  /* La legenda si ricava dalle colonne appena stampate e non e' la frase
+   * della stagione: quella spiegava «PG = partite giocate» sotto un
+   * tabellino di partita, dove la colonna PG non esiste. */
+  const legenda = legendaColonne(sport, t.intestazioni);
+  if (legenda) {
     y += 3;
-    doc.setFontSize(8);
-    y = drawParagraph(doc, sport.seasonLegend, y, { size: 8 });
+    y = drawParagraph(doc, legenda, y, { size: 8 });
   }
 
   // In fondo anche sul foglio, nello stesso ordine dello schermo: e' la
@@ -263,10 +293,13 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
   y += 4;
   // ------------------------------------------------------- i quintetti
   if (r.quintetti.length > 0) {
-    y = drawSection(doc, 'Con quali cinque siamo andati meglio', y);
+    // «Quintetto» nel basket, «Sestetto» nella pallavolo, «Formazione» nel
+    // calcio: la parola la porta lo sport, come per i periodi.
+    const inCampo = ((sport.field || {}).onFieldLabel) || 'Quintetto';
+    y = drawSection(doc, 'Con quale ' + inCampo.toLowerCase() + ' siamo andati meglio', y);
     y = drawTable(
       doc,
-      ['Scarto', 'Cinque in campo', 'Fatti', 'Subiti'],
+      ['Scarto', inCampo + ' in campo', 'Fatti', 'Subiti'],
       r.quintetti.map(q => [
         (q.saldo > 0 ? '+' : '') + q.saldo,
         q.nomi.join(' '),

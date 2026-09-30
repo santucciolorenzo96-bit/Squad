@@ -1,4 +1,4 @@
-import { describe, test, ok } from './run.mjs';
+import { describe, test, is, ok } from './run.mjs';
 import { readFileSync } from 'node:fs';
 
 /* I CARATTERI CHE IL PDF SA DISEGNARE.
@@ -41,6 +41,93 @@ function fuoriTabella(percorso) {
   }
   return Array.from(fuori);
 }
+
+/* LE PAROLE CHE ARRIVANO DA FUORI.
+ *
+ * Il controllo sui due file che disegnano non bastava. La sigla della colonna
+ * del piu'/meno era scritta in `basket.js` — «+/−», con il meno
+ * tipografico — e da li` finiva nell'intestazione del tabellino stampato e
+ * nella legenda sotto. Nessun test guardava quel file, perche' non e` un file
+ * che disegna: e` un file che descrive uno sport.
+ *
+ * Quindi qui non si guardano piu` i file, si guardano le STRINGHE che il
+ * referto mette sul foglio: le sigle delle colonne, il glossario, le etichette
+ * degli anelli e dei riquadri, il nome dei periodi. Chiunque ne aggiunga una
+ * con un carattere fuori tabella lo scopre adesso.
+ */
+import { PALLAVOLO } from '../src/utils/sports/pallavolo.js';
+import { BASKET } from '../src/utils/sports/basket.js';
+import { CALCIO } from '../src/utils/sports/calcio.js';
+
+function fuoriTabellaNelTesto(testo) {
+  const fuori = [];
+  for (const ch of String(testo)) {
+    const c = ch.codePointAt(0);
+    if (c < 0x100 || FASCIA_ALTA.includes(c)) continue;
+    fuori.push('U+' + c.toString(16).toUpperCase() + ' (' + ch + ')');
+  }
+  return fuori;
+}
+
+// Tutto quello che di uno sport finisce scritto sul PDF.
+function paroleStampate(sport) {
+  const parole = [];
+  const aggiungi = (dove, t) => { if (t) parole.push([dove, String(t)]); };
+
+  (sport.seasonColumns || []).forEach(c => {
+    aggiungi('colonna', c.short || c.label);
+    aggiungi('colonna.avg', c.avg);
+  });
+  Object.keys(sport.glossario || {}).forEach(k => {
+    aggiungi('glossario.sigla', k);
+    aggiungi('glossario.spiegazione', sport.glossario[k]);
+  });
+  aggiungi('seasonLegend', sport.seasonLegend);
+  aggiungi('periodo', (sport.scout || {}).period && sport.scout.period.label);
+  aggiungi('periodo.plurale', (sport.scout || {}).period && sport.scout.period.plural);
+  aggiungi('inCampo', (sport.field || {}).onFieldLabel);
+
+  // Anelli e riquadri: le etichette nascono da una funzione, quindi si chiama.
+  const stats = sport.newStats ? sport.newStats() : {};
+  const pieni = Object.assign({}, stats);
+  Object.keys(pieni).forEach(k => { if (typeof pieni[k] === 'number') pieni[k] = 3; });
+  if (sport.ciambelle) {
+    (sport.ciambelle(pieni) || []).forEach(v => {
+      aggiungi('ciambella', v.etichetta);
+      (v.righe || []).forEach(r => aggiungi('ciambella.riga', r[1]));
+    });
+  }
+  if (sport.riepilogo) {
+    (sport.riepilogo(pieni) || []).forEach(v => {
+      aggiungi('riquadro', v.etichetta);
+      aggiungi('riquadro.valore', v.valore);
+    });
+  }
+  return parole;
+}
+
+describe('le parole degli sport stanno tutte nella tabella del carattere', () => {
+  [PALLAVOLO, BASKET, CALCIO].forEach(sport => {
+    test(sport.key + ': sigle, glossario ed etichette', () => {
+      const guai = [];
+      paroleStampate(sport).forEach(([dove, testo]) => {
+        const fuori = fuoriTabellaNelTesto(testo);
+        if (fuori.length) guai.push(dove + ' «' + testo + '»: ' + fuori.join(', '));
+      });
+      ok(guai.length === 0,
+        'su carta questi diventano segni a caso: ' + guai.join(' / '));
+    });
+  });
+
+  /* IL DIFETTO CHE C'ERA DAVVERO, come promemoria: la colonna del piu'/meno
+   * usava il meno tipografico, e sul tabellino stampato del basket uscivano
+   * un'intestazione e una legenda con una virgoletta al posto del segno. */
+  test('la colonna del piu meno usa il trattino ASCII', () => {
+    const c = BASKET.seasonColumns.find(x => x.key === 'plusMinus');
+    is(c.short, '+/-');
+    is(c.short.includes('−'), false);
+  });
+});
 
 describe('il PDF usa solo caratteri che il suo carattere conosce', () => {
   FILE.forEach(f => {

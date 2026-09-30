@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
 import { currentSport } from '../utils/sports/index.js';
-import { refertoPartita, tabellaTabellino, quota } from '../utils/referto.js';
+import { refertoPartita, tabellaTabellino, quota, legendaColonne } from '../utils/referto.js';
 import { generaRefertoPdf } from '../utils/refertoPdf.js';
 import { downloadCsv, safeName } from '../utils/csv.js';
 import { sectorFullName } from '../utils/sectors.js';
@@ -188,6 +188,16 @@ function TraiettoriePerAtleta({ sport, righe }) {
  * Cosa siano i due conteggi lo decide lo sport: «segnati / sbagliati» nel
  * basket, «vincenti / errori» nella pallavolo. Qui arrivano gia' scritti.
  */
+/* Il numeratore dell'anello, che non e' sempre il primo dei due conteggi
+ * scritti accanto: nel servizio l'anello dice la positivita' — ace piu'
+ * servizi rimasti in gioco — mentre accanto ci vanno gli ace e gli errori.
+ * Chi definisce la ciambella lo dichiara in `v`; senza, vale il primo. */
+function numeratore(voce) {
+  if (!voce) return 0;
+  if (voce.v != null) return voce.v;
+  return (voce.righe && voce.righe[0]) ? voce.righe[0][0] : 0;
+}
+
 function Ciambella({ voce, dim = 66, spesso = 7 }) {
   const raggio = (dim - spesso) / 2;
   const giro = 2 * Math.PI * raggio;
@@ -250,7 +260,7 @@ function Pastiglia({ voce, dim = 40 }) {
         </text>
       </svg>
       <span className="cifra text-[10.5px] leading-none text-tenue">
-        {voce && voce.tot ? voce.righe[0][0] + '/' + voce.tot : '\u2014'}
+        {voce && voce.tot ? numeratore(voce) + '/' + voce.tot : '\u2014'}
       </span>
     </div>
   );
@@ -818,8 +828,13 @@ export function Referto({ partita, onChiudi, onEliminata }) {
         </Pannello>
       )}
 
-      {sport.seasonLegend && (
-        <p className="mt-2.5 text-[12px] leading-relaxed text-tenue">{sport.seasonLegend}</p>
+      {/* Le sigle spiegate sono quelle che stanno in QUESTA tabella, non
+          quelle della tabella di stagione: qui non c'e' nessuna colonna
+          «PG», e spiegarla faceva cercare una colonna inesistente. */}
+      {legendaColonne(sport, t.intestazioni) && (
+        <p className="mt-2.5 text-[12px] leading-relaxed text-tenue">
+          {legendaColonne(sport, t.intestazioni)}
+        </p>
       )}
 
       {/* IN FONDO, E DA SOLA.

@@ -72,6 +72,19 @@ export const CALCIO = {
     { key: 'red', short: 'ESP', label: 'Espulsioni' },
     { key: 'minutes', short: 'MIN', label: 'Minuti giocati' }
   ],
+  // La legenda, una sigla alla volta: chi disegna prende solo quelle che ha
+  // messo in tabella, cosi' il foglio non spiega colonne che non ci sono.
+  glossario: {
+    PG: 'partite giocate',
+    'G/P': 'gol a partita',
+    'A/P': 'assist a partita',
+    TIR: 'tiri',
+    IPS: 'tiri nello specchio',
+    PAR: 'parate',
+    AMM: 'ammonizioni',
+    ESP: 'espulsioni',
+    MIN: 'minuti giocati'
+  },
   seasonLegend: 'PG = partite giocate · G/P = gol a partita · IPS = tiri nello specchio · AMM/ESP = cartellini',
   showMinutes: false,
 
@@ -111,7 +124,7 @@ export const CALCIO = {
 
   scout: {
     period: {
-      label: 'Tempo', short: 'T', count: 2, minutes: null,
+      label: 'Tempo', plural: 'Tempi', short: 'T', count: 2, minutes: null,
       hasClock: false, direction: null,
       allowExtra: true, extraLabel: 'Supplementare'
     },

@@ -191,10 +191,45 @@ export const BASKET = {
     // piu'/meno di dodici giocatori darebbe cinque volte lo scarto vero,
     // perche' ogni punto e' contato una volta per ciascuno dei cinque in
     // campo. Lo scarto della squadra e' il risultato, ed e' gia' in cima.
-    { key: 'plusMinus', short: '+/−', label: 'Scarto prodotto dalla squadra mentre era in campo',
+    //
+    // Il trattino e' quello ASCII e non il segno meno tipografico. Questa
+    // sigla finisce nell'intestazione del tabellino stampato, e i caratteri
+    // predefiniti di jsPDF sono codificati WinAnsi: il meno «vero» (U+2212)
+    // non ci sta dentro e sul foglio esce una virgoletta. A schermo la
+    // differenza non si vede.
+    { key: 'plusMinus', short: '+/-', label: 'Scarto prodotto dalla squadra mentre era in campo',
       segno: true, nonSommare: true }
   ],
-  seasonLegend: 'PG = partite giocate · PPG/RPG/APG = medie a partita · 2P/3P/TL = percentuali al tiro, con segnati su tentati · eFG = percentuale effettiva, conta il canestro da tre una volta e mezza · PP = palle perse · ST = palle rubate · STP = stoppate fatte · F = falli commessi · +/− = punti di scarto prodotti dalla squadra mentre era in campo',
+
+  /* LA LEGENDA, UNA SIGLA ALLA VOLTA.
+   *
+   * Prima era una frase sola, scritta per la tabella della STAGIONE, e
+   * finiva stampata anche sotto il tabellino di una PARTITA — dove spiegava
+   * «PG = partite giocate» accanto a una tabella senza la colonna PG. Un
+   * foglio che spiega una colonna che non c'e' fa dubitare di tutte le
+   * altre.
+   *
+   * Qui ogni sigla sta per conto suo e chi disegna prende solo quelle che ha
+   * davvero messo in tabella. Le ovvie non ci sono: PT non ha bisogno di
+   * nessuno che dica che sono i punti.
+   */
+  glossario: {
+    PG: 'partite giocate',
+    PPG: 'punti a partita',
+    RPG: 'rimbalzi a partita',
+    APG: 'assist a partita',
+    '2P': 'tiri da due, segnati su tentati',
+    '3P': 'tiri da tre, segnati su tentati',
+    TL: 'tiri liberi, segnati su tentati',
+    eFG: 'percentuale effettiva, conta il canestro da tre una volta e mezza',
+    REB: 'rimbalzi',
+    PP: 'palle perse',
+    ST: 'palle rubate',
+    STP: 'stoppate fatte',
+    F: 'falli commessi',
+    '+/-': 'punti di scarto prodotti dalla squadra mentre era in campo'
+  },
+  seasonLegend: 'PG = partite giocate · PPG/RPG/APG = medie a partita · 2P/3P/TL = percentuali al tiro, con segnati su tentati · eFG = percentuale effettiva, conta il canestro da tre una volta e mezza · PP = palle perse · ST = palle rubate · STP = stoppate fatte · F = falli commessi · +/- = punti di scarto prodotti dalla squadra mentre era in campo',
   showMinutes: false,
 
   ratingLabel: 'Valutazione',
@@ -237,8 +272,10 @@ export const BASKET = {
    */
   ciambelle: (t) => {
     const q = (v, tot) => (tot ? Math.round((v / tot) * 100) : null);
+    // `v` e' il numeratore dell'anello: qui coincide sempre con i segnati,
+    // ma si dichiara lo stesso perche' e' quello che il disegnatore legge.
     const voce = (etichetta, v, tot) => ({
-      etichetta, pct: q(v, tot), tot,
+      etichetta, pct: q(v, tot), tot, v,
       righe: [[v, 'segnati'], [Math.max(0, tot - v), 'sbagliati']]
     });
     const campo = voce('Dal campo', (t.fgm2 || 0) + (t.fgm3 || 0), (t.fga2 || 0) + (t.fga3 || 0));
@@ -266,7 +303,7 @@ export const BASKET = {
 
   scout: {
     period: {
-      label: 'Periodo', short: 'P', count: 4, minutes: null,
+      label: 'Periodo', plural: 'Periodi', short: 'P', count: 4, minutes: null,
       askCount: true,
       hasClock: false, direction: null,
       allowExtra: true, extraLabel: 'Supplementare'

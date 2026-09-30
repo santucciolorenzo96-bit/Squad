@@ -100,9 +100,18 @@ export function drawHeader(doc, team, title, logo) {
   return y;
 }
 
-/** Il titolo di una sezione: una barretta di colore e il nome accanto. */
-export function drawSection(doc, testo, y) {
-  y = pageBreakIfNeeded(doc, y, 14);
+/* Il titolo di una sezione: una barretta di colore e il nome accanto.
+ *
+ * `serve` non e' il posto che occupa il titolo: e' il posto che serve al
+ * titolo E a un pezzo di quello che viene dopo. Con quattordici millimetri —
+ * quanto basta alla riga — «Set per set» finiva in fondo alla prima pagina e
+ * la sua griglia cominciava sulla seconda: un titolo da solo in coda a un
+ * foglio non e' un titolo, e' un orfano. Trenta millimetri sono
+ * l'intestazione di una tabella piu' due righe: se non ci stanno, il titolo
+ * parte gia' dalla pagina dopo insieme alle sue cose.
+ */
+export function drawSection(doc, testo, y, { serve = 30 } = {}) {
+  y = pageBreakIfNeeded(doc, y, serve);
   y += 2;
   riempi(doc, COLORI.blu);
   doc.rect(MM.left, y - 3.4, 1.4, 4.6, 'F');
@@ -184,20 +193,78 @@ export function drawBlankField(doc, label, y, { labelWidth = 46 } = {}) {
  * Su una pagina nuova l'intestazione si ristampa da sola. Una tabella che
  * continua senza intestazione e' una tabella di numeri anonimi.
  */
+/* QUANTO GRANDE PUO' ESSERE IL TESTO SENZA CHE LE COLONNE SI TOCCHINO.
+ *
+ * Due celle allineate a destra in colonne vicine distano esattamente
+ * `larghezza della colonna meno larghezza del testo`: il rientro non c'entra,
+ * si sposta insieme a tutte e due. Nel tabellino della pallavolo la colonna
+ * e' larga nove millimetri e «100%» a otto e mezzo ne occupa sette e sei: un
+ * millimetro e mezzo di stacco, meno di uno spazio. Sul foglio si leggeva
+ * «3 100% 100%» come se fosse una cella sola.
+ *
+ * Qui si misura per davvero — `getTextWidth` conosce il carattere che
+ * disegnera' — la cella piu' larga di ogni colonna, e si rimpicciolisce tutta
+ * la tabella quanto serve perche' resti almeno RESPIRO di bianco fra una
+ * colonna e l'altra. Tutta, non solo la colonna stretta: due corpi diversi
+ * nella stessa riga si vedono, uno piu' piccolo no.
+ *
+ * Non si ingrandisce mai: una tabella di quattro colonne resta come era.
+ */
+const RESPIRO = 2.4;      // il bianco minimo fra due colonne, in millimetri
+const CORPO_BASE = 8.5;
+const CORPO_MINIMO = 6.2; // sotto questo non si legge: meglio stretto che illeggibile
+
+export function misuraTabella(doc, headers, rows, widths, { totale = null } = {}) {
+  const corpo = [{ r: headers, grassetto: true }]
+    .concat(rows.map(r => ({ r, grassetto: false })))
+    .concat(totale ? [{ r: totale, grassetto: true }] : []);
+
+  let scala = 1;
+  doc.setFontSize(CORPO_BASE);
+  widths.forEach((w, i) => {
+    const utile = w - RESPIRO;
+    if (utile <= 0) return;
+    let largo = 0;
+    corpo.forEach(({ r, grassetto }) => {
+      const testo = String(r[i] == null ? '' : r[i]);
+      if (!testo) return;
+      doc.setFont('helvetica', grassetto ? 'bold' : 'normal');
+      const m = doc.getTextWidth(testo);
+      if (m > largo) largo = m;
+    });
+    if (largo > utile) scala = Math.min(scala, utile / largo);
+  });
+  doc.setFont('helvetica', 'normal');
+
+  const corpoFinale = Math.max(CORPO_MINIMO, CORPO_BASE * scala);
+  return {
+    corpo: corpoFinale,
+    // L'altezza della riga segue il testo nella stessa proporzione: una riga
+    // alta come prima intorno a un testo piu' piccolo sarebbe aria sprecata,
+    // e su quattordici giocatrici l'aria sprecata e' una pagina in piu'.
+    alta: Math.max(5.0, 6.2 * (corpoFinale / CORPO_BASE))
+  };
+}
+
 export function drawTable(doc, headers, rows, widths, y, { totale = null, allineaDa = 2 } = {}) {
-  const ALTA = 6.2;
+  const { corpo: CORPO, alta: ALTA } = misuraTabella(doc, headers, rows, widths, { totale });
+
+  function riga(yy, celle, grassetto) {
+    doc.setFont('helvetica', grassetto ? 'bold' : 'normal').setFontSize(CORPO);
+    let x = MM.left + 1.8;
+    celle.forEach((cella, i) => {
+      const testo = String(cella == null ? '' : cella);
+      const dx = i >= allineaDa ? widths[i] - 3.6 : 0;
+      doc.text(testo, x + dx, yy, i >= allineaDa ? { align: 'right' } : undefined);
+      x += widths[i];
+    });
+  }
 
   function intestazione(yy) {
     riempi(doc, COLORI.blu);
     doc.rect(MM.left, yy - 4.2, contentWidth(), ALTA, 'F');
     scrivi(doc, [255, 255, 255]);
-    doc.setFontSize(8.5).setFont('helvetica', 'bold');
-    let x = MM.left + 1.8;
-    headers.forEach((h, i) => {
-      const dx = i >= allineaDa ? widths[i] - 3.6 : 0;
-      doc.text(String(h), x + dx, yy, i >= allineaDa ? { align: 'right' } : undefined);
-      x += widths[i];
-    });
+    riga(yy, headers, true);
     scrivi(doc, COLORI.testo);
     return yy + ALTA;
   }
@@ -205,24 +272,16 @@ export function drawTable(doc, headers, rows, widths, y, { totale = null, alline
   y = pageBreakIfNeeded(doc, y, 20);
   y = intestazione(y);
 
-  doc.setFont('helvetica', 'normal').setFontSize(8.5);
   rows.forEach((r, n) => {
     if (y + ALTA > PAGE_H - MM.bottom) {
       doc.addPage();
       y = intestazione(MM.top + 2);
-      doc.setFont('helvetica', 'normal').setFontSize(8.5);
     }
     if (n % 2 === 1) {
       riempi(doc, COLORI.riga);
       doc.rect(MM.left, y - 4.2, contentWidth(), ALTA, 'F');
     }
-    let x = MM.left + 1.8;
-    r.forEach((cella, i) => {
-      const testo = String(cella == null ? '' : cella);
-      const dx = i >= allineaDa ? widths[i] - 3.6 : 0;
-      doc.text(testo, x + dx, y, i >= allineaDa ? { align: 'right' } : undefined);
-      x += widths[i];
-    });
+    riga(y, r, false);
     y += ALTA;
   });
 
@@ -230,18 +289,11 @@ export function drawTable(doc, headers, rows, widths, y, { totale = null, alline
     if (y + ALTA > PAGE_H - MM.bottom) { doc.addPage(); y = intestazione(MM.top + 2); }
     riempi(doc, [226, 231, 240]);
     doc.rect(MM.left, y - 4.2, contentWidth(), ALTA, 'F');
-    doc.setFont('helvetica', 'bold').setFontSize(8.5);
-    let x = MM.left + 1.8;
-    totale.forEach((cella, i) => {
-      const testo = String(cella == null ? '' : cella);
-      const dx = i >= allineaDa ? widths[i] - 3.6 : 0;
-      doc.text(testo, x + dx, y, i >= allineaDa ? { align: 'right' } : undefined);
-      x += widths[i];
-    });
+    riga(y, totale, true);
     y += ALTA;
-    doc.setFont('helvetica', 'normal');
   }
 
+  doc.setFont('helvetica', 'normal').setFontSize(10);
   traccia(doc, COLORI.linea);
   doc.setLineWidth(0.3).line(MM.left, y - 4.2, PAGE_W - MM.right, y - 4.2);
   return y + 1;
@@ -344,8 +396,27 @@ function arco(doc, cx, cy, raggio, gradi, spessore, colore) {
  * c'è un trattino: uno zero per cento su zero tiri sarebbe un dato falso che
  * sembra vero.
  */
+/* Il numeratore dell'anello.
+ *
+ * Non e' sempre il primo dei due conteggi scritti accanto. Nel servizio
+ * l'anello dice la positivita' — ace PIU' servizi buoni sul totale — mentre
+ * accanto ci vanno gli ace e gli errori, che sono le due cose che si vogliono
+ * leggere. Finche' si e' preso `righe[0][0]` come numeratore, il set con
+ * novanta per cento nell'anello aveva scritto sotto «2/21»: due numeri giusti
+ * che insieme dicevano una cosa falsa.
+ *
+ * Da qui in avanti chi definisce la ciambella dichiara `v`. Se non lo fa —
+ * ed e' il caso in cui i due coincidono davvero — si ricade sul primo
+ * conteggio come prima.
+ */
+function numeratore(voce) {
+  if (!voce) return 0;
+  if (voce.v != null) return voce.v;
+  return (voce.righe && voce.righe[0]) ? voce.righe[0][0] : 0;
+}
+
 export function drawDonut(doc, x, y, voce, { raggio = 9, spessore = 2.6 } = {}) {
-  const dato = { v: voce.righe[0][0], t: voce.tot, pct: voce.pct };
+  const dato = { v: numeratore(voce), t: voce.tot, pct: voce.pct };
   const etichetta = voce.etichetta;
   const cx = x + raggio + spessore / 2;
   const cy = y + raggio + spessore / 2;
@@ -394,7 +465,7 @@ export function drawMiniDonut(doc, cx, cy, voce, { raggio = 5, spessore = 1.7 } 
   doc.text(voce && voce.pct != null ? String(voce.pct) : '—', cx, cy + 0.9, { align: 'center' });
   scrivi(doc, COLORI.tenue);
   doc.setFont('helvetica', 'normal').setFontSize(5.8);
-  doc.text(voce && voce.tot ? voce.righe[0][0] + '/' + voce.tot : '—', cx, cy + raggio + 3, { align: 'center' });
+  doc.text(voce && voce.tot ? numeratore(voce) + '/' + voce.tot : '—', cx, cy + raggio + 3, { align: 'center' });
   scrivi(doc, COLORI.testo);
   doc.setFontSize(10);
 }
