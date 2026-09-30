@@ -27,13 +27,43 @@ export function describe(name, fn) {
   current = prev;
 }
 
+/* I test sincroni restano sincroni.
+ *
+ * Ma qualcuno ha bisogno di aspettare: generare un PDF e rileggerlo e` la sola
+ * prova che la catena intera — partita, referto, foglio stampato — tiene, e
+ * jsPDF si carica con un `import()`. Un test che restituisce una promessa la
+ * mette in fila: il posto nell'elenco e` gia` preso, e il risultato ci arriva
+ * quando la promessa si scioglie.
+ *
+ * Cosi` l'ordine dei risultati resta quello del codice, che e` l'unico ordine
+ * in cui si leggono. */
+const inAttesa = [];
+
 export function test(name, fn) {
+  const posto = { group: current, name, ok: true };
+  results.push(posto);
   try {
-    fn();
-    results.push({ group: current, name, ok: true });
+    const forse = fn();
+    if (forse && typeof forse.then === 'function') {
+      inAttesa.push(forse.then(
+        () => { posto.ok = true; },
+        (err) => { posto.ok = false; posto.err = err; }
+      ));
+    }
   } catch (err) {
-    results.push({ group: current, name, ok: false, err });
+    posto.ok = false;
+    posto.err = err;
   }
+}
+
+/* Un test che non si puo` fare qui non e` un test fallito.
+ *
+ * Il collaudo del PDF ha bisogno di jsPDF e di pdf.js, e gira su Node 14 come
+ * su Node 20 — ma se un domani l'ambiente della verifica automatica non ce li
+ * avesse, un collaudo rosso per l'ambiente sbagliato insegna a ignorare il
+ * rosso. Si dice che e` stato saltato e si va avanti. */
+export function saltato(name, perche) {
+  results.push({ group: current, name, ok: true, saltato: perche });
 }
 
 export const eq = assert.deepStrictEqual;
@@ -50,6 +80,9 @@ async function main() {
     await import(pathToFileURL(join(here, f)).href);
   }
 
+  // I test che aspettano: si aspettano tutti, poi si stampa.
+  await Promise.all(inAttesa);
+
   let lastGroup = null;
   let failed = 0;
   for (const r of results) {
@@ -58,7 +91,8 @@ async function main() {
       lastGroup = r.group;
     }
     if (r.ok) {
-      console.log('    ok   ' + r.name);
+      console.log('    ' + (r.saltato ? 'salt ' : 'ok   ') + r.name
+        + (r.saltato ? '  (' + r.saltato + ')' : ''));
     } else {
       failed++;
       console.log('    FAIL ' + r.name);

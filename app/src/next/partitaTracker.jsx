@@ -15,6 +15,7 @@ import { managesSector } from '../utils/permissions.js';
 import { oggiISO } from '../utils/format.js';
 import { quantiChiusi } from '../utils/referto.js';
 import { calcolaPunteggi } from '../utils/punteggio.js';
+import { applicaAzione, annota, segnaPeriodo } from '../utils/azione.js';
 import {
   ruotaSestetto, cambioLibero, applicaCambio, raccontaCambio, zonaDi,
   versoGiusto, perchePalla
@@ -506,61 +507,15 @@ export function Tracker({ onFinita, onEsci }) {
     // prudente (`s || {}`) e la scrittura no: una statistica mancante — un
     // giocatore aggiunto alla partita da un'altra parte, una copia vecchia —
     // faceva lanciare qui, cioe` al primo tocco su quel gettone.
-    if (!giocatore.stats) giocatore.stats = sport.newStats();
-    const s = giocatore.stats;
-    // Quanto vale questa azione in punti lo dice lo sport, non l'azione: nel
-    // basket sta scritto (2, 3, 1), nella pallavolo e' un `points: 1` dentro le
-    // statistiche. Si misura la differenza prima e dopo, e va bene per tutti.
-    const primaPunti = sport.score(s || {});
-    Object.entries(azione.apply || {}).forEach(([k, v]) => { s[k] = (s[k] || 0) + v; });
-    if (azione.nested) {
-      Object.entries(azione.nested).forEach(([contenitore, chiave]) => {
-        s[contenitore] = s[contenitore] || {};
-        s[contenitore][chiave] = (s[contenitore][chiave] || 0) + 1;
-      });
-    }
-    if (azione.teamFoul && conf.teamFouls) {
-      g.quarterFouls[g.quarter] = (g.quarterFouls[g.quarter] || 0) + 1;
-    }
-
-    // Da dove e' partito il tiro, quando qualcuno l'ha detto. Sta dentro il
-    // giocatore perche' e' suo, e perche' cosi' viaggia con il tabellino.
-    if (punto) {
-      s.tiri = [...(s.tiri || []), {
-        x: punto.x, y: punto.y, act: azione.act, dentro: !!azione.dentro, q: g.quarter || 1
-      }];
-    }
-
-    // Da dove e' partita la palla e dove e' caduta. Come i tiri del basket,
-    // sta dentro chi l'ha giocata: e' sua, e viaggia con il tabellino.
-    if (linea) {
-      s.traiettorie = [...(s.traiettorie || []), { ...linea, act: azione.act, q: g.quarter || 1 }];
-    }
-
-    // Nel registro ci va OGNI azione, non solo quelle che fanno punti: un
-    // rimbalzo e una palla persa non muovono il tabellone ma dicono com'e'
-    // andato quel quarto.
-    annota({ a: azione.act, p: giocatore.id });
-
-    // Il punteggio del periodo in corso cresce subito: e' il numero che chi
-    // segna confronta col tabellone della palestra, e un numero che si aggiorna
-    // solo a fine set non serve a confrontare niente.
-    const guadagnati = sport.score(s || {}) - primaPunti;
-    if (guadagnati) {
-      segnaPeriodo('us', guadagnati);
-      chiudiScambio('us');
-    }
-
-    // I nostri errori sono punti loro: e' la regola del gioco, e finora la
-    // doveva applicare a mano chi segnava — due tocchi per un evento solo, e
-    // quello dimenticato falsava il punteggio senza dirlo.
-    if (azione.puntoLoro) {
-      annota({ a: 'loro', n: 1 });
-      segnaPeriodo('them', 1);
-      chiudiScambio('them');
-    }
-
-    calcolaPunteggi(g, sport);
+    /* Il cuore sta in `utils/azione.js`: statistiche, registro, punteggio del
+     * periodo, e il punto che un nostro errore regala agli avversari. Sta
+     * fuori da qui perche' si deve poter far giocare una partita intera senza
+     * un browser — e un collaudo che imitasse quelle righe proverebbe la
+     * propria imitazione, non quello che tocca chi segna.
+     *
+     * Quello che resta qui e' lo schermo: il riscontro sul gettone, il
+     * pannello che si chiude, il salvataggio, la domanda successiva. */
+    applicaAzione({ g, sport, giocatore, azione, punto, linea, chiudiScambio });
 
     // Il riscontro sul gettone, non un avviso in mezzo allo schermo: chi segna
     // sta già guardando il giocatore, e un avviso coprirebbe il prossimo tocco.
@@ -639,26 +594,12 @@ export function Tracker({ onFinita, onEsci }) {
    * domani questa riga sbagliasse, il punteggio e il tabellino resterebbero
    * giusti lo stesso — a mancare sarebbero solo le sezioni nuove del referto.
    */
-  function annota(voce) {
-    if (!voce) return;
-    g.storia = [...(g.storia || []), { q: g.quarter || 1, ...voce }];
-  }
 
-  function segnaPeriodo(lato, delta) {
-    const idx = (g.quarter || 1) - 1;
-    g.periodScores = g.periodScores || [];
-    const riga = g.periodScores[idx] || { us: 0, them: 0 };
-    const nuovo = Math.max(0, (riga[lato] || 0) + delta);
-    if (nuovo === riga[lato] && delta < 0) return;      // gia' a zero: niente da togliere
-    // Si copia la riga invece di rifarla: dentro ci sono anche chi batte, la
-    // rotazione e i conti delle fasi, e riscriverla da zero li cancellerebbe.
-    g.periodScores[idx] = { ...riga, [lato]: nuovo };
-  }
 
   function manoPunteggio(lato, delta) {
     memorizza((lato === 'us' ? 'Noi' : g.oppName) + ' ' + (delta > 0 ? '+' + delta : '−' + Math.abs(delta)));
-    annota({ a: lato === 'us' ? 'noi' : 'loro', n: delta });
-    segnaPeriodo(lato, delta);
+    annota(g, { a: lato === 'us' ? 'noi' : 'loro', n: delta });
+    segnaPeriodo(g, lato, delta);
     // Solo il piu' chiude uno scambio. Il meno e' una correzione, e una
     // correzione non ha una fase ne' una rotazione: per disfare uno scambio
     // c'e' l'Annulla, che rimette indietro tutto insieme.

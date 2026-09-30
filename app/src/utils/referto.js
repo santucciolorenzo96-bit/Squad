@@ -401,7 +401,21 @@ export function azioneDi(sport, act) {
   const nomi = Object.keys(catene);
   for (let i = 0; i < nomi.length; i++) {
     const c = catene[nomi[i]];
-    if (c && c.azione && c.azione.act === act) return c.azione;
+    if (!c) continue;
+    if (c.azione && c.azione.act === act) return c.azione;
+    /* E LE OPZIONI DENTRO LA CATENA.
+     *
+     * Una catena chiede CHI (chi ha alzato, chi ha preso il rimbalzo) oppure
+     * COSA (com'e' finito l'attacco sbagliato: fuori, o murato). Nel secondo
+     * caso la risposta E' un'azione, viene applicata al giocatore e finisce
+     * nel registro come tutte le altre — ma qui non veniva cercata.
+     *
+     * Quindi `att_out` e `att_blocked` erano invisibili a chi rilegge il
+     * registro: saltate in silenzio dalle statistiche set per set, come lo
+     * erano state «positivo» e «negativo» in attacco. Lo stesso difetto,
+     * in una parte scritta tre giorni dopo averlo corretto. */
+    const o = (c.opzioni || []).find(x => x && x.act === act);
+    if (o) return o;
   }
 
   /* LE AZIONI CHE NON CI SONO PIÙ.
