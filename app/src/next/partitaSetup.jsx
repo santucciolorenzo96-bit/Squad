@@ -89,9 +89,17 @@ export function AvvioPartita({ onAvviata }) {
         oppScore: 0,
         players: state.roster.map(p => ({
           id: p.id, number: p.number, name: p.name,
-          // Nessuno in campo: chi comincia si sceglie nello scout, toccando
-          // le maglie vuote sul campo. Vedi il commento qui sopra.
-          onCourt: false, stats: sport.newStats()
+          /* NESSUNO IN CAMPO E NESSUNO CONVOCATO.
+           *
+           * Chi comincia si sceglie nello scout, e anche CHI C'È: una rosa di
+           * venti non va mai in palestra tutta, e una panchina che parte con
+           * venti facce costringe a toglierne otto. Togliere è lo stesso
+           * lavoro di scegliere, ma raccontato al contrario — e chi segna
+           * pensa «ci sono questi», non «mancano quelli».
+           *
+           * Le partite aperte prima di oggi non hanno questo campo, e lì la
+           * sua assenza vale «c'è»: continuano a comportarsi come prima. */
+          onCourt: false, presente: false, stats: sport.newStats()
         })),
         quarterFouls: conf.teamFouls ? { 1: 0 } : {},
         periodScores: [],

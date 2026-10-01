@@ -996,7 +996,9 @@ export function Tracker({ onFinita, onEsci }) {
      * colonne vuol dire facce più piccole e righe più basse. Questi tre
      * numeri sono la faccia più il nome più il respiro, misurati sulla
      * colonna della panchina. */
-    const alta = { 2: 66, 3: 50, 4: 42 };
+    // Piu` alte di prima: nello slot adesso c'e` il nome INTERO, che su due
+    // parole lunghe prende due righe.
+    const alta = { 2: 82, 3: 64, 4: 54 };
     // Il MINOR numero di colonne che ci sta: le facce grandi si perdono solo
     // quando servono davvero.
     for (const c of [2, 3, 4]) {
@@ -1008,6 +1010,17 @@ export function Tracker({ onFinita, onEsci }) {
   // Il campo non e` al completo: all'inizio perche` i titolari non sono
   // ancora stati scelti, in corsa perche` qualcuno e` uscito e basta.
   const campoCorto = inCampo.length < (sport.match.minOnField || 1);
+
+  /* Tutti o nessuno. Con una rosa di venti e quattordici convocati, partire
+   * da «tutti» e togliere i sei che mancano e` piu` veloce che toccarne
+   * quattordici — e viceversa quando ne vengono sette. Si sceglie da che
+   * parte cominciare invece di avere ragione una volta su due. */
+  function segnaTutti(c) {
+    memorizza(c ? 'Tutti convocati' : 'Nessun convocato');
+    g.players.forEach(p => { if (!p.onCourt) p.presente = c; });
+    aggiorna();
+    salva();
+  }
 
   function segnaPresenza(id, c) {
     const p = g.players.find(x => x.id === id);
@@ -1113,7 +1126,7 @@ export function Tracker({ onFinita, onEsci }) {
 
           Sotto, dove la larghezza non avanza, resta impilato: li' il tabellone
           in cima e' giusto, perche' e' la prima cosa che si guarda. */}
-      <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)_11.5rem] lg:gap-3 xl:grid-cols-[18rem_minmax(0,1fr)_14rem] xl:gap-4">
+      <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[14rem_minmax(0,1fr)_12.5rem] lg:gap-2 xl:grid-cols-[17rem_minmax(0,1fr)_14.5rem] xl:gap-3">
 
       {/* ============================================================ tabellone */}
       {/* In cima e fermo. Prima restava appiccicato mentre si scorreva: adesso
@@ -1150,7 +1163,7 @@ export function Tracker({ onFinita, onEsci }) {
               diciannove rem diventerebbero due cifre piccole con in mezzo il
               periodo schiacciato, e il punteggio e' la cosa che si guarda da
               lontano. */}
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-3.5 sm:px-4 lg:grid-cols-1 lg:gap-1 lg:py-3">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-3.5 sm:px-4 lg:grid-cols-1 lg:gap-0.5 lg:px-3 lg:py-2">
             <div className="min-w-0 text-center">
               <div className="flex items-center justify-center gap-1.5">
                 {/* Chi ha il servizio, detto come lo direbbe un tabellone: un
@@ -1163,7 +1176,7 @@ export function Tracker({ onFinita, onEsci }) {
                   {(state.teamProfile || {}).name}
                 </span>
               </div>
-              <div className="mt-1 text-[clamp(30px,9vw,46px)] lg:text-[40px] xl:text-[46px] font-bold leading-none text-verde">
+              <div className="mt-0.5 text-[clamp(26px,8vw,38px)] lg:text-[30px] xl:text-[34px] font-bold leading-none text-verde">
                 {grandeNostro}
               </div>
               <ManoPunteggio
@@ -1204,7 +1217,7 @@ export function Tracker({ onFinita, onEsci }) {
                   {g.oppName}
                 </span>
               </div>
-              <div className="mt-1 text-[clamp(30px,9vw,46px)] lg:text-[40px] xl:text-[46px] font-bold leading-none">
+              <div className="mt-0.5 text-[clamp(26px,8vw,38px)] lg:text-[30px] xl:text-[34px] font-bold leading-none">
                 {grandeLoro}
               </div>
               <ManoPunteggio
@@ -1374,7 +1387,17 @@ export function Tracker({ onFinita, onEsci }) {
       <div className="flex min-h-0 flex-1 flex-col gap-3 md:grid md:grid-cols-[minmax(0,1fr)_13rem] md:items-stretch md:gap-4 lg:contents">
 
         <div className="flex min-h-0 flex-col" style={{ '--proporzione': sport.field.ratio }}>
-          <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
+          {/* UNA RIGA CHE SU TABLET NON SI PAGA PIU`.
+              Diceva «Quintetto · tocca per assegnare» e «4 di 5»: un'etichetta
+              e un conteggio, per una riga intera tolta al campo. Il conteggio
+              si vede dalle maglie tratteggiate, e cosa si tocca lo dice la
+              colonna degli eventi. Resta solo dove serve davvero: su schermo
+              stretto, e nella pallavolo — dove in quella riga ci sono la
+              rotazione e i posti, che comandi sono. */}
+          <div className={cx(
+            'mb-2 flex shrink-0 items-center justify-between gap-3',
+            !conf.rotazione && 'lg:hidden'
+          )}>
             <Etichetta>{sport.field.onFieldLabel} · tocca per assegnare</Etichetta>
             {conf.rotazione ? (
               <div className="flex shrink-0 items-center gap-2">
@@ -1571,10 +1594,25 @@ export function Tracker({ onFinita, onEsci }) {
           Chi è in campo non si può togliere: c'è per definizione. */}
       {presenze && (
         <Finestra
-          titolo="Chi c’è in palestra"
-          sotto={inPanca.length + ' in panchina'
-            + (assenti.length ? ' · ' + assenti.length + (assenti.length === 1 ? ' assente' : ' assenti') : '')}
+          titolo="I convocati"
+          sotto={inPanca.length + inCampo.length + ' di ' + g.players.length + ' in distinta'}
           onChiudi={() => setPresenze(false)}
+          azioni={
+            <div className="flex gap-2">
+              <button
+                onClick={() => segnaTutti(true)}
+                className="rounded-lg vetro orlo px-3 py-1.5 text-[12.5px] font-semibold text-soffuso transition-all hover:text-testo active:scale-95"
+              >
+                Tutti
+              </button>
+              <button
+                onClick={() => segnaTutti(false)}
+                className="rounded-lg vetro orlo px-3 py-1.5 text-[12.5px] font-semibold text-soffuso transition-all hover:text-testo active:scale-95"
+              >
+                Nessuno
+              </button>
+            </div>
+          }
         >
           <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
             {g.players.map(p => {
@@ -1614,8 +1652,8 @@ export function Tracker({ onFinita, onEsci }) {
             })}
           </div>
           <p className="mt-3 text-[12px] leading-relaxed text-tenue">
-            Chi è segnato assente sparisce dalla panchina e dai cambi. Il suo tabellino
-            resta: se entra più tardi, basta rimetterlo.
+            In panchina ci vanno solo i convocati. Chi resta fuori sparisce anche dai
+            cambi — il suo tabellino resta, e se arriva più tardi basta aggiungerlo.
           </p>
         </Finestra>
       )}
@@ -2179,11 +2217,17 @@ const GettoneCampo = React.memo(function GettoneCampo({
         )}
       </div>
 
+      {/* NOME E COGNOME INTERI.
+          C'era solo il nome, e in una rosa con due Giulia non basta: il
+          cognome e` quello che distingue, ed e` quello che l'allenatore urla.
+          Va a capo invece di essere tagliato — un cognome troncato e` un
+          cognome che si legge due volte — e il riquadro e` un po` piu` largo
+          del gettone perche` due righe stiano in due e non in tre. */}
       <div
-        className="mt-1 max-w-full truncate font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,.85)]"
+        className="nome-gettone font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,.85)]"
         style={{ fontSize: 'var(--nome)' }}
       >
-        {p.name.split(' ')[0]}
+        {p.name}
       </div>
 
       {/* I FALLI, SOTTO IL NOME.
@@ -3209,9 +3253,19 @@ function Panchina({
 
       <div className="panca-griglia min-h-0" style={{ '--colonne': colonne }}>
         {inPanca.length === 0 ? (
-          <p className="col-span-full text-[12.5px] text-tenue">
-            {assenti.length ? 'Sono tutti in campo o segnati assenti.' : 'Nessuno in panchina.'}
-          </p>
+          <div className="col-span-full">
+            <p className="text-[12.5px] leading-relaxed text-tenue">
+              {assenti.length
+                ? 'Sono tutti in campo o fuori dai convocati.'
+                : 'Nessun convocato ancora.'}
+            </p>
+            <button
+              onClick={onPresenze}
+              className="mt-2 w-full rounded-lg vivo px-2 py-2 text-[12.5px] font-bold text-white transition-transform active:scale-[0.98]"
+            >
+              Scegli i convocati
+            </button>
+          </div>
         ) : inPanca.map(p => (
           <button
             key={p.id}
@@ -3244,8 +3298,10 @@ function Panchina({
                 <Volto p={p} url={foto[p.id]} />
               </span>
             </span>
-            <span className="mt-1 block truncate text-tenue" style={{ fontSize: 'var(--nomino)' }}>
-              {p.name.split(' ')[0]}
+            {/* Nome e cognome interi, su due righe se servono: in una rosa
+                con due Giulia il nome da solo non distingue nessuno. */}
+            <span className="nome-panca mt-1 block text-tenue" style={{ fontSize: 'var(--nomino)' }}>
+              {p.name}
             </span>
           </button>
         ))}

@@ -480,12 +480,46 @@
      farla dipendere da lì sarebbe appoggiarsi a un comportamento al limite.
      L'involucro non ha contenimento, prende l'altezza e ne ricava la
      larghezza; il campo dentro riempie e basta. */
-  .campo-alto { display: flex; min-height: 0; flex: 1 1 auto; justify-content: center; }
-  .campo-scatola {
-    height: 100%;
-    max-width: 100%;
-    aspect-ratio: var(--proporzione, 1);
+  /* IL RIQUADRO È ESATTAMENTE IL CAMPO, NON UNA SCATOLA CON DENTRO IL CAMPO.
+   *
+   * Prima il riquadro prendeva tutta l'altezza (`height: 100%`) e ne ricavava
+   * la larghezza con `aspect-ratio`; ma quando quella larghezza era più della
+   * colonna, `max-width` la tagliava — e l'altezza restava quella piena. Il
+   * risultato era un riquadro alto con dentro un campo corto, e in mezzo una
+   * fascia di niente, bordata, che sembrava un errore di caricamento.
+   *
+   * Adesso si calcola il lato: il più grande che ci sta in TUTTE E DUE le
+   * direzioni. `min(100cqw, 100cqh × proporzione)` è esattamente quello, e la
+   * proporzione non si viola mai. Lo spazio che avanza resta fuori dal
+   * riquadro, dove si vede che è spazio e non un difetto.
+   */
+  .campo-alto {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    justify-content: center;
+    align-items: center;
+    container-type: size;
   }
+
+  .campo-scatola {
+    --largo: min(100cqw, calc(100cqh * var(--proporzione, 1)));
+    width: var(--largo);
+    height: calc(var(--largo) / var(--proporzione, 1));
+  }
+
+  /* La ricaduta per chi non ha le query sul contenitore: il comportamento di
+     prima, che è imperfetto ma non rompe niente. */
+  @supports not (container-type: size) {
+    .campo-alto { container-type: normal; }
+    .campo-scatola {
+      width: auto;
+      height: 100%;
+      max-width: 100%;
+      aspect-ratio: var(--proporzione, 1);
+    }
+  }
+
   .campo-scatola .campo { width: 100%; height: 100%; }
 
   /* Il gettone sul campo dello scout: si tocca, quindi ha bisogno di essere
@@ -513,6 +547,31 @@
        mangiarsi il volto: sta intorno a un terzo della faccia, non di più,
        altrimenti torna a essere lui la cosa che si guarda per prima. */
     --pallino: clamp(1.4rem, 5.8cqw, 2.5rem);
+  }
+
+  /* Il nome intero sotto il gettone. Va a capo invece di essere tagliato, e
+     il riquadro e` piu` largo del gettone perche` due parole lunghe stiano in
+     due righe e non in tre. Mai piu` di due: oltre, il nome si mangia il
+     campo. */
+  .nome-gettone {
+    width: 128%;
+    margin-left: -14%;
+    line-height: 1.06;
+    text-align: center;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .nome-panca {
+    line-height: 1.05;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   /* Il posto vuoto sul campo: dove manca un titolare. Un tratteggio e un
