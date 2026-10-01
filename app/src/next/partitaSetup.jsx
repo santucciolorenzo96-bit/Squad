@@ -60,7 +60,6 @@ export function AvvioPartita({ onAvviata }) {
   // tabellino si apre gia' cosi': chi l'ha programmata lo sapeva, e chiederlo
   // di nuovo a chi segna e' un'occasione in piu' di dimenticarselo.
   const [amichevole, setAmichevole] = useState(candidate.length ? !!candidate[0].friendly : false);
-  const [titolari, setTitolari] = useState([]);
   const [lavora, setLavora] = useState(false);
   const [errore, setErrore] = useState('');
 
@@ -72,20 +71,9 @@ export function AvvioPartita({ onAvviata }) {
     setAmichevole(!!m.friendly);
   }
 
-  function alterna(id) {
-    setTitolari(t => {
-      if (t.includes(id)) return t.filter(x => x !== id);
-      if (t.length >= inCampo) return t;   // oltre il quintetto non si aggiunge
-      return [...t, id];
-    });
-  }
 
   async function avvia() {
     setErrore('');
-    if (titolari.length !== inCampo) {
-      setErrore(`Scegli esattamente ${inCampo} giocatori (adesso ne hai ${titolari.length}).`);
-      return;
-    }
     setLavora(true);
     try {
       const nQ = Math.max(1, Math.min(parseInt(periodi, 10) || conf.period.count, 9));
@@ -101,7 +89,9 @@ export function AvvioPartita({ onAvviata }) {
         oppScore: 0,
         players: state.roster.map(p => ({
           id: p.id, number: p.number, name: p.name,
-          onCourt: titolari.includes(p.id), stats: sport.newStats()
+          // Nessuno in campo: chi comincia si sceglie nello scout, toccando
+          // le maglie vuote sul campo. Vedi il commento qui sopra.
+          onCourt: false, stats: sport.newStats()
         })),
         quarterFouls: conf.teamFouls ? { 1: 0 } : {},
         periodScores: [],
@@ -261,40 +251,12 @@ export function AvvioPartita({ onAvviata }) {
         </Pannello>
       )}
 
-      {/* -------------------------------------------------- chi comincia */}
-      <Pannello className="pad-pannello-stretto">
-        <div className="flex items-center justify-between gap-3">
-          <Etichetta>Chi comincia</Etichetta>
-          <span className={cx('text-[12.5px] font-bold',
-            titolari.length === inCampo ? 'text-verde' : 'text-ambra')}>
-            {titolari.length} di {inCampo}
-          </span>
-        </div>
-
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {state.roster.map(p => {
-            const on = titolari.includes(p.id);
-            const pieno = !on && titolari.length >= inCampo;
-            return (
-              <button
-                key={p.id}
-                onClick={() => alterna(p.id)}
-                disabled={pieno}
-                className={cx(
-                  'flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left transition-all orlo',
-                  on ? 'vetro-alto ring-1 ring-blu' : 'vetro',
-                  pieno && 'opacity-35'
-                )}
-              >
-                <span className="w-6 shrink-0 text-right text-[13px] font-medium text-tenue">{p.number}</span>
-                <Avatar nome={p.name} dim={28} />
-                <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold">{p.name}</span>
-              </button>
-            );
-          })}
-        </div>
-      </Pannello>
-
+      {/* CHI COMINCIA NON SI SCEGLIE PIU` QUI.
+          Era un passaggio in piu` prima di poter cominciare, e arrivava nel
+          momento sbagliato: l'avvio si prepara con calma mezz'ora prima,
+          mentre il quintetto lo decide l'allenatore quando la palla sta per
+          alzarsi. Adesso si tocca direttamente sul campo dello scout, dove
+          c'e' il campo da guardare. */}
       {errore && (
         <div className="rounded-lg bg-rosso/12 px-4 py-3 text-[13px] text-rosso">{errore}</div>
       )}

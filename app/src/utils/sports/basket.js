@@ -372,30 +372,34 @@ export const BASKET = {
       // `zona` dice che questo tiro ha un punto di partenza: con la mappa
       // accesa, prima di registrarlo l'app chiede da dove. I tiri liberi no,
       // si tirano sempre dallo stesso posto.
-      /* L'ERRORE AL TIRO NON CHIEDE PIÙ NIENTE.
+      /* L'ERRORE AL TIRO CHIEDE UNA COSA SOLA: CHI HA PRESO IL RIMBALZO.
        *
-       * Aveva due seguiti: da dove era partito il tiro, e chi aveva preso il
-       * rimbalzo. Due domande su un'azione che in partita arriva ogni
-       * quaranta secondi, e mentre si risponde il gioco è già ripartito.
+       * Ne chiedeva due — anche da dove era partito il tiro — ed erano
+       * troppe: due domande di fila su un'azione che arriva ogni quaranta
+       * secondi, mentre il gioco è già ripartito. La posizione è rimasta solo
+       * sul canestro, che è l'azione per cui vale la pena fermarsi mezzo
+       * secondo.
        *
-       * Il canestro le domande le tiene — è l'azione che conta, ed è quella
-       * per cui vale la pena fermarsi mezzo secondo. L'errore no.
+       * Il rimbalzo invece torna, perché è l'altra metà del tiro sbagliato:
+       * senza, quel pallone sparisce dal referto. E la domanda ha già la via
+       * d'uscita giusta — «agli avversari» — che è la risposta in metà dei
+       * casi, e si prende con un tocco solo.
        *
-       * Conseguenza da sapere: senza la posizione degli errori, la mappa dice
-       * DOVE SI SEGNA e non più le percentuali per zona. Il referto lo dice,
-       * invece di stampare cento per cento dappertutto.
+       * Conseguenza della posizione solo sui canestri: la mappa dice DOVE SI
+       * SEGNA e non più le percentuali per zona. Il referto lo dice, invece di
+       * stampare cento per cento dappertutto.
        */
       { label: 'Tiro da 2', layout: 'pair', actions: [
         { act: 'fg2_made', label: '\u2713 Canestro', tone: 'made', apply: { fgm2: 1, fga2: 1 }, score: 2, zona: true, dentro: true, poi: 'assist' },
-        { act: 'fg2_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga2: 1 } }
+        { act: 'fg2_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga2: 1 }, poi: 'rimbalzo' }
       ]},
       { label: 'Tiro da 3', layout: 'pair', actions: [
         { act: 'fg3_made', label: '\u2713 Canestro', tone: 'made', apply: { fgm3: 1, fga3: 1 }, score: 3, zona: true, dentro: true, poi: 'assist' },
-        { act: 'fg3_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga3: 1 } }
+        { act: 'fg3_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga3: 1 }, poi: 'rimbalzo' }
       ]},
       { label: 'Tiro libero', layout: 'pair', actions: [
         { act: 'ft_made', label: '\u2713 Segnato', tone: 'made', apply: { ftm: 1, fta: 1 }, score: 1 },
-        { act: 'ft_miss', label: '\u2717 Sbagliato', tone: 'miss', apply: { fta: 1 } }
+        { act: 'ft_miss', label: '\u2717 Sbagliato', tone: 'miss', apply: { fta: 1 }, poi: 'rimbalzo' }
       ]},
       { label: 'Rimbalzo', layout: 'pair', actions: [
         { act: 'orb', label: 'Offensivo', tone: 'neutral', apply: { orb: 1 } },

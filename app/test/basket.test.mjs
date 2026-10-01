@@ -294,14 +294,30 @@ describe('basket: la mappa è una scelta, non un obbligo', () => {
     is(conZona.join(','), 'fg2_made,fg3_made');
   });
 
-  test('e l errore al tiro non fa partire nessuna domanda', () => {
+  /* L'errore al tiro chiede UNA cosa sola: chi ha preso il rimbalzo.
+   *
+   * Ne chiedeva due — anche da dove era partito il tiro — ed erano troppe:
+   * due domande di fila su un'azione che arriva ogni quaranta secondi. La
+   * posizione è rimasta solo sul canestro; il rimbalzo è tornato, perché è
+   * l'altra metà del tiro sbagliato e senza di lui quel pallone sparisce dal
+   * referto. */
+  test('l errore al tiro chiede il rimbalzo e non la posizione', () => {
     const azioni = BASKET.scout.groups.flatMap(gr => gr.actions);
     ['fg2_miss', 'fg3_miss', 'ft_miss'].forEach(act => {
       const a = azioni.find(x => x.act === act);
       ok(a, act + ' non esiste piu`');
-      ok(!a.zona, act + ' chiede ancora da dove');
-      ok(!a.poi, act + ' fa ancora la domanda «' + a.poi + '»');
+      ok(!a.zona, act + ' chiede ancora da dove e` partito il tiro');
+      is(a.poi, 'rimbalzo', act + ' non chiede il rimbalzo');
     });
+  });
+
+  test('e la domanda del rimbalzo ha la sua via d uscita', () => {
+    const c = BASKET.scout.chains.rimbalzo;
+    ok(c, 'manca la catena del rimbalzo');
+    // «Agli avversari» è la risposta in metà dei casi: deve stare a un tocco.
+    ok(/avversari/i.test(c.altro), 'la via d’uscita dice «' + c.altro + '»');
+    // Chi sbaglia può riprendersi il proprio rimbalzo: è il caso piu` comune.
+    is(c.includiAutore, true);
   });
 
   test('il canestro invece la domanda dell assist la tiene', () => {

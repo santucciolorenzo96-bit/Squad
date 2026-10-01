@@ -15,7 +15,7 @@ import { managesSector } from '../utils/permissions.js';
 import { oggiISO } from '../utils/format.js';
 import { quantiChiusi } from '../utils/referto.js';
 import { calcolaPunteggi } from '../utils/punteggio.js';
-import { applicaAzione, annota, segnaPeriodo } from '../utils/azione.js';
+import { applicaAzione, annota, segnaPeriodo, cosaFaIlTocco } from '../utils/azione.js';
 import { conStatoDellaRiga } from '../utils/salvataggio.js';
 import { falliPerGiocatore, segniFallo, raccontaFalli } from '../utils/falli.js';
 import {
@@ -126,7 +126,55 @@ export function Tracker({ onFinita, onEsci }) {
   const avvisa = useAvviso();
 
   const [, ridisegna] = useState(0);
-  const [scelto, setScelto] = useState(null);      // id giocatore col pannello aperto
+  /* I DUE MODI DI SEGNARE UN'AZIONE, E SONO LO STESSO.
+   *
+   * Prima si toccava il giocatore e si apriva un pannello con tutte le
+   * azioni: due tocchi e una finestra in mezzo, e la finestra copriva il
+   * campo proprio mentre la partita andava avanti.
+   *
+   * Adesso gli eventi stanno sempre a vista, in colonna. Si tocca l'evento e
+   * poi il giocatore — e` il giro che fa chi sta al tavolo con FIP Stats, ed
+   * e` piu` veloce perche` non c'e` niente da aprire e niente da chiudere.
+   *
+   * Ma funziona anche al contrario: si tocca il giocatore e poi l'evento.
+   * Non e` indulgenza, e` che durante una partita il dito parte prima del
+   * pensiero, e un'interfaccia che accetta solo un ordine costringe a
+   * disfare. Chi dei due arriva secondo chiude l'azione. */
+  const [scelto, setScelto] = useState(null);      // id giocatore in attesa di un evento
+  const [armato, setArmato] = useState(null);      // evento in attesa di un giocatore
+
+  /* DUE MODI DI SEGNARE, E DIPENDE DA QUANTO SCHERMO C'E`.
+   *
+   * Su un tablet in orizzontale gli eventi stanno in colonna, sempre a
+   * vista: si tocca l'evento e poi il giocatore, senza aprire niente.
+   *
+   * Su un telefono quella colonna non ci sta — e togliere spazio al campo
+   * per farcela stare vorrebbe dire un campo che non si riesce a toccare.
+   * Li` resta il pannello che si apre sul giocatore, che su uno schermo
+   * stretto e` la cosa giusta: usa tutta la larghezza per una volta sola.
+   *
+   * La soglia e` la stessa delle tre colonne, e si ascolta invece di
+   * misurarla una volta: un tablet si gira. */
+  const [larga, setLarga] = useState(
+    () => typeof window !== 'undefined'
+      && typeof window.matchMedia === 'function'
+      && window.matchMedia('(min-width: 1024px)').matches
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+    const q = window.matchMedia('(min-width: 1024px)');
+    const cambia = (e) => setLarga(e.matches);
+    setLarga(q.matches);
+    // `addListener` e` la forma vecchia: su Safari piu` indietro di qualche
+    // versione e` l'unica che c'e', e in palestra i tablet sono vecchi.
+    if (q.addEventListener) q.addEventListener('change', cambia);
+    else q.addListener(cambia);
+    return () => {
+      if (q.removeEventListener) q.removeEventListener('change', cambia);
+      else q.removeListener(cambia);
+    };
+  }, []);
   const [lampo, setLampo] = useState(null);        // { id, testo } riscontro dell'ultima azione
   const [catena, setCatena] = useState(null);      // { tipo, autore } la domanda successiva
   const [sostituzione, setSostituzione] = useState(null);
@@ -489,6 +537,7 @@ export function Tracker({ onFinita, onEsci }) {
      * Quindi si chiude tutto. Chi aveva un pannello aperto lo riapre: e`
      * fastidioso una volta, l'altra cosa e` un dato perso in silenzio. */
     setScelto(null);
+    setArmato(null);
     setCatena(null);
     setTiroDaPiazzare(null);
     setTraiettoria(null);
@@ -514,6 +563,49 @@ export function Tracker({ onFinita, onEsci }) {
   const rigaCalendario = g.calendarMatchId
     ? (state.calendar || []).find(m => m.id === g.calendarMatchId) || { id: g.calendarMatchId }
     : abbinaCalendario(state.calendar, g.oppName, oggiISO());
+
+  /* L'INCONTRO FRA UN EVENTO E UN GIOCATORE.
+   *
+   * Qui arrivano tutti e due i giri — evento-poi-giocatore e
+   * giocatore-poi-evento — e da qui in poi non si distinguono piu`.
+   *
+   * Due azioni chiedono ancora qualcosa prima di registrarsi, e per la stessa
+   * ragione: il tiro del basket con la mappa accesa vuole sapere da dove, e
+   * il punto della pallavolo vuole la traiettoria. In tutti e due i casi
+   * quello che si sta per toccare E` IL CAMPO, quindi il campo deve restare
+   * libero: si sgombra tutto e si apre la cosa che chiede. */
+  function assegna(giocatore, azione) {
+    if (!giocatore || !azione) return;
+    setArmato(null);
+    setScelto(null);
+
+    if (conf.mappaTiri && mappa && azione.zona) {
+      setTiroDaPiazzare({ giocatore, azione, foto: foto[giocatore.id] });
+      return;
+    }
+    if (sport.campoIntero && azione.traiettoria) {
+      setTraiettoria({ giocatore, azione, foto: foto[giocatore.id] });
+      return;
+    }
+    esegui(giocatore, azione);
+  }
+
+  /* Il tocco su un giocatore. Se c'e` gia` un evento armato, l'azione si
+   * chiude qui; altrimenti e` lui ad aspettare, e sara` l'evento a chiudere. */
+  function toccaGiocatore(p) {
+    if (armato) { assegna(p, armato); return; }
+    // Su schermo stretto non c'e` la colonna degli eventi: il tocco sul
+    // giocatore apre il pannello, come prima.
+    setScelto(id => (larga && id === p.id ? null : p.id));
+  }
+
+  /* Il tocco su un evento. Specularmente: se c'e` gia` un giocatore scelto si
+   * chiude, altrimenti l'evento resta armato e aspetta. */
+  function toccaEvento(azione) {
+    const chi = scelto ? g.players.find(p => p.id === scelto) : null;
+    if (chi) { assegna(chi, azione); return; }
+    setArmato(a => (a && a.act === azione.act ? null : azione));
+  }
 
   function esegui(giocatore, azione, senzaCatena, punto, linea) {
     if (!giocatore || !azione) return;
@@ -551,6 +643,7 @@ export function Tracker({ onFinita, onEsci }) {
     setTimeout(() => setLampo(l => (l && l.id === giocatore.id ? null : l)), 900);
 
     setScelto(null);
+    setArmato(null);
     aggiorna();
     salva();
     if (navigator.vibrate) navigator.vibrate(12);
@@ -777,17 +870,66 @@ export function Tracker({ onFinita, onEsci }) {
     return () => { vivo = false; };
   }, []);
 
-  // All'apertura dello scout il quintetto e' gia' in campo da prima: se non
-  // c'e' un turno aperto se ne apre uno adesso, altrimenti i primi canestri
-  // non sarebbero di nessuno.
+  /* All'apertura dello scout il quintetto puo` essere gia` in campo da prima:
+   * se non c'e` un turno aperto se ne apre uno adesso, altrimenti i primi
+   * canestri non sarebbero di nessuno.
+   *
+   * MA NON SU UN CAMPO VUOTO. Da quando i titolari si scelgono qui, una
+   * partita appena creata non ha nessuno in campo: aprire un turno con dentro
+   * zero giocatori vorrebbe dire attribuire il primo parziale a nessuno. Il
+   * turno lo apre chi manda in campo il quinto. */
   useEffect(() => {
     if (!conf.quintetti || g.turno) return;
+    if (g.players.filter(p => p.onCourt).length < (sport.match.minOnField || 1)) return;
     calcolaPunteggi(g, sport);
     apriTurno();
     salva();
     // Una volta sola, all'apertura: dopo ci pensano i cambi.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* MANDARE QUALCUNO IN CAMPO SENZA FAR USCIRE NESSUNO.
+   *
+   * E` cosi` che si scelgono i titolari, adesso che non si scelgono piu`
+   * all'avvio: il campo parte vuoto e si tocca chi comincia. Ed e` anche il
+   * rimedio quando il campo resta corto — un'espulsione, un infortunio,
+   * qualcuno dimenticato fuori.
+   *
+   * Il turno dei quintetti si apre solo quando il campo e` al completo:
+   * prima non c'e` nessun quintetto di cui misurare il parziale. */
+  function mandaInCampo(entrante) {
+    if (!entrante || entrante.onCourt) return;
+    const quanti = g.players.filter(p => p.onCourt).length;
+    const massimo = sport.match.minOnField || 1;
+    if (quanti >= massimo) {
+      avvisa('In campo ce ne sono gia’ ' + massimo + ': per cambiare, tocca il ⇄ di chi esce.');
+      return;
+    }
+    memorizza(sigla(entrante) + ' in campo');
+    if (conf.quintetti && g.turno) chiudiTurno();
+    entrante.onCourt = true;
+    entrante.presente = true;     // chi entra in campo c'e` per definizione
+    if (conf.quintetti && quanti + 1 >= massimo) apriTurno();
+    setScelto(null);
+    aggiorna();
+    salva();
+  }
+
+  /* IL TOCCO SU UNA FACCIA IN PANCHINA, e cosa vuol dire.
+   *
+   * Lo stesso gesto fa quattro cose diverse a seconda del momento, e
+   * l'ordine qui sotto e` l'ordine in cui si escludono — dal piu` esplicito
+   * al piu` generico. La riga azzurra in cima alla panchina dice sempre
+   * quale dei quattro sta per succedere: un gesto ambiguo che si annuncia
+   * non e` ambiguo. */
+  function toccaPanchina(p) {
+    switch (cosaFaIlTocco({ armato, sostituzione, campoCorto })) {
+      case 'assegna': assegna(p, armato); return;        // c'e` un evento da dare
+      case 'sostituisci': sostituisci(p); return;        // qualcuno sta uscendo
+      case 'inCampo': mandaInCampo(p); return;           // il campo non e` pieno
+      default: toccaGiocatore(p);                        // lo si sceglie e basta
+    }
+  }
 
   function sostituisci(entrante) {
     const uscente = g.players.find(p => p.id === sostituzione);
@@ -863,6 +1005,10 @@ export function Tracker({ onFinita, onEsci }) {
     return 4;
   })();
 
+  // Il campo non e` al completo: all'inizio perche` i titolari non sono
+  // ancora stati scelti, in corsa perche` qualcuno e` uscito e basta.
+  const campoCorto = inCampo.length < (sport.match.minOnField || 1);
+
   function segnaPresenza(id, c) {
     const p = g.players.find(x => x.id === id);
     if (!p || p.onCourt) return;     // chi è in campo c'è per definizione
@@ -874,6 +1020,13 @@ export function Tracker({ onFinita, onEsci }) {
   const falli = conf.teamFouls ? (g.quarterFouls[g.quarter] || 0) : 0;
   const bonus = conf.teamFouls && falli >= conf.teamFoulBonus;
   const giocatoreScelto = g.players.find(p => p.id === scelto);
+
+  /* Cosa sta aspettando l'app, in due parole e sempre nello stesso posto.
+   * Durante una partita e` l'unica riga che si legge davvero: dice se manca
+   * il giocatore o se manca l'evento, e quindi dove guardare. */
+  const attesa = armato
+    ? 'Tocca chi: ' + (armato.etichettaBreve || armato.label)
+    : (giocatoreScelto ? sigla(giocatoreScelto) + ' — scegli l’evento' : null);
 
   // Il periodo in corso. Nella pallavolo e' il punteggio che si vede in grande;
   // nel basket serve alla chiusura del quarto, dove si confronta col tabellone
@@ -960,7 +1113,7 @@ export function Tracker({ onFinita, onEsci }) {
 
           Sotto, dove la larghezza non avanza, resta impilato: li' il tabellone
           in cima e' giusto, perche' e' la prima cosa che si guarda. */}
-      <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)_10rem] lg:gap-3 xl:grid-cols-[19rem_minmax(0,1fr)_13rem] xl:gap-4">
+      <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)_11.5rem] lg:gap-3 xl:grid-cols-[18rem_minmax(0,1fr)_14rem] xl:gap-4">
 
       {/* ============================================================ tabellone */}
       {/* In cima e fermo. Prima restava appiccicato mentre si scorreva: adesso
@@ -992,7 +1145,7 @@ export function Tracker({ onFinita, onEsci }) {
             tabellone a tutta pagina allontana i due punteggi di mezzo metro
             l'uno dall'altro, e il confronto fra i due numeri e' esattamente
             la cosa per cui lo si guarda. */}
-        <Pannello alto className="mx-auto max-w-[54rem] overflow-hidden lg:mx-0 lg:min-h-0 lg:w-full lg:max-w-none lg:overflow-y-auto">
+        <Pannello alto className="mx-auto max-w-[54rem] overflow-hidden lg:mx-0 lg:w-full lg:max-w-none lg:shrink-0">
           {/* Nella colonna stretta i due punteggi si impilano: affiancati in
               diciannove rem diventerebbero due cifre piccole con in mezzo il
               periodo schiacciato, e il punteggio e' la cosa che si guarda da
@@ -1189,6 +1342,26 @@ export function Tracker({ onFinita, onEsci }) {
             </button>
           </div>
         </Pannello>
+        {/* LA PANCHINA, SOTTO IL TABELLONE.
+            Stava a destra, e a destra adesso ci sono gli eventi — che e` il
+            posto giusto per loro, perche` sono quelli che si toccano per
+            primi a ogni azione. La panchina si tocca molto meno, e sotto un
+            tabellone che e` alto quanto serve avanza esattamente lo spazio
+            che le occorre. */}
+        <Panchina
+          className="mt-3 hidden lg:flex"
+          etichetta={sport.field.benchLabel}
+          inPanca={inPanca}
+          assenti={assenti}
+          colonne={colonnePanca}
+          foto={foto}
+          sostituzione={sostituzione}
+          campoCorto={campoCorto}
+          onTocca={toccaPanchina}
+          onPresenze={() => setPresenze(true)}
+          onAiuto={() => setAiuto(true)}
+        />
+
       </div>
 
       {/* ============================================== campo e panchina */}
@@ -1251,81 +1424,74 @@ export function Tracker({ onFinita, onEsci }) {
                     falli={conf.falliPerUscire
                       ? segniFallo(p.stats, falliInOrdine[p.id], conf.falliPerUscire)
                       : null}
-                    onAssegna={() => setScelto(p.id)}
+                    scelto={scelto === p.id}
+                    inAttesa={!!armato}
+                    onAssegna={() => toccaGiocatore(p)}
                     onSostituisci={() => setSostituzione(s => (s === p.id ? null : p.id))}
                   />
                 );
               })}
+
+              {/* LE MAGLIE VUOTE.
+                  Quando il campo non e` al completo — all'inizio, perche` i
+                  titolari si scelgono qui — i posti liberi si vedono. Un
+                  campo vuoto senza niente sopra non dice che manca qualcosa:
+                  dice che l'app non ha caricato. */}
+              {campoCorto && sport.field.slots
+                .slice(inCampo.length, sport.match.minOnField || 0)
+                .map((posto, i) => (
+                  <div
+                    key={'vuoto' + i}
+                    style={posto ? { top: posto.top, left: posto.left } : undefined}
+                    className="gettone-scout absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
+                  >
+                    <span
+                      className="posto-vuoto grid place-items-center rounded-full"
+                      style={{ width: 'var(--volto)', height: 'var(--volto)' }}
+                      aria-hidden="true"
+                    >
+                      +
+                    </span>
+                  </div>
+                ))}
             </div>
             </Pannello>
           </div>
         </div>
 
-        {/* LA PANCHINA STA TUTTA A VISTA.
-            Prima scorreva dentro di sé, e una rosa lunga voleva dire cercare
-            col dito chi doveva entrare mentre l'arbitro aspettava. Adesso le
-            facce si stringono quanto serve perché ci stiano tutte — le
-            colonne sono il minor numero che ci sta nell'altezza misurata —
-            e chi non è in palestra non c'è proprio. */}
-        <div className="panca-colonna flex min-h-0 flex-col">
-          <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
-            <Etichetta>{sport.field.benchLabel}</Etichetta>
-            <div className="flex shrink-0 items-center gap-1">
-              <button
-                onClick={() => setPresenze(true)}
-                title="Chi è in palestra"
-                className="rounded-lg vetro orlo px-2 py-1 text-[11.5px] font-semibold text-soffuso transition-all hover:text-testo active:scale-95"
-              >
-                Chi c’è
-                {assenti.length > 0 && (
-                  <span className="cifra ml-1 text-tenue">−{assenti.length}</span>
-                )}
-              </button>
-              <button
-                onClick={() => setAiuto(true)}
-                title="Come si segna"
-                aria-label="Come si segna"
-                className="grid h-6 w-6 shrink-0 place-items-center rounded-full vetro orlo text-[12px] font-bold text-tenue transition-all hover:text-testo active:scale-95"
-              >
-                ?
-              </button>
-            </div>
-          </div>
-
-          <div className="panca-griglia min-h-0" style={{ '--colonne': colonnePanca }}>
-            {inPanca.length === 0 ? (
-              <p className="col-span-full text-[12.5px] text-tenue">
-                {assenti.length ? 'Sono tutti in campo o segnati assenti.' : 'Nessuno in panchina.'}
-              </p>
-            ) : inPanca.map(p => (
-              <button
-                key={p.id}
-                onClick={() => {
-                  if (sostituzione) { sostituisci(p); return; }
-                  setScelto(p.id);
-                }}
-                className="panca-gettone rounded-lg vetro text-center transition-all orlo hover:bg-pannello/12 active:scale-95"
-              >
-                <div className="relative mx-auto" style={{ width: 'var(--faccia)', height: 'var(--faccia)' }}>
-                  <span className="block h-full w-full overflow-hidden rounded-full vetro orlo font-bold"
-                    style={{ fontSize: 'calc(var(--faccia) * 0.34)' }}>
-                    <Volto p={p} url={foto[p.id]} />
-                  </span>
-                  <span
-                    className="absolute"
-                    style={{ bottom: 'calc(var(--faccia) * -0.06)', right: 'calc(var(--faccia) * -0.06)' }}
-                  >
-                    <Canotta numero={p.number} dim="calc(var(--faccia) * 0.46)" />
-                  </span>
-                </div>
-                <div className="mt-1 truncate text-tenue" style={{ fontSize: 'var(--nomino)' }}>
-                  {p.name.split(' ')[0]}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* La panchina, sotto il campo. Da tablet in su sta a SINISTRA, sotto
+            il tabellone, e qui sparisce: a destra adesso ci sono gli eventi.
+            Il componente e` lo stesso, disegnato due volte. */}
+        <Panchina
+          className="lg:hidden"
+          etichetta={sport.field.benchLabel}
+          inPanca={inPanca}
+          assenti={assenti}
+          colonne={colonnePanca}
+          foto={foto}
+          sostituzione={sostituzione}
+          campoCorto={campoCorto}
+          onTocca={toccaPanchina}
+          onPresenze={() => setPresenze(true)}
+          onAiuto={() => setAiuto(true)}
+        />
       </div>
+
+      {/* ====================================================== gli eventi
+          La terza colonna, da tablet in su. Si tocca l'evento e poi il
+          giocatore: niente si apre e niente si chiude, e il campo resta
+          scoperto mentre la partita va avanti. */}
+      <ColonnaEventi
+        conf={conf}
+        armato={armato}
+        dettaglio={dettaglio}
+        onDettaglio={() => setDettaglio(v => { ricordaDettaglio(!v); return !v; })}
+        mappa={mappa}
+        onMappa={() => setMappa(v => { ricordaMappa(!v); return !v; })}
+        onEvento={toccaEvento}
+        inAttesaDi={attesa}
+        className="hidden lg:flex"
+      />
       </div>
 
       {/* ====================================================== il cambio */}
@@ -1504,7 +1670,11 @@ export function Tracker({ onFinita, onEsci }) {
       )}
 
       {/* ==================================================== pannello azioni */}
-      {giocatoreScelto && (
+      {/* Il pannello delle azioni resta SOLO dove la colonna degli eventi non
+          ci starebbe: su uno schermo stretto usa tutta la larghezza per una
+          volta sola, ed e` la cosa giusta. Da tablet in su non si apre piu`
+          niente. */}
+      {!larga && giocatoreScelto && (
         <PannelloAzioni
           p={giocatoreScelto}
           conf={conf}
@@ -1884,7 +2054,8 @@ const RigheCampo = React.memo(function RigheCampo({ svg }) {
 // Memorizzato: quando si segna un canestro cambia UN giocatore, e ridisegnare
 // gli altri quattro è lavoro che si paga a ogni tocco per tutta la partita.
 const GettoneCampo = React.memo(function GettoneCampo({
-  p, sport, foto, lampo, inSostituzione, stile, falli, onAssegna, onSostituisci
+  p, sport, foto, lampo, inSostituzione, stile, falli, scelto, inAttesa,
+  onAssegna, onSostituisci
 }) {
   const conf = sport.scout;
   const valore = conf.tileStat
@@ -1918,7 +2089,12 @@ const GettoneCampo = React.memo(function GettoneCampo({
             // volto chiaro si perdeva nel legno; con la fascia il contrasto
             // non dipende piu' da che colore ha la foto.
             'su-legno alone-legno',
-            inSostituzione ? 'ring-blu' : 'ring-white/75'
+            // Tre stati, e si escludono. L'ultimo conta piu` degli altri: con
+            // un evento armato TUTTI i gettoni si accendono, perche` il
+            // prossimo tocco va su uno di loro.
+            inSostituzione ? 'ring-blu'
+              : scelto ? 'ring-[3px] ring-blu'
+                : inAttesa ? 'gettone-chiamato' : 'ring-white/75'
           )}
           style={{ width: 'var(--volto)', height: 'var(--volto)', fontSize: 'var(--numero)' }}
         >
@@ -2859,5 +3035,203 @@ function ChiusuraPeriodo({ g, sport, onChiudi, onFatto }) {
         </p>
       )}
     </Modulo>
+  );
+}
+
+/* ====================================================================== */
+/* LA COLONNA DEGLI EVENTI                                                */
+/* ====================================================================== */
+/*
+ * Tutto quello che può succedere in partita, sempre a vista, in una colonna.
+ * Si tocca l'evento e poi il giocatore.
+ *
+ * È il contrario di prima — si toccava il giocatore e si apriva un pannello
+ * con le azioni — e il motivo del cambio non è l'eleganza: è che quel pannello
+ * copriva il campo nel momento esatto in cui la partita andava avanti, e
+ * costava un'apertura e una chiusura per ogni singolo evento. Chi sta al tavolo
+ * con FIP Stats fa questo giro, e lo fa perché è più veloce.
+ *
+ * L'evento armato si vede: il pulsante resta acceso, e sul campo i gettoni si
+ * accendono per dire «adesso tocca a me». Toccarlo di nuovo lo spegne — perché
+ * l'evento sbagliato si prende, e disfarlo dev'essere un tocco e non un
+ * annullamento.
+ */
+function ColonnaEventi({
+  conf, armato, dettaglio, onDettaglio, mappa, onMappa, onEvento, inAttesaDi, className
+}) {
+  const gruppi = (conf.groups || []).filter(gr => !gr.dettaglio || dettaglio);
+  const conDettaglio = (conf.groups || []).some(gr => gr.dettaglio);
+
+  return (
+    <div className={cx('eventi-colonna flex min-h-0 flex-col', className)}>
+      <div className="mb-1.5 flex shrink-0 items-center justify-between gap-1">
+        <Etichetta>Eventi</Etichetta>
+        <div className="flex shrink-0 items-center gap-1">
+          {conf.mappaTiri && (
+            <button
+              onClick={onMappa}
+              title="Chiedi da dove è partito il tiro"
+              className={cx(
+                'rounded-lg px-1.5 py-1 text-[11px] font-bold transition-all active:scale-95',
+                mappa ? 'bg-blu/18 text-blu ring-1 ring-blu/40' : 'vetro orlo text-tenue hover:text-testo'
+              )}
+            >
+              Mappa
+            </button>
+          )}
+          {conDettaglio && (
+            <button
+              onClick={onDettaglio}
+              title="Mostra tutte le azioni"
+              className={cx(
+                'rounded-lg px-1.5 py-1 text-[11px] font-bold transition-all active:scale-95',
+                dettaglio ? 'bg-blu/18 text-blu ring-1 ring-blu/40' : 'vetro orlo text-tenue hover:text-testo'
+              )}
+            >
+              Tutto
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* La riga che dice cosa sta aspettando. Due parole, sempre nello stesso
+          posto: durante una partita è l'unica cosa che si legge davvero. */}
+      <div className={cx(
+        'mb-1.5 shrink-0 truncate rounded-lg px-2 py-1 text-[11.5px] font-semibold',
+        inAttesaDi ? 'bg-blu/14 text-blu' : 'text-tenue'
+      )}>
+        {inAttesaDi || 'Scegli un evento'}
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5">
+        {gruppi.map(gr => (
+          <div key={gr.label} className="mb-2 last:mb-0">
+            <div className="mb-1 text-[10px] font-bold uppercase tracking-etichetta text-tenue">
+              {gr.label}
+            </div>
+            <div className="grid grid-cols-2 gap-1">
+              {(gr.actions || []).map(a => {
+                const acceso = armato && armato.act === a.act;
+                return (
+                  <button
+                    key={a.act}
+                    onClick={() => onEvento(a)}
+                    title={a.label}
+                    className={cx(
+                      'evento-tasto min-w-0 break-words rounded-lg px-1 py-1.5 text-center',
+                      'text-[11.5px] font-semibold leading-[1.15] ring-1 transition-all active:scale-95',
+                      TONO_AZIONE[a.tone] || TONO_AZIONE.neutral,
+                      acceso && 'evento-acceso'
+                    )}
+                  >
+                    {a.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ====================================================================== */
+/* LA PANCHINA                                                            */
+/* ====================================================================== */
+/*
+ * Lo slot è girato rispetto a prima: il NUMERO grande al centro e la foto
+ * piccola in un angolo, invece del contrario.
+ *
+ * Non è un gusto. In panchina il numero è l'unica cosa che si cerca — si
+ * chiama un cambio dicendo «il dodici», non «quello coi capelli ricci» — e
+ * prima era un distintivo da un centimetro appoggiato su una faccia grande.
+ * La faccia serve, ma serve a confermare: sta sotto, piccola, e conferma.
+ *
+ * Il numero è un cerchio nello stile dell'app e non la sagoma di una
+ * canottina: una maglia disegnata racconta che quello è un numero di maglia,
+ * cosa che si era già capita, e in cambio toglie spazio alla cifra.
+ */
+function Panchina({
+  etichetta, inPanca, assenti, colonne, foto, sostituzione, campoCorto,
+  onTocca, onPresenze, onAiuto, className
+}) {
+  return (
+    <div className={cx('panca-colonna flex min-h-0 flex-col', className)}>
+      <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
+        <Etichetta>{etichetta}</Etichetta>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            onClick={onPresenze}
+            title="Chi è in palestra"
+            className="rounded-lg vetro orlo px-2 py-1 text-[11.5px] font-semibold text-soffuso transition-all hover:text-testo active:scale-95"
+          >
+            Chi c’è
+            {assenti.length > 0 && <span className="cifra ml-1 text-tenue">−{assenti.length}</span>}
+          </button>
+          <button
+            onClick={onAiuto}
+            title="Come si segna"
+            aria-label="Come si segna"
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-full vetro orlo text-[12px] font-bold text-tenue transition-all hover:text-testo active:scale-95"
+          >
+            ?
+          </button>
+        </div>
+      </div>
+
+      {/* Cosa succede toccando una faccia, detto prima di toccarla. Cambia
+          con il momento della partita, ed è l'unico modo perché lo stesso
+          gesto non sia un'ambiguità. */}
+      {(campoCorto || sostituzione) && (
+        <div className="mb-1.5 shrink-0 truncate rounded-lg bg-blu/14 px-2 py-1 text-[11.5px] font-semibold text-blu">
+          {sostituzione ? 'Tocca chi entra' : 'Tocca chi comincia'}
+        </div>
+      )}
+
+      <div className="panca-griglia min-h-0" style={{ '--colonne': colonne }}>
+        {inPanca.length === 0 ? (
+          <p className="col-span-full text-[12.5px] text-tenue">
+            {assenti.length ? 'Sono tutti in campo o segnati assenti.' : 'Nessuno in panchina.'}
+          </p>
+        ) : inPanca.map(p => (
+          <button
+            key={p.id}
+            onClick={() => onTocca(p)}
+            title={p.name}
+            className="panca-gettone rounded-lg vetro text-center transition-all orlo hover:bg-pannello/12 active:scale-95"
+          >
+            <span
+              className="relative mx-auto block"
+              style={{ width: 'var(--faccia)', height: 'var(--faccia)' }}
+            >
+              {/* IL NUMERO, GRANDE, AL CENTRO. È quello che si cerca. */}
+              <span
+                className="cifra grid h-full w-full place-items-center rounded-full vetro orlo font-bold leading-none"
+                style={{ fontSize: `calc(var(--faccia) * ${String(p.number || '').length > 2 ? 0.34 : 0.46})` }}
+              >
+                {p.number || '–'}
+              </span>
+              {/* La faccia, piccola, in un angolo: serve a confermare. */}
+              <span
+                className="absolute block overflow-hidden rounded-full orlo"
+                style={{
+                  width: 'calc(var(--faccia) * 0.46)',
+                  height: 'calc(var(--faccia) * 0.46)',
+                  bottom: 'calc(var(--faccia) * -0.05)',
+                  right: 'calc(var(--faccia) * -0.05)',
+                  fontSize: 'calc(var(--faccia) * 0.2)'
+                }}
+              >
+                <Volto p={p} url={foto[p.id]} />
+              </span>
+            </span>
+            <span className="mt-1 block truncate text-tenue" style={{ fontSize: 'var(--nomino)' }}>
+              {p.name.split(' ')[0]}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

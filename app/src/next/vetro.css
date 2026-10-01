@@ -512,6 +512,62 @@
     --pallino: clamp(1.4rem, 5.8cqw, 2.5rem);
   }
 
+  /* Il posto vuoto sul campo: dove manca un titolare. Un tratteggio e un
+     piu`, niente di piu`. Deve dire «qui ci va qualcuno» senza somigliare a
+     un giocatore, altrimenti si prova a toccarlo — e chi si sceglie si
+     sceglie dalla panchina, che e` l'unico posto dove ci sono i nomi. */
+  .posto-vuoto {
+    border: 2px dashed rgb(255 255 255 / 0.4);
+    color: rgb(255 255 255 / 0.5);
+    font-size: var(--numero);
+    font-weight: 700;
+    background: rgb(10 8 6 / 0.18);
+  }
+
+  /* ==================== La colonna degli eventi ====================
+
+     Venti pulsanti in una colonna stretta. Stanno stretti di proposito: il
+     primo dei due tocchi si fa qui, e per farlo bisogna vederli tutti senza
+     cercare. Il testo va a capo invece di essere tagliato — «Antisportivo»
+     tagliato a «Antisport…» è una parola che si legge due volte. */
+  .eventi-colonna { min-width: 0; }
+
+  .evento-tasto {
+    min-height: 2.1rem;
+    display: grid;
+    place-items: center;
+    hyphens: auto;
+  }
+
+  /* L'evento armato. Non un colore in più: lo stesso colore, acceso. Il tono
+     dice già cosa fa quell'azione — verde il canestro, rosso l'errore — e
+     cambiarlo per dire «è selezionato» vorrebbe dire dire due cose con lo
+     stesso mezzo. */
+  .evento-tasto.evento-acceso {
+    outline: 2px solid rgb(var(--blu));
+    outline-offset: 1px;
+    filter: brightness(1.22);
+    transform: translateY(-1px);
+  }
+
+  /* Il gettone chiamato: c'è un evento armato e il prossimo tocco va su uno
+     di questi. Pulsa piano — su un campo con cinque gettoni fermi, il
+     movimento è quello che l'occhio prende senza guardare. */
+  .gettone-chiamato {
+    --tw-ring-color: rgb(var(--blu));
+    box-shadow: 0 0 0 3px rgb(var(--blu)), 0 0 18px -2px rgb(var(--blu) / 0.85);
+    animation: chiamata 1.5s ease-in-out infinite;
+  }
+
+  @keyframes chiamata {
+    0%, 100% { box-shadow: 0 0 0 3px rgb(var(--blu)), 0 0 18px -2px rgb(var(--blu) / 0.85); }
+    50% { box-shadow: 0 0 0 3px rgb(var(--blu)), 0 0 26px 1px rgb(var(--blu) / 0.55); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .gettone-chiamato { animation: none; }
+  }
+
   /* ==================== I falli, sotto il gettone ====================
 
      Cinque caselle che si riempiono. Si misurano sul gettone come tutto il
