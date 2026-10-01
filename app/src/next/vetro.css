@@ -512,6 +512,45 @@
     --pallino: clamp(1.4rem, 5.8cqw, 2.5rem);
   }
 
+  /* ==================== I falli, sotto il gettone ====================
+
+     Cinque caselle che si riempiono. Si misurano sul gettone come tutto il
+     resto: su un campo piccolo cinque trattini a misura fissa sarebbero più
+     larghi della faccia a cui appartengono.
+
+     Il colore dice il tipo — scuro il personale, ambra il tecnico, rosso
+     l'antisportivo — ma non è il colore a reggere l'informazione: una casella
+     piena si distingue da una vuota anche senza vederne la tinta, e a parole
+     il conto sta nel titolo. */
+  .falli-riga {
+    gap: calc(var(--volto) * 0.045);
+    margin-top: calc(var(--volto) * 0.06);
+    align-items: center;
+  }
+
+  .falli-segno {
+    display: block;
+    width: calc(var(--volto) * 0.15);
+    height: calc(var(--volto) * 0.072);
+    min-width: 4px;
+    min-height: 2px;
+    border-radius: 999px;
+    /* Vuota: un solco appena accennato sul parquet, non un trattino. Deve
+       dire «qui ci sarebbe posto» senza farsi contare come un fallo. */
+    background: rgb(255 255 255 / 0.26);
+    box-shadow: 0 0 0 0.5px rgb(10 8 6 / 0.45);
+  }
+
+  .falli-segno.falli-personale { background: rgb(255 255 255 / 0.95); }
+  .falli-segno.falli-tecnico { background: rgb(var(--ambra)); }
+  .falli-segno.falli-antisportivo { background: rgb(var(--rosso)); }
+
+  /* Fuori per falli: la riga intera si accende. Non è un dettaglio del
+     giocatore, è il fatto che quel giocatore non può più stare in campo. */
+  .falli-riga.falli-fuori .falli-segno {
+    box-shadow: 0 0 0 1px rgb(var(--rosso)), 0 0 6px -1px rgb(var(--rosso) / 0.9);
+  }
+
   /* ==================== La panchina, tutta a vista ====================
 
      Prima era una griglia a misura fissa dentro una colonna che scorreva:

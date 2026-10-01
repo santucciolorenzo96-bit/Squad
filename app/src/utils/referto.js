@@ -358,6 +358,33 @@ export function tabellaTabellino(referto, sport) {
   return { intestazioni: colonne.map(c => c.label), righe, totale, pesi };
 }
 
+/* I FALLI CHE NON SONO FALLI QUALUNQUE.
+ *
+ * Tecnici e antisportivi. Nel tabellino stanno dentro il totale dei falli —
+ * ed è giusto, perché è quel totale che decide chi esce dal campo — ma un
+ * referto che si ferma lì non dice la cosa che chi lo legge sta cercando:
+ * chi li ha presi.
+ *
+ * Non diventano due colonne: sarebbero due colonne vuote in novantanove
+ * partite su cento, su un tabellino che di colonne ne ha già tredici. È una
+ * riga sotto la tabella, e compare solo quando c'è qualcosa da dire.
+ */
+export function falliSpeciali(tabellino) {
+  const prendi = (chiave) => (tabellino || [])
+    .filter(r => r && r[chiave] > 0)
+    .map(r => (r.number ? '#' + r.number + ' ' : '') + (r.name || '')
+      + (r[chiave] > 1 ? ' (' + r[chiave] + ')' : ''));
+
+  const tecnici = prendi('pfTech');
+  const antisportivi = prendi('pfUnsp');
+  if (!tecnici.length && !antisportivi.length) return null;
+
+  const pezzi = [];
+  if (tecnici.length) pezzi.push('Falli tecnici: ' + tecnici.join(', '));
+  if (antisportivi.length) pezzi.push('Antisportivi: ' + antisportivi.join(', '));
+  return pezzi.join(' · ');
+}
+
 /* LA LEGENDA DELLE SIGLE CHE CI SONO DAVVERO.
  *
  * Il tabellino di una partita e quello di una stagione non hanno le stesse

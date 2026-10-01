@@ -17,6 +17,7 @@ import { quantiChiusi } from '../utils/referto.js';
 import { calcolaPunteggi } from '../utils/punteggio.js';
 import { applicaAzione, annota, segnaPeriodo } from '../utils/azione.js';
 import { conStatoDellaRiga } from '../utils/salvataggio.js';
+import { falliPerGiocatore, segniFallo, raccontaFalli } from '../utils/falli.js';
 import {
   ruotaSestetto, cambioLibero, applicaCambio, raccontaCambio, zonaDi,
   versoGiusto, perchePalla
@@ -531,6 +532,19 @@ export function Tracker({ onFinita, onEsci }) {
      * pannello che si chiude, il salvataggio, la domanda successiva. */
     applicaAzione({ g, sport, giocatore, azione, punto, linea, chiudiScambio });
 
+    /* IL QUINTO FALLO SI DICE AD ALTA VOCE.
+     *
+     * I trattini sotto il gettone lo mostrano, ma al quinto non basta
+     * mostrarlo: quel giocatore non puo` piu` stare in campo, e un allenatore
+     * che lo scopre dall'arbitro ha gia` perso il cambio. L'uguale e non il
+     * maggiore-uguale: si dice una volta, quando succede. */
+    if (conf.falliPerUscire && ((giocatore.stats || {}).pf || 0) === conf.falliPerUscire) {
+      avvisa(
+        sigla(giocatore) + ' è al ' + conf.falliPerUscire + 'º fallo: deve uscire dal campo.',
+        'errore'
+      );
+    }
+
     // Il riscontro sul gettone, non un avviso in mezzo allo schermo: chi segna
     // sta già guardando il giocatore, e un avviso coprirebbe il prossimo tocco.
     setLampo({ id: giocatore.id, testo: azione.score ? '+' + azione.score : azione.label });
@@ -820,6 +834,17 @@ export function Tracker({ onFinita, onEsci }) {
    * `altezza` è la misura vera della pagina, quella presa a schermo. Quando
    * non c'è — sul telefono, dove la panchina sta sotto al campo — si sta
    * larghi: lì le colonne le decide il CSS in base alla larghezza. */
+  /* I FALLI, IN ORDINE, PRESI DAL REGISTRO.
+   *
+   * Le statistiche sanno QUANTI; solo la cronaca sa QUALI e in che ordine. Si
+   * ricava una volta sola per disegno: con dodici giocatori e cinquecento
+   * azioni, farlo dentro ogni gettone vorrebbe dire rileggere il registro
+   * dodici volte a ogni tocco. */
+  const falliInOrdine = useMemo(
+    () => (conf.falliPerUscire ? falliPerGiocatore(g) : {}),
+    [conf.falliPerUscire, g.storia]
+  );
+
   const colonnePanca = (() => {
     const n = inPanca.length;
     if (n <= 6) return 2;
@@ -1223,6 +1248,9 @@ export function Tracker({ onFinita, onEsci }) {
                     lampo={lampo && lampo.id === p.id ? lampo.testo : null}
                     inSostituzione={sostituzione === p.id}
                     stile={posto ? { top: posto.top, left: posto.left } : undefined}
+                    falli={conf.falliPerUscire
+                      ? segniFallo(p.stats, falliInOrdine[p.id], conf.falliPerUscire)
+                      : null}
                     onAssegna={() => setScelto(p.id)}
                     onSostituisci={() => setSostituzione(s => (s === p.id ? null : p.id))}
                   />
@@ -1856,7 +1884,7 @@ const RigheCampo = React.memo(function RigheCampo({ svg }) {
 // Memorizzato: quando si segna un canestro cambia UN giocatore, e ridisegnare
 // gli altri quattro è lavoro che si paga a ogni tocco per tutta la partita.
 const GettoneCampo = React.memo(function GettoneCampo({
-  p, sport, foto, lampo, inSostituzione, stile, onAssegna, onSostituisci
+  p, sport, foto, lampo, inSostituzione, stile, falli, onAssegna, onSostituisci
 }) {
   const conf = sport.scout;
   const valore = conf.tileStat
@@ -1963,6 +1991,32 @@ const GettoneCampo = React.memo(function GettoneCampo({
       >
         {p.name.split(' ')[0]}
       </div>
+
+      {/* I FALLI, SOTTO IL NOME.
+          Cinque caselle che si riempiono. Al quinto si esce, e chi segna lo
+          deve vedere con la coda dell'occhio — senza aprire niente e senza
+          contare a mente: un allenatore che scopre il quinto fallo
+          dall'arbitro ha già perso il cambio.
+
+          Il colore dice il tipo, ma non è il colore a reggere
+          l'informazione: la casella piena si distingue dalla vuota anche in
+          bianco e nero, e il racconto a parole sta nel titolo. */}
+      {falli && (
+        <div
+          className={cx('falli-riga mt-1 flex', falli.fuori && 'falli-fuori')}
+          title={raccontaFalli(falli)}
+          aria-label={p.name + ': ' + raccontaFalli(falli)}
+        >
+          {falli.segni.map((t, i) => (
+            <i key={i} className={cx('falli-segno', t && 'falli-' + t)} aria-hidden="true" />
+          ))}
+          {falli.oltre > 0 && (
+            <span className="cifra ml-1 font-bold text-rosso" style={{ fontSize: 'var(--nome)' }}>
+              +{falli.oltre}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 });

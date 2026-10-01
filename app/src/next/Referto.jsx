@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
 import { currentSport } from '../utils/sports/index.js';
-import { refertoPartita, tabellaTabellino, quota, legendaColonne } from '../utils/referto.js';
+import { refertoPartita, tabellaTabellino, quota, legendaColonne, falliSpeciali } from '../utils/referto.js';
 import { generaRefertoPdf } from '../utils/refertoPdf.js';
 import { downloadCsv, safeName } from '../utils/csv.js';
 import { sectorFullName } from '../utils/sectors.js';
@@ -845,6 +845,15 @@ export function Referto({ partita, onChiudi, onEliminata }) {
             </table>
           </div>
         </Pannello>
+      )}
+
+      {/* Tecnici e antisportivi, con il nome di chi li ha presi: nel
+          tabellino stanno dentro il totale dei falli, ed e` giusto — ma
+          chi legge sta cercando proprio quelli. */}
+      {falliSpeciali(r.tabellino) && (
+        <p className="mt-2.5 text-[12.5px] font-semibold leading-relaxed text-soffuso">
+          {falliSpeciali(r.tabellino)}
+        </p>
       )}
 
       {/* Le sigle spiegate sono quelle che stanno in QUESTA tabella, non

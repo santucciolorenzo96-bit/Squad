@@ -2,7 +2,7 @@ import {
   createDoc, drawHeader, drawParagraph, drawTable, drawSection, drawScore, drawTiles,
   drawDonut, drawMiniDonut, drawShotChart, contentWidth, spazioPagina, caricaLogo, MARGINE, TINTE, save
 } from './pdf.js';
-import { refertoPartita, tabellaTabellino, quota, legendaColonne } from './referto.js';
+import { refertoPartita, tabellaTabellino, quota, legendaColonne, falliSpeciali } from './referto.js';
 
 /* Il referto in PDF.
  *
@@ -296,6 +296,15 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
   /* La legenda si ricava dalle colonne appena stampate e non e' la frase
    * della stagione: quella spiegava «PG = partite giocate» sotto un
    * tabellino di partita, dove la colonna PG non esiste. */
+  /* Tecnici e antisportivi, con il nome di chi li ha presi. Solo quando ce
+   * ne sono: due colonne vuote in novantanove partite su cento sarebbero
+   * peggio di una riga che a volte non c'e'. */
+  const speciali = falliSpeciali(r.tabellino);
+  if (speciali) {
+    y += 3;
+    y = drawParagraph(doc, speciali, y, { size: 8.5 });
+  }
+
   const legenda = legendaColonne(sport, t.intestazioni);
   if (legenda) {
     y += 3;

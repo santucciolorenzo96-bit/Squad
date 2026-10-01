@@ -70,6 +70,9 @@ function newStats() {
     fgm2: 0, fga2: 0, fgm3: 0, fga3: 0, ftm: 0, fta: 0, orb: 0, drb: 0, ast: 0, stl: 0,
     tov: 0, tovTypes: { generica: 0, palleggio: 0, passaggio: 0, passi: 0 },
     blk: 0, blkAgainst: 0, pf: 0, pfDrawn: 0, plusMinus: 0, seconds: 0,
+    // Il TIPO dei falli. `pf` resta il totale — è il numero da cui dipende
+    // l'uscita per falli — e qui dentro c'è di che spiegarlo.
+    pfTypes: { personale: 0, tecnico: 0, antisportivo: 0 },
     // I tiri con il punto da cui sono partiti: { x, y, act, dentro, q }.
     // Stanno dentro il giocatore, e non in un elenco a parte, perche' sono
     // suoi — e perche' cosi' viaggiano gia' con il tabellino, senza bisogno
@@ -136,6 +139,17 @@ export const BASKET = {
     orb: (p) => (p.stats || {}).orb || 0,
     drb: (p) => (p.stats || {}).drb || 0,
     pf: (p) => (p.stats || {}).pf || 0,
+    /* I falli tecnici e gli antisportivi, a parte.
+     *
+     * `pf` resta il totale — è il numero che decide chi sta in campo e quando
+     * l'altra squadra va in bonus — ma un tecnico non è un fallo in più
+     * qualunque, e un referto che non lo distingue non spiega perché quel
+     * giocatore è uscito.
+     *
+     * Sono due conteggi e non un contenitore perché così si sommano da soli:
+     * su una partita, nella riga della squadra, e su tutta la stagione. */
+    pfTech: (p) => (((p.stats || {}).pfTypes) || {}).tecnico || 0,
+    pfUnsp: (p) => (((p.stats || {}).pfTypes) || {}).antisportivo || 0,
     // Il piu'/meno: quanti punti di scarto ha prodotto la squadra mentre lui
     // era in campo. Lo scrive il registro dei quintetti, a ogni cambio.
     plusMinus: (p) => (p.stats || {}).plusMinus || 0
@@ -314,6 +328,14 @@ export const BASKET = {
     trackSeconds: false,
     teamFouls: true,
     teamFoulBonus: 5,
+    /* AL QUINTO SI ESCE.
+     *
+     * È la regola FIBA, ed è il motivo per cui sotto il gettone di ogni
+     * giocatore in campo ci sono cinque trattini: chi segna deve poter
+     * vedere con la coda dell'occhio chi è vicino a uscire, senza aprire
+     * niente e senza contare a mente. Un allenatore che scopre il quinto
+     * fallo dall'arbitro ha già perso il cambio. */
+    falliPerUscire: 5,
 
     /* Una tripla avversaria costava tre tocchi, e il segnapunti li faceva
      * mentre il gioco era gia' ripartito. Uno, due o tre: come li fanno. */
@@ -390,8 +412,28 @@ export const BASKET = {
         { act: 'tov_passaggio', label: 'Passaggio', tone: 'warn', apply: { tov: 1 }, nested: { tovTypes: 'passaggio' } },
         { act: 'tov_passi', label: 'Passi/Sup.', tone: 'warn', apply: { tov: 1 }, nested: { tovTypes: 'passi' } }
       ]},
+      /* I TRE FALLI CHE SI SEGNANO AL TAVOLO.
+       *
+       * Personale, tecnico, antisportivo. Li distingue chi tiene il referto
+       * ufficiale, e finora qui erano un «fallo commesso» solo: un referto
+       * che non dice se quello era un tecnico racconta un'altra partita, e
+       * soprattutto non spiega perché quel giocatore è uscito.
+       *
+       * TUTTI E TRE CONTANO UNO. Contano uno nei falli del giocatore — al
+       * quinto si esce, e ci si arriva sommando i tre tipi — e contano uno
+       * nei falli di squadra del periodo, che è quello che manda l'altra
+       * squadra in bonus. È il regolamento FIBA, non una semplificazione.
+       *
+       * Il TIPO sta in un contenitore dentro le statistiche, come i tipi di
+       * palla persa: `pf` resta il totale, che è il numero da cui dipende
+       * tutto il resto. */
       { label: 'Falli e stoppate subite', actions: [
-        { act: 'pf', label: 'Fallo commesso', tone: 'warn', apply: { pf: 1 }, teamFoul: true },
+        { act: 'pf', label: 'Fallo', tone: 'warn', apply: { pf: 1 },
+          nested: { pfTypes: 'personale' }, teamFoul: true },
+        { act: 'pf_tecnico', label: 'Tecnico', tone: 'warn', apply: { pf: 1 },
+          nested: { pfTypes: 'tecnico' }, teamFoul: true },
+        { act: 'pf_antisportivo', label: 'Antisportivo', tone: 'warn', apply: { pf: 1 },
+          nested: { pfTypes: 'antisportivo' }, teamFoul: true },
         { act: 'pfDrawn', label: 'Fallo subito', tone: 'neutral', apply: { pfDrawn: 1 } },
         { act: 'blkAgainst', label: 'Stoppata subita', tone: 'warn', apply: { blkAgainst: 1 } }
       ]}
