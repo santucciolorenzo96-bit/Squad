@@ -496,13 +496,13 @@ export function drawShotChart(doc, tiri, y, { larghezza = 78, soloSegnati = fals
 
   const cx = x0 + larghezza / 2;
   const fondo = y0 + altezza;
-  // L'area: 4,9 m su 5,8 m in un campo di 9 x 11 (mezzo campo piu' la zona).
-  const areaL = larghezza * (4.9 / 9);
-  const areaH = altezza * (5.8 / 11);
+  // L'area dei tre secondi: 4,9 m su 5,74, dentro un campo di 15 x 9,6.
+  const areaL = larghezza * (49 / 150);
+  const areaH = altezza * (57.4 / 96);
   doc.rect(cx - areaL / 2, fondo - areaH, areaL, areaH);
-  // Il ferro.
+  // Il ferro, a 1,575 m dal fondo.
   riempi(doc, COLORI.linea);
-  doc.circle(cx, fondo - altezza * (1.575 / 11), 0.9, 'F');
+  doc.circle(cx, fondo - altezza * (15.75 / 96), 0.9, 'F');
 
   tiri.forEach(t => {
     if (t.x == null || t.y == null) return;

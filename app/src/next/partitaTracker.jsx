@@ -161,6 +161,28 @@ export function Tracker({ onFinita, onEsci }) {
       && window.matchMedia('(min-width: 1024px)').matches
   );
 
+  /* L'altezza della finestra.
+   *
+   * Serve a una cosa sola: decidere quante colonne dare alla panchina. A
+   * schermo intero non si misura piu` niente — ci pensa il flex — ma quel
+   * conto un numero ce l'ha ancora bisogno, e tirarlo a indovinare voleva
+   * dire sbagliare le colonne su ogni schermo diverso dal mio. */
+  const [altaFinestra, setAltaFinestra] = useState(
+    () => (typeof window !== 'undefined' ? window.innerHeight : 720)
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const misuraFinestra = () => setAltaFinestra(window.innerHeight);
+    misuraFinestra();
+    window.addEventListener('resize', misuraFinestra);
+    window.addEventListener('orientationchange', misuraFinestra);
+    return () => {
+      window.removeEventListener('resize', misuraFinestra);
+      window.removeEventListener('orientationchange', misuraFinestra);
+    };
+  }, []);
+
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
     const q = window.matchMedia('(min-width: 1024px)');
@@ -1005,7 +1027,11 @@ export function Tracker({ onFinita, onEsci }) {
   const colonnePanca = (() => {
     const n = inPanca.length;
     if (n <= 6) return 2;
-    const spazio = (altezza || 620) - 44;              // meno l'intestazione
+    /* Lo spazio vero: la misura quando c'e`, altrimenti la finestra meno
+     * quello che le sta intorno — a schermo intero la colonna della panchina
+     * e` alta quanto la finestra, e prima qui c'era un 620 scritto a mano che
+     * valeva solo sullo schermo su cui era stato scritto. */
+    const spazio = (altezza || altaFinestra - 28) - 44;
     /* Quanto è alta una riga, a seconda di quante colonne ci sono. Non è una
      * costante inventata: la faccia è una frazione della colonna, quindi più
      * colonne vuol dire facce più piccole e righe più basse. Questi tre
@@ -1145,7 +1171,7 @@ export function Tracker({ onFinita, onEsci }) {
 
           Sotto, dove la larghezza non avanza, resta impilato: li' il tabellone
           in cima e' giusto, perche' e' la prima cosa che si guarda. */}
-      <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[14rem_minmax(0,1fr)_12.5rem] lg:gap-2 xl:grid-cols-[17rem_minmax(0,1fr)_14.5rem] xl:gap-3">
+      <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-rows-[auto_minmax(0,1fr)] lg:grid-cols-[13rem_minmax(0,1fr)_12.5rem] lg:gap-2 xl:grid-cols-[15rem_minmax(0,1fr)_14.5rem] xl:gap-3">
 
       {/* ============================================================ tabellone */}
       {/* In cima e fermo. Prima restava appiccicato mentre si scorreva: adesso
@@ -1154,7 +1180,11 @@ export function Tracker({ onFinita, onEsci }) {
           muove. */}
       <div className={cx(
         'z-20 -mx-4 mb-3 shrink-0 px-4 pt-1 sm:-mx-6 sm:px-6',
-        'lg:mx-0 lg:mb-0 lg:flex lg:min-h-0 lg:flex-col lg:px-0',
+        // IL TABELLONE SALE SOPRA IL CAMPO.
+        // Il campo adesso e` basso e largo, e sopra di lui avanza una
+        // striscia: li` i due punteggi stanno affiancati come su un tabellone
+        // vero, e tutta la colonna di sinistra resta alla panchina.
+        'lg:col-start-2 lg:row-start-1 lg:mx-0 lg:mb-1 lg:flex lg:flex-col lg:px-0',
         onEsci && 'pb-1'
       )}>
         {/* La via d'uscita sta dentro la parte che resta in cima: se scorresse
@@ -1182,7 +1212,7 @@ export function Tracker({ onFinita, onEsci }) {
               diciannove rem diventerebbero due cifre piccole con in mezzo il
               periodo schiacciato, e il punteggio e' la cosa che si guarda da
               lontano. */}
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-3.5 sm:px-4 lg:grid-cols-1 lg:gap-0.5 lg:px-3 lg:py-2">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-2.5 sm:px-4 lg:px-4 lg:py-2">
             <div className="min-w-0 text-center">
               <div className="flex items-center justify-center gap-1.5">
                 {/* Chi ha il servizio, detto come lo direbbe un tabellone: un
@@ -1381,7 +1411,7 @@ export function Tracker({ onFinita, onEsci }) {
             tabellone che e` alto quanto serve avanza esattamente lo spazio
             che le occorre. */}
         <Panchina
-          className="mt-3 hidden lg:flex"
+          className="hidden lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:flex"
           etichetta={sport.field.benchLabel}
           inPanca={inPanca}
           assenti={assenti}
@@ -1405,7 +1435,10 @@ export function Tracker({ onFinita, onEsci }) {
           tabellone. Sotto, resta lui a tenerli insieme. */}
       <div className="flex min-h-0 flex-1 flex-col gap-3 md:grid md:grid-cols-[minmax(0,1fr)_13rem] md:items-stretch md:gap-4 lg:contents">
 
-        <div className="flex min-h-0 flex-col" style={{ '--proporzione': sport.field.ratio }}>
+        <div
+          className="flex min-h-0 flex-col lg:col-start-2 lg:row-start-2"
+          style={{ '--proporzione': sport.field.ratio }}
+        >
           {/* UNA RIGA CHE SU TABLET NON SI PAGA PIU`.
               Diceva «Quintetto · tocca per assegnare» e «4 di 5»: un'etichetta
               e un conteggio, per una riga intera tolta al campo. Il conteggio
@@ -1504,6 +1537,16 @@ export function Tracker({ onFinita, onEsci }) {
             </div>
             </Pannello>
           </div>
+
+          {/* Il tabellino dal vivo, nello spazio che il campo ha lasciato
+              accorciandosi. Da tablet in su: sotto, dove la colonna e` alta
+              e il campo non la riempie piu` tutta. */}
+          <TabellinoVivo
+            sport={sport}
+            players={g.players}
+            falliInOrdine={falliInOrdine}
+            falliPerUscire={conf.falliPerUscire}
+          />
         </div>
 
         {/* La panchina, sotto il campo. Da tablet in su sta a SINISTRA, sotto
@@ -1537,7 +1580,7 @@ export function Tracker({ onFinita, onEsci }) {
         onMappa={() => setMappa(v => { ricordaMappa(!v); return !v; })}
         onEvento={toccaEvento}
         inAttesaDi={attesa}
-        className="hidden lg:flex"
+        className="hidden lg:col-start-3 lg:row-start-1 lg:row-span-2 lg:flex"
       />
       </div>
 
@@ -1992,7 +2035,7 @@ function ManoPunteggio({ attiva, valori = [1], onPiu, onMeno }) {
    * sotto si abbasserebbe e i due numeri grandi non sarebbero piu` sulla
    * stessa riga. Da tablet in su pero` sono incolonnati, e li` quel posto
    * tenuto libero e` solo quaranta pixel di niente in mezzo al tabellone. */
-  if (!attiva) return <div className="mt-2 h-8 lg:hidden" aria-hidden="true" />;
+  if (!attiva) return <div className="mt-2 h-8" aria-hidden="true" />;
   const largo = valori.length > 1;
   return (
     <div className={cx('mt-2 flex items-center justify-center', largo ? 'gap-1.5' : 'gap-2')}>
@@ -3336,6 +3379,77 @@ function Panchina({
             </span>
           </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/* ====================================================================== */
+/* IL TABELLINO DAL VIVO                                                  */
+/* ====================================================================== */
+/*
+ * Sotto il campo, nello spazio che il campo ha lasciato accorciandosi.
+ *
+ * Non è il referto: è la riga che chi segna controlla di continuo per
+ * accorgersi di aver toccato la persona sbagliata. Poche colonne — punti,
+ * rimbalzi, assist, falli — e in cima chi è in campo, perché è di loro che si
+ * sta parlando adesso.
+ *
+ * Chi non ha ancora fatto niente ed è in panchina non compare: una riga di
+ * zeri occupa lo stesso posto di una riga che dice qualcosa.
+ */
+function TabellinoVivo({ sport, players, falliInOrdine, falliPerUscire }) {
+  const conta = (p, k) => (sport.aggregate[k] ? sport.aggregate[k](p) || 0 : 0);
+  const haGiocato = (p) => p.onCourt
+    || sport.score(p.stats || {}) > 0
+    || conta(p, 'reb') > 0 || conta(p, 'ast') > 0 || conta(p, 'pf') > 0;
+
+  const righe = players.filter(haGiocato).sort((a, b) => {
+    if (a.onCourt !== b.onCourt) return a.onCourt ? -1 : 1;
+    return sport.score(b.stats || {}) - sport.score(a.stats || {});
+  });
+
+  if (righe.length === 0) return null;
+
+  return (
+    <div className="tabellino-vivo mt-1.5 hidden min-h-0 flex-col lg:flex">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <table className="w-full border-collapse text-[11.5px]">
+          <thead className="sticky top-0 z-10 bg-fondo">
+            <tr className="text-[9.5px] font-bold uppercase tracking-etichetta text-tenue">
+              <th className="px-1 py-0.5 text-left">N</th>
+              <th className="px-1 py-0.5 text-left">Giocatore</th>
+              <th className="px-1 py-0.5 text-right">PT</th>
+              <th className="px-1 py-0.5 text-right">RIM</th>
+              <th className="px-1 py-0.5 text-right">AS</th>
+              <th className="px-1 py-0.5 text-right">F</th>
+            </tr>
+          </thead>
+          <tbody>
+            {righe.map(p => {
+              const f = conta(p, 'pf');
+              const fuori = falliPerUscire && f >= falliPerUscire;
+              return (
+                <tr
+                  key={p.id}
+                  className={cx(
+                    'border-t border-bordo/8',
+                    p.onCourt ? 'font-semibold' : 'text-tenue'
+                  )}
+                >
+                  <td className="cifra px-1 py-[3px] text-left text-tenue">{p.number}</td>
+                  <td className="max-w-0 truncate px-1 py-[3px] text-left">{p.name}</td>
+                  <td className="cifra px-1 py-[3px] text-right">{sport.score(p.stats || {})}</td>
+                  <td className="cifra px-1 py-[3px] text-right">{conta(p, 'reb')}</td>
+                  <td className="cifra px-1 py-[3px] text-right">{conta(p, 'ast')}</td>
+                  <td className={cx('cifra px-1 py-[3px] text-right', fuori && 'font-bold text-rosso')}>
+                    {f}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );

@@ -530,9 +530,14 @@
        piedi, spesso senza guardare. Su un tablet in orizzontale il campo
        prende quasi tutto lo schermo, e quello spazio va a chi deve essere
        preso al primo colpo — non al parquet disegnato sotto. */
-    width: clamp(4rem, 20cqw, 8.8rem);
-    --volto: clamp(3rem, 15cqw, 6.4rem);
-    --numero: clamp(0.95rem, 4.6cqw, 1.9rem);
+    /* Il campo adesso è basso e largo: a parità di cella diventa più LARGO
+       di prima, e il gettone — che si misura sulla larghezza — crescerebbe
+       da solo fino a sovrapporsi al vicino della fascia sopra. Le percentuali
+       scendono ma la misura vera sale lo stesso, perché sale la base su cui
+       si calcolano. */
+    width: clamp(3.8rem, 17cqw, 7.6rem);
+    --volto: clamp(2.8rem, 12.5cqw, 5.4rem);
+    --numero: clamp(0.9rem, 4cqw, 1.7rem);
     --nome: clamp(0.55rem, 2.3cqw, 0.85rem);
     --media: clamp(0.58rem, 2.5cqw, 0.95rem);
     /* Il ⇄ si misura sul campo come tutto il resto: fisso, su un campo
