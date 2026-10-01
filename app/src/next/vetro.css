@@ -496,14 +496,26 @@
   .campo-alto {
     display: flex;
     min-height: 0;
-    flex: 1 1 auto;
+    /* Base ZERO, non `auto`.
+       Con `container-type: size` questo riquadro non ha più un'altezza
+       propria — il contenimento gliela toglie — quindi la sua base dev'essere
+       lo spazio che avanza e non il suo contenuto. Con `auto` bastava che
+       qualunque cosa gli crescesse sotto perché il campo venisse schiacciato. */
+    flex: 1 1 0%;
     justify-content: center;
     align-items: center;
     container-type: size;
   }
 
   .campo-scatola {
-    --largo: min(100cqw, calc(100cqh * var(--proporzione, 1)));
+    /* IL PAVIMENTO NON È ESTETICA.
+       `100cqh` vale zero se per qualunque ragione il riquadro resta senza
+       altezza, e con cqh a zero il `min()` dà zero: il campo non si stringe,
+       SPARISCE. È successo davvero, ed è il peggiore dei modi di rompersi —
+       un campo invisibile non si segnala da solo, si scopre in palestra.
+       Con il pavimento, nel caso peggiore, esce un campo sbagliato: brutto,
+       ma visibile, e chi lo vede lo dice. */
+    --largo: max(9rem, min(100cqw, calc(100cqh * var(--proporzione, 1))));
     width: var(--largo);
     height: calc(var(--largo) / var(--proporzione, 1));
   }

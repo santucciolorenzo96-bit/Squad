@@ -1538,15 +1538,6 @@ export function Tracker({ onFinita, onEsci }) {
             </Pannello>
           </div>
 
-          {/* Il tabellino dal vivo, nello spazio che il campo ha lasciato
-              accorciandosi. Da tablet in su: sotto, dove la colonna e` alta
-              e il campo non la riempie piu` tutta. */}
-          <TabellinoVivo
-            sport={sport}
-            players={g.players}
-            falliInOrdine={falliInOrdine}
-            falliPerUscire={conf.falliPerUscire}
-          />
         </div>
 
         {/* La panchina, sotto il campo. Da tablet in su sta a SINISTRA, sotto
@@ -3384,73 +3375,3 @@ function Panchina({
   );
 }
 
-/* ====================================================================== */
-/* IL TABELLINO DAL VIVO                                                  */
-/* ====================================================================== */
-/*
- * Sotto il campo, nello spazio che il campo ha lasciato accorciandosi.
- *
- * Non è il referto: è la riga che chi segna controlla di continuo per
- * accorgersi di aver toccato la persona sbagliata. Poche colonne — punti,
- * rimbalzi, assist, falli — e in cima chi è in campo, perché è di loro che si
- * sta parlando adesso.
- *
- * Chi non ha ancora fatto niente ed è in panchina non compare: una riga di
- * zeri occupa lo stesso posto di una riga che dice qualcosa.
- */
-function TabellinoVivo({ sport, players, falliInOrdine, falliPerUscire }) {
-  const conta = (p, k) => (sport.aggregate[k] ? sport.aggregate[k](p) || 0 : 0);
-  const haGiocato = (p) => p.onCourt
-    || sport.score(p.stats || {}) > 0
-    || conta(p, 'reb') > 0 || conta(p, 'ast') > 0 || conta(p, 'pf') > 0;
-
-  const righe = players.filter(haGiocato).sort((a, b) => {
-    if (a.onCourt !== b.onCourt) return a.onCourt ? -1 : 1;
-    return sport.score(b.stats || {}) - sport.score(a.stats || {});
-  });
-
-  if (righe.length === 0) return null;
-
-  return (
-    <div className="tabellino-vivo mt-1.5 hidden min-h-0 flex-col lg:flex">
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <table className="w-full border-collapse text-[11.5px]">
-          <thead className="sticky top-0 z-10 bg-fondo">
-            <tr className="text-[9.5px] font-bold uppercase tracking-etichetta text-tenue">
-              <th className="px-1 py-0.5 text-left">N</th>
-              <th className="px-1 py-0.5 text-left">Giocatore</th>
-              <th className="px-1 py-0.5 text-right">PT</th>
-              <th className="px-1 py-0.5 text-right">RIM</th>
-              <th className="px-1 py-0.5 text-right">AS</th>
-              <th className="px-1 py-0.5 text-right">F</th>
-            </tr>
-          </thead>
-          <tbody>
-            {righe.map(p => {
-              const f = conta(p, 'pf');
-              const fuori = falliPerUscire && f >= falliPerUscire;
-              return (
-                <tr
-                  key={p.id}
-                  className={cx(
-                    'border-t border-bordo/8',
-                    p.onCourt ? 'font-semibold' : 'text-tenue'
-                  )}
-                >
-                  <td className="cifra px-1 py-[3px] text-left text-tenue">{p.number}</td>
-                  <td className="max-w-0 truncate px-1 py-[3px] text-left">{p.name}</td>
-                  <td className="cifra px-1 py-[3px] text-right">{sport.score(p.stats || {})}</td>
-                  <td className="cifra px-1 py-[3px] text-right">{conta(p, 'reb')}</td>
-                  <td className="cifra px-1 py-[3px] text-right">{conta(p, 'ast')}</td>
-                  <td className={cx('cifra px-1 py-[3px] text-right', fuori && 'font-bold text-rosso')}>
-                    {f}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
