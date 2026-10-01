@@ -496,26 +496,14 @@
   .campo-alto {
     display: flex;
     min-height: 0;
-    /* Base ZERO, non `auto`.
-       Con `container-type: size` questo riquadro non ha più un'altezza
-       propria — il contenimento gliela toglie — quindi la sua base dev'essere
-       lo spazio che avanza e non il suo contenuto. Con `auto` bastava che
-       qualunque cosa gli crescesse sotto perché il campo venisse schiacciato. */
-    flex: 1 1 0%;
+    flex: 1 1 auto;
     justify-content: center;
     align-items: center;
     container-type: size;
   }
 
   .campo-scatola {
-    /* IL PAVIMENTO NON È ESTETICA.
-       `100cqh` vale zero se per qualunque ragione il riquadro resta senza
-       altezza, e con cqh a zero il `min()` dà zero: il campo non si stringe,
-       SPARISCE. È successo davvero, ed è il peggiore dei modi di rompersi —
-       un campo invisibile non si segnala da solo, si scopre in palestra.
-       Con il pavimento, nel caso peggiore, esce un campo sbagliato: brutto,
-       ma visibile, e chi lo vede lo dice. */
-    --largo: max(9rem, min(100cqw, calc(100cqh * var(--proporzione, 1))));
+    --largo: min(100cqw, calc(100cqh * var(--proporzione, 1)));
     width: var(--largo);
     height: calc(var(--largo) / var(--proporzione, 1));
   }
@@ -542,14 +530,9 @@
        piedi, spesso senza guardare. Su un tablet in orizzontale il campo
        prende quasi tutto lo schermo, e quello spazio va a chi deve essere
        preso al primo colpo — non al parquet disegnato sotto. */
-    /* Il campo adesso è basso e largo: a parità di cella diventa più LARGO
-       di prima, e il gettone — che si misura sulla larghezza — crescerebbe
-       da solo fino a sovrapporsi al vicino della fascia sopra. Le percentuali
-       scendono ma la misura vera sale lo stesso, perché sale la base su cui
-       si calcolano. */
-    width: clamp(3.8rem, 17cqw, 7.6rem);
-    --volto: clamp(2.8rem, 12.5cqw, 5.4rem);
-    --numero: clamp(0.9rem, 4cqw, 1.7rem);
+    width: clamp(4rem, 20cqw, 8.8rem);
+    --volto: clamp(3rem, 15cqw, 6.4rem);
+    --numero: clamp(0.95rem, 4.6cqw, 1.9rem);
     --nome: clamp(0.55rem, 2.3cqw, 0.85rem);
     --media: clamp(0.58rem, 2.5cqw, 0.95rem);
     /* Il ⇄ si misura sul campo come tutto il resto: fisso, su un campo

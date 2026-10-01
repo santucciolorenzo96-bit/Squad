@@ -208,92 +208,17 @@ describe('basket: come abbiamo attaccato', () => {
   });
 });
 
-/* LE UNDICI ZONE DI TIRO.
- *
- * Erano tre — sotto, media, tre — ed era un riassunto, non una mappa: «da
- * tre» metteva insieme l'angolo e il centro, che sono due tiri diversi
- * giocati da persone diverse.
- *
- * Adesso sono cinque da tre, cinque da due e l'area, divise per ANGOLO
- * rispetto al canestro: cinque spicchi da trentasei gradi, dal fondo destro
- * al fondo sinistro. Serviranno alle mappe di calore, dove ogni zona avrà la
- * sua percentuale e il colore verrà da lì — e una zona sbagliata lì dentro
- * non si vede, si vede solo un colore che non torna.
- *
- * Il campo è alto 96 e largo 150, canestro a (75, 15.75). Le coordinate dei
- * test sono in percentuale, come quelle che arrivano da un tocco.
- */
-describe('basket: da dove è partito il tiro, in undici zone', () => {
+describe('basket: da dove è partito il tiro', () => {
   test('sotto canestro è area', () => is(zonaTiro(50, 8), 'area'));
-  test('in lunetta si è ancora in area', () => is(zonaTiro(50, 55), 'area'));
-
-  /* I CINQUE SPICCHI DA TRE, da destra a sinistra di chi guarda.
-   * Destra e sinistra sono quelle dello SCHERMO: chi segna ha il tablet in
-   * mano e il campo davanti. */
-  test('i tre si dividono in cinque, e sono cinque diversi', () => {
-    const dati = [
-      ['angolo destro', 98, 8, 'tre_dx2'],
-      ['ala destra', 85, 75, 'tre_dx1'],
-      ['tre centrale', 50, 95, 'tre_c'],
-      ['ala sinistra', 15, 75, 'tre_sx1'],
-      ['angolo sinistro', 2, 8, 'tre_sx2']
-    ];
-    dati.forEach(([come, x, y, atteso]) => {
-      is(zonaTiro(x, y), atteso, come + ' da (' + x + ',' + y + ')');
-    });
-    // E sono davvero cinque chiavi diverse.
-    is(new Set(dati.map(d => zonaTiro(d[1], d[2]))).size, 5);
-  });
-
-  test('e i due si dividono in cinque anche loro', () => {
-    const dati = [
-      ['fondo destro', 72, 8, 'due_dx2'],
-      ['gomito destro', 72, 42, 'due_dx1'],
-      ['lunetta alta', 50, 70, 'due_c'],
-      ['gomito sinistro', 28, 42, 'due_sx1'],
-      ['fondo sinistro', 28, 8, 'due_sx2']
-    ];
-    dati.forEach(([come, x, y, atteso]) => {
-      is(zonaTiro(x, y), atteso, come + ' da (' + x + ',' + y + ')');
-    });
-    is(new Set(dati.map(d => zonaTiro(d[1], d[2]))).size, 5);
-  });
+  test('in lunetta si è ancora in area', () => is(zonaTiro(50, 38), 'area'));
+  test('dall’ala, dentro l’arco, è media', () => is(zonaTiro(20, 30), 'media'));
+  test('da fuori è tre', () => is(zonaTiro(50, 90), 'tre'));
 
   test('l’angolo è più corto, e va rispettato', () => {
     // La tripla d'angolo sta a 6,60 e non a 6,75: senza la regola della
     // retta, ogni tiro dal fondo risulterebbe da due.
-    is(zonaTiro(3, 5), 'tre_sx2');
-    is(zonaTiro(10, 5), 'due_sx2');
-  });
-
-  test('destra e sinistra non si scambiano mai', () => {
-    /* Lo scambio è l'errore che non si vede: la mappa resta plausibile, e
-     * racconta la partita specchiata. Si controlla sulla x, che è l'unica
-     * cosa che distingue i due lati. */
-    for (let y = 5; y <= 95; y += 10) {
-      const d = zonaTiro(90, y);
-      const sx = zonaTiro(10, y);
-      ok(/_dx/.test(d) || d === 'area', 'a destra (90,' + y + ') esce ' + d);
-      ok(/_sx/.test(sx) || sx === 'area', 'a sinistra (10,' + y + ') esce ' + sx);
-    }
-  });
-
-  test('ogni punto del campo cade in una zona, e in una sola', () => {
-    /* Nessun buco e nessun doppione: se un punto non trovasse zona, quel
-     * tiro sparirebbe dalla mappa senza che nessuno se ne accorga. */
-    const chiavi = new Set(BASKET.zoneTiro.map(z => z.key));
-    const trovate = new Set();
-    for (let x = 1; x <= 99; x += 2) {
-      for (let y = 1; y <= 99; y += 2) {
-        const z = zonaTiro(x, y);
-        ok(z, 'nessuna zona per (' + x + ',' + y + ')');
-        ok(chiavi.has(z), 'zona sconosciuta «' + z + '» da (' + x + ',' + y + ')');
-        trovate.add(z);
-      }
-    }
-    // E tutte e undici si raggiungono davvero: una zona che nessun tiro può
-    // toccare è una riga di tabella che resterà vuota per sempre.
-    is(trovate.size, 11, 'raggiunte solo: ' + Array.from(trovate).sort().join(', '));
+    is(zonaTiro(3, 5), 'tre');
+    is(zonaTiro(10, 5), 'media');
   });
 
   test('senza punto non c’è nessuna zona', () => {
@@ -303,16 +228,8 @@ describe('basket: da dove è partito il tiro, in undici zone', () => {
 
   test('lo sport la porta con sé: il referto non sa dov’è l’arco', () => {
     is(typeof BASKET.zonaTiro, 'function');
-    is(BASKET.zoneTiro.length, 11);
+    is(BASKET.zoneTiro.length, 3);
     ok(!PALLAVOLO.zonaTiro);
-  });
-
-  test('ogni zona dice quanto vale, e i conti tornano', () => {
-    const da3 = BASKET.zoneTiro.filter(z => z.punti === 3);
-    const da2 = BASKET.zoneTiro.filter(z => z.punti === 2);
-    is(da3.length, 5);
-    is(da2.length, 6);          // i cinque dalla media piu` l'area
-    BASKET.zoneTiro.forEach(z => ok(z.label, z.key + ' senza etichetta'));
   });
 });
 
@@ -342,7 +259,7 @@ describe('basket: la mappa nel referto', () => {
     is(area.fatti, 1);
     is(area.tentati, 2);
     is(area.quota, 50);
-    is(r.tiri.zone.find(z => z.key === 'tre_c').quota, 100);
+    is(r.tiri.zone.find(z => z.key === 'tre').quota, 100);
   });
 
   test('una zona da cui non si è mai tirato non compare', () => {

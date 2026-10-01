@@ -4,45 +4,20 @@
 // Posizioni fisse dei 5 slot sul mezzo campo: il canestro è in alto, quindi
 // playmaker arretrato in basso, ali a metà, lunghi vicino all'area. Non
 // dipendono dal ruolo testuale del giocatore, spesso libero o mancante.
-/* I CINQUE POSTI IN CAMPO.
- *
- * Tre fasce: i lunghi vicino all'area, le ali larghe a metà, il playmaker
- * dietro l'arco. Non dipendono dal ruolo scritto nell'anagrafica, che spesso
- * è vuoto o non corrisponde a dove uno gioca davvero.
- *
- * Le fasce sono più distanti di quanto sembri perché il campo adesso è
- * basso e largo: in percentuale di un'altezza corta, trenta punti sono tanti.
- */
 const SLOTS = [
-  { top: '88%', left: '50%' },
-  { top: '58%', left: '12%' },
-  { top: '58%', left: '88%' },
-  { top: '28%', left: '30%' },
-  { top: '28%', left: '70%' }
+  { top: '84%', left: '50%' },
+  { top: '58%', left: '16%' },
+  { top: '58%', left: '84%' },
+  { top: '30%', left: '27%' },
+  { top: '30%', left: '73%' }
 ];
 
-/* SOLO L'AREA DI GIOCO, NON MEZZO CAMPO.
- *
- * Era mezzo campo FIBA intero: 15 metri per 14, cioè un quadrato. E un
- * quadrato, su uno schermo orizzontale, è la forma che spreca più spazio di
- * tutte — mangiava tutta l'altezza disponibile per disegnare, nella metà
- * lontana, un pezzo di parquet dove non si tira mai.
- *
- * Qui il campo arriva poco oltre l'arco da tre, che tocca quota 83,25: 9,6
- * metri invece di 14. La proporzione passa da quasi 1 a oltre 1,5 — basso e
- * largo come lo schermo — e l'altezza che si libera va al tabellino dal vivo,
- * che sta sotto.
- *
- * Il bordo in basso non si disegna: il campo continua, e chiuderlo con una
- * riga direbbe che finisce lì.
- *
- * Volutamente sbiadito: deve leggersi come contesto, non competere coi
- * giocatori.
- */
+// Mezzo campo FIBA in scala (15m × 14m → viewBox 150×140, canestro in alto).
+// Volutamente sbiadito: deve leggersi come contesto, non competere coi giocatori.
 const FIELD_SVG = `
-<svg class="court-lines" viewBox="0 0 150 96" preserveAspectRatio="none" fill="none"
+<svg class="court-lines" viewBox="0 0 150 140" preserveAspectRatio="none" fill="none"
      stroke="currentColor" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M0.6 95.4V1.6A1 1 0 0 1 1.6 0.6H148.4A1 1 0 0 1 149.4 1.6V95.4"/>
+  <rect x="0.6" y="0.6" width="148.8" height="138.8" rx="1"/>
   <rect x="50.5" y="0.6" width="49" height="57.4"/>
   <circle cx="75" cy="58" r="18"/>
   <path d="M9 0.6V29.9"/><path d="M141 0.6V29.9"/>
@@ -50,87 +25,45 @@ const FIELD_SVG = `
   <path d="M62.5 15.75A12.5 12.5 0 0 0 87.5 15.75"/>
   <path d="M66 12h18"/><path d="M75 12v1.5"/>
   <circle cx="75" cy="15.75" r="2.25"/>
+  <path d="M57 139.4A18 18 0 0 1 93 139.4"/>
 </svg>`;
 
-/* DA DOVE È PARTITO IL TIRO: UNDICI ZONE.
+/* DA DOVE E' PARTITO IL TIRO.
  *
- * Erano tre — sotto, media, tre — ed era un riassunto, non una mappa: «da
- * tre» metteva insieme l'angolo e il centro, che sono due tiri diversi
- * giocati da persone diverse. Un allenatore che guarda dove segna la sua
- * squadra ha bisogno di sapere QUALE tre.
+ * Il tocco sul campo sa una cosa sola: in che punto del riquadro e' caduto,
+ * in percentuale. Qui quella percentuale torna a essere il campo vero — il
+ * riquadro e' mezzo campo FIBA in scala, 150x140 unita' da dieci centimetri
+ * l'una — e da li' si deduce la zona.
  *
- * Undici: cinque da tre, cinque da due, e l'area. È la divisione con cui si
- * leggono le mappe di calore, e serve a quello — ogni zona avrà la sua
- * percentuale, e il colore verrà da lì.
+ * Si deduce, non si chiede. Sapere dove si e' toccato vuol dire gia' sapere
+ * se era da tre: chiederlo dopo sarebbe una domanda la cui risposta e' gia'
+ * sullo schermo, e questo scout ne ha tolte apposta parecchie.
  *
- * COME SI DIVIDE. Il canestro sta a (75, 15.75) e tutto si misura
- * dall'ANGOLO rispetto a lui: cinque spicchi da trentasei gradi, dal fondo
- * destro al fondo sinistro. Dentro ogni spicchio, il raggio dice se era da
- * due o da tre — e l'area dei tre secondi si stacca per conto suo, perché un
- * tiro da sotto non è un tiro dalla media comunque lo si guardi.
- *
- * Destra e sinistra sono quelle di CHI GUARDA LO SCHERMO, non quelle del
- * giocatore. Chi segna ha il tablet in mano e il campo davanti: dirgli
- * «sinistra» intendendo la sua destra sarebbe un modo elegante di far
- * sbagliare tutti.
- *
- * L'arco da tre ha raggio 67.5 — 6,75 metri — e negli angoli, sopra la quota
- * 29.9, diventa una retta a 6,60 dal centro: è il motivo per cui la tripla
- * d'angolo è più corta. Va rispettato, altrimenti ogni tiro dal fondo
- * risulterebbe da due.
- *
- * Le zone NON si registrano: si deducono dal punto, ogni volta. Così il
- * giorno in cui si corregge dove passa l'arco si correggono anche tutte le
- * partite già archiviate, invece di lasciarle sbagliate per sempre.
+ * Il canestro sta a (75, 15.75). L'arco da tre ha raggio 67.5 — 6,75 metri —
+ * e negli angoli, sopra la quota 29.9, diventa una retta a 6,60 dal centro:
+ * e' il motivo per cui la tripla d'angolo e' piu' corta. Va rispettato,
+ * altrimenti ogni tiro dal fondo risulterebbe da due.
  */
-
-// I cinque spicchi, da destra a sinistra di chi guarda. Trentasei gradi
-// ciascuno, misurati dal canestro.
-const SPICCHI = ['_dx2', '_dx1', '_c', '_sx1', '_sx2'];
+export const ZONE_TIRO = [
+  { key: 'area', label: 'Da sotto' },
+  { key: 'media', label: 'Dalla media' },
+  { key: 'tre', label: 'Da tre' }
+];
 
 export function zonaTiro(x, y) {
   if (x == null || y == null) return null;
   const cx = (x / 100) * 150;
-  const cy = (y / 100) * 96;
+  const cy = (y / 100) * 140;
   const dx = cx - 75;
   const dy = cy - 15.75;
-
-  // Un tiro praticamente sotto il ferro: niente angolo da calcolare, e
-  // l'angolo di un punto quasi coincidente col canestro sarebbe casuale.
-  const r = Math.sqrt(dx * dx + dy * dy);
-
-  const tre = cy < 29.9 ? Math.abs(dx) >= 66 : r >= 67.5;
-
-  /* L'AREA DEI TRE SECONDI, prima di tutto il resto. Dal fondo alla lunetta:
-   * è la zona che si legge da sola, e dividerla in spicchi non direbbe
-   * niente che non si veda già. */
-  if (!tre && cx >= 50.5 && cx <= 99.5 && cy <= 58) return 'area';
-
-  // L'angolo: zero verso il fondo destro, centottanta verso il fondo
-  // sinistro. `dy` cresce allontanandosi dal canestro.
-  const gradi = (Math.atan2(Math.max(0, dy), dx) * 180) / Math.PI;
-  const i = Math.min(4, Math.max(0, Math.floor(gradi / 36)));
-
-  return (tre ? 'tre' : 'due') + SPICCHI[i];
+  const tre = cy < 29.9
+    ? Math.abs(dx) >= 66
+    : Math.sqrt(dx * dx + dy * dy) >= 67.5;
+  if (tre) return 'tre';
+  // L'area dei tre secondi: dal fondo fino alla lunetta.
+  if (cx >= 50.5 && cx <= 99.5 && cy <= 58) return 'area';
+  return 'media';
 }
-
-/* L'elenco, nell'ordine in cui si guarda una mappa: prima l'area, poi la
- * media da destra a sinistra, poi i tre da destra a sinistra. */
-export const ZONE_TIRO = [
-  { key: 'area', label: 'Area', punti: 2 },
-
-  { key: 'due_dx2', label: 'Fondo destro', punti: 2 },
-  { key: 'due_dx1', label: 'Gomito destro', punti: 2 },
-  { key: 'due_c', label: 'Lunetta', punti: 2 },
-  { key: 'due_sx1', label: 'Gomito sinistro', punti: 2 },
-  { key: 'due_sx2', label: 'Fondo sinistro', punti: 2 },
-
-  { key: 'tre_dx2', label: 'Angolo destro', punti: 3 },
-  { key: 'tre_dx1', label: 'Ala destra', punti: 3 },
-  { key: 'tre_c', label: 'Tre centrale', punti: 3 },
-  { key: 'tre_sx1', label: 'Ala sinistra', punti: 3 },
-  { key: 'tre_sx2', label: 'Angolo sinistro', punti: 3 }
-];
 
 function newStats() {
   return {
@@ -166,7 +99,7 @@ export const BASKET = {
   // il disegno si stira per riempire il riquadro e l'arco da tre diventa
   // un'ellisse. Un campo disegnato male e' peggio di nessun campo, perche' chi
   // lo guarda ci cerca dentro delle distanze.
-  field: { svg: FIELD_SVG, slots: SLOTS, ratio: 150 / 96, onFieldLabel: 'Quintetto', benchLabel: 'Panchina' },
+  field: { svg: FIELD_SVG, slots: SLOTS, ratio: 150 / 140, onFieldLabel: 'Quintetto', benchLabel: 'Panchina' },
 
   // Le tre medie mostrate sul campo in Rosa e nella Scheda evolutiva.
   headline: [
