@@ -210,6 +210,21 @@ export function Tracker({ onFinita, onEsci }) {
   const [altezza, setAltezza] = useState(null);
 
   useEffect(() => {
+    /* A SCHERMO INTERO NON C'E` NIENTE DA MISURARE.
+     *
+     * Lo scout a schermo intero vive in un riquadro `fixed inset-0`: la sua
+     * altezza E` quella della finestra, per costruzione. Misurarla era un
+     * errore — e non un errore innocuo: la misura cerca `#contenuto`, che
+     * li` non e` piu` un antenato, e finiva per misurare la PAGINA DIETRO
+     * l'overlay. Veniva fuori un'altezza piu` corta del vero, con un palmo
+     * di niente sotto la panchina e la panchina tagliata a meta` riga.
+     *
+     * Dove non si misura, non si sbaglia: il riquadro e` alto quanto la
+     * finestra e il contenuto lo riempie con il flex. La misura resta per
+     * lo scout dentro la pagina, dove sopra c'e` davvero una testata di cui
+     * non si sa l'altezza. */
+    if (onEsci) { setAltezza(null); return undefined; }
+
     let vivo = true;
 
     function misura() {
@@ -269,7 +284,7 @@ export function Tracker({ onFinita, onEsci }) {
       window.removeEventListener('resize', misura);
       window.removeEventListener('orientationchange', misura);
     };
-  }, []);
+  }, [onEsci]);
   const [chiudiPeriodo, setChiudiPeriodo] = useState(false);
   const [finePartita, setFinePartita] = useState(false);
   const salvataggioRotto = useRef(false);
@@ -1111,7 +1126,11 @@ export function Tracker({ onFinita, onEsci }) {
   const manoLoro = !(decisa && decisa.finita);
 
   const corpo = (
-    <div ref={pagina} className="scout-pagina relative" style={altezza ? { height: altezza } : undefined}>
+    <div
+      ref={pagina}
+      className={cx('scout-pagina relative', onEsci && 'min-h-0 flex-1')}
+      style={altezza ? { height: altezza } : undefined}
+    >
 
       {/* ===================================================== la pagina intera
           Su schermo largo TRE COLONNE: tabellone, campo, panchina.
@@ -1148,7 +1167,7 @@ export function Tracker({ onFinita, onEsci }) {
             >
               ‹ Esci dallo scout
             </button>
-            <span className="truncate text-[12px] text-tenue">
+            <span className="truncate text-[12px] text-tenue lg:hidden">
               Uscire non chiude la partita
             </span>
           </div>
@@ -1930,8 +1949,14 @@ export function Tracker({ onFinita, onEsci }) {
   // Fuori dall'impaginazione dell'app, quindi: la finestra e' tutta della
   // partita, e si esce da un pulsante solo.
   return createPortal(
-    <div className="scout-schermo fixed inset-0 z-[60] overflow-y-auto overscroll-contain bg-fondo">
-      <div className="mx-auto w-full max-w-[68rem] px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-2 sm:px-6 sm:pt-3">
+    <div className="scout-schermo fixed inset-0 z-[60] flex flex-col overflow-hidden overscroll-contain bg-fondo">
+      {/* IL TETTO ALLA LARGHEZZA CADE DOVE CI SONO LE TRE COLONNE.
+          Sessantotto rem sono mille e ottantotto pixel: su un monitor da
+          lavoro lo scout restava una colonna in mezzo con due fasce bianche
+          ai lati, e quella larghezza buttata era larghezza tolta al campo.
+          Dove la pagina e` gia` divisa in tre, il tetto non serve piu`: a
+          dare ordine ci pensano le colonne. */}
+      <div className="mx-auto flex min-h-0 w-full max-w-[68rem] flex-1 flex-col px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2 sm:px-5 sm:pt-3 lg:max-w-none lg:px-4">
         {corpo}
       </div>
     </div>,
@@ -1961,7 +1986,13 @@ export function Tracker({ onFinita, onEsci }) {
  * preso un quintetto mentre era in campo.
  */
 function ManoPunteggio({ attiva, valori = [1], onPiu, onMeno }) {
-  if (!attiva) return <div className="mt-2 h-8" aria-hidden="true" />;
+  /* Il posto tenuto libero quando la mano non c'e`.
+   *
+   * Serve dove i due punteggi sono AFFIANCATI: senza, quello col pulsante
+   * sotto si abbasserebbe e i due numeri grandi non sarebbero piu` sulla
+   * stessa riga. Da tablet in su pero` sono incolonnati, e li` quel posto
+   * tenuto libero e` solo quaranta pixel di niente in mezzo al tabellone. */
+  if (!attiva) return <div className="mt-2 h-8 lg:hidden" aria-hidden="true" />;
   const largo = valori.length > 1;
   return (
     <div className={cx('mt-2 flex items-center justify-center', largo ? 'gap-1.5' : 'gap-2')}>
