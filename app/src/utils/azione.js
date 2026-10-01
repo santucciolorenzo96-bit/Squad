@@ -131,3 +131,27 @@ export function segnaPeriodo(g, lato, delta) {
    * rotazione e i conti delle fasi, e riscriverla da zero li cancellerebbe. */
   g.periodScores[idx] = { ...riga, [lato]: nuovo };
 }
+
+/* COSA VUOL DIRE TOCCARE UNA FACCIA IN PANCHINA.
+ *
+ * Lo stesso gesto fa quattro cose diverse a seconda del momento della
+ * partita, ed è la cosa più facile da sbagliare di tutto lo scout: un tocco
+ * che a volte assegna un canestro e a volte manda uno in campo, senza una
+ * regola che si possa dire ad alta voce, è un tocco di cui non ci si fida.
+ *
+ * La regola si dice ad alta voce, e sta qui: dal più esplicito al più
+ * generico. Se c'è un evento armato, quell'evento sta aspettando un nome e
+ * non c'è nient'altro da interpretare. Se c'è qualcuno che sta uscendo, la
+ * domanda aperta è chi entra. Se il campo non è al completo, l'unica cosa
+ * sensata è completarlo. Altrimenti lo si sceglie e basta.
+ *
+ * Sta fuori dal componente perché una regola con quattro rami si prova, e
+ * perché scriverla una volta sola impedisce che la panchina stretta e quella
+ * larga finiscano per comportarsi in due modi diversi.
+ */
+export function cosaFaIlTocco({ armato, sostituzione, campoCorto }) {
+  if (armato) return 'assegna';
+  if (sostituzione) return 'sostituisci';
+  if (campoCorto) return 'inCampo';
+  return 'scegli';
+}

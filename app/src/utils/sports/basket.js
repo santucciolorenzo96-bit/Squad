@@ -28,27 +28,44 @@ const FIELD_SVG = `
   <path d="M57 139.4A18 18 0 0 1 93 139.4"/>
 </svg>`;
 
-/* DA DOVE E' PARTITO IL TIRO.
+/* DA DOVE È PARTITO IL TIRO: UNDICI ZONE.
  *
- * Il tocco sul campo sa una cosa sola: in che punto del riquadro e' caduto,
- * in percentuale. Qui quella percentuale torna a essere il campo vero — il
- * riquadro e' mezzo campo FIBA in scala, 150x140 unita' da dieci centimetri
- * l'una — e da li' si deduce la zona.
+ * Erano tre — sotto, media, tre — ed era un riassunto, non una mappa: «da
+ * tre» metteva insieme l'angolo e il centro, che sono due tiri diversi
+ * giocati da persone diverse. Un allenatore che guarda dove segna la sua
+ * squadra ha bisogno di sapere QUALE tre.
  *
- * Si deduce, non si chiede. Sapere dove si e' toccato vuol dire gia' sapere
- * se era da tre: chiederlo dopo sarebbe una domanda la cui risposta e' gia'
- * sullo schermo, e questo scout ne ha tolte apposta parecchie.
+ * Undici: cinque da tre, cinque da due, e l'area. È la divisione con cui si
+ * leggono le mappe di calore, e serve a quello — ogni zona avrà la sua
+ * percentuale, e il colore verrà da lì.
  *
- * Il canestro sta a (75, 15.75). L'arco da tre ha raggio 67.5 — 6,75 metri —
- * e negli angoli, sopra la quota 29.9, diventa una retta a 6,60 dal centro:
- * e' il motivo per cui la tripla d'angolo e' piu' corta. Va rispettato,
- * altrimenti ogni tiro dal fondo risulterebbe da due.
+ * COME SI DIVIDE. Il tocco sul campo sa una cosa sola: in che punto del
+ * riquadro è caduto, in percentuale. Qui quella percentuale torna a essere il
+ * campo vero — mezzo campo FIBA in scala, 150 x 140 unità da dieci centimetri
+ * l'una, canestro a (75, 15.75) — e tutto si misura dall'ANGOLO rispetto al
+ * canestro: cinque spicchi da trentasei gradi, dal fondo destro al fondo
+ * sinistro. Dentro ogni spicchio il raggio dice se era da due o da tre, e
+ * l'area dei tre secondi si stacca per conto suo — un tiro da sotto non è un
+ * tiro dalla media comunque lo si guardi.
+ *
+ * Destra e sinistra sono quelle di CHI GUARDA LO SCHERMO, non quelle del
+ * giocatore. Chi segna ha il tablet in mano e il campo davanti: dirgli
+ * «sinistra» intendendo la sua destra sarebbe un modo elegante di far
+ * sbagliare tutti.
+ *
+ * L'arco da tre ha raggio 67.5 — 6,75 metri — e negli angoli, sopra la quota
+ * 29.9, diventa una retta a 6,60 dal centro: è il motivo per cui la tripla
+ * d'angolo è più corta. Va rispettato, altrimenti ogni tiro dal fondo
+ * risulterebbe da due.
+ *
+ * Le zone NON si registrano: si deducono dal punto, ogni volta. Così il
+ * giorno in cui si corregge dove passa l'arco si correggono anche tutte le
+ * partite già archiviate, invece di lasciarle sbagliate per sempre.
  */
-export const ZONE_TIRO = [
-  { key: 'area', label: 'Da sotto' },
-  { key: 'media', label: 'Dalla media' },
-  { key: 'tre', label: 'Da tre' }
-];
+
+// I cinque spicchi, da destra a sinistra di chi guarda. Trentasei gradi
+// ciascuno, misurati dal canestro.
+const SPICCHI = ['_dx2', '_dx1', '_c', '_sx1', '_sx2'];
 
 export function zonaTiro(x, y) {
   if (x == null || y == null) return null;
@@ -56,14 +73,41 @@ export function zonaTiro(x, y) {
   const cy = (y / 100) * 140;
   const dx = cx - 75;
   const dy = cy - 15.75;
-  const tre = cy < 29.9
-    ? Math.abs(dx) >= 66
-    : Math.sqrt(dx * dx + dy * dy) >= 67.5;
-  if (tre) return 'tre';
-  // L'area dei tre secondi: dal fondo fino alla lunetta.
-  if (cx >= 50.5 && cx <= 99.5 && cy <= 58) return 'area';
-  return 'media';
+  const r = Math.sqrt(dx * dx + dy * dy);
+
+  const tre = cy < 29.9 ? Math.abs(dx) >= 66 : r >= 67.5;
+
+  /* L'AREA DEI TRE SECONDI, prima di tutto il resto: dal fondo alla lunetta.
+   * È la zona che si legge da sola, e dividerla in spicchi non direbbe niente
+   * che non si veda già. */
+  if (!tre && cx >= 50.5 && cx <= 99.5 && cy <= 58) return 'area';
+
+  /* L'angolo: zero verso il fondo destro, centottanta verso il fondo
+   * sinistro. `dy` cresce allontanandosi dal canestro, e si taglia a zero —
+   * dietro al fondo non c'è nessun angolo da misurare. */
+  const gradi = (Math.atan2(Math.max(0, dy), dx) * 180) / Math.PI;
+  const i = Math.min(4, Math.max(0, Math.floor(gradi / 36)));
+
+  return (tre ? 'tre' : 'due') + SPICCHI[i];
 }
+
+/* L'elenco, nell'ordine in cui si guarda una mappa: prima l'area, poi la
+ * media da destra a sinistra, poi i tre da destra a sinistra. */
+export const ZONE_TIRO = [
+  { key: 'area', label: 'Area', punti: 2 },
+
+  { key: 'due_dx2', label: 'Fondo destro', punti: 2 },
+  { key: 'due_dx1', label: 'Gomito destro', punti: 2 },
+  { key: 'due_c', label: 'Lunetta', punti: 2 },
+  { key: 'due_sx1', label: 'Gomito sinistro', punti: 2 },
+  { key: 'due_sx2', label: 'Fondo sinistro', punti: 2 },
+
+  { key: 'tre_dx2', label: 'Angolo destro', punti: 3 },
+  { key: 'tre_dx1', label: 'Ala destra', punti: 3 },
+  { key: 'tre_c', label: 'Tre centrale', punti: 3 },
+  { key: 'tre_sx1', label: 'Ala sinistra', punti: 3 },
+  { key: 'tre_sx2', label: 'Angolo sinistro', punti: 3 }
+];
 
 function newStats() {
   return {
@@ -372,30 +416,34 @@ export const BASKET = {
       // `zona` dice che questo tiro ha un punto di partenza: con la mappa
       // accesa, prima di registrarlo l'app chiede da dove. I tiri liberi no,
       // si tirano sempre dallo stesso posto.
-      /* L'ERRORE AL TIRO NON CHIEDE PIÙ NIENTE.
+      /* L'ERRORE AL TIRO CHIEDE UNA COSA SOLA: CHI HA PRESO IL RIMBALZO.
        *
-       * Aveva due seguiti: da dove era partito il tiro, e chi aveva preso il
-       * rimbalzo. Due domande su un'azione che in partita arriva ogni
-       * quaranta secondi, e mentre si risponde il gioco è già ripartito.
+       * Ne chiedeva due — anche da dove era partito il tiro — ed erano
+       * troppe: due domande di fila su un'azione che arriva ogni quaranta
+       * secondi, mentre il gioco è già ripartito. La posizione è rimasta solo
+       * sul canestro, che è l'azione per cui vale la pena fermarsi mezzo
+       * secondo.
        *
-       * Il canestro le domande le tiene — è l'azione che conta, ed è quella
-       * per cui vale la pena fermarsi mezzo secondo. L'errore no.
+       * Il rimbalzo invece torna, perché è l'altra metà del tiro sbagliato:
+       * senza, quel pallone sparisce dal referto. E la domanda ha già la via
+       * d'uscita giusta — «agli avversari» — che è la risposta in metà dei
+       * casi, e si prende con un tocco solo.
        *
-       * Conseguenza da sapere: senza la posizione degli errori, la mappa dice
-       * DOVE SI SEGNA e non più le percentuali per zona. Il referto lo dice,
-       * invece di stampare cento per cento dappertutto.
+       * Conseguenza della posizione solo sui canestri: la mappa dice DOVE SI
+       * SEGNA e non più le percentuali per zona. Il referto lo dice, invece di
+       * stampare cento per cento dappertutto.
        */
       { label: 'Tiro da 2', layout: 'pair', actions: [
         { act: 'fg2_made', label: '\u2713 Canestro', tone: 'made', apply: { fgm2: 1, fga2: 1 }, score: 2, zona: true, dentro: true, poi: 'assist' },
-        { act: 'fg2_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga2: 1 } }
+        { act: 'fg2_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga2: 1 }, poi: 'rimbalzo' }
       ]},
       { label: 'Tiro da 3', layout: 'pair', actions: [
         { act: 'fg3_made', label: '\u2713 Canestro', tone: 'made', apply: { fgm3: 1, fga3: 1 }, score: 3, zona: true, dentro: true, poi: 'assist' },
-        { act: 'fg3_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga3: 1 } }
+        { act: 'fg3_miss', label: '\u2717 Errore', tone: 'miss', apply: { fga3: 1 }, poi: 'rimbalzo' }
       ]},
       { label: 'Tiro libero', layout: 'pair', actions: [
         { act: 'ft_made', label: '\u2713 Segnato', tone: 'made', apply: { ftm: 1, fta: 1 }, score: 1 },
-        { act: 'ft_miss', label: '\u2717 Sbagliato', tone: 'miss', apply: { fta: 1 } }
+        { act: 'ft_miss', label: '\u2717 Sbagliato', tone: 'miss', apply: { fta: 1 }, poi: 'rimbalzo' }
       ]},
       { label: 'Rimbalzo', layout: 'pair', actions: [
         { act: 'orb', label: 'Offensivo', tone: 'neutral', apply: { orb: 1 } },
