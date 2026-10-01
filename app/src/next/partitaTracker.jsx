@@ -1426,6 +1426,11 @@ export function Tracker({ onFinita, onEsci }) {
                       : null}
                     scelto={scelto === p.id}
                     inAttesa={!!armato}
+                    /* Da che parte mettere il cambio. Chi sta nella meta`
+                       destra del campo ce l'ha a sinistra: a destra
+                       finirebbe oltre la linea laterale, e un pulsante
+                       mezzo fuori dal campo non si prende. */
+                    cambioASinistra={posto ? parseFloat(posto.left) > 58 : false}
                     onAssegna={() => toccaGiocatore(p)}
                     onSostituisci={() => setSostituzione(s => (s === p.id ? null : p.id))}
                   />
@@ -2055,7 +2060,7 @@ const RigheCampo = React.memo(function RigheCampo({ svg }) {
 // gli altri quattro è lavoro che si paga a ogni tocco per tutta la partita.
 const GettoneCampo = React.memo(function GettoneCampo({
   p, sport, foto, lampo, inSostituzione, stile, falli, scelto, inAttesa,
-  onAssegna, onSostituisci
+  cambioASinistra, onAssegna, onSostituisci
 }) {
   const conf = sport.scout;
   const valore = conf.tileStat
@@ -2119,32 +2124,45 @@ const GettoneCampo = React.memo(function GettoneCampo({
           <Canotta numero={p.number} dim="var(--pallino)" />
         </span>
 
-        {/* IL CAMBIO: GIALLO, CON LE FRECCE NERE, E STACCATO DAL VOLTO.
-            Prima era un dischetto scuro appoggiato sul bordo della faccia, e
-            da lontano sembrava un pezzo del gettone: chi voleva assegnare
-            un'azione lo prendeva per sbaglio. Il giallo non somiglia a niente
-            altro sul campo, e lo stacco dice che è un'altra cosa — non un
-            dettaglio del giocatore, ma un comando. */}
+        {/* IL CAMBIO STA FUORI DAL GETTONE, DI FIANCO.
+            Era appoggiato sull'angolo in alto a destra della faccia, e le due
+            aree sensibili si toccavano: chi mirava al giocatore prendeva il
+            cambio. Succede spesso, perché il giocatore si tocca a ogni
+            azione e il cambio dieci volte in una partita — due bersagli
+            attaccati con frequenze così diverse sono un bersaglio solo, e
+            quello grosso perde.
+            Adesso sta A DESTRA, interamente fuori dal cerchio, con uno stacco
+            di mezzo. Le due aree non si sfiorano più, e la faccia torna a
+            essere quello che è: un bersaglio pulito. */}
         <button
           onClick={onSostituisci}
-          title="Prepara la sostituzione"
+          disabled={inAttesa}
+          title={inAttesa ? 'Prima assegna l’evento' : 'Prepara la sostituzione'}
           aria-label={'Cambia ' + p.name}
           className={cx(
-            'absolute grid place-items-center rounded-full font-bold transition-all active:scale-95',
-            inSostituzione ? 'ring-2 ring-white' : 'hover:brightness-110'
+            'absolute grid place-items-center rounded-full font-bold transition-all',
+            // CON UN EVENTO ARMATO IL CAMBIO SI SPEGNE.
+            // È il momento in cui il dito punta la faccia, ed è esattamente il
+            // momento in cui un tocco storto farebbe il danno peggiore:
+            // aprirebbe un cambio al posto di segnare il canestro. Spento non
+            // può più sbagliare nessuno.
+            inAttesa ? 'pointer-events-none opacity-25'
+              : inSostituzione ? 'ring-2 ring-white active:scale-95'
+                : 'hover:brightness-110 active:scale-95'
           )}
           style={{
-            // Fuori dal cerchio del volto, non appoggiato sopra: il centro
-            // sta oltre il bordo di un quarto della propria misura.
-            top: 'calc(var(--scambio) * -0.34)',
-            right: 'calc(var(--scambio) * -0.34)',
+            top: '50%',
+            ...(cambioASinistra
+              ? { right: '100%', marginRight: 'calc(var(--volto) * 0.12)' }
+              : { left: '100%', marginLeft: 'calc(var(--volto) * 0.12)' }),
+            transform: 'translateY(-50%)',
             width: 'var(--scambio)',
             height: 'var(--scambio)',
             fontSize: 'calc(var(--scambio) * 0.56)',
             background: 'rgb(var(--ambra))',
             color: 'rgb(12 10 6)',
-            // L'alone scuro fa da stacco: fra il giallo e il volto resta un
-            // filo di buio, e i due cerchi non si leggono come uno solo.
+            // L'alone scuro: fra il giallo e il parquet resta un filo di buio,
+            // così il pulsante si stacca da qualunque colore abbia sotto.
             boxShadow: '0 0 0 2px rgb(10 8 6 / 0.55)'
           }}
         >

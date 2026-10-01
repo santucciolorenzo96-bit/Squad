@@ -503,7 +503,10 @@
     --media: clamp(0.58rem, 2.5cqw, 0.95rem);
     /* Il ⇄ si misura sul campo come tutto il resto: fisso, su un campo
        piccolo coprirebbe il numero di maglia. */
-    --scambio: clamp(1.15rem, 5cqw, 2.1rem);
+    /* Adesso sta fuori dal gettone, quindi non ruba piu` niente alla
+       faccia e puo` permettersi di essere un bersaglio vero: un pulsante da
+       diciotto pixel su un tablet tenuto in piedi non si prende. */
+    --scambio: clamp(1.45rem, 5.8cqw, 2.4rem);
     /* Il pallino col numero, in basso a destra rispetto al volto.
        Più grande del ⇄, perché dentro ci va un numero a due cifre e un
        numero di maglia che non si legge non serve a niente. Ma non può
