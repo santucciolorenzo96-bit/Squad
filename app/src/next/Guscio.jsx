@@ -64,6 +64,11 @@ function settoriAccessibili() {
  * Su telefono l'elenco non sta in alto: c'è il nome della categoria aperta, e
  * il tocco apre un foglio con tutte. Una fila che scorre nasconde metà delle
  * voci proprio a chi ha meno schermo, e le nasconde senza dirlo.
+ *
+ * In tutti e due, un elenco PIATTO: le sottocategorie non esistono più. Prima
+ * i figli stavano rientrati sotto il genitore, e il genitore era toccabile
+ * come gli altri — ma aprirlo mostrava una rosa vuota, perché nessuna lettura
+ * aggregava i figli. Un vicolo cieco che sembrava un guasto.
  */
 
 function nomeSettore(s) {
@@ -153,12 +158,10 @@ function Pastiglie({ settori, attiva, onCambia }) {
               onClick={() => onCambia(s.id)}
               title={nomeSettore(s)}
               className={cx(
-                'relative z-[1] shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 transition-colors duration-200',
-                s.parent_id ? 'text-[12.5px]' : 'text-[12.5px]',
+                'relative z-[1] shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[12.5px] transition-colors duration-200',
                 on ? 'font-bold text-white' : 'font-semibold text-soffuso hover:text-testo'
               )}
             >
-              {s.parent_id && <span className={cx('mr-1', on ? 'opacity-60' : 'opacity-40')}>·</span>}
               {s.name}
             </button>
           );
@@ -205,12 +208,10 @@ function SceltaTelefono({ settori, attiva, onCambia }) {
                 >
                   <span
                     className={cx(
-                      'min-w-0 flex-1 truncate',
-                      s.parent_id ? 'pl-4 text-[13.5px] text-soffuso' : 'text-[15px] font-semibold',
+                      'min-w-0 flex-1 truncate text-[15px] font-semibold',
                       on && 'text-blu'
                     )}
                   >
-                    {s.parent_id && <span className="mr-2 opacity-40">·</span>}
                     {s.name}
                   </span>
                   {on && <Spunta />}

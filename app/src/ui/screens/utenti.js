@@ -74,7 +74,7 @@ export function renderUtentiTab(c) {
       </div>
       <div class="field" id="sectorCheckWrap">
         <label>Settori assegnati</label>
-        ${orderedSectors(state.sectors).map(s => `<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;${s.parent_id ? 'padding-left:18px;' : ''}"><input type="checkbox" data-sector="${s.id}" ${(state.staffSectors[existing.id] || []).includes(s.id) ? 'checked' : ''} style="width:auto;"> ${esc(s.name)}</label>`).join('') || '<div class="hint">Nessuna categoria creata: creane una da Squadra.</div>'}
+        ${orderedSectors(state.sectors).map(s => `<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><input type="checkbox" data-sector="${s.id}" ${(state.staffSectors[existing.id] || []).includes(s.id) ? 'checked' : ''} style="width:auto;"> ${esc(s.name)}</label>`).join('') || '<div class="hint">Nessuna categoria creata: creane una da Squadra.</div>'}
       </div>
       ${canGrantFinance ? `
       <div class="field"><label>Ruolo finanza</label>

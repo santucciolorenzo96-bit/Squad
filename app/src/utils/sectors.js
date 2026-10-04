@@ -1,41 +1,43 @@
 import { isAdmin } from './permissions.js';
 
-// Gerarchia delle categorie.
-//
-// Una sottocategoria è un settore con un genitore: rosa, allenamenti, partite e
-// permessi continuano a ragionare per settore senza sapere che esiste una
-// gerarchia. Qui c'è solo il modo di presentarle in ordine e di dire per esteso
-// di quale si sta parlando.
+/* LE CATEGORIE SONO PIATTE.
+ *
+ * C'è stata una gerarchia: un settore poteva avere un genitore, e «Under 15 ·
+ * Blu» era una sottocategoria di «Under 15». È stata tolta, e vale la pena
+ * dire perché, perché l'idea tornerà in mente a qualcuno.
+ *
+ * Non la usava nessuna società — zero righe in tutto il database — e intanto
+ * costava un livello di complessità a ogni schermata che elenca le categorie,
+ * più una colonna, un indice e un trigger per impedire le ricorsioni.
+ *
+ * E aveva un buco che non si poteva chiudere senza inventare una semantica
+ * nuova: NESSUNA lettura aggregava i figli. Rosa, allenamenti, calendario,
+ * partite e statistiche cercano tutte il settore per corrispondenza esatta,
+ * quindi aprire una categoria che aveva sottocategorie mostrava una rosa
+ * vuota, nessun allenamento e nessuna partita — senza una riga che dicesse
+ * perché. Da fuori non sembrava una scelta: sembrava un guasto.
+ *
+ * Aggregare i figli avrebbe risolto quel sintomo e aperto tre domande peggiori
+ * — dove si aggiunge un atleta, di chi è una partita, quale calendario si sta
+ * guardando. Una categoria è una squadra: se due gruppi si allenano e giocano
+ * separati sono due categorie, e se non lo fanno sono una.
+ */
 
-// Genitori in ordine, ognuno seguito dai propri figli. Un figlio il cui
-// genitore non è nell'elenco (settore cancellato, dati parziali) non sparisce:
-// finisce in fondo come se fosse di primo livello. Nascondere una categoria
-// perché manca il suo genitore vorrebbe dire nascondere una rosa.
+// In ordine: quello scelto dalla società, e a parità il nome.
 export function orderedSectors(sectors) {
-  const list = sectors || [];
-  const byOrder = (a, b) => (a.sort_order - b.sort_order) || a.name.localeCompare(b.name);
-  const parents = list.filter(s => !s.parent_id).sort(byOrder);
-  const known = new Set(parents.map(s => s.id));
-  const out = [];
-  parents.forEach(p => {
-    out.push(p);
-    list.filter(s => s.parent_id === p.id).sort(byOrder).forEach(f => out.push(f));
-  });
-  list.filter(s => s.parent_id && !known.has(s.parent_id)).sort(byOrder).forEach(o => out.push(o));
-  return out;
+  return (sectors || []).slice()
+    .sort((a, b) => (a.sort_order - b.sort_order) || a.name.localeCompare(b.name));
 }
 
-// "Under 15 · Blu" quando serve dire di quale si parla fuori contesto,
-// "Blu" da solo quando il genitore è già visibile lì accanto.
-export function sectorFullName(sector, sectors) {
-  if (!sector) return '';
-  if (!sector.parent_id) return sector.name;
-  const parent = (sectors || []).find(s => s.id === sector.parent_id);
-  return parent ? parent.name + ' · ' + sector.name : sector.name;
-}
-
-export function hasChildren(sector, sectors) {
-  return (sectors || []).some(s => s.parent_id === sector.id);
+/* Il nome da mostrare. Oggi è il nome e basta.
+ *
+ * Resta una funzione invece di diventare `s.name` ovunque perché è chiamata da
+ * una decina di punti, e il giorno in cui il nome dovesse portarsi dietro
+ * qualcos'altro — la stagione, la società, per un amministratore che ne vede
+ * più di una — il posto dove scriverlo è questo, uno solo.
+ */
+export function sectorFullName(sector) {
+  return sector ? sector.name : '';
 }
 
 /* Le categorie che un account puo' aprire.

@@ -5,7 +5,7 @@ import { updateTeam, uploadTeamLogo, regenerateInviteCode } from '../api/teams.j
 import { resizeImageFile, resizeLogoWithTransparency, imageHasAlpha } from '../utils/image.js';
 import { createSector, renameSector, removeSector } from '../api/sectors.js';
 import { fetchSeasons, createSeason, updateSeason, removeSeason, reopenSeason } from '../api/seasons.js';
-import { orderedSectors, hasChildren } from '../utils/sectors.js';
+import { orderedSectors } from '../utils/sectors.js';
 import { isAdmin } from '../utils/permissions.js';
 import { SPORT_LIST } from '../utils/sports/index.js';
 import { inCampione } from './campione.js';
@@ -244,7 +244,7 @@ function ModuloIdentita({ onChiudi, onFatto }) {
 
 /* =============================================================== categorie */
 function Categorie({ avvisa }) {
-  const [modulo, setModulo] = useState(null);   // {padre} | {sector}
+  const [modulo, setModulo] = useState(null);   // {} per una nuova, {sector} per rinominare
   const [daRimuovere, setDaRimuovere] = useState(null);
   const [, ridisegna] = useState(0);
   const elenco = orderedSectors(state.sectors);
@@ -253,7 +253,7 @@ function Categorie({ avvisa }) {
     <div>
       <div className="mb-2.5 flex items-center justify-between gap-3">
         <Etichetta>Categorie</Etichetta>
-        <Pulsante variante="primario" className="py-1.5 text-[11.5px]" onClick={() => setModulo({ padre: null })}>
+        <Pulsante variante="primario" className="py-1.5 text-[11.5px]" onClick={() => setModulo({})}>
           + Categoria
         </Pulsante>
       </div>
@@ -266,15 +266,8 @@ function Categorie({ avvisa }) {
             <div
               key={s.id}
               className={cx('flex items-center gap-3 px-4 py-3 sm:px-5', i > 0 && 'border-t border-bordo/6')}
-              style={s.parent_id ? { paddingLeft: '2.25rem' } : undefined}
             >
-              {s.parent_id && <span className="shrink-0 text-tenue">└</span>}
               <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{s.name}</span>
-              {!s.parent_id && (
-                <AzioneRiga etichetta="Sottocategoria" onClick={() => setModulo({ padre: s })}>
-                  <span className="text-[16px] font-bold leading-none">+</span>
-                </AzioneRiga>
-              )}
               <AzioneRiga etichetta="Rinomina" onClick={() => setModulo({ sector: s })}>
                 <Matita />
               </AzioneRiga>
@@ -293,7 +286,6 @@ function Categorie({ avvisa }) {
 
       {modulo && (
         <ModuloCategoria
-          padre={modulo.padre}
           sector={modulo.sector}
           onChiudi={() => setModulo(null)}
           onFatto={(msg) => { ridisegna(n => n + 1); avvisa(msg); }}
@@ -304,13 +296,12 @@ function Categorie({ avvisa }) {
         <Conferma
           titolo="Eliminare la categoria?"
           testo={`«${daRimuovere.name}» viene eliminata insieme a rosa, partite, classifica e allenamenti collegati.`
-            + (hasChildren(daRimuovere, state.sectors) ? ' Anche le sue sottocategorie, con tutto quello che contengono.' : '')
             + ' Operazione irreversibile.'}
           etichetta="Elimina"
           onChiudi={() => setDaRimuovere(null)}
           onConferma={async () => {
             await removeSector(daRimuovere.id);
-            state.sectors = state.sectors.filter(s => s.id !== daRimuovere.id && s.parent_id !== daRimuovere.id);
+            state.sectors = state.sectors.filter(s => s.id !== daRimuovere.id);
             ridisegna(n => n + 1);
             avvisa('Categoria eliminata');
           }}
@@ -320,14 +311,13 @@ function Categorie({ avvisa }) {
   );
 }
 
-function ModuloCategoria({ padre, sector, onChiudi, onFatto }) {
+function ModuloCategoria({ sector, onChiudi, onFatto }) {
   const [nome, setNome] = useState(sector ? sector.name : '');
-  const titolo = sector ? 'Rinomina categoria' : (padre ? 'Sottocategoria di ' + padre.name : 'Nuova categoria');
 
   return (
     <Modulo
-      titolo={titolo}
-      sotto={padre ? `Avrà rosa, allenamenti e partite proprie, separate da quelle di ${padre.name}.` : null}
+      titolo={sector ? 'Rinomina categoria' : 'Nuova categoria'}
+      sotto={sector ? null : 'Avrà rosa, allenamenti, partite e statistiche proprie.'}
       etichettaInvia={sector ? 'Salva' : 'Crea'}
       onChiudi={onChiudi}
       onInvia={async () => {
@@ -338,14 +328,14 @@ function ModuloCategoria({ padre, sector, onChiudi, onFatto }) {
           sector.name = n;
           onFatto('Categoria rinominata');
         } else {
-          const creato = await createSector(state.teamProfile.id, n, padre ? padre.id : null);
+          const creato = await createSector(state.teamProfile.id, n);
           state.sectors.push(creato);
-          onFatto(padre ? 'Sottocategoria creata' : 'Categoria creata');
+          onFatto('Categoria creata');
         }
       }}
     >
       <Campo etichetta="Nome">
-        <Testo value={nome} onChange={e => setNome(e.target.value)} placeholder={padre ? 'Blu' : 'Under 15'} autoFocus />
+        <Testo value={nome} onChange={e => setNome(e.target.value)} placeholder="Under 15" autoFocus />
       </Campo>
     </Modulo>
   );

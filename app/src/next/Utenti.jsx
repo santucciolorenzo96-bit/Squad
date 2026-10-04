@@ -441,7 +441,7 @@ function ModuloInvito({ onChiudi, onFatto }) {
           ) : (
             <div className="space-y-1.5 rounded-lg bg-pannello/6 px-3 py-2.5">
               {settori.map(s => (
-                <div key={s.id} style={s.parent_id ? { paddingLeft: '1.1rem' } : undefined}>
+                <div key={s.id}>
                   <Spunta
                     checked={scelti.includes(s.id)}
                     onChange={e => setScelti(v => (e.target.checked ? [...v, s.id] : v.filter(x => x !== s.id)))}
@@ -630,7 +630,7 @@ function ModuloUtente({ u, onChiudi, onFatto }) {
         ) : (
           <div className="space-y-1.5 rounded-lg bg-pannello/6 px-3 py-2.5">
             {settori.map(s => (
-              <div key={s.id} style={s.parent_id ? { paddingLeft: '1.1rem' } : undefined}>
+              <div key={s.id}>
                 <Spunta
                   checked={scelti.includes(s.id)}
                   onChange={e => setScelti(v => (e.target.checked ? [...v, s.id] : v.filter(x => x !== s.id)))}

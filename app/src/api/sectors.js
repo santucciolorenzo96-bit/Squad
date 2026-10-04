@@ -6,11 +6,12 @@ export async function fetchSectors(teamId) {
   return data;
 }
 
-// `parentId` la rende una sottocategoria. Il livello massimo lo fa rispettare
-// il database: qui non si controlla niente che laggiu' non sia gia' garantito.
-export async function createSector(teamId, name, parentId) {
+// Le categorie sono piatte: una categoria e' una squadra, con rosa,
+// allenamenti, partite e statistiche sue. Le sottocategorie sono state tolte —
+// vedi il commento in `utils/sectors.js` per il perche'.
+export async function createSector(teamId, name) {
   const { data, error } = await supabase.from('sectors')
-    .insert({ team_id: teamId, name, parent_id: parentId || null }).select().single();
+    .insert({ team_id: teamId, name }).select().single();
   if (error) throw error;
   return data;
 }

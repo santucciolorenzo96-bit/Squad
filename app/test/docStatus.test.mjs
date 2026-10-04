@@ -74,27 +74,55 @@ describe('età', () => {
   });
 });
 
-const sec = (id, name, order, parent) => ({ id, name, sort_order: order, parent_id: parent || null });
+/* LE CATEGORIE SONO PIATTE.
+ *
+ * C'è stata una gerarchia — un settore poteva avere un genitore — ed è stata
+ * tolta: non la usava nessuna società, e aveva un buco che non si poteva
+ * chiudere. Nessuna lettura aggregava i figli, quindi aprire una categoria che
+ * ne aveva mostrava una rosa vuota, nessun allenamento e nessuna partita.
+ * Da fuori non sembrava una scelta: sembrava un guasto.
+ *
+ * Questi test tengono l'elenco piatto. Non è un dettaglio di presentazione:
+ * l'ordine delle categorie è quello con cui si naviga tutta l'app, ed è la
+ * prima cosa che si vede aprendola.
+ */
+const sec = (id, name, order) => ({ id, name, sort_order: order });
 
-describe('gerarchia delle categorie', () => {
-  test('ogni genitore è seguito dai propri figli', () => {
-    const out = orderedSectors([
-      sec('b', 'Bianca', 1, 'u15'), sec('u13', 'Under 13', 2), sec('u15', 'Under 15', 1), sec('a', 'Blu', 0, 'u15')
-    ]);
-    is(out.map(s => s.id).join(','), 'u15,a,b,u13');
+describe('le categorie, in ordine', () => {
+  test('comandano l ordine scelto dalla societa', () => {
+    const out = orderedSectors([sec('c', 'Prima squadra', 2), sec('a', 'Under 13', 0), sec('b', 'Under 15', 1)]);
+    is(out.map(s => s.id).join(','), 'a,b,c');
   });
 
-  // Se il genitore non c'è, la sottocategoria ha comunque una rosa: nasconderla
-  // vorrebbe dire far sparire dei giocatori.
-  test('un figlio senza genitore non sparisce', () => {
-    const out = orderedSectors([sec('u13', 'Under 13', 0), sec('orfano', 'Blu', 0, 'sparito')]);
-    is(out.length, 2);
-    is(out[1].id, 'orfano');
+  test('a parita di posizione decide il nome', () => {
+    const out = orderedSectors([sec('z', 'Under 17', 0), sec('a', 'Under 13', 0)]);
+    is(out.map(s => s.name).join(','), 'Under 13,Under 17');
   });
 
-  test('il nome per esteso include il genitore', () => {
-    const list = [sec('u15', 'Under 15', 0), sec('a', 'Blu', 0, 'u15')];
-    is(sectorFullName(list[1], list), 'Under 15 · Blu');
-    is(sectorFullName(list[0], list), 'Under 15');
+  test('nessuna categoria sparisce per strada', () => {
+    /* L'ordinamento di prima costruiva l'elenco dai genitori e ci attaccava i
+     * figli: una categoria che non rientrava in nessuno dei due casi non
+     * usciva. Qui non si filtra niente — ogni categoria ha una rosa, e
+     * nasconderne una vuol dire far sparire dei giocatori. */
+    const dentro = [sec('a', 'Under 13', 0), sec('b', 'Under 15', 1), sec('c', 'Prima squadra', 2)];
+    is(orderedSectors(dentro).length, 3);
+  });
+
+  test('un elenco vuoto resta vuoto, e non lancia', () => {
+    is(orderedSectors([]).length, 0);
+    is(orderedSectors(null).length, 0);
+  });
+
+  test('l elenco in ingresso non viene toccato', () => {
+    // Si ordina una COPIA: `state.sectors` è condiviso, e riordinarlo sul
+    // posto cambierebbe l'ordine anche a chi non l'ha chiesto.
+    const dentro = [sec('b', 'Under 15', 1), sec('a', 'Under 13', 0)];
+    orderedSectors(dentro);
+    is(dentro[0].id, 'b');
+  });
+
+  test('il nome e il nome, senza genitori da anteporre', () => {
+    is(sectorFullName(sec('a', 'Under 15', 0)), 'Under 15');
+    is(sectorFullName(null), '');
   });
 });

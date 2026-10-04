@@ -82,9 +82,16 @@ with atteso(ordine, migrazione, descrizione, presente) as (
     (24, '024 avatar',          'Fotografia del profilo utente',
          exists (select 1 from information_schema.columns
                  where table_name = 'profiles' and column_name = 'avatar_path')),
-    (25, '025 sottocategorie',  'Sottocategorie dei settori e inviti nominativi',
-         to_regclass('public.invites') is not null
-         and exists (select 1 from information_schema.columns
+    -- La 025 portava due cose: gli inviti nominativi e le sottocategorie dei
+    -- settori. Le sottocategorie sono state tolte dalla 058, quindi qui si
+    -- controlla solo quello che resta: cercare ancora `parent_id` farebbe
+    -- risultare mancante una migrazione che c'e'.
+    (25, '025 inviti',          'Inviti nominativi (le sottocategorie sono state tolte dalla 058)',
+         to_regclass('public.invites') is not null),
+    -- Questa e' al contrario delle altre: risulta applicata quando la colonna
+    -- NON c'e' piu'.
+    (58, '058 niente sottocategorie', 'Le categorie tornano piatte: via sectors.parent_id',
+         not exists (select 1 from information_schema.columns
                      where table_name = 'sectors' and column_name = 'parent_id'))
 )
 select

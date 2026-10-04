@@ -164,7 +164,7 @@ function openInviteModal(holder) {
     <div class="field" id="ivSectorWrap">
       <label>Categorie</label>
       ${settori.length
-        ? settori.map(s => `<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;${s.parent_id ? 'padding-left:18px;' : ''}">
+        ? settori.map(s => `<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
             <input type="checkbox" data-sec="${s.id}" style="width:auto;"> ${esc(s.name)}</label>`).join('')
         : '<div class="hint">Nessuna categoria creata: creane una da Squadra.</div>'}
       <div class="hint">Senza categorie assegnate entra ma non vede nessuna rosa.</div>

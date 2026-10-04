@@ -20,10 +20,10 @@ const fra = (giorni) => {
 };
 
 const SETTORI = [
-  { id: 's-u15', name: 'Under 15', sort_order: 0, parent_id: null },
-  { id: 's-u15-blu', name: 'Blu', sort_order: 0, parent_id: 's-u15' },
-  { id: 's-u15-bianca', name: 'Bianca', sort_order: 1, parent_id: 's-u15' },
-  { id: 's-prima', name: 'Prima squadra', sort_order: 1, parent_id: null }
+  { id: 's-u15', name: 'Under 15', sort_order: 0 },
+  { id: 's-u15-blu', name: 'Under 15 Blu', sort_order: 1 },
+  { id: 's-u15-bianca', name: 'Under 15 Bianca', sort_order: 2 },
+  { id: 's-prima', name: 'Prima squadra', sort_order: 3 }
 ];
 
 const ROSA = [

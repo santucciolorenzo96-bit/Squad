@@ -48,7 +48,7 @@ function accessibleSectorList() {
 // pulsante che dice dove sei, dove non c'e' il genitore accanto — "Blu" da solo
 // non dice niente, quindi serve il nome per esteso.
 function pillLabel(s) {
-  return s.parent_id ? '› ' + s.name : s.name;
+  return s.name;
 }
 
 export function renderApp() {
@@ -109,7 +109,7 @@ export function renderApp() {
     const sw = document.getElementById('sectorSwitcher');
     mySectors.forEach(s => {
       const b = document.createElement('button');
-      b.className = 'sector-pill' + (state.activeSectorId === s.id ? ' active' : '') + (s.parent_id ? ' sub' : '');
+      b.className = 'sector-pill' + (state.activeSectorId === s.id ? ' active' : '') + '';
       b.textContent = pillLabel(s);
       b.title = sectorFullName(s, state.sectors);
       b.onclick = () => { if (state.activeSectorId !== s.id) switchSector(s.id); };
