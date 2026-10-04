@@ -6,10 +6,11 @@ import {
 } from '../api/communications.js';
 import { canEditHome, isLinkedUser, managesSector } from '../utils/permissions.js';
 import { inCampione } from './campione.js';
-import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, Avatar, Amichevole, cx } from './ui.jsx';
+import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, Avatar, Amichevole, cx, TINTA_DOVE } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Data, Scelta, Spunta, ErroreCaricamento, useAvviso } from './moduli.jsx';
 import { IconaSezione } from './icone.jsx';
 import { oggiISO } from '../utils/format.js';
+import { etichettaDove, tonoDove, doveSiGioca, TRASFERTA } from '../utils/dove.js';
 
 /* Comunicazioni.
  *
@@ -355,12 +356,14 @@ function ModuloComunicazione({ onChiudi, onFatto }) {
   function applica(m) {
     if (!m) return;
     if (!titoloAMano) {
-      setTitolo(`${settore} — ${m.home === false ? 'trasferta con' : 'partita con'} ${m.opponent}`);
+      setTitolo(`${settore} — ${doveSiGioca(m) === TRASFERTA ? 'trasferta con' : 'partita con'} ${m.opponent}`);
     }
     setData(m.date || '');
     setInizio(m.time || '');
     setLuogo(m.location || '');
-    setTipo(m.home === false ? 'trasferta' : 'convocazione');
+    // Solo una trasferta DICHIARATA fa una comunicazione di trasferta: con il
+    // campo ancora da definire si convoca, che e` quello che si sa per certo.
+    setTipo(doveSiGioca(m) === TRASFERTA ? 'trasferta' : 'convocazione');
   }
   useEffect(() => { if (prossime.length) applica(prossime[0]); }, []);
 
@@ -415,9 +418,9 @@ function ModuloComunicazione({ onChiudi, onFatto }) {
                   <div className="flex items-center gap-2">
                     <span className={cx(
                       'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-etichetta',
-                      m.home === false ? 'bg-pannello/14 text-tenue' : 'bg-blu/16 text-blu'
+                      TINTA_DOVE[tonoDove(m)]
                     )}>
-                      {m.home === false ? 'fuori' : 'casa'}
+                      {etichettaDove(m)}
                     </span>
                     <span className={cx('min-w-0 flex-1 truncate text-[13.5px] font-semibold',
                       scelta && 'text-blu')}>

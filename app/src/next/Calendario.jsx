@@ -4,9 +4,10 @@ import { Matita, Croce, Stretta, Chevron } from './icone.jsx';
 import { Referto } from './Referto.jsx';
 import { updateCalendarMatch, removeCalendarMatch } from '../api/calendar.js';
 import { canEditHome, managesSector } from '../utils/permissions.js';
-import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Stato, Amichevole, cx, AzioneRiga } from './ui.jsx';
+import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Stato, Amichevole, cx, AzioneRiga, TINTA_DOVE } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Data, Scelta, Spunta, Interruttore, useAvviso } from './moduli.jsx';
 import { oggiISO } from '../utils/format.js';
+import { etichettaDove, tonoDove, doveSiGioca, CASA, TRASFERTA, IGNOTO } from '../utils/dove.js';
 
 /* Il calendario.
  *
@@ -135,15 +136,15 @@ export function Calendario() {
                   <div className="flex items-center gap-2">
                     <span className={cx(
                       'shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-etichetta',
-                      m.home === false ? 'bg-pannello/12 text-tenue' : 'bg-blu/16 text-blu'
+                      TINTA_DOVE[tonoDove(m)]
                     )}>
-                      {m.home === false ? 'fuori' : 'casa'}
+                      {etichettaDove(m)}
                     </span>
                     <span className="truncate text-[14.5px] font-semibold leading-tight">{m.opponent}</span>
                   </div>
                   {/* «amichevole» sta QUI e non accanto al nome.
                       Sulla riga del titolo non ci sta: con il riquadro della
-                      giornata, la pastiglia casa/fuori e il pulsante Segna,
+                      giornata, la pastiglia del campo e il pulsante Segna,
                       su un telefono da 360 pixel mancano ventisei pixel — e
                       mancano anche riducendo a zero il nome dell'avversario,
                       perche' le pastiglie non si stringono. Qui invece la
@@ -251,7 +252,17 @@ function ModuloPartita({ esistente, onChiudi, onFatto }) {
   const [data, setData] = useState(esistente ? (esistente.date || '') : '');
   const [ora, setOra] = useState(esistente ? (esistente.time || '') : '');
   const [luogo, setLuogo] = useState(esistente ? (esistente.location || '') : '');
-  const [casa, setCasa] = useState(esistente ? (esistente.home !== false) : true);
+  /* TRE STATI, NON DUE.
+   *
+   * Era `esistente.home !== false`, cioe` un `home` nullo veniva preselezionato
+   * come «In casa»: aprire una partita per cambiarle l'ora e salvare la
+   * dichiarava giocata in casa, senza che nessuno l'avesse detto.
+   *
+   * E una partita nuova non parte piu` da «In casa». Il campo e` esattamente
+   * la cosa che si dimentica, e un'amichevole in trasferta salvata come «in
+   * casa» manda la squadra nel posto sbagliato. Meglio che l'app dica «non me
+   * l'hai detto», con la sua pastiglia ambra, che indovinare. */
+  const [dove, setDove] = useState(() => doveSiGioca(esistente));
   const [giornata, setGiornata] = useState(esistente && esistente.giornata != null ? String(esistente.giornata) : '');
   const [amichevole, setAmichevole] = useState(esistente ? !!esistente.friendly : false);
 
@@ -268,7 +279,9 @@ function ModuloPartita({ esistente, onChiudi, onFatto }) {
           date: data || null,
           time: ora.trim() || null,
           location: luogo.trim() || null,
-          home: casa,
+          // Un campo non dichiarato resta non dichiarato: nessuna supposizione
+          // scritta nel database.
+          home: dove === CASA ? true : (dove === TRASFERTA ? false : null),
           friendly: amichevole,
           giornata: giornata.trim() ? parseInt(giornata, 10) : null
         };
@@ -289,9 +302,10 @@ function ModuloPartita({ esistente, onChiudi, onFatto }) {
       </Campo>
       <div className="grid grid-cols-2 gap-3">
         <Campo etichetta="Dove">
-          <Scelta value={casa ? 'casa' : 'fuori'} onChange={e => setCasa(e.target.value === 'casa')}>
-            <option value="casa">In casa</option>
-            <option value="fuori">In trasferta</option>
+          <Scelta value={dove} onChange={e => setDove(e.target.value)}>
+            <option value={IGNOTO}>Da definire</option>
+            <option value={CASA}>In casa</option>
+            <option value={TRASFERTA}>In trasferta</option>
           </Scelta>
         </Campo>
         <Campo etichetta="Giornata" aiuto="Facoltativa">
@@ -352,7 +366,7 @@ function ModuloRisultato({ partita, onChiudi, onFatto }) {
       }}
     >
       <div className="grid grid-cols-2 gap-3">
-        <Campo etichetta={partita.home === false ? noi + ' (fuori)' : noi}>
+        <Campo etichetta={noi + ' · ' + etichettaDove(partita, { lungo: true }).toLowerCase()}>
           <Testo
             inputMode="numeric"
             value={nostri}

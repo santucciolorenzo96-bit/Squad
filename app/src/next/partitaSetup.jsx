@@ -3,9 +3,10 @@ import { state } from '../state.js';
 import { startGame } from '../api/games.js';
 import { currentSport } from '../utils/sports/index.js';
 import { inCampione } from './campione.js';
-import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Avatar, Stato, cx } from './ui.jsx';
+import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Avatar, Stato, cx, TINTA_DOVE } from './ui.jsx';
 import { Campo, Testo, Scelta, useAvviso } from './moduli.jsx';
 import { oggiISO, fraGiorniISO } from '../utils/format.js';
+import { etichettaDove, tonoDove } from '../utils/dove.js';
 
 // «oggi», «domani», «ieri», e poi la data: dentro una finestra di sette
 // giorni le parole sono piu' rapide di una data da decifrare, fuori no.
@@ -155,9 +156,9 @@ export function AvvioPartita({ onAvviata }) {
               >
                 <span className={cx(
                   'shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-etichetta',
-                  m.home === false ? 'bg-pannello/14 text-tenue' : 'bg-blu/16 text-blu'
+                  TINTA_DOVE[tonoDove(m)]
                 )}>
-                  {m.home === false ? 'fuori' : 'casa'}
+                  {etichettaDove(m)}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{m.opponent}</span>
                 <span className="shrink-0 text-[13px] text-tenue">

@@ -50,6 +50,12 @@ const TONI = {
   fermo: 'bg-rosso/16 text-rosso'
 };
 
+/* Le stesse tinte, per le pastigliette disegnate a mano che non passano da
+ * `Stato` — quelle dentro le righe fitte di un elenco, dove il bordo e la
+ * spaziatura di `Stato` sarebbero troppo. Sta qui e non nei tre file che la
+ * usano, perché tre copie di una tavolozza divergono al primo ritocco. */
+export const TINTA_DOVE = TONI;
+
 export function Stato({ tono = 'neutro', children, className }) {
   return (
     <span

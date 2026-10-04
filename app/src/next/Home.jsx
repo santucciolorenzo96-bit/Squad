@@ -6,6 +6,7 @@ import { teamInitials } from '../utils/theme.js';
 import { Pannello, Etichetta, Stato, Vuoto, Titolo, Pulsante, Amichevole, cx } from './ui.jsx';
 import { IconaSezione, Chevron } from './icone.jsx';
 import { oggiISO } from '../utils/format.js';
+import { doveSiGioca, etichettaDove, tonoDove, CASA } from '../utils/dove.js';
 
 /* La Home.
  *
@@ -64,7 +65,12 @@ function Apertura({ partita, onSezione }) {
   }
 
   const g = giorniA(partita.date);
-  const casa = partita.home !== false;
+  /* Dove si gioca, dal nostro punto di vista, con una definizione sola per
+   * tutta l'app. Prima era `partita.home !== false`: un campo NULLO — che
+   * succede davvero, con le partite caricate dal PDF del calendario —
+   * risultava «in casa», cioè una supposizione presentata come un fatto. */
+  const dove = doveSiGioca(partita);
+  const casa = dove === CASA;
   const scaduta = g != null && g < 0;
   const noi = (state.teamProfile || {}).name || 'Noi';
   const posLoro = standingsPosition(state.standings, partita.opponent);
@@ -104,6 +110,14 @@ function Apertura({ partita, onSezione }) {
                 guarda per prima, e sapere che e' un'amichevole cambia cosa ci
                 si aspetta dal risultato. */}
             {partita.friendly && <Amichevole />}
+            {/* CASA O TRASFERTA SI DICE QUI, UNA VOLTA, E PARLA DELLA PARTITA.
+                Stava sotto i due stemmi, attaccata a ciascuna SQUADRA: per
+                una trasferta si leggeva «[Avversario] in casa», e a colpo
+                d'occhio diceva il contrario del vero. Il significato era
+                giusto e la lettura era rovesciata — il tipo di errore che non
+                si corregge da solo, perché chi legge non ha motivo di
+                dubitare. Chi ospita si vede già dall'ordine degli stemmi. */}
+            <Stato tono={tonoDove(partita)}>{etichettaDove(partita, { lungo: true })}</Stato>
           </div>
           <Stato tono={scaduta ? 'fermo' : (g != null && g <= 1 ? 'attesa' : 'neutro')}>{conto}</Stato>
         </div>
@@ -120,15 +134,13 @@ function Apertura({ partita, onSezione }) {
               <div className="mt-2.5 text-[clamp(16px,3.6vw,25px)] font-bold leading-tight tracking-tight">
                 {casa ? noi : partita.opponent}
               </div>
-              {/* La posizione sta con casa/ospite e non in una riga a parte:
-                  sono le due cose che si guardano insieme per capire che
-                  partita e'. */}
-              <Etichetta className="mt-1.5">
-                {casa ? 'in casa' : 'ospite'}
-                {(casa ? posNoi : posLoro) && (
-                  <span className="cifra text-soffuso"> · {casa ? posNoi : posLoro}ª</span>
-                )}
-              </Etichetta>
+              {/* Solo la posizione in classifica: dove si gioca lo dice la
+                  pastiglia in cima, e lo dice della partita. */}
+              {(casa ? posNoi : posLoro) && (
+                <Etichetta className="mt-1.5">
+                  <span className="cifra text-soffuso">{casa ? posNoi : posLoro}ª</span>
+                </Etichetta>
+              )}
             </div>
             <div className="mt-2 grid h-9 w-9 shrink-0 place-items-center rounded-full vetro orlo text-[12px] font-bold text-tenue sm:mt-3.5">
               vs
@@ -141,12 +153,11 @@ function Apertura({ partita, onSezione }) {
               <div className="mt-2.5 text-[clamp(16px,3.6vw,25px)] font-bold leading-tight tracking-tight">
                 {casa ? partita.opponent : noi}
               </div>
-              <Etichetta className="mt-1.5">
-                {casa ? 'ospite' : 'in casa'}
-                {(casa ? posLoro : posNoi) && (
-                  <span className="cifra text-soffuso"> · {casa ? posLoro : posNoi}ª</span>
-                )}
-              </Etichetta>
+              {(casa ? posLoro : posNoi) && (
+                <Etichetta className="mt-1.5">
+                  <span className="cifra text-soffuso">{casa ? posLoro : posNoi}ª</span>
+                </Etichetta>
+              )}
             </div>
           </div>
 
