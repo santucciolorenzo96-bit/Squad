@@ -13,7 +13,9 @@ import {
   fetchTrainingPlans, uploadTrainingPlan, removeTrainingPlan, getTrainingPlanUrl,
   MAX_SCHEDA_MB, TIPI_SCHEDA
 } from '../api/development.js';
-import { canReviewDocuments, isLinkedUser, canEditHome, managesSector, canManagePlayer } from '../utils/permissions.js';
+import {
+  canReviewDocuments, isLinkedUser, canEditHome, managesSector, canManagePlayer, canUploadDocuments
+} from '../utils/permissions.js';
 import { tipiDocumento } from '../utils/sports/index.js';
 import { docStatus, DOC_STATE, ageFrom } from '../utils/docStatus.js';
 import { resizeImageFile } from '../utils/image.js';
@@ -72,6 +74,24 @@ export function SchedaAtleta({ playerId, onChiudi }) {
 
   const famiglia = isLinkedUser(state.currentUser);
   const puoiApprovare = canReviewDocuments(state.currentUser) && managesSector(state.currentUser, state.activeSectorId, state.staffSectors);
+
+  /* CHI PUO` CARICARE UN DOCUMENTO, DAVVERO.
+   *
+   * Il pulsante «Carica» compariva a tutti, e per una famiglia quasi sempre
+   * finiva in un rifiuto del database con il messaggio del database. Il
+   * permesso `can_upload_documents` nasce spento, e due policy lo pretendono:
+   * quella sulla tabella e quella sul bucket.
+   *
+   * E` lo stesso difetto delle fotografie: un pulsante che promette una cosa
+   * che non puo` mantenere e` peggio di un pulsante che non c'e`, perche` chi
+   * lo preme conclude che l'app e` rotta invece che di non avere il permesso.
+   *
+   * Qui la condizione e` la stessa che applica il database, scritta una volta:
+   * lo staff che gestisce quella categoria, oppure una famiglia a cui la
+   * societa` ha dato il permesso. */
+  const puoiCaricareDocumenti = canUploadDocuments(
+    state.currentUser, state.activeSectorId, state.staffSectors
+  );
   const puoiVedereSviluppo = famiglia
     ? state.linkedPlayers.some(lp => lp.id === playerId)
     : canEditHome(state.currentUser);
@@ -304,19 +324,22 @@ export function SchedaAtleta({ playerId, onChiudi }) {
                     </div>
                   )}
 
-                  <div className="mt-3 flex justify-end">
-                    <Pulsante className="py-1.5 text-[12.5px]" onClick={() => setCarica({ tipo: t })}>
-                      Carica {suoi.length > 0 ? 'un nuovo file' : 'il documento'}
-                    </Pulsante>
-                  </div>
+                  {puoiCaricareDocumenti && (
+                    <div className="mt-3 flex justify-end">
+                      <Pulsante className="py-1.5 text-[12.5px]" onClick={() => setCarica({ tipo: t })}>
+                        Carica {suoi.length > 0 ? 'un nuovo file' : 'il documento'}
+                      </Pulsante>
+                    </div>
+                  )}
                 </Pannello>
               );
             })}
           </div>
           {famiglia && (
             <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
-              Dopo il caricamento il documento resta «in verifica» finché la società non lo
-              approva: fino a quel momento non copre.
+              {puoiCaricareDocumenti
+                ? 'Dopo il caricamento il documento resta «in verifica» finché la società non lo approva: fino a quel momento non copre.'
+                : 'I documenti li carica la società. Se preferite caricarli voi, chiedete a chi amministra di abilitarvi da Utenti.'}
             </p>
           )}
         </div>

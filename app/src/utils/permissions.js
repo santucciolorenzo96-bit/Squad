@@ -260,6 +260,30 @@ export function canManagePlayer(user, sectorId, staffSectors) {
   return canEditHome(user) && managesSector(user, sectorId, staffSectors);
 }
 
+/* CARICARE UN DOCUMENTO DI UN ATLETA.
+ *
+ * Deve dire la STESSA COSA delle due policy che lo decidono davvero — quella
+ * sulla tabella `player_documents` e quella sul bucket `player-documents`:
+ *
+ *     has_sector_access_to_player(...)
+ *     or (has_family_access_to_player(...) and family_can_upload_documents())
+ *
+ * Quando le due si scollano non esce un pulsante disabilitato: esce un
+ * rifiuto del database in faccia a chi ha premuto, con il messaggio del
+ * database. È già successo con la fotografia dell'atleta, e qui era peggio —
+ * il permesso `can_upload_documents` nasce SPENTO, quindi il pulsante
+ * prometteva a ogni famiglia una cosa che non poteva mantenere.
+ *
+ * Per lo staff la condizione è quella di sempre. Per una famiglia è un
+ * permesso che la società concede, perché un documento che arriva da fuori
+ * resta comunque «in verifica» ma occupa il tempo di chi deve guardarlo.
+ */
+export function canUploadDocuments(user, sectorId, staffSectors) {
+  if (!user) return false;
+  if (isLinkedUser(user)) return !!user.can_upload_documents;
+  return canManagePlayer(user, sectorId, staffSectors);
+}
+
 // Utente base collegato a un giocatore: Genitore e Atleta hanno gli stessi
 // permessi, cambia solo l'etichetta con cui si presentano
 export function isLinkedUser(user) {

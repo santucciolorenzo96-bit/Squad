@@ -51,3 +51,25 @@ export async function fetchFamilyLinksForTeam(teamId) {
   });
   return profiles.map(p => ({ ...p, linkedPlayers: byProfile[p.id] || [] }));
 }
+
+/* IL PERMESSO DI CARICARE I DOCUMENTI.
+ *
+ * `profiles.can_upload_documents` nasce a `false` e lo pretendono due policy:
+ * quella sulla tabella `player_documents` e quella sul bucket. Senza, una
+ * famiglia che carica il certificato del figlio si sente rispondere dal
+ * database, con il messaggio del database.
+ *
+ * L'interruttore esisteva nella vecchia interfaccia, che non si disegna più da
+ * quando c'è quella nuova. Risultato: il permesso non si poteva concedere da
+ * nessuna parte, il pulsante «Carica» compariva lo stesso, e la funzione era
+ * spenta per tutte le società senza che nessuno l'avesse deciso.
+ *
+ * Le policy lo lasciano scrivere a chi amministra la società
+ * (`profiles_update_admin`): qui non si aggira niente, si rimette il comando
+ * dove si vede.
+ */
+export async function impostaCaricamentoDocumenti(profileId, puo) {
+  const { error } = await supabase.from('profiles')
+    .update({ can_upload_documents: !!puo }).eq('id', profileId);
+  if (error) throw error;
+}
