@@ -266,21 +266,30 @@ export function canManagePlayer(user, sectorId, staffSectors) {
  * sulla tabella `player_documents` e quella sul bucket `player-documents`:
  *
  *     has_sector_access_to_player(...)
- *     or (has_family_access_to_player(...) and family_can_upload_documents())
+ *     or has_family_access_to_player(...)
  *
- * Quando le due si scollano non esce un pulsante disabilitato: esce un
- * rifiuto del database in faccia a chi ha premuto, con il messaggio del
- * database. È già successo con la fotografia dell'atleta, e qui era peggio —
- * il permesso `can_upload_documents` nasce SPENTO, quindi il pulsante
- * prometteva a ogni famiglia una cosa che non poteva mantenere.
+ * Quando le due si scollano non esce un pulsante disabilitato: esce un rifiuto
+ * del database in faccia a chi ha premuto, con il messaggio del database. È già
+ * successo con la fotografia dell'atleta.
  *
- * Per lo staff la condizione è quella di sempre. Per una famiglia è un
- * permesso che la società concede, perché un documento che arriva da fuori
- * resta comunque «in verifica» ma occupa il tempo di chi deve guardarlo.
+ * C'ERA UN PERMESSO IN PIÙ, ED È STATO TOLTO. Una famiglia poteva caricare
+ * solo se la società le aveva acceso `can_upload_documents`, che nasceva
+ * spento — e l'interruttore per accenderlo era rimasto nella vecchia
+ * interfaccia, quindi non si poteva accendere da nessuna parte: la funzione
+ * era spenta per tutte le società senza che nessuno l'avesse deciso.
+ *
+ * Non è stato rimesso, è stato tolto: un documento che arriva da una famiglia
+ * resta «in verifica» e non copre finché qualcuno non lo approva. Il permesso
+ * metteva un cancello davanti a un flusso che ha già il cancello dietro, e in
+ * cambio chiedeva un interruttore da accendere per ogni famiglia della società.
+ *
+ * Quello che NON è cambiato: si carica solo per il PROPRIO atleta — lo
+ * garantisce `has_family_access_to_player`, nel database — e approvare resta a
+ * chi gestisce (vedi `canReviewDocuments`).
  */
 export function canUploadDocuments(user, sectorId, staffSectors) {
   if (!user) return false;
-  if (isLinkedUser(user)) return !!user.can_upload_documents;
+  if (isLinkedUser(user)) return true;
   return canManagePlayer(user, sectorId, staffSectors);
 }
 

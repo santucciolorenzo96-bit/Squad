@@ -1,5 +1,5 @@
 import { describe, test, is } from './run.mjs';
-import { canUploadDocuments } from '../src/utils/permissions.js';
+import { canUploadDocuments, canReviewDocuments } from '../src/utils/permissions.js';
 
 /* CHI PUÒ CARICARE UN DOCUMENTO.
  *
@@ -48,34 +48,47 @@ describe('caricare un documento: lo staff', () => {
 });
 
 describe('caricare un documento: le famiglie', () => {
-  test('senza permesso non puo', () => {
-    ['genitore', 'atleta'].forEach(r => {
-      is(canUploadDocuments(staff(r), 's1', SETTORI), false, r);
-    });
-  });
-
-  test('con il permesso puo', () => {
-    ['genitore', 'atleta'].forEach(r => {
-      is(canUploadDocuments(staff(r, { can_upload_documents: true }), 's1', SETTORI), true, r);
-    });
-  });
-
-  /* IL CASO CHE HA ROTTO TUTTO.
+  /* IL PERMESSO IN PIÙ, CHE È STATO TOLTO.
    *
-   * Un profilo appena creato non ha quel campo, oppure ce l'ha a `false` per
-   * via del `default false`. In tutti e due i casi la risposta è no — e il
-   * pulsante non deve comparire. */
-  test('un profilo appena creato non puo, e non e un forse', () => {
-    is(canUploadDocuments({ role: 'genitore' }, 's1', SETTORI), false);
-    is(canUploadDocuments({ role: 'genitore', can_upload_documents: null }, 's1', SETTORI), false);
-    is(canUploadDocuments({ role: 'genitore', can_upload_documents: undefined }, 's1', SETTORI), false);
+   * Una famiglia poteva caricare solo se la società le aveva acceso
+   * `can_upload_documents`, che nasceva spento — e l'interruttore per
+   * accenderlo era rimasto nella vecchia interfaccia, quindi non si poteva
+   * accendere da nessuna parte. La funzione era spenta per tutte le società
+   * senza che nessuno l'avesse deciso.
+   *
+   * Non è stato rimesso, è stato tolto: un documento che arriva da una
+   * famiglia resta «in verifica» e non copre finché qualcuno non lo approva.
+   * Metteva un cancello davanti a un flusso che ha già il cancello dietro, e
+   * in cambio chiedeva un interruttore per ogni famiglia della società.
+   */
+  test('genitori e atleti caricano, e non serve nessun permesso', () => {
+    ['genitore', 'atleta'].forEach(r => {
+      is(canUploadDocuments(staff(r), 's1', SETTORI), true, r);
+    });
   });
 
-  test('e il permesso da solo non basta a chi non e collegato a niente', () => {
-    // Il permesso vale sul PROPRIO atleta: a dirlo è `has_family_access_to_player`,
-    // che qui non si può valutare — ma la policy la applica comunque il
-    // database. Questa regola non deve mai essere più permissiva di quella.
+  test('nemmeno su un profilo appena creato, che quel campo non ce l ha', () => {
+    is(canUploadDocuments({ role: 'genitore' }, 's1', SETTORI), true);
+    is(canUploadDocuments({ role: 'atleta', can_upload_documents: false }, 's1', SETTORI), true);
+  });
+
+  /* Quello che il permesso NON decideva, e che resta dov'era: si carica solo
+   * per il PROPRIO atleta. A dirlo è `has_family_access_to_player`, dentro le
+   * policy — qui non si può valutare, e questa regola non deve far finta di
+   * saperlo. */
+  test('ma non per un atleta qualunque: quello lo decide il database', () => {
     is(canUploadDocuments(null, 's1', SETTORI), false);
+  });
+
+  /* E APPROVARE RESTA A CHI GESTISCE. È l'altra metà della decisione: si
+   * apre il caricamento proprio perché la verifica non si apre. */
+  test('caricare non e approvare', () => {
+    ['genitore', 'atleta'].forEach(r => {
+      is(canReviewDocuments(staff(r)), false, r + ' non deve poter approvare');
+    });
+    ['admin', 'presidente', 'allenatore', 'staff'].forEach(r => {
+      is(canReviewDocuments(staff(r)), true, r + ' deve poter approvare');
+    });
   });
 });
 

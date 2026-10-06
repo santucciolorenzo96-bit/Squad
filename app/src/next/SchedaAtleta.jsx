@@ -77,18 +77,16 @@ export function SchedaAtleta({ playerId, onChiudi }) {
 
   /* CHI PUO` CARICARE UN DOCUMENTO, DAVVERO.
    *
-   * Il pulsante «Carica» compariva a tutti, e per una famiglia quasi sempre
-   * finiva in un rifiuto del database con il messaggio del database. Il
-   * permesso `can_upload_documents` nasce spento, e due policy lo pretendono:
-   * quella sulla tabella e quella sul bucket.
+   * Il pulsante «Carica» compariva a tutti, e per una famiglia finiva in un
+   * rifiuto del database con il messaggio del database: serviva un permesso
+   * che nasceva spento e che nessuna schermata sapeva piu` accendere.
    *
-   * E` lo stesso difetto delle fotografie: un pulsante che promette una cosa
-   * che non puo` mantenere e` peggio di un pulsante che non c'e`, perche` chi
-   * lo preme conclude che l'app e` rotta invece che di non avere il permesso.
-   *
-   * Qui la condizione e` la stessa che applica il database, scritta una volta:
-   * lo staff che gestisce quella categoria, oppure una famiglia a cui la
-   * societa` ha dato il permesso. */
+   * Il permesso e` stato tolto — una famiglia carica i documenti del proprio
+   * atleta, e restano in verifica finche` qualcuno non li approva — ma la
+   * condizione resta scritta in un posto solo, accanto a quella delle
+   * fotografie, perche` deve dire la stessa cosa delle policy. Quando le due
+   * si scollano non esce un pulsante disabilitato: esce un errore di sistema
+   * in faccia a chi ha premuto. */
   const puoiCaricareDocumenti = canUploadDocuments(
     state.currentUser, state.activeSectorId, state.staffSectors
   );
@@ -337,9 +335,8 @@ export function SchedaAtleta({ playerId, onChiudi }) {
           </div>
           {famiglia && (
             <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
-              {puoiCaricareDocumenti
-                ? 'Dopo il caricamento il documento resta «in verifica» finché la società non lo approva: fino a quel momento non copre.'
-                : 'I documenti li carica la società. Se preferite caricarli voi, chiedete a chi amministra di abilitarvi da Utenti.'}
+              Dopo il caricamento il documento resta «in verifica» finché la società non lo
+              approva: fino a quel momento non copre.
             </p>
           )}
         </div>
@@ -402,7 +399,10 @@ export function SchedaAtleta({ playerId, onChiudi }) {
           p={p}
           tipo={carica.tipo}
           onChiudi={() => setCarica(null)}
-          onFatto={() => { carica_tutto(); avvisa('Documento caricato: resta in verifica finché non viene approvato.'); }}
+          /* Il riscontro dice due cose e basta: è arrivato, e qualcuno lo
+             guarderà. Chi carica il certificato del figlio vuole sapere di
+             aver finito, non come funziona la verifica. */
+          onFatto={() => { carica_tutto(); avvisa('Caricato! Un amministratore lo verificherà il prima possibile.'); }}
         />
       )}
 

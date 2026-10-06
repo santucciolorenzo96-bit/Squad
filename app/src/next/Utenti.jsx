@@ -11,10 +11,7 @@ import {
 } from '../api/profiles.js';
 import { proponiAtleta, altriCandidati } from '../utils/iscritti.js';
 import { assignStaffToSector, removeStaffFromSector, fetchStaffSectors } from '../api/sectors.js';
-import {
-  fetchFamilyLinksForTeam, linkProfileToPlayer, unlinkProfileFromPlayer,
-  impostaCaricamentoDocumenti
-} from '../api/family.js';
+import { fetchFamilyLinksForTeam, linkProfileToPlayer, unlinkProfileFromPlayer } from '../api/family.js';
 import { fetchInvites, createInvite, revokeInvite } from '../api/invites.js';
 import { orderedSectors } from '../utils/sectors.js';
 import { inCampione } from './campione.js';
@@ -803,52 +800,6 @@ function Famiglie({ avvisa }) {
                   <Matita />
                 </AzioneRiga>
               </div>
-
-              {/* IL PERMESSO DI CARICARE I DOCUMENTI.
-                  Nasce spento, e due policy lo pretendono: senza, una famiglia
-                  che carica il certificato del figlio si sente rispondere dal
-                  database. L'interruttore c'era nella vecchia interfaccia e
-                  non e` mai arrivato in questa — quindi non si poteva
-                  concedere da nessuna parte, e la funzione era spenta per
-                  tutte le societa` senza che nessuno l'avesse deciso. */}
-              {LINKED_ROLES.includes(f.role) && (
-                <button
-                  onClick={async () => {
-                    const nuovo = !f.can_upload_documents;
-                    try {
-                      await impostaCaricamentoDocumenti(f.id, nuovo);
-                      f.can_upload_documents = nuovo;
-                      carica();
-                      avvisa(nuovo
-                        ? 'Ora può caricare i documenti'
-                        : 'Non può più caricare documenti');
-                    } catch (e) {
-                      avvisa((e && e.message) || 'Non riuscito.', 'errore');
-                    }
-                  }}
-                  className={cx(
-                    'mt-2.5 flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors',
-                    f.can_upload_documents
-                      ? 'bg-verde/10 hover:bg-verde/16'
-                      : 'bg-pannello/8 hover:bg-pannello/14'
-                  )}
-                >
-                  <span className={cx(
-                    'grid h-5 w-5 shrink-0 place-items-center rounded-md text-[12px] font-bold',
-                    f.can_upload_documents ? 'bg-verde/22 text-verde' : 'bg-pannello/16 text-tenue'
-                  )}>
-                    {f.can_upload_documents ? '✓' : ''}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[13px] font-semibold">Può caricare i documenti</span>
-                    <span className="block text-[11.5px] leading-snug text-tenue">
-                      {f.can_upload_documents
-                        ? 'Carica certificato e tesseramento; restano in verifica finché non li approvate.'
-                        : 'Oggi non può: i documenti del suo atleta li carica la società.'}
-                    </span>
-                  </span>
-                </button>
-              )}
 
               <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {(f.linkedPlayers || []).length === 0 ? (

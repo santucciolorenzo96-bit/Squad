@@ -92,7 +92,11 @@ with atteso(ordine, migrazione, descrizione, presente) as (
     -- NON c'e' piu'.
     (58, '058 niente sottocategorie', 'Le categorie tornano piatte: via sectors.parent_id',
          not exists (select 1 from information_schema.columns
-                     where table_name = 'sectors' and column_name = 'parent_id'))
+                     where table_name = 'sectors' and column_name = 'parent_id')),
+    -- Anche questa al contrario: e' applicata quando la funzione NON c'e' piu'.
+    (59, '059 documenti liberi',  'Atleti e genitori caricano i documenti del proprio atleta',
+         not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                     where n.nspname = 'public' and p.proname = 'family_can_upload_documents'))
 )
 select
   migrazione,
