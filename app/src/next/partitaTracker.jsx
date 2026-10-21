@@ -15,7 +15,9 @@ import { managesSector } from '../utils/permissions.js';
 import { oggiISO } from '../utils/format.js';
 import { quantiChiusi } from '../utils/referto.js';
 import { calcolaPunteggi } from '../utils/punteggio.js';
-import { applicaAzione, annota, segnaPeriodo, cosaFaIlTocco } from '../utils/azione.js';
+import {
+  applicaAzione, annota, segnaPeriodo, cosaFaIlTocco, entraAlPostoDi
+} from '../utils/azione.js';
 import { conStatoDellaRiga } from '../utils/salvataggio.js';
 import { falliPerGiocatore, segniFallo, raccontaFalli } from '../utils/falli.js';
 import {
@@ -142,6 +144,25 @@ export function Tracker({ onFinita, onEsci }) {
    * disfare. Chi dei due arriva secondo chiude l'azione. */
   const [scelto, setScelto] = useState(null);      // id giocatore in attesa di un evento
   const [armato, setArmato] = useState(null);      // evento in attesa di un giocatore
+
+  /* I DUE TOCCHI DEVONO INCONTRARSI ANCHE SE ARRIVANO INSIEME.
+   *
+   * Ogni gestore legge lo stato del disegno in cui e` nato. Chi tocca
+   * l'evento e poi il giocatore nello stesso istante — e in partita si tocca
+   * cosi`, non si aspetta che lo schermo risponda — fa partire il secondo
+   * tocco con un `armato` ancora vuoto: l'evento resta acceso, il giocatore
+   * resta scelto, e non succede niente. Il tocco dopo rimedia, ma intanto
+   * l'azione si e` persa e chi segna conclude che l'app non ha sentito.
+   *
+   * Un riferimento non aspetta il disegno: si aggiorna nell'istante del
+   * tocco. Lo stato continua a servire per DISEGNARE, il riferimento per
+   * DECIDERE — e le due cose non possono piu` divergere, perche` si scrivono
+   * nella stessa riga. */
+  const armatoVivo = useRef(null);
+  const sceltoVivo = useRef(null);
+
+  const armaEvento = (a) => { armatoVivo.current = a; setArmato(a); };
+  const scegliChi = (id) => { sceltoVivo.current = id; setScelto(id); };
 
   /* DUE MODI DI SEGNARE, E DIPENDE DA QUANTO SCHERMO C'E`.
    *
@@ -551,8 +572,8 @@ export function Tracker({ onFinita, onEsci }) {
      *
      * Quindi si chiude tutto. Chi aveva un pannello aperto lo riapre: e`
      * fastidioso una volta, l'altra cosa e` un dato perso in silenzio. */
-    setScelto(null);
-    setArmato(null);
+    scegliChi(null);
+    armaEvento(null);
     setCatena(null);
     setTiroDaPiazzare(null);
     setTraiettoria(null);
@@ -591,8 +612,8 @@ export function Tracker({ onFinita, onEsci }) {
    * libero: si sgombra tutto e si apre la cosa che chiede. */
   function assegna(giocatore, azione) {
     if (!giocatore || !azione) return;
-    setArmato(null);
-    setScelto(null);
+    armaEvento(null);
+    scegliChi(null);
 
     if (conf.mappaTiri && mappa && azione.zona) {
       setTiroDaPiazzare({ giocatore, azione, foto: foto[giocatore.id] });
@@ -608,18 +629,21 @@ export function Tracker({ onFinita, onEsci }) {
   /* Il tocco su un giocatore. Se c'e` gia` un evento armato, l'azione si
    * chiude qui; altrimenti e` lui ad aspettare, e sara` l'evento a chiudere. */
   function toccaGiocatore(p) {
-    if (armato) { assegna(p, armato); return; }
+    const a = armatoVivo.current;
+    if (a) { assegna(p, a); return; }
     // Su schermo stretto non c'e` la colonna degli eventi: il tocco sul
     // giocatore apre il pannello, come prima.
-    setScelto(id => (larga && id === p.id ? null : p.id));
+    scegliChi(larga && sceltoVivo.current === p.id ? null : p.id);
   }
 
   /* Il tocco su un evento. Specularmente: se c'e` gia` un giocatore scelto si
    * chiude, altrimenti l'evento resta armato e aspetta. */
   function toccaEvento(azione) {
-    const chi = scelto ? g.players.find(p => p.id === scelto) : null;
+    const id = sceltoVivo.current;
+    const chi = id ? g.players.find(p => p.id === id) : null;
     if (chi) { assegna(chi, azione); return; }
-    setArmato(a => (a && a.act === azione.act ? null : azione));
+    const a = armatoVivo.current;
+    armaEvento(a && a.act === azione.act ? null : azione);
   }
 
   function esegui(giocatore, azione, senzaCatena, punto, linea) {
@@ -657,8 +681,8 @@ export function Tracker({ onFinita, onEsci }) {
     setLampo({ id: giocatore.id, testo: azione.score ? '+' + azione.score : azione.label });
     setTimeout(() => setLampo(l => (l && l.id === giocatore.id ? null : l)), 900);
 
-    setScelto(null);
-    setArmato(null);
+    scegliChi(null);
+    armaEvento(null);
     aggiorna();
     salva();
     if (navigator.vibrate) navigator.vibrate(12);
@@ -925,7 +949,7 @@ export function Tracker({ onFinita, onEsci }) {
     entrante.onCourt = true;
     entrante.presente = true;     // chi entra in campo c'e` per definizione
     if (conf.quintetti && quanti + 1 >= massimo) apriTurno();
-    setScelto(null);
+    scegliChi(null);
     aggiorna();
     salva();
   }
@@ -955,7 +979,23 @@ export function Tracker({ onFinita, onEsci }) {
     chiudiTurno();
     uscente.onCourt = false;
     entrante.onCourt = true;
+    /* CHI ENTRA PRENDE IL POSTO DI CHI ESCE.
+     *
+     * Il posto sul campo lo decide l'ordine dei giocatori in campo, che e`
+     * quello della rosa. Senza questo scambio, far uscire il terzo e far
+     * entrare il sesto spostava anche il quarto e il quinto: tre facce su
+     * cinque in un posto nuovo, per un cambio solo.
+     *
+     * In partita si tocca a memoria — si guarda il campo una volta e poi si
+     * tocca dove si e` visto — quindi facce che si spostano da sole vogliono
+     * dire azioni assegnate alla persona sbagliata. E non lo si scopre: il
+     * tocco va a buon fine comunque. */
+    g.players = entraAlPostoDi(g.players, uscente.id, entrante.id);
     apriTurno();
+    // Chi era stato scelto e adesso e` in panchina non resta scelto: il tocco
+    // dopo gli assegnerebbe un'azione da seduto, e nel tabellino non si
+    // vedrebbe niente di strano.
+    if (sceltoVivo.current === uscente.id) scegliChi(null);
     setSostituzione(null);
     aggiorna();
     salva();
@@ -1492,13 +1532,24 @@ export function Tracker({ onFinita, onEsci }) {
                     style={posto ? { top: posto.top, left: posto.left } : undefined}
                     className="gettone-scout absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
                   >
-                    <span
-                      className="posto-vuoto grid place-items-center rounded-full"
+                    {/* IL POSTO VUOTO SI TOCCA.
+                        Mostrava un «+» e non faceva niente: il gesto piu`
+                        naturale — toccare la maglia vuota per metterci
+                        qualcuno — finiva nel nulla, e un comando che non
+                        risponde si legge come un'app rotta. Adesso porta
+                        dov'e` la risposta: ai convocati se la panchina e`
+                        ancora vuota, altrimenti lo dice. */}
+                    <button
+                      onClick={() => {
+                        if (inPanca.length === 0) { setPresenze(true); return; }
+                        avvisa('Tocca in panchina chi vuoi mandare in campo.');
+                      }}
+                      aria-label="Posto libero in campo"
+                      className="posto-vuoto grid place-items-center rounded-full transition-transform active:scale-95"
                       style={{ width: 'var(--volto)', height: 'var(--volto)' }}
-                      aria-hidden="true"
                     >
                       +
-                    </span>
+                    </button>
                   </div>
                 ))}
             </div>
@@ -1749,7 +1800,7 @@ export function Tracker({ onFinita, onEsci }) {
             // libero — e' la cosa che si sta per toccare.
             if (conf.mappaTiri && mappa && a.zona) {
               setTiroDaPiazzare({ giocatore: giocatoreScelto, azione: a, foto: foto[giocatoreScelto.id] });
-              setScelto(null);
+              scegliChi(null);
               return;
             }
             // Il punto della pallavolo chiede la traiettoria prima di
@@ -1757,14 +1808,14 @@ export function Tracker({ onFinita, onEsci }) {
             // campo dev'essere libero, ed e' la cosa che si sta per toccare.
             if (sport.campoIntero && a.traiettoria) {
               setTraiettoria({ giocatore: giocatoreScelto, azione: a, foto: foto[giocatoreScelto.id] });
-              setScelto(null);
+              scegliChi(null);
               return;
             }
             esegui(giocatoreScelto, a);
           }}
           mappa={mappa}
           onMappa={() => setMappa(v => { ricordaMappa(!v); return !v; })}
-          onChiudi={() => setScelto(null)}
+          onChiudi={() => scegliChi(null)}
         />
       )}
 

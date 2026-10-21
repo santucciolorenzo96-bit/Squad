@@ -155,3 +155,36 @@ export function cosaFaIlTocco({ armato, sostituzione, campoCorto }) {
   if (campoCorto) return 'inCampo';
   return 'scegli';
 }
+
+/* CHI ENTRA PRENDE IL POSTO DI CHI ESCE.
+ *
+ * I cinque gettoni sul campo stanno in posti fissi, e il posto lo decide
+ * l'ORDINE: il primo dei giocatori in campo va nel primo posto, il secondo nel
+ * secondo. L'ordine è quello della rosa, e la rosa non si tocca mai.
+ *
+ * Il risultato era che una sostituzione spostava mezzo campo. Con la rosa
+ * A B C D E F e i primi cinque in campo, facendo uscire C ed entrare F i
+ * giocatori in campo diventano A B D E F — e D, E ed F si trovano tutti e tre
+ * in un posto diverso da prima. Tre facce su cinque cambiano posizione per un
+ * cambio solo.
+ *
+ * Durante una partita si tocca a memoria: si guarda il campo una volta e poi
+ * si tocca dove si è visto. Se le facce si spostano da sole, si assegna
+ * l'azione alla persona sbagliata — e non lo si scopre, perché il tocco va a
+ * buon fine comunque.
+ *
+ * Qui chi entra prende ESATTAMENTE il posto di chi esce: si scambiano le due
+ * posizioni nella rosa, e tutti gli altri restano dove sono. Non è una
+ * riordinata della rosa: è uno scambio fra due, e l'ordine di chi non c'entra
+ * non cambia.
+ */
+export function entraAlPostoDi(players, uscenteId, entranteId) {
+  if (!Array.isArray(players)) return players;
+  const iU = players.findIndex(p => p && p.id === uscenteId);
+  const iE = players.findIndex(p => p && p.id === entranteId);
+  if (iU < 0 || iE < 0 || iU === iE) return players;
+  const fuori = players.slice();
+  fuori[iU] = players[iE];
+  fuori[iE] = players[iU];
+  return fuori;
+}
