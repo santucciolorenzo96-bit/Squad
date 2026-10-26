@@ -8,7 +8,7 @@ import { sectorFullName } from '../utils/sectors.js';
 import { canDeleteGame, canFixGame, ORE_PER_CORREGGERE } from '../utils/permissions.js';
 import { nomePeriodo as etichettaPeriodo } from '../utils/periodi.js';
 import { reopenGameForFix, fetchGameCorrections } from '../api/games.js';
-import { deleteGame } from '../api/games.js';
+import { eliminaTabellino } from '../api/games.js';
 import { inCampione } from './campione.js';
 import { Etichetta, Pannello, Pulsante, Vuoto, cx } from './ui.jsx';
 import { Finestra, Conferma, useAvviso } from './moduli.jsx';
@@ -933,7 +933,9 @@ export function Referto({ partita, onChiudi, onEliminata }) {
           testo={
             `${nostri} – ${partita.oppName || 'Avversari'} ${partita.teamScore ?? 0}–${partita.oppScore ?? 0}`
             + ' sparisce dallo storico, e con lei il tabellino di tutti i giocatori.'
-            + ' Record, media punti e statistiche si ricalcolano senza. Non si recupera.'
+            + ' Record, media punti e statistiche si ricalcolano senza.'
+            + ' Il tabellino non viene distrutto: resta fra le partite eliminate, in fondo'
+            + ' allo storico, con il tuo nome e la data — e da lì si può rimettere.'
           }
           etichetta="Elimina"
           onChiudi={() => setDaEliminare(false)}
@@ -941,7 +943,7 @@ export function Referto({ partita, onChiudi, onEliminata }) {
             if (inCampione()) {
               throw new Error('Nell’anteprima con dati di esempio non si cancella niente.');
             }
-            await deleteGame(partita.id);
+            await eliminaTabellino(partita.id, (state.currentUser || {}).id);
             onEliminata(partita);
           }}
         />

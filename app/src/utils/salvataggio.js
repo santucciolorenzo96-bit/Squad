@@ -72,6 +72,76 @@ export function siRiprova(motivo) {
   return motivo === 'rete';
 }
 
+/* PERCHÉ UNA PARTITA NON SI È ARCHIVIATA.
+ *
+ * È lo stesso difetto di sopra in un altro punto, e questo è quello che è
+ * costato una partita vera.
+ *
+ * `endGame` faceva un `update ... where id = ...` e si fidava dell'assenza di
+ * errori. Ma un update che non trova nessuna riga — perché la riga non c'è
+ * più, o perché la sicurezza a livello di riga la filtra via — **non è un
+ * errore**: è un update di zero righe, che torna indietro senza dire niente.
+ *
+ * E quello che veniva dopo era irreparabile, in quest'ordine: il risultato
+ * finiva sulla riga di calendario, la copia locale veniva cancellata, la
+ * partita veniva tolta dalla memoria, e lo scout annunciava «Partita
+ * archiviata».
+ *
+ * Il risultato, visto dopo: in calendario la partita risulta giocata, con il
+ * punteggio giusto; in `games` non c'è nessuna riga; sul tablet non c'è più
+ * nessuna copia. Il tabellino di quella partita — chi ha segnato, chi ha
+ * rimbalzato, i falli di ognuno — non esiste in nessun posto, e non è rimasta
+ * traccia di cosa sia andato storto. Da fuori sembra che qualcuno l'abbia
+ * cancellata.
+ *
+ * Due partite sono finite così, il 21 e il 26 ottobre 2026, e nessuno ha visto
+ * un errore.
+ *
+ * Adesso `endGame` si fa restituire la riga che ha scritto, e se non ne ha
+ * scritta nessuna chiede al database perché. Non si riprova da soli e non si
+ * sistema niente di nascosto: si LANCIA, perché è l'unico modo di fermare le
+ * tre righe che vengono dopo. La finestra di conferma mostra l'errore e non si
+ * chiude, quindi la copia locale resta dov'è e la partita resta segnabile.
+ *
+ * La cosa che ogni messaggio deve dire, prima di tutto il resto: la partita
+ * non è archiviata, e il tabellino è ancora tutto qui.
+ */
+
+export const MOTIVI_ARCHIVIO = ['assente', 'rifiutata', 'rete'];
+
+/**
+ * @param riga  la riga di `games` riletta per id, o null se non c'è
+ * @param opt   `rete: true` se nemmeno la rilettura è passata
+ */
+export function motivoArchivioMancato(riga, { rete = false } = {}) {
+  // Se non si riesce a rileggere, il problema non era il permesso: era la
+  // palestra senza segnale. È l'unico caso che si risolve da sé, riprovando.
+  if (rete) return { motivo: 'rete' };
+
+  /* Nessuna riga con quell'id. La partita che lo scout ha in mano non esiste
+   * sul server: o non è mai stata creata, o è stata eliminata mentre si
+   * segnava. In tutti e due i casi la copia locale è l'unica che ce l'ha. */
+  if (!riga) return { motivo: 'assente' };
+
+  /* La riga c'è ma l'update non l'ha toccata: l'ha filtrata una policy.
+   * Succede a chi ha perso l'accesso a quella categoria mentre segnava. */
+  return { motivo: 'rifiutata' };
+}
+
+const RESTA_QUI = ' La partita NON è archiviata e il tabellino è ancora tutto qui, '
+  + 'su questo dispositivo: non chiudere l’app e non ricaricare la pagina.';
+
+export const SPIEGAZIONE_ARCHIVIO = {
+  assente: 'Questo tabellino non esiste più sul server: la riga della partita non c’è.'
+    + RESTA_QUI
+    + ' Esci dallo scout e rientra: ti verrà proposto di riprendere da questa copia.',
+  rifiutata: 'Il database ha rifiutato di archiviare la partita: su questa categoria '
+    + 'non hai il permesso di scrivere.' + RESTA_QUI
+    + ' Chiedi a un amministratore di darti l’accesso, poi riprova.',
+  rete: 'Non è stato possibile archiviare la partita: manca la rete.' + RESTA_QUI
+    + ' Riprova quando il segnale torna.'
+};
+
 /* COSA APPARTIENE ALLA PARTITA, E COSA ALLA RIGA SUL SERVER.
  *
  * `revisione`, `tenutoDa` e `tenutoAlle` non sono dati della partita: sono lo

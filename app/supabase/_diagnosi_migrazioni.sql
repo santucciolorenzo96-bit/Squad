@@ -96,7 +96,19 @@ with atteso(ordine, migrazione, descrizione, presente) as (
     -- Anche questa al contrario: e' applicata quando la funzione NON c'e' piu'.
     (59, '059 documenti liberi',  'Atleti e genitori caricano i documenti del proprio atleta',
          not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-                     where n.nspname = 'public' and p.proname = 'family_can_upload_documents'))
+                     where n.nspname = 'public' and p.proname = 'family_can_upload_documents')),
+    -- Applicata quando la policy non nomina piu' lo stato della partita: la
+    -- vecchia lasciava scartare un tabellino APERTO a chi lo stava tenendo.
+    (60, '060 cancellazione solo admin', 'Eliminare un tabellino e'' cosa da amministratore',
+         exists (select 1 from pg_policies
+                 where tablename = 'games' and policyname = 'games_delete'
+                   and qual not like '%status%')),
+    (61, '061 tabellino recuperabile', 'Eliminare non cancella: si puo'' rimettere',
+         exists (select 1 from information_schema.columns
+                 where table_name = 'games' and column_name = 'deleted_at')
+         and exists (select 1 from pg_indexes
+                     where indexname = 'games_one_live_per_sector'
+                       and indexdef like '%deleted_at IS NULL%'))
 )
 select
   migrazione,

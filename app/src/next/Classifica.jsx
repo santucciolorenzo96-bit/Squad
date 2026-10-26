@@ -3,7 +3,8 @@ import { state } from '../state.js';
 import { computeRecord, computeStreak } from '../utils/stats.js';
 import { fetchStandings, upsertStanding, removeStanding } from '../api/standings.js';
 import { currentSport } from '../utils/sports/index.js';
-import { canEditHome, managesSector } from '../utils/permissions.js';
+import { canEditHome, managesSector, isAdmin } from '../utils/permissions.js';
+import { fetchDeletedGames, ripristinaTabellino } from '../api/games.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Amichevole, cx } from './ui.jsx';
 import { Interruttore, Modulo, Conferma, Campo, Testo, Spunta, useAvviso } from './moduli.jsx';
@@ -252,12 +253,136 @@ function ModuloSquadra({ riga, onChiudi, onFatto, onRimuovi }) {
   );
 }
 
+/* LE PARTITE ELIMINATE.
+ *
+ * Dalla migrazione 061 eliminare un tabellino non cancella la riga: scrive
+ * quando e chi. Quella scelta vale qualcosa solo se esiste un posto da cui
+ * rimetterlo, e il posto è questo.
+ *
+ * Sta IN FONDO allo storico e chiuso, perché non è una cosa che si guarda:
+ * è una cosa che si cerca, una volta, quando una partita non si trova più.
+ * Lo vede solo chi amministra, come il pulsante che le elimina.
+ *
+ * Il nome di chi ha eliminato è metà del motivo per cui questo esiste: la
+ * domanda da cui tutto è partito — «dov'è finita la partita?» — non aveva una
+ * risposta, e «eliminata» senza un nome accanto non sarebbe una risposta
+ * migliore.
+ */
+function Cestino({ onCambiato }) {
+  const [righe, setRighe] = useState(null);     // null = non ancora chiesto
+  const [aperto, setAperto] = useState(false);
+  const [lavora, setLavora] = useState('');
+  const avvisa = useAvviso();
+
+  // Gli hook stanno sopra, sempre: la loro quantità non può dipendere da chi
+  // sta guardando.
+  if (!isAdmin(state.currentUser) || inCampione()) return null;
+
+  async function apri() {
+    setAperto(true);
+    if (righe !== null) return;
+    try {
+      setRighe(await fetchDeletedGames(state.activeSectorId, state.activeSeasonId));
+    } catch (e) {
+      console.error(e);
+      setRighe([]);
+      avvisa((e && e.message) || 'Non ho potuto leggere le partite eliminate');
+    }
+  }
+
+  async function rimetti(g) {
+    setLavora(g.id);
+    try {
+      await ripristinaTabellino(g.id);
+      /* E ANCHE IN MEMORIA, come per l'eliminazione: `state.history` è quello
+       * caricato all'apertura della categoria, e senza rimetterci la partita
+       * bisognerebbe ricaricare l'app per vederla tornare — che è proprio il
+       * dubbio che si sta cercando di togliere. In ordine di data, perché lo
+       * storico è ordinato e la riga non deve comparire in fondo. */
+      state.history = [...state.history, g]
+        .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+      setRighe(v => (v || []).filter(x => x.id !== g.id));
+      onCambiato('Partita rimessa nello storico');
+    } catch (e) {
+      console.error(e);
+      avvisa((e && e.message) || 'Non ho potuto rimettere la partita');
+    } finally {
+      setLavora('');
+    }
+  }
+
+  if (!aperto) {
+    return (
+      <button
+        onClick={apri}
+        className="w-full rounded-lg px-4 py-2.5 text-[12.5px] font-semibold text-tenue transition-colors hover:text-testo"
+      >
+        Partite eliminate
+      </button>
+    );
+  }
+
+  return (
+    <Pannello className="pad-pannello-stretto">
+      <div className="flex items-center justify-between gap-2">
+        <Etichetta>Partite eliminate</Etichetta>
+        <button
+          onClick={() => setAperto(false)}
+          className="text-[12.5px] font-semibold text-tenue transition-colors hover:text-testo"
+        >
+          Chiudi
+        </button>
+      </div>
+
+      {righe === null && <p className="mt-3 text-[12.5px] text-tenue">Sto guardando…</p>}
+
+      {righe !== null && righe.length === 0 && (
+        <p className="mt-3 text-[12.5px] leading-relaxed text-tenue">
+          Nessuna partita eliminata in questa categoria. Un tabellino eliminato finisce qui
+          con la data e il nome di chi l’ha eliminato, e da qui si può rimettere.
+        </p>
+      )}
+
+      {(righe || []).map(g => (
+        <div key={g.id} className="mt-2.5 flex items-center gap-3 rounded-lg bg-pannello/8 px-3.5 py-2.5">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-semibold">
+              {g.oppName || 'Avversari'} · {g.teamScore}–{g.oppScore}
+              {g.friendly ? ' · amichevole' : ''}
+            </div>
+            <div className="text-[12.5px] text-tenue">
+              {g.date && fmtData(g.date) + ' · '}
+              eliminata {g.eliminataAlle ? fmtData(g.eliminataAlle) : ''}
+              {g.eliminataDa ? ' da ' + g.eliminataDa : ''}
+            </div>
+          </div>
+          <Pulsante
+            className="shrink-0 py-1.5 text-[12.5px]"
+            disabled={lavora === g.id}
+            onClick={() => rimetti(g)}
+          >
+            {lavora === g.id ? 'Attendi…' : 'Rimetti'}
+          </Pulsante>
+        </div>
+      ))}
+    </Pannello>
+  );
+}
+
 /* ----------------------------------------------------------------- lo storico */
 function Storico({ onCambiato }) {
   const [referto, setReferto] = useState(null);
   const partite = [...state.history].reverse();   // la più recente per prima
   if (partite.length === 0) {
-    return <Vuoto>Nessuna partita giocata. Lo storico si riempie quando i tabellini vengono chiusi.</Vuoto>;
+    /* Il cestino c'è anche a storico vuoto, e proprio lì serve: uno storico
+       vuoto è esattamente il momento in cui si cerca una partita che non si
+       trova più. */
+    return (
+      <div className="space-y-2.5">
+        <Vuoto>Nessuna partita giocata. Lo storico si riempie quando i tabellini vengono chiusi.</Vuoto>
+        <Cestino onCambiato={onCambiato} />
+      </div>
+    );
   }
   return (
     <div className="space-y-2.5">
@@ -311,6 +436,8 @@ function Storico({ onCambiato }) {
           }}
         />
       )}
+
+      <Cestino onCambiato={onCambiato} />
     </div>
   );
 }

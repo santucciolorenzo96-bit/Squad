@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
-import { fetchLiveGame, fetchOpenGames, deleteGame } from '../api/games.js';
+import { fetchLiveGame, fetchOpenGames, eliminaTabellino } from '../api/games.js';
 import { currentSport } from '../utils/sports/index.js';
 import { managesSector, canDeleteGame } from '../utils/permissions.js';
 import { tabellinoInAltraMano } from '../utils/regole.js';
@@ -308,12 +308,13 @@ export function Partita() {
   const confermaScarto = daScartare ? (
     <Conferma
       titolo="Scartare il tabellino?"
-      testo={`${daScartare.opp_name}: il tabellino aperto viene cancellato e non si recupera.`
-        + (daScartare.corrente ? ' Non finisce nello storico, perche’ non e’ stata giocata.' : '')}
+      testo={`${daScartare.opp_name}: il tabellino aperto viene messo da parte.`
+        + (daScartare.corrente ? ' Non finisce nello storico, perche’ non e’ stata giocata.' : '')
+        + ' Non si perde: resta fra le partite eliminate, in Classifica, e da lì si può rimettere.'}
       etichetta="Scarta"
       onChiudi={() => setDaScartare(null)}
       onConferma={async () => {
-        await deleteGame(daScartare.id);
+        await eliminaTabellino(daScartare.id, (state.currentUser || {}).id);
         cancellaCopia(daScartare.sector_id || state.activeSectorId);
         if (daScartare.corrente) {
           state.liveGame = null;

@@ -1,6 +1,9 @@
 import { supabase } from '../supabaseClient.js';
 import { stagioneAttiva } from './stagione.js';
-import { motivoDelRifiuto, SPIEGAZIONE, siRiprova } from '../utils/salvataggio.js';
+import {
+  motivoDelRifiuto, SPIEGAZIONE, siRiprova,
+  motivoArchivioMancato, SPIEGAZIONE_ARCHIVIO
+} from '../utils/salvataggio.js';
 
 function fromDbGame(row) {
   if (!row) return null;
@@ -97,8 +100,12 @@ function describeWriteError(error) {
 }
 
 export async function fetchLiveGame(sectorId) {
+  // `is('deleted_at', null)`: un tabellino nel cestino non e` una partita in
+  // corso. Senza questo filtro lo scout lo riaprirebbe come se niente fosse,
+  // e `salva_tabellino` poi rifiuterebbe ogni azione.
   const { data, error } = await supabase.from('games')
-    .select('*').eq('sector_id', sectorId).eq('status', 'live').maybeSingle();
+    .select('*').eq('sector_id', sectorId).eq('status', 'live')
+    .is('deleted_at', null).maybeSingle();
   if (error) throw error;
   return fromDbGame(data);
 }
@@ -107,7 +114,8 @@ export async function fetchLiveGame(sectorId) {
 // miglior marcatore continuerebbero a sommarsi di anno in anno.
 export async function fetchHistory(sectorId, seasonId) {
   let q = supabase.from('games')
-    .select('*').eq('sector_id', sectorId).eq('status', 'finished');
+    .select('*').eq('sector_id', sectorId).eq('status', 'finished')
+    .is('deleted_at', null);
   if (seasonId) q = q.eq('season_id', seasonId);
   const { data, error } = await q.order('started_at');
   if (error) throw error;
@@ -192,13 +200,46 @@ export async function saveLiveGame(gameId, liveGame) {
   liveGame.revisione = data;
 }
 
+/* PERCHE` UNA PARTITA NON SI E` ARCHIVIATA.
+ *
+ * Stessa forma di `perche` qui sopra, e per la stessa ragione: un update che
+ * non trova la riga non e` un errore, e` un update di zero righe. La regola
+ * sta in `utils/salvataggio.js`, dove si puo` provare; qui c'e` solo la
+ * lettura, e costa una richiesta in piu` SOLO quando qualcosa e` andato
+ * storto — cioe` quasi mai.
+ */
+async function percheNonArchiviata(gameId) {
+  try {
+    const { data } = await supabase.from('games')
+      .select('id').eq('id', gameId).maybeSingle();
+    return motivoArchivioMancato(data);
+  } catch (e) {
+    return motivoArchivioMancato(null, { rete: true });
+  }
+}
+
+/* ARCHIVIARE, E ACCORGERSI DI NON AVERLO FATTO.
+ *
+ * `.select('id')` non e` un ornamento: e` la differenza fra «archiviata» e
+ * «non ho scritto niente», che senza di lui sono indistinguibili. Quello che
+ * viene dopo questa chiamata, nello scout, e` irreversibile — il risultato in
+ * calendario, la copia locale cancellata, la partita via dalla memoria — e
+ * si deve poter fermare. Per questo si LANCIA: la finestra di conferma mostra
+ * l'errore e non si chiude, e la partita resta dov'e`.
+ */
 export async function endGame(gameId, liveGame) {
-  const { error } = await supabase.from('games').update({
+  const { data, error } = await supabase.from('games').update({
     ...toDbPatch(liveGame),
     status: 'finished',
     ended_at: new Date().toISOString()
-  }).eq('id', gameId);
+  }).eq('id', gameId).select('id');
   if (error) throw describeWriteError(error);
+  if (!data || data.length === 0) {
+    const esito = await percheNonArchiviata(gameId);
+    const e = new Error(SPIEGAZIONE_ARCHIVIO[esito.motivo] || SPIEGAZIONE_ARCHIVIO.assente);
+    e.motivo = esito.motivo;
+    throw e;
+  }
 }
 
 export function subscribeLiveGame(sectorId, onChange) {
@@ -217,31 +258,91 @@ export function subscribeLiveGame(sectorId, onChange) {
 export async function fetchOpenGames(teamId) {
   const { data, error } = await supabase.from('games')
     .select('id, sector_id, opp_name, started_at, sectors(name)')
-    .eq('team_id', teamId).eq('status', 'live');
+    .eq('team_id', teamId).eq('status', 'live').is('deleted_at', null);
   if (error) throw error;
   return data;
 }
 
-/* Cancellare una partita, e ACCORGERSI se non è successo.
+/* ELIMINARE UN TABELLINO SENZA PERDERLO (migrazione 061).
  *
- * Prima era una delete e basta. Con la sicurezza a livello di riga, una
- * cancellazione che il database non permette non è un errore: è una
- * cancellazione di zero righe, che torna indietro senza dire niente. L'app
- * annunciava «tabellino scartato» e il tabellino restava dov'era.
+ * Non si cancella piu` la riga: si scrive QUANDO e CHI. La partita esce da
+ * storico, statistiche e classifica — che e` tutto quello che serviva a chi
+ * elimina — e resta recuperabile.
  *
- * È lo stesso modo di fallire dell'allenamento senza stagione — in silenzio,
- * sembrando riuscito — e la risposta è la stessa: farsi restituire quello che
- * si è cancellato, e non fidarsi dell'assenza di errori.
+ * Il motivo sta in due partite perse: il 21 e il 26 ottobre 2026 sono
+ * scomparse, e non si e` potuto sapere se qualcuno le avesse eliminate,
+ * perche` una riga cancellata non lascia niente dietro di se`. La causa vera
+ * era un'altra (`endGame` che non si accorgeva di non aver scritto), ma per
+ * scoprirlo sono servite due ipotesi e mezza giornata.
+ *
+ * `.select('id')` resta, e per la ragione di prima: un update che la
+ * sicurezza a livello di riga filtra via non e` un errore, e` un update di
+ * zero righe. Il trigger `games_elimina_solo_admin` lo rifiuta a chi non
+ * amministra, e la` l'errore arriva — ma se un domani la policy cambiasse,
+ * questo controllo e` quello che impedisce un «eliminato» annunciato a vuoto.
  */
-export async function deleteGame(gameId) {
-  const { data, error } = await supabase.from('games').delete().eq('id', gameId).select('id');
-  if (error) throw error;
+export async function eliminaTabellino(gameId, profileId) {
+  const { data, error } = await supabase.from('games')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: profileId || null })
+    .eq('id', gameId).is('deleted_at', null).select('id');
+  if (error) throw descriviErroreCestino(error, 'eliminato');
   if (!data || data.length === 0) {
     throw new Error(
-      'La partita non è stata cancellata: il database ha rifiutato in silenzio. '
-      + 'Serve la migrazione 035 (policy games_delete), oppure non hai il permesso di cancellarla.'
+      'Il tabellino non è stato eliminato: il database ha rifiutato in silenzio. '
+      + 'Serve la migrazione 061, oppure non hai il permesso di eliminarlo.'
     );
   }
+}
+
+/* Rimetterlo dov'era.
+ *
+ * Una partita ancora `live` potrebbe non poter tornare: nel frattempo quella
+ * categoria puo` averne aperta un'altra, e `games_one_live_per_sector` ne
+ * permette una sola. Il database lo rifiuta con una violazione di unicita`, e
+ * quel messaggio da solo non direbbe niente a nessuno.
+ */
+export async function ripristinaTabellino(gameId) {
+  const { data, error } = await supabase.from('games')
+    .update({ deleted_at: null, deleted_by: null })
+    .eq('id', gameId).select('id');
+  if (error) throw descriviErroreCestino(error, 'ripristinato');
+  if (!data || data.length === 0) {
+    throw new Error('Il tabellino non è stato ripristinato: non hai il permesso.');
+  }
+}
+
+function descriviErroreCestino(error, cosa) {
+  const msg = (error && error.message) || '';
+  if (/deleted_at|deleted_by/.test(msg) && /column/i.test(msg)) {
+    return new Error('Manca la colonna deleted_at sulla tabella games: esegui la migrazione 061 su Supabase, poi riprova.');
+  }
+  if (/amministratore/.test(msg)) return new Error(msg);
+  if (/games_one_live_per_sector|duplicate key|unique/i.test(msg)) {
+    return new Error(
+      'Non si può ripristinare: questa categoria ha già una partita in corso. '
+      + 'Chiudi o elimina quella prima di rimettere questa.'
+    );
+  }
+  return new Error(msg || ('Il tabellino non è stato ' + cosa + '.'));
+}
+
+/* Il cestino: le partite eliminate di questa categoria.
+ *
+ * Con il nome di chi le ha eliminate, che e` la meta` del punto: «eliminata»
+ * senza un nome accanto e` la stessa informazione che non avevamo prima.
+ */
+export async function fetchDeletedGames(sectorId, seasonId) {
+  let q = supabase.from('games')
+    .select('*, eliminata_da:profiles!games_deleted_by_fkey(display_name)')
+    .eq('sector_id', sectorId).not('deleted_at', 'is', null);
+  if (seasonId) q = q.eq('season_id', seasonId);
+  const { data, error } = await q.order('deleted_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(r => ({
+    ...fromDbGame(r),
+    eliminataAlle: r.deleted_at,
+    eliminataDa: (r.eliminata_da && r.eliminata_da.display_name) || null
+  }));
 }
 
 /* ============== Correggere un tabellino chiuso (migrazione 044) ==============

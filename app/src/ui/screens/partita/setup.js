@@ -2,7 +2,7 @@ import { state } from '../../../state.js';
 import { esc, clamp } from '../../../utils/format.js';
 import { currentSport } from '../../../utils/sports/index.js';
 import { toast, withButtonLoading, confirmModal } from '../../modal.js';
-import { startGame, fetchOpenGames, deleteGame } from '../../../api/games.js';
+import { startGame, fetchOpenGames, eliminaTabellino } from '../../../api/games.js';
 import { fetchPlayerPhotoUrls } from '../../../api/roster.js';
 import { avatarHtml, wireAvatarClicks } from '../../playerAvatar.js';
 import { renderLiveMatch } from './tracker.js';
@@ -210,9 +210,10 @@ async function loadOpenGames(c) {
   });
   holder.querySelectorAll('[data-discard]').forEach(btn => {
     btn.onclick = () => confirmModal('Scartare la partita aperta?',
-      'Il tabellino raccolto finora verrà eliminato e non finirà nello storico. Usalo solo se era una prova.',
+      'Il tabellino raccolto finora non finirà nello storico. Non viene distrutto: resta '
+      + 'fra le partite eliminate e da lì si può rimettere.',
       async () => {
-        await deleteGame(btn.dataset.discard);
+        await eliminaTabellino(btn.dataset.discard, (state.currentUser || {}).id);
         toast('Partita scartata');
         renderMatchSetup(c);
       }, 'Scarta');
