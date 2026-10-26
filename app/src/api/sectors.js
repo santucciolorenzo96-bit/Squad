@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { esigiRiga } from './scrittura.js';
 
 export async function fetchSectors(teamId) {
   const { data, error } = await supabase.from('sectors').select('*').eq('team_id', teamId).order('sort_order');
@@ -17,13 +18,17 @@ export async function createSector(teamId, name) {
 }
 
 export async function renameSector(sectorId, name) {
-  const { error } = await supabase.from('sectors').update({ name }).eq('id', sectorId);
+  const { data, error } = await supabase.from('sectors')
+    .update({ name }).eq('id', sectorId).select();
   if (error) throw error;
+  esigiRiga(data, 'rinominare la categoria');
 }
 
 export async function removeSector(sectorId) {
-  const { error } = await supabase.from('sectors').delete().eq('id', sectorId);
+  const { data, error } = await supabase.from('sectors').delete()
+    .eq('id', sectorId).select();
   if (error) throw error;
+  esigiRiga(data, 'eliminare la categoria');
 }
 
 export async function fetchStaffSectors(teamId) {
@@ -44,9 +49,13 @@ export async function assignStaffToSector(profileId, sectorId) {
 }
 
 export async function removeStaffFromSector(profileId, sectorId) {
-  const { error } = await supabase.from('profile_sectors').delete()
-    .eq('profile_id', profileId).eq('sector_id', sectorId);
+  /* Togliere una persona da una categoria e' una revoca di accesso: se non
+   * avviene e l'app dice che e' avvenuta, quella persona continua a vedere
+   * una categoria che si crede di averle tolto. */
+  const { data, error } = await supabase.from('profile_sectors').delete()
+    .eq('profile_id', profileId).eq('sector_id', sectorId).select();
   if (error) throw error;
+  esigiRiga(data, 'togliere la persona dalla categoria');
 }
 
 export async function fetchPlayerSectorIds(playerId) {
@@ -56,6 +65,8 @@ export async function fetchPlayerSectorIds(playerId) {
 }
 
 export async function setPlayerSectors(playerId, sectorIds) {
+  /* Niente `esigiRiga`: questa delete pulisce prima di riscrivere, e un
+   * atleta che non era in nessuna categoria ne ha zero da togliere. */
   const { error: delErr } = await supabase.from('player_sectors').delete().eq('player_id', playerId);
   if (delErr) throw delErr;
   if (sectorIds.length === 0) return;

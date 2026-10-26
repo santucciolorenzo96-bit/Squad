@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { esigiRiga } from './scrittura.js';
 import { stagioneAttiva } from './stagione.js';
 import { giornoISO } from '../utils/format.js';
 
@@ -48,13 +49,15 @@ export async function removePlayerFromSector(playerId, sectorId, seasonId = stag
   let q = supabase.from('player_sectors').delete()
     .eq('player_id', playerId).eq('sector_id', sectorId);
   q = seasonId ? q.eq('season_id', seasonId) : q.is('season_id', null);
-  const { error } = await q;
+  const { data, error } = await q.select();
   if (error) throw error;
+  esigiRiga(data, 'togliere l’atleta dalla categoria');
 }
 
 export async function deletePlayer(id) {
-  const { error } = await supabase.from('players').delete().eq('id', id);
+  const { data, error } = await supabase.from('players').delete().eq('id', id).select();
   if (error) throw error;
+  esigiRiga(data, 'eliminare l’atleta');
 }
 
 export async function fetchPlayer(id) {

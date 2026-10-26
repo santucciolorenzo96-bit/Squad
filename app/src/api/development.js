@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { esigiRiga } from './scrittura.js';
 import { oggiISO } from '../utils/format.js';
 
 // La parte scritta della scheda evolutiva. Il resto (presenze, valutazione,
@@ -77,8 +78,10 @@ export async function reopenObjective(id) {
 }
 
 export async function removeObjective(id) {
-  const { error } = await supabase.from('player_objectives').delete().eq('id', id);
+  const { data, error } = await supabase.from('player_objectives').delete()
+    .eq('id', id).select();
   if (error) throw descriviErroreObiettivo(error);
+  esigiRiga(data, 'eliminare l’obiettivo');
 }
 
 function descriviErroreObiettivo(error) {
@@ -140,8 +143,15 @@ export async function uploadTrainingPlan(teamId, playerId, file, { titolo, nota,
 }
 
 export async function removeTrainingPlan(piano) {
-  const { error } = await supabase.from('player_training_plans').delete().eq('id', piano.id);
+  /* LA RIGA PRIMA DEL FILE, e il controllo prima di toccare il file.
+   * Se la riga non viene eliminata — una policy che rifiuta in silenzio — e
+   * il file invece sì, resta una scheda che punta a un file che non c'è più.
+   * Quello è l'unico dei due guasti a cui non si può rimediare: una riga si
+   * rielimina, un file caricato non torna. */
+  const { data, error } = await supabase.from('player_training_plans').delete()
+    .eq('id', piano.id).select();
   if (error) throw descriviErroreScheda(error);
+  esigiRiga(data, 'eliminare la scheda');
   if (piano.file_path) {
     try { await supabase.storage.from('training-plans').remove([piano.file_path]); } catch (e) { /* pazienza */ }
   }

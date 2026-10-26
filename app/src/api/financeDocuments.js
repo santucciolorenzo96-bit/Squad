@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { esigiRiga } from './scrittura.js';
 
 export async function uploadFinanceDocument(teamId, target, file, docType, uploadedBy) {
   const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
@@ -26,6 +27,8 @@ export async function getFinanceDocumentSignedUrl(filePath) {
 }
 
 export async function removeFinanceDocument(id) {
-  const { error } = await supabase.from('finance_documents').delete().eq('id', id);
+  const { data, error } = await supabase.from('finance_documents').delete()
+    .eq('id', id).select();
   if (error) throw error;
+  esigiRiga(data, 'eliminare il documento');
 }

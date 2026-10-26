@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { esigiRiga } from './scrittura.js';
 import { stagioneAttiva } from './stagione.js';
 
 export async function fetchTrainings(sectorId, seasonId) {
@@ -58,6 +59,8 @@ export async function updateTraining(id, training) {
 }
 
 export async function removeTraining(id) {
-  const { error } = await supabase.from('trainings').delete().eq('id', id);
+  const { data, error } = await supabase.from('trainings').delete()
+    .eq('id', id).select();
   if (error) throw error;
+  esigiRiga(data, 'eliminare l’allenamento');
 }

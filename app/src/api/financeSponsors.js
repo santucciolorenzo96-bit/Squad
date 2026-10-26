@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { esigiRiga } from './scrittura.js';
 
 export async function fetchSponsors(teamId) {
   const { data, error } = await supabase.from('finance_sponsors').select('*').eq('team_id', teamId).order('created_at');
@@ -19,6 +20,8 @@ export async function updateSponsor(id, patch) {
 }
 
 export async function removeSponsor(id) {
-  const { error } = await supabase.from('finance_sponsors').delete().eq('id', id);
+  const { data, error } = await supabase.from('finance_sponsors').delete()
+    .eq('id', id).select();
   if (error) throw error;
+  esigiRiga(data, 'eliminare lo sponsor');
 }

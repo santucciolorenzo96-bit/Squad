@@ -52,6 +52,10 @@ export async function announceAbsence(trainingId, playerId, note, userId) {
 }
 
 export async function cancelAbsenceNotice(trainingId, playerId) {
+  /* Niente `esigiRiga` qui, e non e' una dimenticanza: ritirare una
+   * giustificazione che non c'e' piu' — ritirata da un altro dispositivo, o
+   * mai inviata — e' comunque il risultato che si voleva. Zero righe e'
+   * un esito legittimo, e pretenderne una inventerebbe un errore. */
   const { error } = await supabase.from('training_absence_notices')
     .delete().eq('training_id', trainingId).eq('player_id', playerId);
   if (error) throw descriviErroreAvviso(error);

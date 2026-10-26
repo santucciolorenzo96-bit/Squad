@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { esigiRiga } from './scrittura.js';
 import { stagioneAttiva } from './stagione.js';
 import { giornoISO } from '../utils/format.js';
 
@@ -25,8 +26,10 @@ export async function updateRecurrence(id, patch) {
 }
 
 export async function removeRecurrence(id) {
-  const { error } = await supabase.from('training_recurrences').delete().eq('id', id);
+  const { data, error } = await supabase.from('training_recurrences').delete()
+    .eq('id', id).select();
   if (error) throw error;
+  esigiRiga(data, 'eliminare l’allenamento ricorrente');
 }
 
 /* Gli allenamenti futuri gia' creati da un programma che si sta togliendo.

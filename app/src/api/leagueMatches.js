@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { esigiRiga } from './scrittura.js';
 import { stagioneAttiva } from './stagione.js';
 
 // Risultati del girone: tutte le partite del campionato, comprese le nostre.
@@ -39,8 +40,10 @@ export async function saveLeagueMatch(teamId, sectorId, row, seasonId = stagione
 }
 
 export async function removeLeagueMatch(id) {
-  const { error } = await supabase.from('league_matches').delete().eq('id', id);
+  const { data, error } = await supabase.from('league_matches').delete()
+    .eq('id', id).select();
   if (error) throw error;
+  esigiRiga(data, 'eliminare la partita di campionato');
 }
 
 // La nostra partita seguita con lo scout non deve diventare una seconda verità:

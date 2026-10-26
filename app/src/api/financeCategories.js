@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { esigiRiga } from './scrittura.js';
 
 export async function fetchCategories(teamId) {
   const { data, error } = await supabase.from('finance_categories').select('*').eq('team_id', teamId).order('sort_order');
@@ -19,6 +20,8 @@ export async function updateCategory(id, patch) {
 }
 
 export async function removeCategory(id) {
-  const { error } = await supabase.from('finance_categories').delete().eq('id', id);
+  const { data, error } = await supabase.from('finance_categories').delete()
+    .eq('id', id).select();
   if (error) throw error;
+  esigiRiga(data, 'eliminare la categoria');
 }

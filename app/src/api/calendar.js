@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { esigiRiga } from './scrittura.js';
 import { stagioneAttiva } from './stagione.js';
 
 export async function fetchCalendar(sectorId, seasonId) {
@@ -42,8 +43,10 @@ export async function updateCalendarMatch(id, patch) {
 }
 
 export async function removeCalendarMatch(id) {
-  const { error } = await supabase.from('calendar').delete().eq('id', id);
+  const { data, error } = await supabase.from('calendar').delete()
+    .eq('id', id).select();
   if (error) throw error;
+  esigiRiga(data, 'togliere la partita dal calendario');
 }
 
 // Partite di TUTTA la società in una finestra di date, non del solo settore

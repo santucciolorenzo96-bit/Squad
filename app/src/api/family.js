@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { esigiRiga } from './scrittura.js';
 
 export async function fetchLinkedPlayers(profileId) {
   const { data, error } = await supabase.from('profile_players')
@@ -13,9 +14,10 @@ export async function linkProfileToPlayer(profileId, playerId) {
 }
 
 export async function unlinkProfileFromPlayer(profileId, playerId) {
-  const { error } = await supabase.from('profile_players').delete()
-    .eq('profile_id', profileId).eq('player_id', playerId);
+  const { data, error } = await supabase.from('profile_players').delete()
+    .eq('profile_id', profileId).eq('player_id', playerId).select();
   if (error) throw error;
+  esigiRiga(data, 'scollegare l’utente dall’atleta');
 }
 
 // Account (genitore/atleta) collegati a un giocatore: serve alla scheda atleta

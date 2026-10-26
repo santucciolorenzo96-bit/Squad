@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { esigiRiga } from './scrittura.js';
 
 export async function fetchAccounts(teamId) {
   const { data, error } = await supabase.from('finance_accounts').select('*').eq('team_id', teamId).order('created_at');
@@ -27,6 +28,8 @@ export async function updateAccount(id, patch) {
 }
 
 export async function removeAccount(id) {
-  const { error } = await supabase.from('finance_accounts').delete().eq('id', id);
+  const { data, error } = await supabase.from('finance_accounts').delete()
+    .eq('id', id).select();
   if (error) throw error;
+  esigiRiga(data, 'eliminare il conto');
 }

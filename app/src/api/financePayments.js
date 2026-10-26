@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { esigiRiga } from './scrittura.js';
 
 export async function createPayment(teamId, patch) {
   const { data, error } = await supabase.from('finance_payments').insert({ team_id: teamId, ...patch }).select().single();
@@ -50,8 +51,10 @@ export async function declarePayment(teamId, entryId, patch, userId) {
 }
 
 export async function withdrawPaymentClaim(id) {
-  const { error } = await supabase.from('payment_claims').delete().eq('id', id);
+  const { data, error } = await supabase.from('payment_claims').delete()
+    .eq('id', id).select();
   if (error) throw descriviErroreDichiarazione(error);
+  esigiRiga(data, 'ritirare la dichiarazione di pagamento');
 }
 
 export async function confirmPaymentClaim(claimId, accountId) {

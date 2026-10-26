@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { esigiRiga } from './scrittura.js';
 
 // La stagione sportiva: da luglio a giugno, playoff compresi. È il perimetro
 // entro cui hanno senso statistiche, classifica, presenze e rose — senza,
@@ -82,8 +83,9 @@ export async function removeSeason(id) {
   if (dentro.totale > 0) {
     throw new Error(descriviStagionePiena(dentro));
   }
-  const { error } = await supabase.from('seasons').delete().eq('id', id);
+  const { data, error } = await supabase.from('seasons').delete().eq('id', id).select();
   if (error) throw error;
+  esigiRiga(data, 'eliminare la stagione');
 }
 
 export function descriviStagionePiena(d) {

@@ -84,6 +84,9 @@ export async function createEntry(teamId, patch, allocations) {
       .insert(allocations.map(a => ({ entry_id: entry.id, cost_center_id: a.cost_center_id, amount: a.amount })));
     if (allocErr) throw allocErr;
   } catch (e) {
+    /* Niente `esigiRiga`: questo e' un ripristino dentro un `catch`, e deve
+     * lasciar passare l'errore vero — quello della ripartizione. Un errore
+     * su QUESTA riga nasconderebbe la causa di tutto. */
     await supabase.from('finance_entries').update({ cancelled_at: new Date().toISOString(), cancelled_reason: 'Creazione fallita: ripartizione non valida' }).eq('id', entry.id);
     throw e;
   }

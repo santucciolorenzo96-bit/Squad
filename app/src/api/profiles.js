@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { esigiRiga } from './scrittura.js';
 
 export async function fetchMyProfile() {
   // getSession legge la sessione gia' in memoria e rinnova il token solo se e'
@@ -60,8 +61,13 @@ export async function updateMyProfile({ display_name, phone }) {
 }
 
 export async function deactivateProfile(id) {
-  const { error } = await supabase.from('profiles').update({ active: false }).eq('id', id);
+  /* Questo controllo vale piu' degli altri. Un utente che si crede
+   * disattivato e non lo e' continua a entrare, a vedere e a scrivere — e
+   * nessuno lo va a ricontrollare, perche' l'app ha detto che era fatto. */
+  const { data, error } = await supabase.from('profiles')
+    .update({ active: false }).eq('id', id).select();
   if (error) throw error;
+  esigiRiga(data, 'disattivare l’utente');
 }
 
 // ======================= Fotografia del profilo =======================

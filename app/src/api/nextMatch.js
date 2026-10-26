@@ -12,6 +12,8 @@ export async function saveNextMatch(teamId, sectorId, match) {
 }
 
 export async function clearNextMatch(sectorId) {
+  /* Niente `esigiRiga`: svuotare una cosa gia' vuota e' il risultato che si
+   * voleva. Zero righe qui vuol dire «non c'era niente da togliere». */
   const { error } = await supabase.from('next_match').delete().eq('sector_id', sectorId);
   if (error) throw error;
 }

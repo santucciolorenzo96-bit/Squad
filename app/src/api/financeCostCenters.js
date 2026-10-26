@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { esigiRiga } from './scrittura.js';
 
 export async function fetchCostCenters(teamId) {
   const { data, error } = await supabase.from('cost_centers').select('*').eq('team_id', teamId).order('sort_order');
@@ -19,6 +20,8 @@ export async function updateCostCenter(id, patch) {
 }
 
 export async function removeCostCenter(id) {
-  const { error } = await supabase.from('cost_centers').delete().eq('id', id);
+  const { data, error } = await supabase.from('cost_centers').delete()
+    .eq('id', id).select();
   if (error) throw error;
+  esigiRiga(data, 'eliminare il centro di costo');
 }

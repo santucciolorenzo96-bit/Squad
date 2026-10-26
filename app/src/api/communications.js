@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { esigiRiga } from './scrittura.js';
 
 export async function fetchCommunications(sectorId) {
   const { data, error } = await supabase.from('communications')
@@ -40,14 +41,17 @@ export async function createCommunication(teamId, sectorId, comm, playerIds, cre
 }
 
 export async function closeCommunication(id) {
-  const { error } = await supabase.from('communications')
-    .update({ closed_at: new Date().toISOString() }).eq('id', id);
+  const { data, error } = await supabase.from('communications')
+    .update({ closed_at: new Date().toISOString() }).eq('id', id).select();
   if (error) throw error;
+  esigiRiga(data, 'chiudere la comunicazione');
 }
 
 export async function removeCommunication(id) {
-  const { error } = await supabase.from('communications').delete().eq('id', id);
+  const { data, error } = await supabase.from('communications').delete()
+    .eq('id', id).select();
   if (error) throw error;
+  esigiRiga(data, 'eliminare la comunicazione');
 }
 
 // La risposta passa da una funzione: tocca i soli campi consentiti dopo aver
