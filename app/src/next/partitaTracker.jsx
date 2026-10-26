@@ -14,6 +14,9 @@ import { Pannello, Etichetta, Pulsante, Stato, Amichevole, Vuoto, cx } from './u
 import { managesSector } from '../utils/permissions.js';
 import { oggiISO } from '../utils/format.js';
 import { quantiChiusi } from '../utils/referto.js';
+import {
+  nomePeriodo, eSupplementare, periodiMancanti, pareggioImpossibile
+} from '../utils/periodi.js';
 import { calcolaPunteggi } from '../utils/punteggio.js';
 import {
   applicaAzione, annota, segnaPeriodo, cosaFaIlTocco, entraAlPostoDi
@@ -395,11 +398,20 @@ export function Tracker({ onFinita, onEsci }) {
   /* Quanti periodi restano da chiudere. Serve alla finestra di «fine
    * partita»: e` la differenza fra una conferma di routine e un avviso.
    * `situazionePeriodo` non basta — vive sul regolamento della pallavolo, e
-   * nel basket non c'e`. Questo conto vale per tutti e tre gli sport. */
-  const periodiRestanti = Math.max(
-    0,
-    (g.numQuarters || conf.period.count || 1) - quantiChiusi(g)
-  );
+   * nel basket non c'e'. Questo conto vale per tutti e tre gli sport.
+   *
+   * In AMICHEVOLE e` sempre zero, e il perche` sta in periodi.js: non e` una
+   * partita incompleta, e` una partita senza una fine prevista. */
+  const periodiRestanti = periodiMancanti(conf, g, quantiChiusi(g));
+
+  /* La parita` che non e` un risultato: in una partita ufficiale di basket
+   * vuol dire che si gioca un supplementare, non che la partita e` finita.
+   *
+   * Solo a periodi previsti finiti, pero'. Un tabellino ufficiale aperto da
+   * cinque minuti e' in parita' sullo 0-0, e la' la cosa da dire non e' «si
+   * gioca un supplementare»: e' «mancano tre periodi», che e' l'altro avviso
+   * e che la finestra dice da sola. */
+  const inParita = periodiRestanti === 0 && pareggioImpossibile(conf, g);
 
   const aggiorna = () => ridisegna(n => n + 1);
 
@@ -1250,7 +1262,10 @@ export function Tracker({ onFinita, onEsci }) {
                 perche' e' il riassunto, non il gioco. */}
             <div className="px-1 text-center sm:px-2">
               <div className="text-[12px] font-bold uppercase tracking-etichetta text-tenue">
-                {conf.period.short}{g.quarter}
+                {/* «P4» finche' si sta nei periodi previsti, «S1» nel primo
+                    supplementare: il quinto periodo di una partita ufficiale
+                    non e' il quinto quarto. In amichevole resta «P5». */}
+                {nomePeriodo(conf, g.quarter, { amichevole: g.friendly, breve: true })}
               </div>
               {perSet && (
                 <div className="mt-1.5 rounded-full bg-pannello/14 px-2.5 py-0.5 text-[12px] font-bold leading-none text-soffuso">
@@ -1395,7 +1410,9 @@ export function Tracker({ onFinita, onEsci }) {
                     : 'bg-fondo/40 font-semibold text-soffuso hover:text-testo'
                 )}
               >
-                Chiudi {conf.period.label.toLowerCase()}
+                Chiudi {((eSupplementare(conf, g.quarter, { amichevole: g.friendly })
+                  ? conf.period.extraLabel
+                  : conf.period.label) || 'periodo').toLowerCase()}
               </button>
             )}
             {/* Lo stacco. Non e` decorazione: e` la distanza fra chiudere un
@@ -1934,22 +1951,39 @@ export function Tracker({ onFinita, onEsci }) {
            * partita sei. Con quattro periodi ancora da giocare, «chiudere» non
            * è una conferma di routine: è un errore, e la finestra lo deve dire
            * come tale — titolo diverso e pulsante rosso. */
-          titolo={periodiRestanti > 0
-            ? 'Non è finita: vuoi archiviarla comunque?'
-            : 'Chiudere la partita?'}
-          testo={(periodiRestanti > 0
-              ? `Sei nel ${g.quarter || 1}º ${conf.period.label.toLowerCase()} e `
-                + `${periodiRestanti === 1
-                    ? `ne resta ancora uno da chiudere`
-                    : `ne restano ancora ${periodiRestanti} da chiudere`}. `
-                + 'Se volevi solo chiudere questo, il pulsante è quello accanto. '
-              : '')
-            + `${g.teamScore}–${g.oppScore} contro ${g.oppName}. Il tabellino va in archivio e non si modifica più.`
+          /* LA PARITA` VIENE PRIMA DI TUTTO IL RESTO.
+           *
+           * Una partita ufficiale di basket non puo' finire pari: quel
+           * punteggio non e' un risultato, e' un supplementare da giocare. E'
+           * l'unica cosa che l'app sa e che chi segna puo' non aver guardato,
+           * quindi va detta qui — non impedita, perche' una partita sospesa
+           * per un infortunio va messa via com'e'. */
+          titolo={inParita
+            ? 'In parità: la partita non è finita'
+            : (periodiRestanti > 0
+                ? 'Non è finita: vuoi archiviarla comunque?'
+                : 'Chiudere la partita?')}
+          testo={(inParita
+              ? `${g.teamScore}–${g.oppScore}: una partita ufficiale non può finire in parità. `
+                + `Si gioca un ${(conf.period.extraLabel || 'supplementare').toLowerCase()}, e se finisce pari anche quello `
+                + 'un altro, finché non c’è un vincitore. '
+                + `Sei nel ${nomePeriodo(conf, g.quarter, { amichevole: g.friendly }).toLowerCase()}: `
+                + 'chiudilo dal tabellone e continua. Se invece la partita è stata sospesa, '
+                + 'archiviala comunque: il tabellino va in archivio e non si modifica più.'
+              : (periodiRestanti > 0
+                  ? `Sei nel ${nomePeriodo(conf, g.quarter || 1, { amichevole: g.friendly }).toLowerCase()} e `
+                    + `${periodiRestanti === 1
+                        ? 'ne resta ancora uno da chiudere'
+                        : `ne restano ancora ${periodiRestanti} da chiudere`}. `
+                    + 'Se volevi solo chiudere questo, il pulsante è quello accanto. '
+                  : '')
+                + `${g.teamScore}–${g.oppScore} contro ${g.oppName}. `
+                + 'Il tabellino va in archivio e non si modifica più.')
             + (rigaCalendario
                 ? ' Il risultato torna anche sulla riga di calendario.'
                 : ' In calendario non c’è nessuna riga che corrisponde: il risultato lì va scritto a mano.')}
-          etichetta={periodiRestanti > 0 ? 'Archivia comunque' : 'Chiudi la partita'}
-          pericolo={periodiRestanti > 0}
+          etichetta={(inParita || periodiRestanti > 0) ? 'Archivia comunque' : 'Chiudi la partita'}
+          pericolo={inParita || periodiRestanti > 0}
           onChiudi={() => setFinePartita(false)}
           onConferma={async () => {
             calcolaPunteggi(g, sport);
@@ -3055,14 +3089,27 @@ function ChiusuraPeriodo({ g, sport, onChiudi, onFatto }) {
   const massimi = periodiMassimi(conf);
   const seti = conf.period.label.toLowerCase();
 
+  /* Se questi numeri lasciano la partita in parita', il supplementare non e'
+   * un'ipotesi: si legge PRIMA di premere, mentre si ha ancora il tabellone
+   * della palestra davanti. Vale solo dove un pareggio non e' un risultato. */
+  const totaliOra = conQuesti.reduce(
+    (a, x) => ({ us: a.us + ((x && x.us) || 0), them: a.them + ((x && x.them) || 0) }),
+    { us: 0, them: 0 }
+  );
+  const pariDopoQuesto = !isNaN(nLoro) && pareggioImpossibile(conf, {
+    friendly: g.friendly, teamScore: totaliOra.us, oppScore: totaliOra.them
+  });
+
   return (
     <Modulo
-      titolo={`Chiudi ${conf.period.label.toLowerCase()} ${g.quarter}`}
+      titolo={`Chiudi ${nomePeriodo(conf, g.quarter, { amichevole: g.friendly }).toLowerCase()}`}
       sotto={conf.periodPrompt}
       etichettaInvia={
         chiudeLaPartita
           ? 'Salva: la partita finisce qui'
-          : (ultimo && !conf.period.allowExtra ? 'Salva' : `Vai al ${seti} ${g.quarter + 1}`)
+          : (ultimo && !conf.period.allowExtra
+              ? 'Salva'
+              : `Vai al ${nomePeriodo(conf, g.quarter + 1, { amichevole: g.friendly }).toLowerCase()}`)
       }
       onChiudi={onChiudi}
       onInvia={async () => {
@@ -3136,7 +3183,7 @@ function ChiusuraPeriodo({ g, sport, onChiudi, onFatto }) {
 
         onFatto(deciso && deciso.finita
           ? `Partita finita ${deciso.us}–${deciso.them}: chiudila dal tabellone`
-          : `${conf.period.label} ${idx + 1} chiuso`);
+          : `${nomePeriodo(conf, idx + 1, { amichevole: g.friendly })} chiuso`);
       }}
     >
       <div className="grid grid-cols-2 gap-3">
@@ -3171,11 +3218,24 @@ function ChiusuraPeriodo({ g, sport, onChiudi, onFatto }) {
         </p>
       )}
 
+      {/* COSA SUCCEDE SE CONTINUI, detto nei tre casi che esistono davvero.
+          In amichevole non c'e' un «ultimo periodo previsto», e dirlo
+          sarebbe falso: si continua o si chiude, e lo decidono le due
+          squadre. In una partita ufficiale in parita' il supplementare non e'
+          un'ipotesi, e' quello che viene dopo. */}
       {ultimo && conf.period.allowExtra && !chiudeLaPartita && (
         <p className="rounded-lg bg-pannello/8 px-3.5 py-3 text-[13px] leading-relaxed text-soffuso">
-          Era l’ultimo {conf.period.label.toLowerCase()} previsto. Se la partita è in parità,
-          continuando si apre un {conf.period.extraLabel.toLowerCase()}; altrimenti chiudi la
-          partita dal tabellone.
+          {g.friendly
+            ? `In amichevole non c’è un numero di ${(conf.period.plural || 'periodi').toLowerCase()}: continuando si apre
+               il ${nomePeriodo(conf, g.quarter + 1, { amichevole: true }).toLowerCase()}, oppure chiudi
+               la partita dal tabellone quando avete finito.`
+            : (pariDopoQuesto
+                ? `Siete in parità: continuando si apre il
+                   ${nomePeriodo(conf, g.quarter + 1).toLowerCase()}, perché una partita ufficiale non
+                   può finire pari.`
+                : `Era l’ultimo ${conf.period.label.toLowerCase()} previsto. Se la partita è in parità,
+                   continuando si apre un ${(conf.period.extraLabel || 'supplementare').toLowerCase()}; altrimenti chiudi la
+                   partita dal tabellone.`)}
         </p>
       )}
     </Modulo>

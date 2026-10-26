@@ -5,6 +5,7 @@ import { currentSport } from '../utils/sports/index.js';
 import { managesSector, canDeleteGame } from '../utils/permissions.js';
 import { tabellinoInAltraMano } from '../utils/regole.js';
 import { inCampione } from './campione.js';
+import { nomePeriodo } from '../utils/periodi.js';
 import { leggiCopia, cancellaCopia, daQuanto } from './partitaLocale.js';
 import { conStatoDellaRiga } from '../utils/salvataggio.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, cx } from './ui.jsx';
@@ -98,7 +99,8 @@ function PartitaInCorso({ sport, onRientra, onScarta }) {
                 {(state.teamProfile || {}).name} – {g.oppName}
               </div>
               <div className="mt-0.5 text-[12.5px] text-tenue">
-                {conf.period.label} {g.quarter}{g.friendly ? ' · amichevole' : ''}
+                {nomePeriodo(conf, g.quarter, { amichevole: g.friendly })}
+                {g.friendly ? ' · amichevole' : ''}
               </div>
             </div>
             <div className="shrink-0 text-right">
@@ -118,20 +120,28 @@ function PartitaInCorso({ sport, onRientra, onScarta }) {
             categoria non ne può iniziare un’altra.
           </p>
 
-          {/* LA VIA D'USCITA CHE MANCAVA.
+          {/* SCARTARE NON E' PIU' COSA DI CHI SEGNA.
               Un tabellino aperto per sbaglio — o su una partita poi non
-              giocata — si poteva soltanto CHIUDERE, e chiuderlo vuol dire
-              mandarlo in archivio: da li' e' finito nello storico, con il suo
-              punteggio finto, a sporcare record e statistiche. Scartare una
-              partita mai giocata e archiviarla sono due cose diverse, e
-              finora ce n'era una sola. */}
-          {onScarta && (
+              giocata — non va archiviato: finirebbe nello storico con il suo
+              punteggio finto, a sporcare record e statistiche. Scartarlo
+              serve, e resta.
+              Ma stava qui, nella schermata di chi tiene lo scout, e da qui
+              una partita segnata per un'ora intera si butta via con due
+              tocchi — senza lasciare traccia di chi l'ha fatto. Adesso lo fa
+              un amministratore, che ha la stessa schermata e non ha il
+              tablet in mano a bordo campo. */}
+          {onScarta ? (
             <button
               onClick={onScarta}
               className="mt-3 w-full rounded-lg py-2 text-[12.5px] font-semibold text-rosso transition-colors hover:bg-rosso/10"
             >
               Scarta il tabellino: questa partita non si è giocata
             </button>
+          ) : (
+            <p className="mt-2 text-[12.5px] leading-relaxed text-tenue">
+              Se l’hai aperta per sbaglio, chiudila comunque e avvisa un amministratore:
+              togliere un tabellino dallo storico può farlo solo chi amministra.
+            </p>
           )}
         </Pannello>
       </div>
@@ -288,10 +298,12 @@ export function Partita() {
   }
 
   /* La conferma sta fuori dai rami perche' serve in due: nell'elenco delle
-     partite rimaste aperte altrove, e sul cartello della partita di qui. */
-  const puoiScartare = canDeleteGame(
-    state.currentUser, state.activeSectorId, state.staffSectors, { aperta: true }
-  );
+     partite rimaste aperte altrove, e sul cartello della partita di qui.
+
+     Scartare e' cosa da amministratore anche su una partita ANCORA APERTA:
+     il perche' sta in `canDeleteGame`, accanto alla policy che deve dire la
+     stessa cosa. */
+  const puoiScartare = canDeleteGame(state.currentUser);
 
   const confermaScarto = daScartare ? (
     <Conferma
@@ -389,16 +401,19 @@ export function Partita() {
                       aperta il {new Date(a.started_at).toLocaleDateString('it-IT')}
                     </div>
                   </div>
-                  <Pulsante className="shrink-0 py-1.5 text-[12.5px]" onClick={() => setDaScartare(a)}>
-                    Scarta
-                  </Pulsante>
+                  {puoiScartare && (
+                    <Pulsante className="shrink-0 py-1.5 text-[12.5px]" onClick={() => setDaScartare(a)}>
+                      Scarta
+                    </Pulsante>
+                  )}
                 </div>
               ))}
             </div>
             <p className="mt-3 text-[12.5px] leading-relaxed text-tenue">
               Finché restano aperte, quelle categorie non possono aprire un tabellino nuovo.
-              Scartarle cancella il tabellino: se la partita è stata giocata davvero, il
-              risultato si scrive dal Calendario.
+              {puoiScartare
+                ? ' Scartarle cancella il tabellino: se la partita è stata giocata davvero, il risultato si scrive dal Calendario.'
+                : ' Si chiudono dallo scout della loro categoria. Scartarle, cioè cancellare il tabellino, può farlo solo un amministratore.'}
             </p>
           </Pannello>
         </div>

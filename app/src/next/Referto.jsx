@@ -6,6 +6,7 @@ import { generaRefertoPdf } from '../utils/refertoPdf.js';
 import { downloadCsv, safeName } from '../utils/csv.js';
 import { sectorFullName } from '../utils/sectors.js';
 import { canDeleteGame, canFixGame, ORE_PER_CORREGGERE } from '../utils/permissions.js';
+import { nomePeriodo as etichettaPeriodo } from '../utils/periodi.js';
 import { reopenGameForFix, fetchGameCorrections } from '../api/games.js';
 import { deleteGame } from '../api/games.js';
 import { inCampione } from './campione.js';
@@ -562,8 +563,7 @@ export function Referto({ partita, onChiudi, onEliminata }) {
    * Per questo il pulsante è dove la partita si vede per intero. Si guarda il
    * risultato, si guardano i set, si guarda chi ha giocato, e solo allora si
    * decide. Una piccola icona in un elenco si tocca per sbaglio. */
-  const puoiEliminare = !!onEliminata
-    && canDeleteGame(state.currentUser, state.activeSectorId, state.staffSectors);
+  const puoiEliminare = !!onEliminata && canDeleteGame(state.currentUser);
 
   /* CORREGGERE, CHE NON E' CANCELLARE.
    *
@@ -685,7 +685,12 @@ export function Referto({ partita, onChiudi, onEliminata }) {
                 <tbody>
                   {r.set.map(s => (
                     <tr key={s.n} className="border-b border-bordo/6 last:border-b-0">
-                      <td className="px-4 py-2.5 text-[13px] text-tenue">{s.n}</td>
+                      {/* «P5» e «S1» sono due periodi diversi, e in colonna
+                          il numero da solo non lo dice: chi legge dovrebbe
+                          sottrarre quattro, e la sottrazione la si sbaglia. */}
+                      <td className="px-4 py-2.5 text-[13px] text-tenue">
+                        {etichettaPeriodo(conf, s.n, { amichevole: partita.friendly, breve: true })}
+                      </td>
                       <td className={cx('cifra px-4 py-2.5 text-[14px] font-bold',
                         s.us > s.them ? 'text-verde' : 'text-soffuso')}>
                         {s.us}–{s.them}

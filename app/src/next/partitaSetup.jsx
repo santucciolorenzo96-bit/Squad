@@ -232,8 +232,16 @@ export function AvvioPartita({ onAvviata }) {
       {/* ----------------------------------------------------- i periodi */}
       {/* Nella pallavolo non si chiede: al meglio dei cinque se ne giocano
           tre, quattro o cinque, e lo si scopre giocando. Chiederlo alla palla
-          a due è chiedere una cosa che nessuno può sapere. */}
-      {conf.period.askCount !== false && (
+          a due è chiedere una cosa che nessuno può sapere.
+
+          E IN AMICHEVOLE NON SI CHIEDE MAI, in nessuno sport: un'amichevole
+          non ha un numero di periodi. Si gioca finché si gioca, si chiude al
+          terzo se le due squadre hanno finito al terzo, e se se ne vogliono
+          fare cinque se ne fanno cinque. Un numero deciso mezz'ora prima non
+          vincolava niente — tornava solo a fine partita, come un allarme che
+          diceva «ne restano ancora due da chiudere» a chi aveva fatto
+          esattamente quello che voleva fare. */}
+      {conf.period.askCount !== false && !amichevole && (
         <Pannello className="pad-pannello-stretto">
           <Etichetta>Quanti {conf.period.label.toLowerCase()}</Etichetta>
           <div className="mt-3 flex flex-wrap gap-2">

@@ -126,7 +126,10 @@ export const CALCIO = {
     period: {
       label: 'Tempo', plural: 'Tempi', short: 'T', count: 2, minutes: null,
       hasClock: false, direction: null,
-      allowExtra: true, extraLabel: 'Supplementare'
+      // Il terzo tempo e' il 1º supplementare, non «il 3º tempo». Il pareggio
+      // invece resta un risultato: un campionato finisce 1-1 e quello e' il
+      // risultato, quindi nessun `pareggioVietato` qui.
+      allowExtra: true, extraLabel: 'Supplementare', extraNumerati: true
     },
     ourScore: 'fromActions',
     opponentScore: 'perPeriod',

@@ -362,10 +362,31 @@ export const BASKET = {
   scout: {
     period: {
       label: 'Periodo', plural: 'Periodi', short: 'P', count: 4, minutes: null,
-      askCount: true,
+      /* QUANTI PERIODI NON SI CHIEDE PIU'.
+       *
+       * Una partita ufficiale ne ha quattro, e lo dice il regolamento: la
+       * domanda non aveva una risposta che chi segna potesse dare meglio.
+       * Un'amichevole non ne ha un numero: si gioca finche' si gioca, e si
+       * chiude quando le due squadre hanno finito. In tutti e due i casi la
+       * domanda chiedeva di decidere mezz'ora prima una cosa che poi non
+       * vincolava niente — e in amichevole quel numero tornava a fine partita
+       * come un allarme: «ne restano ancora due da chiudere».
+       *
+       * Resta la leva, per una societa' di minibasket che gioca a sei
+       * periodi: basta rimettere `askCount: true`. */
+      askCount: false,
       hasClock: false, direction: null,
-      allowExtra: true, extraLabel: 'Supplementare'
+      /* Oltre il quarto si va, e non c'e' un massimo: se dopo il quarto le
+       * squadre sono pari si gioca un supplementare, e se finisce pari anche
+       * quello un altro. `extraNumerati` dice che il quinto periodo si chiama
+       * «1º Supplementare» e non «5º Periodo» — nella pallavolo no, perche'
+       * la' il quarto set e' il quarto set. */
+      allowExtra: true, extraLabel: 'Supplementare', extraNumerati: true
     },
+    /* Una partita ufficiale di basket non puo' finire in parita'. Non e' una
+     * regola dello scout, e' una regola del gioco: sta qui, dove stanno le
+     * altre, e la legge `pareggioImpossibile` in utils/periodi.js. */
+    pareggioVietato: true,
     ourScore: 'fromActions',
     opponentScore: 'perPeriod',
     scoreDisplay: 'sum',

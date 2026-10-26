@@ -3,6 +3,10 @@ import {
   drawDonut, drawMiniDonut, drawShotChart, contentWidth, spazioPagina, caricaLogo, MARGINE, TINTE, save
 } from './pdf.js';
 import { refertoPartita, tabellaTabellino, quota, legendaColonne, falliSpeciali } from './referto.js';
+/* «5» e «S1» sono due periodi diversi, e in una colonna di numeri il numero
+ * da solo non lo dice: chi legge il referto dovrebbe sottrarre i periodi
+ * regolamentari, e quella sottrazione la si fa sbagliata. */
+import { nomePeriodo, eSupplementare } from './periodi.js';
 
 /* Il referto in PDF.
  *
@@ -32,6 +36,18 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
   const titolo = `${nostri} — ${game.oppName}`;
   // «I set» nella pallavolo, «I periodi» nel basket: la parola la dice lo sport.
   const per = (sport.scout.period.label || 'Periodo');
+  /* Come si chiama il periodo numero n su QUESTO referto.
+   *
+   * Il numero nudo finche' si sta nei periodi previsti — la colonna si
+   * intitola gia' «Periodo», ripetere la parola in ogni riga non aggiunge
+   * niente — e «S1», «S2» per i supplementari, che sono l'unica cosa che il
+   * numero da solo non riesce a dire. In amichevole sempre il numero: un
+   * supplementare, la', non esiste. */
+  const siglaPeriodo = (n) => (
+    eSupplementare(sport.scout, n, { amichevole: !!game.friendly })
+      ? nomePeriodo(sport.scout, n, { amichevole: !!game.friendly, breve: true })
+      : String(n)
+  );
   // «Set» resta «Set», «Periodo» diventa «Periodi», «Tempo» diventa «Tempi».
   // Il plurale lo dichiara lo sport: sul foglio del basket c'era scritto «I
   // periodoi», che e' quello che si ottiene attaccando una «i» a una parola.
@@ -71,7 +87,7 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
       ? drawTable(doc,
         [per, 'Punteggio', 'Cambio palla', 'Break'],
         r.set.map(s => [
-          String(s.n),
+          siglaPeriodo(s.n),
           `${s.us}-${s.them}`,
           quota(s.so) == null ? '—' : `${quota(s.so)}%  (${s.so.v}/${s.so.t})`,
           quota(s.bp) == null ? '—' : `${quota(s.bp)}%  (${s.bp.v}/${s.bp.t})`
@@ -80,7 +96,7 @@ export async function generaRefertoPdf({ team, game, sport, sectorName }) {
       : drawTable(doc,
         [per, 'Noi', 'Loro', 'Scarto'],
         r.set.map(s => [
-          String(s.n), String(s.us), String(s.them),
+          siglaPeriodo(s.n), String(s.us), String(s.them),
           (s.us - s.them > 0 ? '+' : '') + (s.us - s.them)
         ]),
         [34, 38, 38, 30], y, { allineaDa: 1 });

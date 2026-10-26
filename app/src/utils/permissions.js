@@ -195,25 +195,31 @@ export function canEditRoster(user) {
   return !!user && ROSTER_ROLES.includes(user.role);
 }
 
-/* Cancellare una partita: due casi, due rischi, due regole.
+/* Cancellare una partita: solo un amministratore. Aperta o chiusa.
  *
- * Un tabellino ancora APERTO è un errore in corso — aperto per sbaglio, o su
- * una partita che poi non si è giocata. Lo scarta chi lo stava tenendo: stessa
- * persona, stesso momento, niente da perdere.
+ * C'erano due regole. La seconda diceva che un tabellino ancora APERTO lo
+ * potesse scartare chi lo stava tenendo — stessa persona, stesso momento,
+ * niente da perdere — e il ragionamento regge finché il tabellino aperto è
+ * davvero vuoto. Ma dall'esterno non si sa mai se lo è: una partita segnata
+ * per un'ora intera è un tabellino aperto come un altro, e il pulsante per
+ * buttarla via stava nella stessa schermata di chi la stava segnando.
  *
- * Una partita CHIUSA è storia. Dentro ci sono il risultato, il tabellino, e
- * tutto quello che quei numeri hanno prodotto in statistiche e in record.
- * Quella la toglie solo un amministratore — non perché gli altri siano meno
- * affidabili, ma perché è l'unica cosa qui dentro che non si può rifare.
+ * Una cancellazione non lascia traccia: la riga non c'è più, e non si può
+ * nemmeno sapere chi l'ha toccata. È sparita così una partita vera.
  *
- * Deve dire la stessa cosa della policy `games_delete` (migrazione 035): se le
+ * Chi segna non perde niente, perché la via d'uscita non distruttiva ce
+ * l'aveva già: chiudere la partita. Un tabellino chiuso per sbaglio finisce
+ * nello storico — visibile, correggibile, e toglibile da un amministratore.
+ * Un tabellino scartato non finisce in nessun posto.
+ *
+ * Il settore e le assegnazioni non servono più: la regola non guarda più di
+ * che categoria è la partita, perché un amministratore conta su tutte.
+ *
+ * Deve dire la stessa cosa della policy `games_delete` (migrazione 060): se le
  * due si scollano, l'app mostra un pulsante che il database poi rifiuta.
  */
-export function canDeleteGame(user, sectorId, staffSectors, { aperta = false } = {}) {
-  if (!user) return false;
-  if (isAdmin(user)) return true;
-  if (!aperta) return false;
-  return managesSector(user, sectorId, staffSectors) || !!user.can_score_matches;
+export function canDeleteGame(user) {
+  return isAdmin(user);
 }
 
 /* Correggere un tabellino gia' chiuso (migrazione 044).
