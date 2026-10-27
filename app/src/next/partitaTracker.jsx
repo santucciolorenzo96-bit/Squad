@@ -21,6 +21,7 @@ import {
   restano, inMoto, scambia, ferma, imposta, nuovoPeriodo,
   durataPeriodo, secondiDelTurno, mmss
 } from '../utils/cronometro.js';
+import { cronaca } from '../utils/cronaca.js';
 import { calcolaPunteggi } from '../utils/punteggio.js';
 import {
   applicaAzione, annota, segnaPeriodo, cosaFaIlTocco, entraAlPostoDi
@@ -1791,6 +1792,10 @@ export function Tracker({ onFinita, onEsci }) {
         onDettaglio={() => setDettaglio(v => { ricordaDettaglio(!v); return !v; })}
         mappa={mappa}
         onMappa={() => setMappa(v => { ricordaMappa(!v); return !v; })}
+        /* LE ULTIME COSE SEGNATE.
+           Si calcolano qui e si passano gia` raccontate: la colonna degli
+           eventi disegna, e non deve sapere com'e` fatto il registro. */
+        ultime={cronaca(g, sport)}
         vista={vista}
         onVista={() => setVista(v => {
           const nuova = v === 'lista' ? 'campo' : 'lista';
@@ -3729,7 +3734,7 @@ function ChiusuraPeriodo({ g, sport, onChiudi, onFatto }) {
  */
 function ColonnaEventi({
   conf, armato, dettaglio, onDettaglio, mappa, onMappa,
-  vista, onVista, onEvento, inAttesaDi, className
+  vista, onVista, ultime, onEvento, inAttesaDi, className
 }) {
   const gruppi = (conf.groups || []).filter(gr => !gr.dettaglio || dettaglio);
   const conDettaglio = (conf.groups || []).some(gr => gr.dettaglio);
@@ -3823,9 +3828,65 @@ function ColonnaEventi({
           </div>
         ))}
       </div>
+
+      {/* LE ULTIME TRE COSE SEGNATE.
+          Non e` una cronaca: e` un controllo. Nel flusso evento-prima si tocca
+          l'evento e poi la faccia in mezzo secondo, guardando il campo, e il
+          dubbio che viene subito dopo e` «l'ho dato al sette o al nove?».
+          Finora l'unica risposta era il nome attaccato all'Annulla, che dice
+          l'ultima e nient'altro; tre righe dicono anche se le due prima erano
+          giuste.
+
+          IN FONDO ALLA COLONNA, e non sotto il campo: sotto il campo c'era
+          finita una volta una tabella, e il campo e` diventato alto zero.
+          Qui lo spazio si prende dai gruppi di eventi, che scorrono, invece
+          che dal campo, che non puo` scorrere.
+
+          Il PERIODO quando l'ora non c'e`: nelle partite segnate prima del
+          cronometro, e nella pallavolo, `t` non esiste — e «0:00» su ogni riga
+          sarebbe un dato finto. */}
+      {ultime && ultime.length > 0 && (
+        <div className="mt-1.5 shrink-0 border-t border-bordo/10 pt-1.5">
+          <div className="mb-1 text-[10px] font-bold uppercase tracking-etichetta text-tenue">
+            Ultime segnate
+          </div>
+          <div className="space-y-1">
+            {ultime.map(r => (
+              <div key={r.chiave} className="leading-tight">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="cifra shrink-0 text-[10.5px] text-tenue">
+                    {r.tempo || r.periodo}
+                  </span>
+                  {/* CHI, in grassetto e per primo: e` il dato che si sta
+                      controllando. Cosa sia stato viene dopo. */}
+                  <span className={cx(
+                    'min-w-0 flex-1 truncate text-[11.5px] font-bold',
+                    TONO_CRONACA[r.tono] || 'text-testo'
+                  )}>
+                    {r.chi || '—'}
+                  </span>
+                </div>
+                <div className="truncate text-[10.5px] text-tenue">{r.cosa}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+/* Il colore di una riga di cronologia: lo stesso vocabolario dei pulsanti —
+ * verde quello che e` andato bene, rosso quello che e` andato male, ambra
+ * l'avversario — ma sul testo, perche` tre righe di fondi colorati in fondo a
+ * una colonna di pulsanti colorati sarebbero una bandiera. */
+const TONO_CRONACA = {
+  made: 'text-verde',
+  neutral: 'text-testo',
+  warn: 'text-rosso/85',
+  miss: 'text-rosso',
+  avversario: 'text-ambra'
+};
 
 /* ====================================================================== */
 /* LA PANCHINA                                                            */
