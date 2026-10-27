@@ -401,28 +401,12 @@
   }
   .su-legno-lieve { background: rgb(18 15 12 / 0.55); backdrop-filter: blur(6px); }
 
-  .gettone-campo {
-    width: clamp(4.4rem, 19cqw, 10rem);
-    --volto: clamp(2.4rem, 10.5cqw, 5.6rem);
-    --nome: clamp(0.62rem, 2.5cqw, 1rem);
-    --numero: clamp(0.55rem, 2.1cqw, 0.85rem);
-    --sigla: clamp(0.4rem, 1.55cqw, 0.62rem);
-    --media: clamp(0.53rem, 2.05cqw, 0.82rem);
-    --scambio: clamp(1.25rem, 5cqw, 2.2rem);
-  }
-
-  /* In panchina il gettone non scala: la panchina non ha proporzioni da
-     rispettare, e un gettone che cambia misura fra sopra e sotto farebbe
-     sembrare i due elenchi due cose diverse. */
-  .gettone-panca {
-    width: 6.6rem;
-    --volto: 3.3rem;
-    --nome: 0.75rem;
-    --numero: 0.66rem;
-    --sigla: 0.47rem;
-    --media: 0.64rem;
-    --scambio: 1.5rem;
-  }
+  /* `.gettone-campo` e `.gettone-panca` stavano qui, e disegnavano i gettoni
+     della formazione nella pagina Rosa: quella formazione e' stata tolta
+     perche' non veniva salvata da nessuna parte e non decideva niente.
+     Le due classi non le usava nessun altro. Una regola di stile orfana non
+     da' nessun sintomo e sopravvive agli anni: va via con quello che
+     disegnava. I gettoni dello SCOUT sono `.gettone-scout`, altra cosa. */
 
   /* Le righe del campo: bianche e traslucide, come vernice consumata su legno.
      Piene ammazzerebbero i giocatori, che sono il contenuto vero. */

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
 import { Croce } from './icone.jsx';
 import { removePlayerFromSector, fetchPlayerPhotoUrls } from '../api/roster.js';
@@ -6,30 +6,39 @@ import { canEditRoster, managesSector } from '../utils/permissions.js';
 import { computeSeasonStats, findSeasonRow } from '../utils/stats.js';
 import { currentSport } from '../utils/sports/index.js';
 import { inCampione } from './campione.js';
-import { Pannello, Etichetta, Titolo, Vuoto, Scheletro, Avatar, cx, AzioneRiga } from './ui.jsx';
+import { Etichetta, Titolo, Vuoto, Scheletro, Avatar, cx, AzioneRiga } from './ui.jsx';
 import { Conferma, useAvviso } from './moduli.jsx';
 import { dividiNome } from '../utils/format.js';
 import { SchedaAtleta } from './SchedaAtleta.jsx';
 
-/* La rosa.
+/* LA ROSA.
  *
- * Sopra la formazione sul campo, sotto l'elenco. La formazione è il motivo per
- * cui un allenatore apre questa pagina; l'elenco è il modo di sapere chi c'è.
+ * Un elenco di slot, uno per giocatore, e niente altro.
  *
- * Il campo occupa tutta la larghezza disponibile e i giocatori crescono con
- * lui: le misure dei gettoni sono in `cqw`, cioè in percentuale della larghezza
- * DEL CAMPO, non della finestra. Con le unità di viewport sarebbero sbagliate
- * in tutti e due i casi, perché su desktop la colonna delle sezioni si mangia
- * 248px e su telefono sparisce.
+ * Sopra c'era un campo con cinque gettoni trascinabili e una panchina: si
+ * componeva una formazione muovendo le facce, con il trascinamento col dito e
+ * il tocco su ⇄ per scambiare due giocatori. Era la cosa più viva della
+ * pagina, e occupava la prima schermata intera.
  *
- * Le posizioni dei cinque non dipendono dal ruolo scritto in anagrafica — che
- * spesso manca o è generico — ma da cinque posti fissi definiti dallo sport:
- * è il modo in cui un allenatore disegna una formazione su una lavagna.
+ * NON DECIDEVA NIENTE. Quel quintetto viveva in uno stato di React e non
+ * veniva salvato da nessuna parte: cambiando sezione svaniva, e nessun altro
+ * punto del programma lo leggeva. Da quando i titolari si scelgono nello scout
+ * — dove c'è la partita da guardare, e dove quella scelta serve — non
+ * alimentava più nemmeno quello.
+ *
+ * Un comando che sembra decidere e non decide è peggio di un comando che non
+ * c'è: chi lo usa crede di aver fatto una cosa, e scopre che non l'ha fatta
+ * nel momento in cui conta. È la stessa forma delle sottocategorie dei settori
+ * e del permesso sul caricamento dei documenti, e la risposta è la stessa: si
+ * toglie, invece di farla funzionare per metà.
+ *
+ * È sparita con lui anche la pastiglia «in campo» sugli slot, che leggeva quel
+ * quintetto: diceva «questi cinque sono in campo» di una formazione che
+ * nessuno aveva deciso.
+ *
+ * Quello che resta è quello per cui si apre questa pagina: chi c'è, com'è
+ * fatto, e come sta andando.
  */
-
-function iniziali(nome) {
-  return (nome || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
-}
 
 function medie(riga, sport) {
   if (!riga || !riga.games) return sport.headline.map(h => ({ short: h.short, v: '—' }));
@@ -39,42 +48,49 @@ function medie(riga, sport) {
   }));
 }
 
-function quintettoIniziale(inCampo) {
-  const ultima = state.history[state.history.length - 1];
-  const ids = [];
-  if (ultima) {
-    (ultima.players || []).filter(p => p.onCourt).forEach(snap => {
-      const trovato = state.roster.find(p => p.id === snap.id)
-        || state.roster.find(p => p.number === snap.number);
-      if (trovato && !ids.includes(trovato.id)) ids.push(trovato.id);
-    });
-  }
-  for (const p of state.roster) {
-    if (ids.length >= inCampo) break;
-    if (!ids.includes(p.id)) ids.push(p.id);
-  }
-  return ids.slice(0, inCampo);
+/* L'ANNO DI NASCITA, NON L'ETÀ.
+ *
+ * Nel settore giovanile l'anno è la categoria: «un 2011» si dice e si capisce,
+ * e due atleti dello stesso anno sono confrontabili anche a dieci mesi di
+ * distanza. L'età in anni cambia a ogni compleanno e costringe a fare il conto
+ * all'indietro per sapere se uno è fuori quota.
+ */
+function annoDiNascita(p) {
+  const d = String((p && p.birth_date) || '').trim();
+  return /^\d{4}/.test(d) ? d.slice(0, 4) : '';
 }
 
 /* UNO SLOT DELLA ROSA.
  *
- * Quadrato, e il quadrato non e` un gusto: e` quello che permette di mettere
- * cinque cose nello stesso riquadro senza stringerne nessuna. Dall'alto in
- * basso — il numero e lo stato, la faccia, nome e cognome, le tre medie — e
- * ognuna nello stesso punto in ogni slot, perche` e` scorrendo l'occhio in
- * verticale che si confronta una rosa.
+ * Quadrato, e il quadrato non è un gusto: è quello che permette di mettere sei
+ * cose nello stesso riquadro senza stringerne nessuna. Dall'alto in basso — il
+ * numero, la faccia, nome e cognome, ruolo e anno, le tre medie — e ognuna
+ * nello stesso punto in ogni slot, perché è scorrendo l'occhio in verticale
+ * che si confronta una rosa.
  *
- * Il cognome in grassetto sotto il nome: in una rosa con due Giulia il
- * cognome e` l'identificatore, e va trovato sempre alla stessa altezza.
+ * Il cognome in grassetto sotto il nome: in una rosa con due Giulia il cognome
+ * è l'identificatore, e va trovato sempre alla stessa altezza.
+ *
+ * Ruolo e anno su UNA riga sola, separati da un punto: sono due dati brevi, e
+ * due righe per due parole allontanerebbero le medie dal nome senza aggiungere
+ * niente.
+ *
+ * Su telefono il riquadro è un po' più alto che largo. Con sei informazioni un
+ * quadrato esatto di centosessanta pixel costringerebbe a rimpicciolire la
+ * faccia o a troncare il ruolo, e tutte e due le cose sono peggio di un
+ * rettangolo appena più alto. Da tablet in su lo spazio c'è, e il quadrato
+ * torna quadrato.
  *
  * «Togli» sta FUORI dal riquadro che si tocca — HTML non permette un pulsante
- * dentro un pulsante, ed e` una buona regola anche per le dita: il riquadro si
+ * dentro un pulsante, ed è una buona regola anche per le dita: il riquadro si
  * tocca per aprire la scheda, e un bersaglio distruttivo dentro un bersaglio
- * che si tocca spesso e` un bersaglio premuto per sbaglio.
+ * che si tocca spesso è un bersaglio premuto per sbaglio.
  */
-function SlotGiocatore({ p, foto, sport, riga, inCampo, puoiModificare, onApri, onTogli }) {
+function SlotGiocatore({ p, foto, sport, riga, puoiModificare, onApri, onTogli }) {
   const { nome, cognome } = dividiNome(p.name);
   const voci = medie(riga, sport);
+  const anno = annoDiNascita(p);
+  const sotto = [p.role_position, anno].filter(Boolean).join(' · ');
 
   return (
     <div className="relative">
@@ -82,20 +98,15 @@ function SlotGiocatore({ p, foto, sport, riga, inCampo, puoiModificare, onApri, 
         onClick={onApri}
         title={p.name}
         className={cx(
-          'flex aspect-square w-full flex-col items-center gap-1.5 rounded-2xl p-3 text-center transition-all orlo active:scale-[0.99]',
-          inCampo ? 'vetro-alto ring-1 ring-blu/45' : 'vetro hover:bg-pannello/10'
+          'flex aspect-[5/6] w-full flex-col items-center gap-1.5 rounded-2xl p-3 text-center',
+          'vetro orlo transition-all hover:bg-pannello/10 active:scale-[0.99] sm:aspect-square'
         )}
       >
-        {/* La riga di sopra: il numero a sinistra, e a destra lo spazio del
-            «Togli» — tenuto libero anche quando non c'e`, cosi` il numero sta
-            nello stesso punto per tutti. */}
+        {/* Il numero a sinistra, e a destra lo spazio del «Togli» — tenuto
+            libero anche per chi non lo vede, così il numero sta nello stesso
+            punto per tutti. */}
         <div className="flex w-full shrink-0 items-start justify-between gap-1">
           <span className="cifra text-[21px] font-bold leading-none">{p.number}</span>
-          {inCampo && (
-            <span className="rounded-full bg-blu/16 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-etichetta text-blu">
-              in campo
-            </span>
-          )}
           {puoiModificare && <span className="w-6 shrink-0" aria-hidden="true" />}
         </div>
 
@@ -104,11 +115,14 @@ function SlotGiocatore({ p, foto, sport, riga, inCampo, puoiModificare, onApri, 
         <div className="min-w-0 w-full">
           <div className="truncate text-[11.5px] leading-tight text-tenue">{nome}</div>
           <div className="truncate text-[14px] font-bold leading-tight">{cognome || nome}</div>
+          {sotto && (
+            <div className="mt-1 truncate text-[10.5px] leading-tight text-tenue">{sotto}</div>
+          )}
         </div>
 
-        {/* Le medie in fondo, spinte in basso da `mt-auto`: con un cognome su
-            una riga o su due, la riga dei numeri resta alla stessa altezza in
-            tutti gli slot. */}
+        {/* Le medie in fondo, spinte in basso da `mt-auto`: con un ruolo scritto
+            o mancante, e con un cognome lungo o corto, la riga dei numeri resta
+            alla stessa altezza in tutti gli slot. */}
         <div className="mt-auto flex w-full shrink-0 items-end justify-around gap-1 border-t border-bordo/8 pt-2">
           {voci.map(m => (
             <span key={m.short} className="min-w-0">
@@ -132,137 +146,25 @@ function SlotGiocatore({ p, foto, sport, riga, inCampo, puoiModificare, onApri, 
   );
 }
 
-/* ------------------------------------------------------------------ gettone */
-// `suParquet` non è un vezzo: sul legno il testo è bianco perché il fondo è
-// scuro sempre, in tutti e due i temi. In panchina il gettone sta su un
-// pannello di vetro, che in tema chiaro è bianco — e il bianco su bianco è
-// esattamente il difetto che c'era.
-function Gettone({
-  p, foto, sport, riga, armato, suParquet, inTrascinamento, bersaglio,
-  onApri, onScambia, onPointerDown, stile
-}) {
-  const chip = suParquet ? 'su-legno-lieve' : 'bg-pannello/14';
-  const siglaCol = suParquet ? 'text-white/60' : 'text-tenue';
-  const mediaCol = suParquet ? 'text-white' : 'text-testo';
-  const nomeCol = suParquet
-    ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,.85)]'
-    : 'text-testo';
-  const numCol = suParquet ? 'text-white/65' : 'text-tenue';
-  const anello = armato ? 'ring-blu shadow-blu' : (suParquet ? 'ring-white/70' : 'ring-bordo/20');
-
-  return (
-    <div
-      style={stile}
-      className={cx(
-        'flex flex-col items-center transition-opacity',
-        suParquet ? 'gettone-campo absolute -translate-x-1/2 -translate-y-1/2' : 'gettone-panca',
-        inTrascinamento && 'opacity-30',
-        bersaglio && 'scale-105'
-      )}
-    >
-      {/* Le medie sopra la testa: servono a scegliere chi mettere in campo, e
-          su un gettone non c'è posto per una tabella. */}
-      <div className="mb-1 flex gap-1">
-        {medie(riga, sport).map(m => (
-          <span key={m.short} className={cx('rounded-full px-1.5 py-0.5 text-center leading-none', chip)}>
-            <i
-              className={cx('block font-bold uppercase not-italic tracking-etichetta', siglaCol)}
-              style={{ fontSize: 'var(--sigla)' }}
-            >
-              {m.short}
-            </i>
-            <b className={cx('block font-bold', mediaCol)} style={{ fontSize: 'var(--media)' }}>{m.v}</b>
-          </span>
-        ))}
-      </div>
-
-      <div className="relative">
-        <button
-          onPointerDown={onPointerDown}
-          onClick={onApri}
-          title={p.name}
-          className={cx('block touch-none', bersaglio && 'transition-transform')}
-        >
-          <span className={cx('block rounded-full ring-2 transition-all', anello)}>
-            {foto ? (
-              <img
-                src={foto}
-                alt=""
-                className="rounded-full object-cover"
-                style={{ width: 'var(--volto)', height: 'var(--volto)' }}
-                draggable="false"
-              />
-            ) : (
-              <span
-                className={cx(
-                  'grid place-items-center rounded-full font-bold',
-                  suParquet ? 'su-legno text-white' : 'vetro-alto text-testo'
-                )}
-                style={{ width: 'var(--volto)', height: 'var(--volto)', fontSize: 'calc(var(--volto) * 0.3)' }}
-              >
-                {iniziali(p.name)}
-              </span>
-            )}
-          </span>
-        </button>
-
-        <button
-          onClick={(e) => { e.stopPropagation(); onScambia(); }}
-          title="Prepara la sostituzione"
-          aria-label={'Sostituisci ' + p.name}
-          className={cx(
-            'absolute -right-1 -top-1 grid place-items-center rounded-full font-bold transition-all',
-            armato
-              ? 'vivo text-white'
-              : suParquet
-                ? 'su-legno text-white/85 hover:text-white'
-                : 'vetro-alto orlo text-soffuso hover:text-testo'
-          )}
-          style={{ width: 'var(--scambio)', height: 'var(--scambio)', fontSize: 'calc(var(--scambio) * 0.5)' }}
-        >
-          ⇄
-        </button>
-      </div>
-
-      <div
-        className={cx('mt-1.5 w-full truncate text-center font-semibold leading-tight', nomeCol)}
-        style={{ fontSize: 'var(--nome)' }}
-      >
-        {p.name}
-      </div>
-      {/* Senza numero di maglia non si scrive «#-»: un cancelletto seguito da
-          niente sembra un dato rotto, mentre l'assenza del numero e' normale. */}
-      {String(p.number || '').trim() !== '' && (
-        <div className={cx('font-bold', numCol)} style={{ fontSize: 'var(--numero)' }}>#{p.number}</div>
-      )}
-    </div>
-  );
-}
-
 /* --------------------------------------------------------------------- Rosa */
 export function Rosa() {
   const sport = currentSport();
-  const inCampo = sport.match.minOnField;
 
   const [foto, setFoto] = useState({});
   const [caricato, setCaricato] = useState(false);
-  const [quintetto, setQuintetto] = useState(() => quintettoIniziale(inCampo));
-  const [armato, setArmato] = useState(null);
   const [scheda, setScheda] = useState(null);
   const [daRimuovere, setDaRimuovere] = useState(null);
-  const [trascina, setTrascina] = useState(null);   // { id, x, y, sopra }
   const [, ridisegna] = useState(0);
   const avvisa = useAvviso();
 
-  const partenza = useRef(null);
-  const puoiModificare = canEditRoster(state.currentUser) && managesSector(state.currentUser, state.activeSectorId, state.staffSectors);
+  const puoiModificare = canEditRoster(state.currentUser)
+    && managesSector(state.currentUser, state.activeSectorId, state.staffSectors);
   const rosa = state.roster;
 
   useEffect(() => {
     let vivo = true;
     setCaricato(false);
-    setQuintetto(quintettoIniziale(inCampo));
-    if (rosa.length === 0 || inCampione()) { setCaricato(true); return; }
+    if (rosa.length === 0 || inCampione()) { setCaricato(true); return undefined; }
     fetchPlayerPhotoUrls(rosa).catch(() => ({})).then(f => {
       if (vivo) { setFoto(f); setCaricato(true); }
     });
@@ -270,85 +172,6 @@ export function Rosa() {
   }, [rosa]);
 
   const stagione = computeSeasonStats(state.history, sport);
-  const inCampoP = quintetto.map(id => rosa.find(p => p.id === id)).filter(Boolean);
-  const inPanca = rosa.filter(p => !quintetto.includes(p.id));
-
-  // Scambiare due giocatori qualunque copre tutti e tre i casi con una regola
-  // sola: campo↔panchina è una sostituzione, campo↔campo è un cambio di
-  // posizione, panchina↔panchina non cambia niente e infatti non fa niente.
-  function scambiaCoppia(a, b) {
-    if (!a || !b || a === b) return;
-    setQuintetto(q => {
-      const aDentro = q.includes(a), bDentro = q.includes(b);
-      if (aDentro && bDentro) {
-        const ia = q.indexOf(a), ib = q.indexOf(b);
-        const nuovo = q.slice();
-        nuovo[ia] = b; nuovo[ib] = a;
-        return nuovo;
-      }
-      if (aDentro) return q.map(x => (x === a ? b : x));
-      if (bDentro) return q.map(x => (x === b ? a : x));
-      return q;
-    });
-  }
-
-  // Il tocco su ⇄ resta: il trascinamento non è raggiungibile da tastiera, e
-  // con i guanti d'inverno a bordo campo un tocco secco è più affidabile.
-  function armaOScambia(id) {
-    if (armato && armato !== id) { scambiaCoppia(armato, id); setArmato(null); return; }
-    setArmato(a => (a === id ? null : id));
-  }
-
-  /* ---------------------------------------------------------- trascinamento */
-  // Eventi puntatore e non l'API HTML5 di drag: quella su telefono non esiste.
-  // Così lo stesso codice vale per mouse, dito e pennino.
-  function iniziaTrascinamento(e, id) {
-    if (e.button != null && e.button !== 0) return;
-    partenza.current = { id, x: e.clientX, y: e.clientY, partito: false };
-
-    const muovi = (ev) => {
-      const s = partenza.current;
-      if (!s) return;
-      const dx = ev.clientX - s.x, dy = ev.clientY - s.y;
-      // Sei pixel di tolleranza: sotto è un tocco, non un trascinamento. Senza,
-      // ogni tocco un po' storto aprirebbe un trascinamento invece della scheda.
-      if (!s.partito && Math.hypot(dx, dy) < 6) return;
-      s.partito = true;
-      const sotto = document.elementFromPoint(ev.clientX, ev.clientY);
-      const zona = sotto && sotto.closest('[data-gettone]');
-      const sopra = zona ? zona.getAttribute('data-gettone') : null;
-      setTrascina({ id: s.id, x: ev.clientX, y: ev.clientY, sopra: sopra === s.id ? null : sopra });
-    };
-
-    const lascia = (ev) => {
-      window.removeEventListener('pointermove', muovi);
-      window.removeEventListener('pointerup', lascia);
-      window.removeEventListener('pointercancel', lascia);
-      const s = partenza.current;
-      partenza.current = null;
-      if (!s || !s.partito) { setTrascina(null); return; }   // era un tocco
-      const sotto = document.elementFromPoint(ev.clientX, ev.clientY);
-      const zona = sotto && sotto.closest('[data-gettone]');
-      const bersaglio = zona ? zona.getAttribute('data-gettone') : null;
-      if (bersaglio && bersaglio !== s.id) {
-        scambiaCoppia(s.id, bersaglio);
-        setArmato(null);
-      }
-      setTrascina(null);
-    };
-
-    window.addEventListener('pointermove', muovi);
-    window.addEventListener('pointerup', lascia);
-    window.addEventListener('pointercancel', lascia);
-  }
-
-  // Se il trascinamento è partito, il clic che segue non deve aprire la scheda.
-  function apri(p) {
-    if (trascina) return;
-    setScheda(p);
-  }
-
-  const inMovimento = trascina ? rosa.find(p => p.id === trascina.id) : null;
 
   return (
     <div className="sezioni">
@@ -367,134 +190,26 @@ export function Rosa() {
           che è dove stanno i loro dati.
         </Vuoto>
       ) : (
-        <>
-          {/* ------------------------------------------------------ il campo */}
-          <div className="campo-cornice" style={{ '--proporzione': sport.field.ratio }}>
-          <Pannello alto className="overflow-hidden">
-            <div className="flex items-center justify-between gap-3 border-b border-bordo/10 px-5 py-3">
-              <Etichetta>{sport.field.onFieldLabel}</Etichetta>
-              <span className="text-[12.5px] text-tenue">{inCampoP.length} di {inCampo}</span>
-            </div>
-
-            {/* Il campo tiene sempre le sue proporzioni vere; a limitarlo e'
-                l'altezza massima della cornice, non uno schiacciamento. */}
-            <div className="campo parquet relative w-full">
-              <div className="righe-campo" dangerouslySetInnerHTML={{ __html: sport.field.svg }} />
-              {inCampoP.map((p, i) => {
-                const posto = sport.field.slots[i];
-                return (
-                  <div
-                    key={p.id}
-                    data-gettone={p.id}
-                    className="absolute"
-                    style={posto ? { top: posto.top, left: posto.left } : undefined}
-                  >
-                    <Gettone
-                      p={p}
-                      foto={foto[p.id]}
-                      sport={sport}
-                      riga={findSeasonRow(stagione, p)}
-                      armato={armato === p.id}
-                      suParquet
-                      inTrascinamento={trascina && trascina.id === p.id}
-                      bersaglio={trascina && trascina.sopra === p.id}
-                      onApri={() => apri(p)}
-                      onScambia={() => armaOScambia(p.id)}
-                      onPointerDown={(e) => iniziaTrascinamento(e, p.id)}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </Pannello>
+        <div>
+          <Etichetta className="mb-2.5">Tutti i giocatori</Etichetta>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {rosa.map(p => (
+              <SlotGiocatore
+                key={p.id}
+                p={p}
+                foto={foto[p.id]}
+                sport={sport}
+                riga={findSeasonRow(stagione, p)}
+                puoiModificare={puoiModificare}
+                onApri={() => setScheda(p)}
+                onTogli={() => setDaRimuovere(p)}
+              />
+            ))}
           </div>
-
-          {/* ---------------------------------------------------- la panchina */}
-          <div>
-            <div className="mb-2.5 flex items-center justify-between gap-3">
-              <Etichetta>{sport.field.benchLabel}</Etichetta>
-              <span className="text-[12.5px] text-tenue">{inPanca.length}</span>
-            </div>
-            {inPanca.length === 0 ? (
-              <Vuoto>Nessun giocatore in panchina.</Vuoto>
-            ) : (
-              <Pannello className="overflow-x-auto px-4 py-4">
-                <div className="flex gap-4">
-                  {inPanca.map(p => (
-                    <div key={p.id} data-gettone={p.id} className="shrink-0">
-                      <Gettone
-                        p={p}
-                        foto={foto[p.id]}
-                        sport={sport}
-                        riga={findSeasonRow(stagione, p)}
-                        armato={armato === p.id}
-                        inTrascinamento={trascina && trascina.id === p.id}
-                        bersaglio={trascina && trascina.sopra === p.id}
-                        onApri={() => apri(p)}
-                        onScambia={() => armaOScambia(p.id)}
-                        onPointerDown={(e) => iniziaTrascinamento(e, p.id)}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </Pannello>
-            )}
-            <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
-              Trascina un giocatore su un altro per scambiarli. Oppure tocca <b className="text-soffuso">⇄</b> su
-              uno e poi <b className="text-soffuso">⇄</b> sull’altro. Tocca il volto per le sue statistiche.
-              {rosa.length < inCampo && ` Servono almeno ${inCampo} giocatori per comporre la formazione.`}
-            </p>
-          </div>
-
-          {/* ------------------------------------------------------ l'elenco */}
-          {/* SLOT QUADRATI, NON RIGHE.
-              Una riga in un elenco porta bene una cosa sola — il nome — e
-              tutto il resto le sta accanto stretto: il numero diventa un
-              numerino, la foto un bollo da trentasei pixel, le medie non ci
-              stanno e non c'erano. Per sapere come stava andando un giocatore
-              bisognava aprire la sua scheda, uno per uno.
-              Un quadrato ha due dimensioni invece di una: ci stanno la faccia
-              grande, il numero che si grida, nome e cognome su due righe senza
-              troncarli, e le tre medie in fondo. Quello che prima era un
-              elenco da scorrere adesso e` un colpo d'occhio sulla squadra. */}
-          <div>
-            <div className="mb-2.5 flex items-center justify-between gap-3">
-              <Etichetta>Tutti i giocatori</Etichetta>
-              <span className="text-[12.5px] text-tenue">{rosa.length}</span>
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {rosa.map(p => (
-                <SlotGiocatore
-                  key={p.id}
-                  p={p}
-                  foto={foto[p.id]}
-                  sport={sport}
-                  riga={findSeasonRow(stagione, p)}
-                  inCampo={quintetto.includes(p.id)}
-                  puoiModificare={puoiModificare}
-                  onApri={() => setScheda(p)}
-                  onTogli={() => setDaRimuovere(p)}
-                />
-              ))}
-            </div>
-            <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
-              Le tre medie sono della stagione, a partita. Tocca uno slot per la scheda completa.
-            </p>
-          </div>
-        </>
-      )}
-
-      {/* Il fantasma sotto il dito. Fuori dal flusso e senza eventi, altrimenti
-          si troverebbe da solo sotto il puntatore e nessun bersaglio verrebbe
-          mai riconosciuto. */}
-      {inMovimento && (
-        <div
-          className="pointer-events-none fixed z-[95] -translate-x-1/2 -translate-y-1/2"
-          style={{ left: trascina.x, top: trascina.y }}
-        >
-          <span className="block rounded-full ring-2 ring-blu shadow-blu">
-            <Avatar nome={inMovimento.name} url={foto[inMovimento.id]} dim={56} />
-          </span>
+          <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
+            Le tre medie sono della stagione, a partita. Tocca uno slot per la scheda completa:
+            statistiche, documenti e andamento.
+          </p>
         </div>
       )}
 
@@ -509,14 +224,6 @@ export function Rosa() {
           onConferma={async () => {
             await removePlayerFromSector(daRimuovere.id, state.activeSectorId, state.activeSeasonId);
             state.roster = state.roster.filter(x => x.id !== daRimuovere.id);
-            setQuintetto(q => {
-              const resto = q.filter(x => x !== daRimuovere.id);
-              for (const p of state.roster) {
-                if (resto.length >= inCampo) break;
-                if (!resto.includes(p.id)) resto.push(p.id);
-              }
-              return resto;
-            });
             ridisegna(n => n + 1);
             avvisa('Giocatore tolto dalla categoria');
           }}
