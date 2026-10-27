@@ -1,5 +1,7 @@
-import { describe, test, is, ok } from './run.mjs';
-import { esc, clamp, fmtClock, fmtMin, contiene, senzaAccenti } from '../src/utils/format.js';
+import { describe, test, is, ok, eq } from './run.mjs';
+import {
+  esc, clamp, fmtClock, fmtMin, contiene, senzaAccenti, dividiNome
+} from '../src/utils/format.js';
 
 describe('esc — escape HTML', () => {
   test('codifica i caratteri di markup', () => {
@@ -62,4 +64,31 @@ describe('cercare un nome', () => {
   test('quello che non c’è non lo trova', () => is(contiene('Filippo Serra', 'rossi'), false));
   test('il numero di maglia è cercabile', () => ok(contiene('Filippo Serra 23', '23')));
   test('senzaAccenti non si rompe sul nulla', () => is(senzaAccenti(null), ''));
+});
+
+describe('nome e cognome, da un nome scritto in un campo solo', () => {
+  test('due parole: la prima è il nome', () => {
+    eq(dividiNome('Marco Bellini'), { nome: 'Marco', cognome: 'Bellini' });
+  });
+
+  test('tre parole: il cognome si tiene tutto', () => {
+    // È il caso per cui questa funzione esiste: «Bertolotti Massaro» è un
+    // cognome solo, e spezzarlo a metà lo rende irriconoscibile.
+    eq(dividiNome('Lorenzo Bertolotti Massaro'),
+      { nome: 'Lorenzo', cognome: 'Bertolotti Massaro' });
+  });
+
+  test('una parola sola: è il nome, e il cognome è vuoto', () => {
+    eq(dividiNome('Youssef'), { nome: 'Youssef', cognome: '' });
+  });
+
+  test('spazi di troppo non creano parole di troppo', () => {
+    eq(dividiNome('  Davide   Conti  '), { nome: 'Davide', cognome: 'Conti' });
+  });
+
+  test('niente: due stringhe vuote, non un errore', () => {
+    eq(dividiNome(''), { nome: '', cognome: '' });
+    eq(dividiNome(null), { nome: '', cognome: '' });
+    eq(dividiNome(undefined), { nome: '', cognome: '' });
+  });
 });

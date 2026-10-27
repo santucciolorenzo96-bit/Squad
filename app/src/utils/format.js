@@ -122,3 +122,26 @@ export function fraGiorniISO(n, da) {
   d.setDate(d.getDate() + n);
   return giornoISO(d);
 }
+
+/* NOME E COGNOME, DA UN NOME SCRITTO IN UN CAMPO SOLO.
+ *
+ * In anagrafica il nome si scrive tutto insieme, ed è giusto: un campo solo si
+ * compila in un gesto, e due campi costringono a decidere dove va «Bertolotti
+ * Massaro» ogni volta che si aggiunge un atleta.
+ *
+ * Ma dove i nomi stanno in colonna — la vista a lista dello scout, gli slot
+ * della Rosa — servono separati, perché il cognome è l'identificatore e va
+ * trovato nello stesso punto in ogni riga.
+ *
+ * La regola è quella che funziona per i nomi italiani: la PRIMA parola è il
+ * nome, tutto il resto è il cognome. «Lorenzo Bertolotti Massaro» dà «Lorenzo»
+ * e «Bertolotti Massaro», che è quasi sempre giusto — e dove non lo è (un
+ * secondo nome di battesimo) l'errore si vede e si corregge in anagrafica
+ * scrivendo il nome come si vuole leggerlo.
+ */
+export function dividiNome(nomeIntero) {
+  const parti = String(nomeIntero || '').trim().split(/\s+/).filter(Boolean);
+  if (parti.length === 0) return { nome: '', cognome: '' };
+  if (parti.length === 1) return { nome: parti[0], cognome: '' };
+  return { nome: parti[0], cognome: parti.slice(1).join(' ') };
+}

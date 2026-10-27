@@ -660,6 +660,18 @@
   }
 
   .falli-segno.falli-personale { background: rgb(255 255 255 / 0.95); }
+
+  /* SUI PANNELLI, NON SUL PARQUET.
+     Nella vista a lista i trattini stanno su un pannello di vetro, che nel
+     tema chiaro e` chiaro: il bianco al 95% diventerebbe invisibile proprio
+     dove serve — il quinto fallo e` la cosa che chi segna deve vedere con la
+     coda dell'occhio. Qui il pieno segue il colore del testo. */
+  .falli-su-pannello .falli-segno {
+    background: rgb(var(--testo) / 0.18);
+    box-shadow: none;
+  }
+
+  .falli-su-pannello .falli-segno.falli-personale { background: rgb(var(--testo) / 0.85); }
   .falli-segno.falli-tecnico { background: rgb(var(--ambra)); }
   .falli-segno.falli-antisportivo { background: rgb(var(--rosso)); }
 

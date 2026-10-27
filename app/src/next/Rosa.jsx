@@ -8,6 +8,7 @@ import { currentSport } from '../utils/sports/index.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Vuoto, Scheletro, Avatar, cx, AzioneRiga } from './ui.jsx';
 import { Conferma, useAvviso } from './moduli.jsx';
+import { dividiNome } from '../utils/format.js';
 import { SchedaAtleta } from './SchedaAtleta.jsx';
 
 /* La rosa.
@@ -53,6 +54,82 @@ function quintettoIniziale(inCampo) {
     if (!ids.includes(p.id)) ids.push(p.id);
   }
   return ids.slice(0, inCampo);
+}
+
+/* UNO SLOT DELLA ROSA.
+ *
+ * Quadrato, e il quadrato non e` un gusto: e` quello che permette di mettere
+ * cinque cose nello stesso riquadro senza stringerne nessuna. Dall'alto in
+ * basso — il numero e lo stato, la faccia, nome e cognome, le tre medie — e
+ * ognuna nello stesso punto in ogni slot, perche` e` scorrendo l'occhio in
+ * verticale che si confronta una rosa.
+ *
+ * Il cognome in grassetto sotto il nome: in una rosa con due Giulia il
+ * cognome e` l'identificatore, e va trovato sempre alla stessa altezza.
+ *
+ * «Togli» sta FUORI dal riquadro che si tocca — HTML non permette un pulsante
+ * dentro un pulsante, ed e` una buona regola anche per le dita: il riquadro si
+ * tocca per aprire la scheda, e un bersaglio distruttivo dentro un bersaglio
+ * che si tocca spesso e` un bersaglio premuto per sbaglio.
+ */
+function SlotGiocatore({ p, foto, sport, riga, inCampo, puoiModificare, onApri, onTogli }) {
+  const { nome, cognome } = dividiNome(p.name);
+  const voci = medie(riga, sport);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={onApri}
+        title={p.name}
+        className={cx(
+          'flex aspect-square w-full flex-col items-center gap-1.5 rounded-2xl p-3 text-center transition-all orlo active:scale-[0.99]',
+          inCampo ? 'vetro-alto ring-1 ring-blu/45' : 'vetro hover:bg-pannello/10'
+        )}
+      >
+        {/* La riga di sopra: il numero a sinistra, e a destra lo spazio del
+            «Togli» — tenuto libero anche quando non c'e`, cosi` il numero sta
+            nello stesso punto per tutti. */}
+        <div className="flex w-full shrink-0 items-start justify-between gap-1">
+          <span className="cifra text-[21px] font-bold leading-none">{p.number}</span>
+          {inCampo && (
+            <span className="rounded-full bg-blu/16 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-etichetta text-blu">
+              in campo
+            </span>
+          )}
+          {puoiModificare && <span className="w-6 shrink-0" aria-hidden="true" />}
+        </div>
+
+        <Avatar nome={p.name} url={foto} dim={54} />
+
+        <div className="min-w-0 w-full">
+          <div className="truncate text-[11.5px] leading-tight text-tenue">{nome}</div>
+          <div className="truncate text-[14px] font-bold leading-tight">{cognome || nome}</div>
+        </div>
+
+        {/* Le medie in fondo, spinte in basso da `mt-auto`: con un cognome su
+            una riga o su due, la riga dei numeri resta alla stessa altezza in
+            tutti gli slot. */}
+        <div className="mt-auto flex w-full shrink-0 items-end justify-around gap-1 border-t border-bordo/8 pt-2">
+          {voci.map(m => (
+            <span key={m.short} className="min-w-0">
+              <b className="cifra block text-[14.5px] font-bold leading-none">{m.v}</b>
+              <i className="mt-0.5 block text-[9px] font-bold uppercase not-italic leading-none tracking-etichetta text-tenue">
+                {m.short}
+              </i>
+            </span>
+          ))}
+        </div>
+      </button>
+
+      {puoiModificare && (
+        <div className="absolute right-1.5 top-1.5">
+          <AzioneRiga etichetta="Togli" pericolo onClick={onTogli}>
+            <Croce />
+          </AzioneRiga>
+        </div>
+      )}
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ gettone */
@@ -370,36 +447,39 @@ export function Rosa() {
           </div>
 
           {/* ------------------------------------------------------ l'elenco */}
+          {/* SLOT QUADRATI, NON RIGHE.
+              Una riga in un elenco porta bene una cosa sola — il nome — e
+              tutto il resto le sta accanto stretto: il numero diventa un
+              numerino, la foto un bollo da trentasei pixel, le medie non ci
+              stanno e non c'erano. Per sapere come stava andando un giocatore
+              bisognava aprire la sua scheda, uno per uno.
+              Un quadrato ha due dimensioni invece di una: ci stanno la faccia
+              grande, il numero che si grida, nome e cognome su due righe senza
+              troncarli, e le tre medie in fondo. Quello che prima era un
+              elenco da scorrere adesso e` un colpo d'occhio sulla squadra. */}
           <div>
-            <Etichetta className="mb-2.5">Tutti i giocatori</Etichetta>
-            <Pannello className="overflow-hidden">
-              {rosa.map((p, i) => (
-                <div
+            <div className="mb-2.5 flex items-center justify-between gap-3">
+              <Etichetta>Tutti i giocatori</Etichetta>
+              <span className="text-[12.5px] text-tenue">{rosa.length}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {rosa.map(p => (
+                <SlotGiocatore
                   key={p.id}
-                  className={cx(
-                    'flex items-center gap-3.5 px-4 py-3 transition-colors hover:bg-pannello/8 sm:px-5',
-                    i > 0 && 'border-t border-bordo/6'
-                  )}
-                >
-                  <span className="w-8 shrink-0 text-right text-[16px] font-medium text-tenue">{p.number}</span>
-                  <Avatar nome={p.name} url={foto[p.id]} dim={36} />
-                  <button onClick={() => setScheda(p)} className="min-w-0 flex-1 text-left">
-                    <div className="truncate text-[14px] font-semibold leading-tight">{p.name}</div>
-                    {p.role_position && <div className="text-[12.5px] text-tenue">{p.role_position}</div>}
-                  </button>
-                  {quintetto.includes(p.id) && (
-                    <span className="shrink-0 rounded-full bg-blu/16 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-etichetta text-blu">
-                      in campo
-                    </span>
-                  )}
-                  {puoiModificare && (
-                    <AzioneRiga etichetta="Togli" pericolo onClick={() => setDaRimuovere(p)}>
-                      <Croce />
-                    </AzioneRiga>
-                  )}
-                </div>
+                  p={p}
+                  foto={foto[p.id]}
+                  sport={sport}
+                  riga={findSeasonRow(stagione, p)}
+                  inCampo={quintetto.includes(p.id)}
+                  puoiModificare={puoiModificare}
+                  onApri={() => setScheda(p)}
+                  onTogli={() => setDaRimuovere(p)}
+                />
               ))}
-            </Pannello>
+            </div>
+            <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
+              Le tre medie sono della stagione, a partita. Tocca uno slot per la scheda completa.
+            </p>
           </div>
         </>
       )}

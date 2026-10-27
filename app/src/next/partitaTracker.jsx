@@ -12,7 +12,7 @@ import {
 } from '../utils/regole.js';
 import { Pannello, Etichetta, Pulsante, Stato, Amichevole, Vuoto, cx } from './ui.jsx';
 import { managesSector } from '../utils/permissions.js';
-import { oggiISO } from '../utils/format.js';
+import { oggiISO, dividiNome } from '../utils/format.js';
 import { quantiChiusi } from '../utils/referto.js';
 import {
   nomePeriodo, eSupplementare, periodiMancanti, pareggioImpossibile
@@ -111,6 +111,31 @@ function leggiDettaglio() {
 
 function ricordaDettaglio(v) {
   try { window.localStorage.setItem(CHIAVE_DETTAGLIO, v ? '1' : '0'); }
+  catch (e) { /* niente */ }
+}
+
+/* CAMPO O LISTA.
+ *
+ * Due modi di guardare gli stessi cinque giocatori. Il campo dice DOVE sono —
+ * e per chi segna da bordo campo quella e` la chiave per riconoscerli: si
+ * guarda il parquet, si vede il numero dieci in posizione di guardia, si
+ * tocca la` . La lista dice CHI sono: foto, numero, nome e cognome su una riga,
+ * tutti alla stessa altezza e tutti leggibili senza cercare.
+ *
+ * Quale sia meglio dipende da chi segna, non da noi: chi conosce la squadra a
+ * memoria vuole il campo, chi la sta imparando — o chi fa l'ufficiale di campo
+ * su una squadra che non e` la sua — vuole i nomi. Per questo e` una scelta e
+ * non un disegno, e resta sul dispositivo di chi l'ha fatta.
+ */
+const CHIAVE_VISTA = 'squad_scout_vista';
+
+function leggiVista() {
+  try { return window.localStorage.getItem(CHIAVE_VISTA) === 'lista' ? 'lista' : 'campo'; }
+  catch (e) { return 'campo'; }
+}
+
+function ricordaVista(v) {
+  try { window.localStorage.setItem(CHIAVE_VISTA, v === 'lista' ? 'lista' : 'campo'); }
   catch (e) { /* niente */ }
 }
 
@@ -315,6 +340,7 @@ export function Tracker({ onFinita, onEsci }) {
   }, [onEsci]);
   const [chiudiPeriodo, setChiudiPeriodo] = useState(false);
   const [correggiTempo, setCorreggiTempo] = useState(false);
+  const [vista, setVista] = useState(leggiVista);
   const [finePartita, setFinePartita] = useState(false);
   const salvataggioRotto = useRef(false);
   // La copia sul dispositivo e' la rete di sicurezza per la palestra senza
@@ -1589,6 +1615,61 @@ export function Tracker({ onFinita, onEsci }) {
             )}
           </div>
 
+          {vista === 'lista' ? (
+            /* LA VISTA A LISTA.
+               Gli stessi cinque, le stesse cose che si possono fare — un tocco
+               assegna, il giallo prepara il cambio, i trattini contano i falli
+               — ma su righe alte invece che su un parquet. Niente scorre: le
+               barre si dividono l'altezza che il campo occupava, perche` a
+               bordo campo quello che e` sotto la piega non esiste. */
+            /* `justify-center` no: con l'overflow attivo centrare taglia la
+               prima riga invece di centrarla. Le barre sono tutte `flex-1`,
+               quindi riempiono da sole l'altezza quando c'e'. E se non c'e'
+               — un telefono tenuto in verticale — scorre: su tablet non
+               succede mai, e su telefono scorrere cinque righe e' meglio che
+               averne due fuori dal riquadro. */
+            <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-contain">
+              {inCampo.map(p => (
+                <BarraCampo
+                  key={p.id}
+                  p={p}
+                  sport={sport}
+                  foto={foto[p.id]}
+                  lampo={lampo && lampo.id === p.id ? lampo.testo : null}
+                  inSostituzione={sostituzione === p.id}
+                  falli={conf.falliPerUscire
+                    ? segniFallo(p.stats, falliInOrdine[p.id], conf.falliPerUscire)
+                    : null}
+                  scelto={scelto === p.id}
+                  inAttesa={!!armato}
+                  onAssegna={() => toccaGiocatore(p)}
+                  onSostituisci={() => setSostituzione(s => (s === p.id ? null : p.id))}
+                />
+              ))}
+
+              {/* I posti liberi ci sono anche qui, e si toccano: all'inizio il
+                  campo e` vuoto perche` i titolari si scelgono adesso, e una
+                  lista di tre righe su cinque non dice che ne mancano due. */}
+              {campoCorto && Array.from(
+                { length: Math.max(0, (sport.match.minOnField || 0) - inCampo.length) },
+                (_, i) => (
+                  <button
+                    key={'vuoto' + i}
+                    onClick={() => {
+                      if (inPanca.length === 0) { setPresenze(true); return; }
+                      avvisa('Tocca in panchina chi vuoi mandare in campo.');
+                    }}
+                    className="flex min-h-[3rem] flex-1 items-center gap-3 rounded-xl border border-dashed border-bordo/35 px-3 text-left text-[13px] font-semibold text-tenue transition-colors hover:text-soffuso"
+                  >
+                    <span className="grid h-[2.4rem] w-[2.4rem] shrink-0 place-items-center rounded-full border border-dashed border-bordo/35 text-[18px]">
+                      +
+                    </span>
+                    Posto libero in campo
+                  </button>
+                )
+              )}
+            </div>
+          ) : (
           <div className="campo-alto">
             <Pannello alto className="campo-scatola overflow-hidden">
             <div className="campo parquet relative">
@@ -1656,6 +1737,7 @@ export function Tracker({ onFinita, onEsci }) {
             </div>
             </Pannello>
           </div>
+          )}
         </div>
 
         {/* La panchina, sotto il campo. Da tablet in su sta a SINISTRA, sotto
@@ -1687,6 +1769,12 @@ export function Tracker({ onFinita, onEsci }) {
         onDettaglio={() => setDettaglio(v => { ricordaDettaglio(!v); return !v; })}
         mappa={mappa}
         onMappa={() => setMappa(v => { ricordaMappa(!v); return !v; })}
+        vista={vista}
+        onVista={() => setVista(v => {
+          const nuova = v === 'lista' ? 'campo' : 'lista';
+          ricordaVista(nuova);
+          return nuova;
+        })}
         onEvento={toccaEvento}
         inAttesaDi={attesa}
         className="hidden lg:flex"
@@ -2441,6 +2529,119 @@ const RigheCampo = React.memo(function RigheCampo({ svg }) {
 //
 // Memorizzato: quando si segna un canestro cambia UN giocatore, e ridisegnare
 // gli altri quattro è lavoro che si paga a ogni tocco per tutta la partita.
+/* UNA RIGA DELLA VISTA A LISTA.
+ *
+ * Da sinistra: la foto, il numero grande, il nome e il cognome. In quest'ordine
+ * perche` e` l'ordine in cui si riconosce una persona quando non si conosce la
+ * squadra a memoria — la faccia, poi il numero che si grida, poi il nome che
+ * si scrive sul referto.
+ *
+ * Fa le stesse tre cose del gettone sul campo, perche` altrimenti sarebbe una
+ * vista piu` bella e meno utile: un tocco assegna l'evento armato, il giallo
+ * prepara il cambio, i trattini contano i falli. E il giallo sta FUORI dalla
+ * riga che si tocca, separato: due bersagli attaccati con frequenze cosi`
+ * diverse — il giocatore a ogni azione, il cambio dieci volte in una partita —
+ * sono un bersaglio solo, e quello grosso perde.
+ *
+ * `--volto` si imposta qui: i trattini dei falli sono dimensionati su quella
+ * variabile, che sul campo viene dal contenitore e qui no.
+ */
+const BarraCampo = React.memo(function BarraCampo({
+  p, sport, foto, lampo, inSostituzione, falli, scelto, inAttesa,
+  onAssegna, onSostituisci
+}) {
+  const conf = sport.scout;
+  const { nome, cognome } = dividiNome(p.name);
+  const valore = conf.tileStat
+    ? (conf.tileStat.key === 'pts' ? sport.score(p.stats || {}) : (p.stats || {})[conf.tileStat.key] || 0)
+    : null;
+
+  return (
+    <div
+      className="relative flex min-h-[3rem] flex-1 items-center gap-2"
+      style={{ '--volto': '2.6rem' }}
+    >
+      <button
+        onClick={onAssegna}
+        title={p.name}
+        className={cx(
+          'flex h-full min-w-0 flex-1 items-center gap-3 rounded-xl px-2.5 text-left transition-all orlo active:scale-[0.99]',
+          inSostituzione ? 'vetro-alto ring-1 ring-blu'
+            : scelto ? 'vetro-alto ring-2 ring-blu'
+              : inAttesa ? 'vetro-alto gettone-chiamato' : 'vetro hover:bg-pannello/12'
+        )}
+      >
+        <span className="block h-[2.6rem] w-[2.6rem] shrink-0 overflow-hidden rounded-full ring-1 ring-bordo/25">
+          <Volto p={p} url={foto} />
+        </span>
+
+        {/* Il numero grande: e` quello che si grida, e in una colonna di cinque
+            righe e` anche quello con cui si trova la riga giusta. */}
+        <span className="cifra w-[2.1rem] shrink-0 text-center text-[26px] font-bold leading-none">
+          {p.number}
+        </span>
+
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[12.5px] leading-tight text-tenue">{nome}</span>
+          {cognome && (
+            <span className="block truncate text-[16px] font-bold leading-tight">{cognome}</span>
+          )}
+        </span>
+
+        {/* I falli e la voce che chi segna controlla per accorgersi di aver
+            sbagliato persona: stanno a destra, nello stesso punto in ogni riga.
+            Sono le due cose che sul gettone c'erano gia`, e togliendole la
+            lista diventerebbe piu` pulita e meno sicura. */}
+        {falli && (
+          <span
+            className={cx('falli-riga falli-su-pannello flex shrink-0', falli.fuori && 'falli-fuori')}
+            title={raccontaFalli(falli)}
+            aria-label={p.name + ': ' + raccontaFalli(falli)}
+          >
+            {falli.segni.map((t, i) => (
+              <i key={i} className={cx('falli-segno', t && 'falli-' + t)} aria-hidden="true" />
+            ))}
+            {falli.oltre > 0 && (
+              <span className="cifra ml-1 text-[11px] font-bold text-rosso">+{falli.oltre}</span>
+            )}
+          </span>
+        )}
+
+        {conf.tileStat && (
+          <span className="shrink-0 rounded-lg bg-pannello/12 px-2 py-1 text-[13px] font-bold leading-none">
+            {valore}
+            <i className="ml-0.5 text-[10px] font-bold not-italic text-tenue">{conf.tileStat.short}</i>
+          </span>
+        )}
+      </button>
+
+      <button
+        onClick={onSostituisci}
+        disabled={inAttesa}
+        title={inAttesa ? 'Prima assegna l’evento' : 'Prepara la sostituzione'}
+        aria-label={'Cambia ' + p.name}
+        className={cx(
+          'grid h-[2.4rem] w-[2.4rem] shrink-0 place-items-center rounded-full text-[16px] font-bold transition-all',
+          inAttesa ? 'pointer-events-none opacity-25'
+            : inSostituzione ? 'ring-2 ring-white active:scale-95'
+              : 'hover:brightness-110 active:scale-95'
+        )}
+        style={{ background: 'rgb(var(--ambra))', color: 'rgb(12 10 6)' }}
+      >
+        ⇄
+      </button>
+
+      {lampo && (
+        <span className="pointer-events-none absolute inset-y-0 right-[3.2rem] flex items-center">
+          <span className="animate-salita whitespace-nowrap rounded-full vivo px-2 py-0.5 text-[11px] font-bold text-white">
+            {lampo}
+          </span>
+        </span>
+      )}
+    </div>
+  );
+});
+
 const GettoneCampo = React.memo(function GettoneCampo({
   p, sport, foto, lampo, inSostituzione, stile, falli, scelto, inAttesa,
   cambioASinistra, onAssegna, onSostituisci
@@ -3505,7 +3706,8 @@ function ChiusuraPeriodo({ g, sport, onChiudi, onFatto }) {
  * annullamento.
  */
 function ColonnaEventi({
-  conf, armato, dettaglio, onDettaglio, mappa, onMappa, onEvento, inAttesaDi, className
+  conf, armato, dettaglio, onDettaglio, mappa, onMappa,
+  vista, onVista, onEvento, inAttesaDi, className
 }) {
   const gruppi = (conf.groups || []).filter(gr => !gr.dettaglio || dettaglio);
   const conDettaglio = (conf.groups || []).some(gr => gr.dettaglio);
@@ -3515,6 +3717,25 @@ function ColonnaEventi({
       <div className="mb-1.5 flex shrink-0 items-center justify-between gap-1">
         <Etichetta>Eventi</Etichetta>
         <div className="flex shrink-0 items-center gap-1">
+          {/* CAMPO O LISTA.
+              Sta qui, con gli altri due interruttori, e non sopra il campo: su
+              tablet quella riga non si disegna — e il tablet e` il
+              dispositivo su cui si segna. Un comando che esiste solo dove non
+              serve e` un comando che non esiste. */}
+          {onVista && (
+            <button
+              onClick={onVista}
+              title="Giocatori in campo: sul campo o in elenco"
+              className={cx(
+                'rounded-lg px-1.5 py-1 text-[11px] font-bold transition-all active:scale-95',
+                vista === 'lista'
+                  ? 'bg-blu/18 text-blu ring-1 ring-blu/40'
+                  : 'vetro orlo text-tenue hover:text-testo'
+              )}
+            >
+              Lista
+            </button>
+          )}
           {conf.mappaTiri && (
             <button
               onClick={onMappa}
