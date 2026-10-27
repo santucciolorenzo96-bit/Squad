@@ -7,6 +7,7 @@ import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Avatar, Stato, cx, TINTA_
 import { Campo, Testo, Scelta, useAvviso } from './moduli.jsx';
 import { oggiISO, fraGiorniISO } from '../utils/format.js';
 import { etichettaDove, tonoDove } from '../utils/dove.js';
+import { durataPeriodo } from '../utils/cronometro.js';
 
 // «oggi», «domani», «ieri», e poi la data: dentro una finestra di sette
 // giorni le parole sono piu' rapide di una data da decifrare, fuori no.
@@ -81,7 +82,10 @@ export function AvvioPartita({ onAvviata }) {
       const bozza = {
         oppName: avversario.trim() || 'Avversari',
         friendly: amichevole,
-        quarterLength: 0,
+        // La durata del periodo nasce da quella dello sport e si cambia nello
+        // scout, toccando il cronometro: una societa' di minibasket gioca
+        // periodi piu' corti, e quello si scopre al primo periodo, non qui.
+        quarterLength: conf.period.hasClock ? durataPeriodo({}, conf) : 0,
         numQuarters: nQ,
         quarter: 1,
         clock: 0,

@@ -1,4 +1,5 @@
 import { computeSeasonStats } from './stats.js';
+import { minutiGiocati } from './cronometro.js';
 import { quintettiOrdinati } from './regole.js';
 
 /* Il referto di una partita.
@@ -301,6 +302,17 @@ export function tabellaTabellino(referto, sport) {
   const colonne = [
     { k: 'number', label: 'N' },
     { k: 'name', label: 'Giocatore' },
+    /* I MINUTI, SUBITO DOPO IL NOME.
+     *
+     * E' il posto che hanno su ogni tabellino di carta, e non per abitudine:
+     * tutte le colonne che seguono si leggono in rapporto a questa. Dodici
+     * punti in otto minuti e dodici punti in trentadue sono due prestazioni
+     * diverse, e senza i minuti il tabellino non permette di distinguerle.
+     *
+     * Solo dove lo sport conta il tempo. Nella pallavolo non c'e' cronometro,
+     * e una colonna di trattini direbbe soltanto che manca un dato che non
+     * esiste. */
+    ...((sport.scout || {}).trackSeconds ? [{ k: 'min', label: 'MIN', calc: (r) => minutiGiocati(r) }] : []),
     ...sport.seasonColumns.map(c => ({
       k: c.key,
       label: c.short || c.label,

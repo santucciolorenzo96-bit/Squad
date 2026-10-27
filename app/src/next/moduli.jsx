@@ -140,8 +140,50 @@ export function useTendina(onChiudi) {
 /* ----------------------------------------------------------------- finestra */
 // Esc chiude, il clic fuori chiude, e la pagina sotto non scorre. Sono tre
 // cose che si notano solo quando mancano.
+/* LA TASTIERA CHE COPRE QUELLO CHE SERVE.
+ *
+ * Su tablet, aprendo il modulo che chiede il punteggio dell'avversario, la
+ * tastiera copriva i due numeri — cioè le uniche due cose da guardare in
+ * quella finestra. Si scriveva un punteggio senza poter vedere quello da
+ * confrontare, che è esattamente il contrario del lavoro che quella finestra
+ * serve a far fare.
+ *
+ * Il motivo non è il disegno della finestra: è che su iPad la tastiera NON
+ * rimpicciolisce il viewport. La pagina resta alta come prima e la tastiera le
+ * si mette sopra, quindi una finestra `fixed` centrata nel viewport resta
+ * centrata in un viewport di cui la metà bassa non si vede più. `dvh` non
+ * aiuta: segue le barre del browser, non la tastiera.
+ *
+ * Quello che la tastiera sposta davvero è il `visualViewport` — l'area che
+ * l'utente vede per davvero. La finestra si ancora a quella, e la tastiera
+ * diventa semplicemente uno schermo più corto.
+ *
+ * Dove `visualViewport` non c'è si torna al comportamento di prima.
+ */
+function useAreaVisibile() {
+  const [area, setArea] = useState(null);
+
+  useEffect(() => {
+    const vv = typeof window !== 'undefined' && window.visualViewport;
+    if (!vv) return undefined;
+    const aggiorna = () => setArea({ altezza: vv.height, sopra: vv.offsetTop });
+    aggiorna();
+    vv.addEventListener('resize', aggiorna);
+    // Anche lo scroll: iOS, quando la tastiera si apre, scorre il viewport
+    // visivo invece di ridimensionare quello di layout.
+    vv.addEventListener('scroll', aggiorna);
+    return () => {
+      vv.removeEventListener('resize', aggiorna);
+      vv.removeEventListener('scroll', aggiorna);
+    };
+  }, []);
+
+  return area;
+}
+
 export function Finestra({ titolo, sotto, onChiudi, larga = false, azioni, children }) {
   const tendina = useTendina(onChiudi);
+  const area = useAreaVisibile();
 
   useEffect(() => {
     const tasto = (e) => { if (e.key === 'Escape') onChiudi(); };
@@ -159,13 +201,19 @@ export function Finestra({ titolo, sotto, onChiudi, larga = false, azioni, child
   // riferimento per gli elementi fissi, e la finestra finirebbe ancorata alla
   // colonna del contenuto invece che alla pagina. Succede, e si vede.
   return createPortal(
-    <div className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center" onMouseDown={onChiudi}>
+    <div
+      className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center"
+      style={area ? { top: area.sopra, height: area.altezza, bottom: 'auto' } : undefined}
+      onMouseDown={onChiudi}
+    >
       <div className="absolute inset-0 bg-fondo/75 backdrop-blur-sm" />
       <div
         role="dialog"
         aria-modal="true"
         onMouseDown={e => e.stopPropagation()}
-        style={tendina.stile}
+        /* Con l'area visibile nota il tetto è quella, non il 92% di un
+           viewport che la tastiera ha reso finto. */
+        style={area ? { ...tendina.stile, maxHeight: '100%' } : tendina.stile}
         className={cx(
           'relative flex max-h-[92dvh] w-full flex-col rounded-t-2xl vetro-alto orlo shadow-lg',
           tendina.entrata && 'animate-salita',

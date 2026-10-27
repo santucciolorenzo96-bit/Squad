@@ -312,12 +312,18 @@ export const BASKET = {
   // qui conta il numero di tocchi. Due soli — giocatore, poi azione — con i
   // comandi che si aprono sotto il pollice invece che in fondo alla pagina.
   //
-  // Niente cronometro, e quindi niente minuti giocati. Nel basket il tempo si
-  // ferma di continuo, ed è l'unica statistica che si corrompe da sola: scorre
-  // anche quando nessuno la guarda. Una pausa dimenticata durante due tiri
-  // liberi regala novanta secondi fantasma a cinque giocatori insieme, in
-  // silenzio. Ogni altro dato nasce da un tocco, quindi se manca è un buco che
-  // si vede. Riattivarlo un domani è una riga: hasClock e trackSeconds.
+  // IL CRONOMETRO C'È, e la ragione per cui non c'era resta vera: nel basket
+  // il tempo si ferma di continuo, ed è l'unica statistica che si corrompe da
+  // sola — scorre anche quando nessuno la guarda. Una pausa dimenticata
+  // durante due tiri liberi regalerebbe novanta secondi fantasma a cinque
+  // giocatori insieme, in silenzio. Ogni altro dato nasce da un tocco, quindi
+  // se manca è un buco che si vede; un minuto sbagliato no.
+  //
+  // Due accorgimenti rendono quell'errore visibile: il cronometro si CORREGGE
+  // toccandolo — si scrive il numero del tabellone della palestra — e i minuti
+  // si misurano SUL CRONOMETRO, quindi da fermo non passa tempo per nessuno e
+  // un cronometro scordato in moto si vede scendere mentre non succede niente.
+  // Il modello sta in utils/cronometro.js, con i casi brutti nei test.
   /* IL REFERTO DELLA SQUADRA.
    *
    * Due blocchi, e li dichiara lo sport perche' sono lo sport. Un referto di
@@ -361,7 +367,7 @@ export const BASKET = {
 
   scout: {
     period: {
-      label: 'Periodo', plural: 'Periodi', short: 'P', count: 4, minutes: null,
+      label: 'Periodo', plural: 'Periodi', short: 'P', count: 4, minutes: 10,
       /* QUANTI PERIODI NON SI CHIEDE PIU'.
        *
        * Una partita ufficiale ne ha quattro, e lo dice il regolamento: la
@@ -375,7 +381,10 @@ export const BASKET = {
        * Resta la leva, per una societa' di minibasket che gioca a sei
        * periodi: basta rimettere `askCount: true`. */
       askCount: false,
-      hasClock: false, direction: null,
+      // Il cronometro c'e' (062). Dieci minuti e' il periodo FIBA; il
+      // minibasket ne gioca di piu' corti, e per questo la durata si cambia
+      // in partita invece di essere fissa qui.
+      hasClock: true, direction: null,
       /* Oltre il quarto si va, e non c'e' un massimo: se dopo il quarto le
        * squadre sono pari si gioca un supplementare, e se finisce pari anche
        * quello un altro. `extraNumerati` dice che il quinto periodo si chiama
@@ -390,7 +399,9 @@ export const BASKET = {
     ourScore: 'fromActions',
     opponentScore: 'perPeriod',
     scoreDisplay: 'sum',
-    trackSeconds: false,
+    // I minuti giocati: si misurano sul cronometro, non sull'orologio da
+    // parete. Col cronometro fermo non passa tempo per nessuno.
+    trackSeconds: true,
     teamFouls: true,
     teamFoulBonus: 5,
     /* AL QUINTO SI ESCE.

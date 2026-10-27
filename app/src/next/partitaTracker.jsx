@@ -17,6 +17,10 @@ import { quantiChiusi } from '../utils/referto.js';
 import {
   nomePeriodo, eSupplementare, periodiMancanti, pareggioImpossibile
 } from '../utils/periodi.js';
+import {
+  restano, inMoto, scambia, ferma, imposta, nuovoPeriodo,
+  durataPeriodo, secondiDelTurno, mmss
+} from '../utils/cronometro.js';
 import { calcolaPunteggi } from '../utils/punteggio.js';
 import {
   applicaAzione, annota, segnaPeriodo, cosaFaIlTocco, entraAlPostoDi
@@ -310,6 +314,7 @@ export function Tracker({ onFinita, onEsci }) {
     };
   }, [onEsci]);
   const [chiudiPeriodo, setChiudiPeriodo] = useState(false);
+  const [correggiTempo, setCorreggiTempo] = useState(false);
   const [finePartita, setFinePartita] = useState(false);
   const salvataggioRotto = useRef(false);
   // La copia sul dispositivo e' la rete di sicurezza per la palestra senza
@@ -414,6 +419,45 @@ export function Tracker({ onFinita, onEsci }) {
   const inParita = periodiRestanti === 0 && pareggioImpossibile(conf, g);
 
   const aggiorna = () => ridisegna(n => n + 1);
+
+  /* IL BATTITO.
+   *
+   * Un intervallo che non fa altro che ridisegnare: il tempo non si tiene in
+   * uno stato di React, si CALCOLA da quanto mancava e da quando. Cosi` una
+   * scheda rimasta in secondo piano — dove i timer rallentano o si fermano —
+   * al ritorno mostra il numero giusto invece di quello di cinque minuti fa.
+   *
+   * Gira solo mentre il cronometro va. Da fermo non c'e` niente da ridisegnare
+   * una volta al secondo, e su un tablet a bordo campo un disegno al secondo
+   * per due ore non e` gratis.
+   */
+  useEffect(() => {
+    if (!conf.period.hasClock || !g.clockRunning) return undefined;
+    const battito = setInterval(() => {
+      /* ARRIVATI A ZERO SI FERMA DA SOLO.
+       * Un cronometro «in moto» inchiodato a 0:00 direbbe il falso a chi
+       * guarda e continuerebbe a non dare minuti a nessuno; e la fine del
+       * periodo e` il momento in cui lo scout deve alzare gli occhi. */
+      if (restano(g) <= 0) {
+        ferma(g);
+        aggiorna();
+        salva(g);
+        avvisa(nomePeriodo(conf, g.quarter, { amichevole: g.friendly }) + ' finito: 0:00');
+        return;
+      }
+      aggiorna();
+    }, 1000);
+    return () => clearInterval(battito);
+  }, [conf.period.hasClock, g.clockRunning, g.clockFrom, g.quarter]);
+
+  /* Avviare e fermare e` UN TOCCO, sul numero. Al fischio si ferma, e un
+   * gesto che passa da una finestra non si fa al fischio: si fa dopo, o non
+   * si fa. */
+  function tempo() {
+    scambia(g);
+    aggiorna();
+    salva(g);
+  }
 
   // Il salvataggio gira a ogni azione senza bloccare niente.
   //
@@ -891,13 +935,37 @@ export function Tracker({ onFinita, onEsci }) {
     g.turno = {
       ids: g.players.filter(p => p.onCourt).map(p => p.id),
       us: g.teamScore || 0,
-      them: g.oppScore || 0
+      them: g.oppScore || 0,
+      /* E quanto mancava sul cronometro. E` da qui che nascono i minuti
+       * giocati: non costano un tocco in piu`, perche` i cambi si segnano
+       * gia` e il cronometro c'e` gia`. I turni delle partite aperte prima
+       * del cronometro non hanno `cl`, e per loro i minuti restano a zero
+       * invece di diventare un numero inventato. */
+      cl: restano(g)
     };
   }
 
   function chiudiTurno() {
     if (!conf.quintetti) return;
     calcolaPunteggi(g, sport);
+
+    /* I MINUTI, PRIMA DEL SALDO E SEPARATI DA LUI.
+     *
+     * `saldoTurno` restituisce null per un turno a zero punti — succede con
+     * due cambi di fila a un time out — e quei turni non vanno in tabella.
+     * Ma un turno senza punti ha comunque dei minuti: appoggiare i minuti a
+     * `esito` vorrebbe dire perdere il tempo di chi e` entrato e uscito senza
+     * che nessuno segnasse. */
+    if (conf.trackSeconds && g.turno) {
+      const giocati = secondiDelTurno(g.turno, restano(g));
+      if (giocati > 0) {
+        (g.turno.ids || []).forEach(id => {
+          const p = g.players.find(x => x.id === id);
+          if (p) p.stats = { ...(p.stats || {}), seconds: ((p.stats || {}).seconds || 0) + giocati };
+        });
+      }
+    }
+
     const esito = saldoTurno(g.turno, g.teamScore, g.oppScore);
     if (esito) {
       g.quintetti = sommaQuintetto(g.quintetti, esito);
@@ -1267,6 +1335,14 @@ export function Tracker({ onFinita, onEsci }) {
                     non e' il quinto quarto. In amichevole resta «P5». */}
                 {nomePeriodo(conf, g.quarter, { amichevole: g.friendly, breve: true })}
               </div>
+
+              {conf.period.hasClock && (
+                <Cronometro
+                  g={g}
+                  onTempo={tempo}
+                  onCorreggi={() => setCorreggiTempo(true)}
+                />
+              )}
               {perSet && (
                 <div className="mt-1.5 rounded-full bg-pannello/14 px-2.5 py-0.5 text-[12px] font-bold leading-none text-soffuso">
                   <span className="cifra">{g.teamScore}–{g.oppScore}</span>
@@ -1403,11 +1479,19 @@ export function Tracker({ onFinita, onEsci }) {
             {!(avviso && avviso.chiusa) && (
               <button
                 onClick={() => setChiudiPeriodo(true)}
+                /* IN ROSSO, SEMPRE.
+                   Chiudere un periodo non si disfa: il punteggio avversario
+                   entra nel tabellone e il periodo dopo si apre. Era grigio
+                   come «esci» e verde quando il periodo era finito — due
+                   colori per lo stesso gesto, e il verde invitava a premerlo.
+                   Il rosso piu` acceso quando il periodo e` davvero finito
+                   dice «e` questo il momento» senza cambiare il significato
+                   del colore. */
                 className={cx(
                   'flex-1 py-2.5 text-[13px] transition-colors',
                   avviso && avviso.finito
-                    ? 'bg-verde/14 font-bold text-verde hover:brightness-110'
-                    : 'bg-fondo/40 font-semibold text-soffuso hover:text-testo'
+                    ? 'bg-rosso/20 font-bold text-rosso hover:brightness-110'
+                    : 'bg-rosso/10 font-semibold text-rosso/90 hover:bg-rosso/16 hover:text-rosso'
                 )}
               >
                 Chiudi {((eSupplementare(conf, g.quarter, { amichevole: g.friendly })
@@ -1836,6 +1920,15 @@ export function Tracker({ onFinita, onEsci }) {
         />
       )}
 
+      {correggiTempo && (
+        <CorreggiTempo
+          g={g}
+          conf={conf}
+          onChiudi={() => setCorreggiTempo(false)}
+          onFatto={(msg) => { aggiorna(); salva(); avvisa(msg); }}
+        />
+      )}
+
       {chiudiPeriodo && (
         <ChiusuraPeriodo
           g={g}
@@ -2070,6 +2163,142 @@ export function Tracker({ onFinita, onEsci }) {
  * quintetti non esisterebbe, perche' non si saprebbe mai quanti punti ha
  * preso un quintetto mentre era in campo.
  */
+/* IL CRONOMETRO SUL TABELLONE.
+ *
+ * Un tocco sul numero: va e viene. E` l'unico gesto che deve essere
+ * immediato, perche` si fa al fischio — e un gesto che al fischio passa da
+ * una finestra non si fa, o si fa tardi, che per un cronometro e` lo stesso.
+ *
+ * Verde mentre scorre, spento da fermo: lo stato si legge senza leggere
+ * niente. Ed e` la cosa che conta, perche` il guasto di un cronometro non e`
+ * segnare l'ora sbagliata — e` stare andando quando nessuno crede che stia
+ * andando.
+ *
+ * «correggi» compare solo da FERMO. Non per pudore: durante il gioco quel
+ * bersaglio starebbe a un centimetro dal numero che si tocca ogni trenta
+ * secondi, e aprire una finestra per sbaglio mentre si segna e` peggio di non
+ * poter correggere subito. Da fermo non si sta segnando.
+ */
+function Cronometro({ g, onTempo, onCorreggi }) {
+  const va = inMoto(g);
+  return (
+    <div className="mt-1.5">
+      <button
+        onClick={onTempo}
+        aria-label={va ? 'Ferma il cronometro' : 'Avvia il cronometro'}
+        className={cx(
+          'cifra w-full rounded-lg px-2 py-1 text-[21px] font-bold leading-none transition-colors lg:text-[25px]',
+          va
+            ? 'bg-verde/16 text-verde hover:bg-verde/22'
+            : 'bg-pannello/12 text-soffuso hover:bg-pannello/18 hover:text-testo'
+        )}
+      >
+        {mmss(restano(g))}
+      </button>
+      {!va && (
+        <button
+          onClick={onCorreggi}
+          className="mt-1 w-full text-[10px] font-bold uppercase tracking-etichetta text-tenue transition-colors hover:text-soffuso"
+        >
+          correggi
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* CORREGGERE IL CRONOMETRO.
+ *
+ * E` la ragione per cui questo cronometro si puo` accettare. Il tempo e`
+ * l'unica statistica che si corrompe da sola — scorre anche quando nessuno la
+ * guarda — e una pausa dimenticata regala minuti a cinque giocatori insieme,
+ * in silenzio. Un orologio che non si puo` rimettere a posto accumula per
+ * tutta la partita; uno che si corregge sbaglia fino alla prossima occhiata al
+ * tabellone della palestra, e non oltre.
+ *
+ * Minuti e secondi in due caselle invece di «9:04» in una: sul tablet si
+ * scrivono due numeri con la tastiera numerica, senza andare a cercare i due
+ * punti.
+ *
+ * E qui sta anche la durata del periodo, perche` e` qui che si scopre di
+ * averla sbagliata: al primo periodo, guardando il tabellone, non mezz'ora
+ * prima della palla a due.
+ */
+function CorreggiTempo({ g, conf, onChiudi, onFatto }) {
+  const resto = restano(g);
+  const [min, setMin] = useState(String(Math.floor(resto / 60)));
+  const [sec, setSec] = useState(String(resto % 60));
+  const [durata, setDurata] = useState(String(Math.round(durataPeriodo(g, conf) / 60)));
+
+  const minutiPeriodo = () => Math.max(1, Math.min(30, parseInt(durata, 10) || 10));
+
+  function applica(secondi) {
+    /* La durata PRIMA del tempo: `imposta` non lascia scrivere un tempo piu'
+     * lungo del periodo, e il tetto deve essere quello nuovo. */
+    g.quarterLength = minutiPeriodo() * 60;
+    imposta(g, secondi, conf);
+    onFatto('Cronometro a ' + mmss(restano(g)));
+    onChiudi();
+  }
+
+  return (
+    <Modulo
+      titolo="Il cronometro"
+      sotto="Scrivi il tempo che si legge sul tabellone della palestra."
+      etichettaInvia="Rimetti a posto"
+      onChiudi={onChiudi}
+      azioniExtra={
+        <button
+          onClick={() => applica(minutiPeriodo() * 60)}
+          className="text-[12.5px] font-semibold text-tenue transition-colors hover:text-testo"
+        >
+          Periodo da capo
+        </button>
+      }
+      onInvia={() => {
+        const m = Math.max(0, parseInt(min, 10) || 0);
+        const s = parseInt(sec, 10) || 0;
+        if (s > 59) return 'I secondi vanno da 0 a 59.';
+        applica(m * 60 + s);
+      }}
+    >
+      <div className="grid grid-cols-2 gap-3">
+        <Campo etichetta="Minuti">
+          <Testo
+            inputMode="numeric"
+            value={min}
+            onChange={e => setMin(e.target.value.replace(/\D/g, '').slice(0, 2))}
+            className="text-center text-[26px] font-bold"
+            autoFocus
+          />
+        </Campo>
+        <Campo etichetta="Secondi">
+          <Testo
+            inputMode="numeric"
+            value={sec}
+            onChange={e => setSec(e.target.value.replace(/\D/g, '').slice(0, 2))}
+            className="text-center text-[26px] font-bold"
+          />
+        </Campo>
+      </div>
+
+      <Campo etichetta="Quanto dura un periodo (minuti)">
+        <Testo
+          inputMode="numeric"
+          value={durata}
+          onChange={e => setDurata(e.target.value.replace(/\D/g, '').slice(0, 2))}
+        />
+      </Campo>
+
+      <p className="text-[12.5px] leading-relaxed text-tenue">
+        I minuti giocati si contano sul cronometro: da fermo non passa tempo per nessuno.
+        Se resta in moto durante un time out, quei minuti finiscono addosso ai cinque che
+        erano in campo — per questo conviene correggerlo appena ci si accorge.
+      </p>
+    </Modulo>
+  );
+}
+
 function ManoPunteggio({ attiva, valori = [1], onPiu, onMeno }) {
   /* Il posto tenuto libero quando la mano non c'e`.
    *
@@ -3179,6 +3408,10 @@ function ChiusuraPeriodo({ g, sport, onChiudi, onFatto }) {
           g.quarter += 1;
           if (g.quarter > g.numQuarters) g.numQuarters = g.quarter;
           if (conf.teamFouls) g.quarterFouls[g.quarter] = 0;
+          /* Il cronometro torna pieno e FERMO: alla palla a due il tempo non
+           * e' ancora partito, e un cronometro che riparte da solo mentre le
+           * squadre tornano in campo regala minuti a cinque persone. */
+          if (conf.period.hasClock) nuovoPeriodo(g, conf);
         }
 
         onFatto(deciso && deciso.finita
@@ -3186,20 +3419,31 @@ function ChiusuraPeriodo({ g, sport, onChiudi, onFatto }) {
           : `${nomePeriodo(conf, idx + 1, { amichevole: g.friendly })} chiuso`);
       }}
     >
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-lg bg-pannello/8 px-3.5 py-3 text-center">
-          <Etichetta>Noi, dalle azioni</Etichetta>
-          <div className="mt-2 text-[30px] font-bold leading-none text-verde">{nostriOra}</div>
+      {/* I DUE NUMERI NON SI PERDONO DI VISTA.
+          `sticky` perche' questa finestra ha una cosa sola da far fare:
+          confrontare il nostro totale col tabellone della palestra. Su tablet
+          la tastiera si apre da sola (c'e' `autoFocus`) e prima copriva
+          proprio questi due numeri; adesso la finestra si ancora all'area
+          visibile — vedi `useAreaVisibile` in moduli.jsx — e questo blocco
+          resta in cima anche se il resto scorre.
+          I margini negativi servono al fondo: senza, il testo che scorre si
+          vedrebbe passare dietro ai bordi del blocco. */}
+      <div className="sticky -top-5 z-10 -mx-5 bg-fondo/95 px-5 pb-3 pt-5 backdrop-blur-sm sm:-mx-6 sm:px-6">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-lg bg-pannello/8 px-3.5 py-3 text-center">
+            <Etichetta>Noi, dalle azioni</Etichetta>
+            <div className="mt-2 text-[30px] font-bold leading-none text-verde">{nostriOra}</div>
+          </div>
+          <Campo etichetta={g.oppName}>
+            <Testo
+              inputMode="numeric"
+              value={loro}
+              onChange={e => setLoro(e.target.value.replace(/\D/g, ''))}
+              className="text-center text-[26px] font-bold"
+              autoFocus
+            />
+          </Campo>
         </div>
-        <Campo etichetta={g.oppName}>
-          <Testo
-            inputMode="numeric"
-            value={loro}
-            onChange={e => setLoro(e.target.value.replace(/\D/g, ''))}
-            className="text-center text-[26px] font-bold"
-            autoFocus
-          />
-        </Campo>
       </div>
 
       <p className="text-[12.5px] leading-relaxed text-tenue">

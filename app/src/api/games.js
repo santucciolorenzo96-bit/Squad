@@ -16,6 +16,10 @@ function fromDbGame(row) {
     quarter: row.quarter,
     clock: row.clock,
     clockRunning: row.clock_running,
+    /* Da quando il cronometro sta scorrendo (062). Senza questo istante
+     * «quanto manca adesso» non si puo' calcolare, e una pagina ricaricata a
+     * meta' periodo ritroverebbe il tempo di quando e' stato avviato. */
+    clockFrom: row.clock_from || null,
     teamScore: row.team_score,
     oppScore: row.opp_score,
     quarterFouls: row.quarter_fouls || {},
@@ -62,6 +66,9 @@ function toDbPatch(g) {
   if ('quarter' in g) patch.quarter = g.quarter;
   if ('clock' in g) patch.clock = g.clock;
   if ('clockRunning' in g) patch.clock_running = g.clockRunning;
+  // Fermare il cronometro mette `clockFrom` a null, e quel null va scritto:
+  // e' l'informazione «il numero in `clock` e' quello giusto».
+  if ('clockFrom' in g) patch.clock_from = g.clockFrom || null;
   if ('teamScore' in g) patch.team_score = g.teamScore;
   if ('oppScore' in g) patch.opp_score = g.oppScore;
   if ('quarterFouls' in g) patch.quarter_fouls = g.quarterFouls;
