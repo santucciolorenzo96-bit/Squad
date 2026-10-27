@@ -4,6 +4,8 @@ import {
   imposta, nuovoPeriodo, secondiDelTurno, mmss, minutiGiocati
 } from '../src/utils/cronometro.js';
 import { BASKET } from '../src/utils/sports/basket.js';
+import { PALLAVOLO } from '../src/utils/sports/pallavolo.js';
+import { annota } from '../src/utils/azione.js';
 
 /* IL CRONOMETRO.
  *
@@ -220,5 +222,48 @@ describe('come si scrive un tempo', () => {
     is(minutiGiocati({ seconds: 0 }), '—');
     is(minutiGiocati({}), '—');
     is(minutiGiocati(null), '—');
+  });
+});
+
+describe('l’ora del cronometro su ogni azione', () => {
+  /* `t` sono i secondi che mancavano quando l'azione e stata segnata: e quello
+   * che trasforma un elenco di azioni in una cronaca. «9:04 del secondo
+   * quarto» invece di «la quattordicesima azione». */
+  const partita = (patch) => ({ quarter: 2, storia: [], quarterLength: 600, ...patch });
+
+  test('col cronometro fermo si scrive il tempo che si legge', () => {
+    const g = partita({ clock: 544, clockRunning: false });
+    annota(g, { a: 'fg2m', p: 'p1' });
+    is(g.storia[0].t, 544);
+    is(g.storia[0].q, 2);
+  });
+
+  test('col cronometro in moto si scrive il tempo di ADESSO', () => {
+    const g = partita(andante(600, Date.now() - 65000));
+    annota(g, { a: 'ast', p: 'p2' });
+    // 600 meno i 65 secondi passati: il valore non e quello dell'ultimo
+    // avvio, e scriverlo sarebbe come segnare tutte le azioni alla palla a due.
+    ok(g.storia[0].t <= 535 && g.storia[0].t >= 534, 'atteso ~535, trovato ' + g.storia[0].t);
+  });
+
+  test('dove non c’e cronometro non si scrive niente', () => {
+    // Nella pallavolo sarebbe uno zero su ogni riga, e uno zero che sembra un
+    // dato e peggio di un campo che non c'e.
+    is(durataPeriodo({}, PALLAVOLO.scout) > 0, true);   // lo sport ha un default
+    const g = { quarter: 3, storia: [], quarterLength: 0, clock: 0 };
+    annota(g, { a: 'kill', p: 'p3' });
+    is('t' in g.storia[0], false);
+  });
+
+  test('e le azioni restano in ordine, con il loro periodo', () => {
+    const g = partita({ clock: 300, clockRunning: false });
+    annota(g, { a: 'fg3m', p: 'p1' });
+    g.quarter = 3;
+    g.clock = 120;
+    annota(g, { a: 'loro', n: 2 });
+    is(g.storia.length, 2);
+    is(g.storia[0].t, 300);
+    is(g.storia[1].t, 120);
+    is(g.storia[1].q, 3);
   });
 });

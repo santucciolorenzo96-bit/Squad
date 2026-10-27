@@ -1,4 +1,5 @@
 import { calcolaPunteggi } from './punteggio.js';
+import { restano } from './cronometro.js';
 
 /* COSA SUCCEDE QUANDO SI TOCCA UN PULSANTE DELLO SCOUT.
  *
@@ -108,9 +109,26 @@ export function applicaAzione({ g, sport, giocatore, azione, punto, linea, chiud
  * questa riga sbagliasse, il punteggio e il tabellino resterebbero giusti lo
  * stesso — a mancare sarebbero solo le sezioni nuove del referto.
  */
+/* E L'ORA DEL CRONOMETRO, dove un cronometro c'e'.
+ *
+ * `t` sono i secondi che mancavano alla fine del periodo quando l'azione e'
+ * stata segnata. Non e' un ornamento: e' quello che trasforma un elenco di
+ * azioni in una cronaca — «9:04 del secondo quarto» invece di «la
+ * quattordicesima azione». Serve a chi rilegge per controllare l'ultima
+ * registrazione, e serve al referto per dire QUANDO e' arrivato il parziale
+ * che ha deciso la partita.
+ *
+ * Si scrive solo se la partita ha una durata di periodo, cioe' se lo sport ha
+ * il cronometro: nella pallavolo sarebbe uno zero su ogni riga, e uno zero che
+ * sembra un dato e' peggio di un campo che non c'e'. Le partite segnate prima
+ * del cronometro non hanno `t`, e le sezioni che ci si appoggiano
+ * semplicemente non lo mostrano.
+ */
 export function annota(g, voce) {
   if (!g || !voce) return;
-  g.storia = [...(Array.isArray(g.storia) ? g.storia : []), { q: g.quarter || 1, ...voce }];
+  const riga = { q: g.quarter || 1, ...voce };
+  if ((Number(g.quarterLength) || 0) > 0) riga.t = restano(g);
+  g.storia = [...(Array.isArray(g.storia) ? g.storia : []), riga];
 }
 
 /* Il punteggio del periodo in corso, da una parte o dall'altra.

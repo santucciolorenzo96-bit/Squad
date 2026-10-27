@@ -1349,6 +1349,30 @@ export function Tracker({ onFinita, onEsci }) {
                 onPiu={(n) => manoPunteggio('us', n)}
                 onMeno={() => manoPunteggio('us', -1)}
               />
+
+              {/* I FALLI DI SQUADRA, ATTACCATI ALLA SQUADRA.
+                  Stavano al centro del tabellone, fra i due punteggi, e la`
+                  non si capiva di chi fossero: un «4 falli» in mezzo si legge
+                  come un dato della partita, mentre e` il conto di UNA delle
+                  due squadre — la nostra.
+                  Sotto l'altro punteggio non c'e` il gemello, e non e` una
+                  dimenticanza: i falli dell'avversario non li segna nessuno.
+                  Nel tabellino ci sono i falli dei NOSTRI giocatori, e questo
+                  numero e` la loro somma nel periodo; per quelli di loro non
+                  esiste nessun dato da mostrare, e inventare un contatore
+                  vuoto sarebbe peggio di non averlo. */}
+              {conf.teamFouls && (
+                <div
+                  title={'Falli di squadra nel ' + conf.period.label.toLowerCase()
+                    + (bonus ? ': da qui in avanti si va in lunetta' : '')}
+                  className={cx(
+                    'mx-auto mt-1.5 w-fit rounded-full px-2 py-0.5 text-[11px] font-bold',
+                    bonus ? 'bg-rosso/18 text-rosso' : 'bg-pannello/12 text-tenue'
+                  )}
+                >
+                  {falli} falli{bonus ? ' · bonus' : ''}
+                </div>
+              )}
             </div>
 
             {/* La zona centrale: che periodo si sta giocando, e tutto il
@@ -1376,12 +1400,6 @@ export function Tracker({ onFinita, onEsci }) {
                 </div>
               )}
               {g.friendly && <Amichevole className="mt-1.5" />}
-              {conf.teamFouls && (
-                <div className={cx('mt-1.5 rounded-full px-2 py-0.5 text-[11px] font-bold',
-                  bonus ? 'bg-rosso/18 text-rosso' : 'bg-pannello/12 text-tenue')}>
-                  {falli} falli{bonus ? ' · bonus' : ''}
-                </div>
-              )}
             </div>
 
             <div className="min-w-0 text-center">
@@ -1393,7 +1411,11 @@ export function Tracker({ onFinita, onEsci }) {
                   {g.oppName}
                 </span>
               </div>
-              <div className="mt-0.5 text-[clamp(26px,8vw,38px)] lg:text-[30px] xl:text-[34px] font-bold leading-none">
+              {/* L'avversario in ambra e noi in verde: e` il vocabolario che
+                  il tabellone usa gia` per il pallino del servizio, e due
+                  numeri grandi dello stesso colore si confondono proprio
+                  quando si guardano di sfuggita. */}
+              <div className="mt-0.5 text-[clamp(26px,8vw,38px)] lg:text-[30px] xl:text-[34px] font-bold leading-none text-ambra">
                 {grandeLoro}
               </div>
               <ManoPunteggio
@@ -2275,7 +2297,7 @@ function Cronometro({ g, onTempo, onCorreggi }) {
         onClick={onTempo}
         aria-label={va ? 'Ferma il cronometro' : 'Avvia il cronometro'}
         className={cx(
-          'cifra w-full rounded-lg px-2 py-1 text-[21px] font-bold leading-none transition-colors lg:text-[25px]',
+          'cifra w-full rounded-lg px-2 py-1 text-[23px] font-bold leading-none transition-colors lg:text-[29px]',
           va
             ? 'bg-verde/16 text-verde hover:bg-verde/22'
             : 'bg-pannello/12 text-soffuso hover:bg-pannello/18 hover:text-testo'
