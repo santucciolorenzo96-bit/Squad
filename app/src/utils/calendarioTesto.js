@@ -102,7 +102,7 @@ function coppiaDi(line) {
  * Si prende quello che compare più volte, perché un documento lo scrive sempre
  * allo stesso modo e la ripetizione è la prova.
  */
-function nomeCompletoNelDocumento(righe, nomeBreve) {
+export function nostroNomeNelDocumento(righe, nomeBreve) {
   const breve = nomeBreve.toLowerCase();
   const conteggio = new Map();
 
@@ -134,13 +134,25 @@ function nomeCompletoNelDocumento(righe, nomeBreve) {
  * è a sua volta una partita o una giornata: in quel caso il campo non c'è, e
  * una riga sbagliata al posto del campo è peggio di un campo vuoto.
  */
+/* LA FORMA DI UN CAMPO.
+ *
+ * «PALACATANIA - Corso Indipendenza CATANIA (CT)»: un impianto, un indirizzo,
+ * e la provincia fra parentesi. Serve una forma perche` in questo documento
+ * sotto la riga di una partita puo` capitarci il NOME DI UNA SQUADRA — quando
+ * la coppia e` andata a capo — e un nome di squadra scritto come luogo manda
+ * la squadra a giocare in una palestra che non esiste.
+ */
+function sembraUnCampo(r) {
+  return /\s[-–]\s/.test(r) || /\([A-Za-z]{2}\)\s*$/.test(r);
+}
+
 function campoDopo(righe, i) {
   for (let k = i + 1; k < righe.length && k <= i + 3; k++) {
     const r = pulisci(righe[k]);
     if (!r) continue;
     if (NUMERO_GARA.test(r) || PIE_DI_PAGINA.test(r)) continue;
     if (DATE_RE.test(r) || GIORNATA_FIP.test(r)) return null;
-    return r;
+    return sembraUnCampo(r) ? r : null;
   }
   return null;
 }
@@ -150,7 +162,7 @@ export function parseMatchesFromLines(lines, teamName) {
   const righe = lines.map(l => String(l == null ? '' : l));
   const nomeBreve = pulisci(teamName);
   const breve = nomeBreve.toLowerCase();
-  const completo = nomeBreve ? nomeCompletoNelDocumento(righe, nomeBreve) : '';
+  const completo = nomeBreve ? nostroNomeNelDocumento(righe, nomeBreve) : '';
   const completoBasso = completo.toLowerCase();
 
   const matches = [];
@@ -252,4 +264,219 @@ export function parseMatchesFromLines(lines, teamName) {
   });
 
   return matches;
+}
+
+
+/* ========================================================================= */
+/* TUTTE LE PARTITE DEL GIRONE, NON SOLO LE NOSTRE                           */
+/* ========================================================================= */
+/*
+ * Il calendario sono le nostre partite, e per quelle basta il nostro nome. Ma
+ * LA CLASSIFICA si fa coi risultati di tutti, e inserire a mano gli
+ * accoppiamenti di un girone da nove squadre — settantadue partite fra andata
+ * e ritorno — e` esattamente il pomeriggio che caricare un calendario doveva
+ * far risparmiare. Senza di loro, durante la stagione, bisognerebbe scrivere
+ * ogni domenica due nomi, la data e la giornata prima di poter scrivere due
+ * numeri.
+ *
+ * IL PROBLEMA ERA CHE NON SI POSSONO SPEZZARE. «A.S.D. KALKIS A.S.D. MENS SANA
+ * MASCALUCIA» sono due squadre senza niente in mezzo, e non c'e` modo di sapere
+ * dove finisca la prima.
+ *
+ * LA SOLUZIONE ERA NEL DOCUMENTO. In un girone all'italiana noi incontriamo
+ * tutte le altre, quindi dalle NOSTRE partite — che si spezzano, perche` il
+ * nostro nome lo conosciamo — escono i nomi di tutte le squadre del girone. Con
+ * quel vocabolario ogni coppia si spezza: si cerca quale nome conosciuto apre
+ * la riga, e quello che resta e` l'altra squadra.
+ *
+ * Sul calendario vero: 72 righe-partita, 71 spezzate al primo colpo e zero
+ * nomi incerti. La settantaduesima era andata a capo — la seconda squadra sulla
+ * riga sotto — ed e` l'ultimo caso qui sotto.
+ *
+ * I nomi piu` lunghi si provano per primi: «A.S.D. MENS SANA MASCALUCIA» e
+ * «A.S.D. KALKIS» cominciano uguali, e provando il corto per primo si
+ * taglierebbe nel posto sbagliato ogni volta che giocano in casa.
+ */
+
+/* IMPARARE LE SQUADRE CHE NON ABBIAMO ANCORA INCONTRATO.
+ *
+ * Dalle nostre partite escono i nomi di chi abbiamo giocato. In un girone
+ * all'italiana completo sono tutti — ma un PDF puo` essere parziale, o
+ * contenere un girone in cui non siamo, e allora il vocabolario resta a meta`
+ * e le coppie delle altre non si spezzano.
+ *
+ * Si impara di piu` con una regola sola, applicata finche` serve: SE DI UNA
+ * COPPIA CONOSCO UNA DELLE DUE SQUADRE, L'ALTRA E` QUELLO CHE RESTA. Il nome
+ * noto puo` stare davanti — e allora la nuova squadra e` la coda — oppure in
+ * fondo, e allora e` la testa. Ogni nome imparato permette di spezzare altre
+ * coppie, quindi si ripassa fino a quando non si impara piu` niente: un giro
+ * per ogni squadra, al massimo.
+ *
+ * Il nome imparato deve essere lungo almeno tre caratteri e contenere una
+ * lettera: una coda di due caratteri o un numero rimasto appeso non sono una
+ * societa`, e una squadra inventata in classifica e` peggio di una mancante.
+ */
+function imparaSquadre(righe, iniziali) {
+  const squadre = [...iniziali];
+  const ha = (n) => squadre.some(x => x.toUpperCase() === n.toUpperCase());
+  const vale = (n) => n.length >= 3 && /[A-Za-z]/.test(n) && !NUMERO_GARA.test(n);
+
+  const coppie = [];
+  righe.forEach(line => {
+    if (!DATE_RE.test(line)) return;
+    const c = coppiaDi(line);
+    if (c && !PAIR_RE.test(c)) coppie.push(c);
+  });
+
+  for (let giro = 0; giro < 40; giro++) {
+    let imparato = false;
+    coppie.forEach(c => {
+      const su = c.toUpperCase();
+      // in ordine di lunghezza: il nome piu` lungo che combacia e` quello vero
+      const ordinate = [...squadre].sort((a, b) => b.length - a.length);
+      for (let i = 0; i < ordinate.length; i++) {
+        const noto = ordinate[i].toUpperCase();
+        if (su.startsWith(noto)) {
+          const resto = c.slice(noto.length).trim();
+          if (resto && vale(resto) && !ha(resto) && !RIPOSO.test(resto)) {
+            squadre.push(resto); imparato = true;
+          }
+          return;
+        }
+        if (su.endsWith(noto)) {
+          const resto = c.slice(0, c.length - noto.length).trim();
+          if (resto && vale(resto) && !ha(resto) && !RIPOSO.test(resto)) {
+            squadre.push(resto); imparato = true;
+          }
+          return;
+        }
+      }
+    });
+    if (!imparato) break;
+  }
+
+  return squadre;
+}
+
+function spezzaCoppia(coppia, vocabolario) {
+  const su = coppia.toUpperCase();
+  for (let i = 0; i < vocabolario.length; i++) {
+    const casa = vocabolario[i];
+    if (!su.startsWith(casa.toUpperCase())) continue;
+    const resto = coppia.slice(casa.length).trim();
+    if (!resto) return { casa, fuori: null };     // forse andata a capo
+    const noto = vocabolario.find(x => resto.toUpperCase() === x.toUpperCase());
+    // Se il secondo nome non e` nel vocabolario si prende com'e`: con un PDF
+    // parziale il vocabolario e` incompleto, e un nome da correggere a mano e`
+    // meglio di una partita che non c'e`.
+    return { casa, fuori: noto || resto };
+  }
+  return null;
+}
+
+/* Il nome di squadra finito su una riga sua, quando la coppia e` andata a capo.
+ * Si cerca nelle due righe intorno, e deve essere ESATTAMENTE un nome noto:
+ * una riga che «somiglia» a un nome di squadra non basta per inventare una
+ * partita. */
+function nomeVicino(righe, i, vocabolario) {
+  const candidate = [righe[i + 1], righe[i + 2], righe[i - 1]];
+  for (let k = 0; k < candidate.length; k++) {
+    const r = pulisci(candidate[k]);
+    if (!r) continue;
+    const noto = vocabolario.find(x => r.toUpperCase() === x.toUpperCase());
+    if (noto) return noto;
+  }
+  return null;
+}
+
+/**
+ * Tutte le partite del girone, pronte per `league_matches`.
+ *
+ * @returns {{partite: Array, squadre: Array, nostroNome: string, nonLette: Array}}
+ *   `partite` ha la forma del database — `home_team`, `away_team` — perche` la
+ *   classifica non ragiona per «noi e loro»: ragiona per casa e trasferta.
+ *   `nonLette` sono le coppie che non si sono potute spezzare: si restituiscono
+ *   invece di sparire, perche` chi carica un calendario deve poter sapere che
+ *   tre partite non ci sono.
+ */
+export function leggiGirone(lines, teamName) {
+  if (!Array.isArray(lines)) return { partite: [], squadre: [], nostroNome: '', nonLette: [] };
+  const righe = lines.map(l => String(l == null ? '' : l));
+
+  const nostre = parseMatchesFromLines(righe, teamName);
+  const nostroNome = pulisci(teamName)
+    ? nostroNomeNelDocumento(righe, pulisci(teamName))
+    : '';
+
+  const squadre = [];
+  const aggiungi = (n) => {
+    const v = pulisci(n);
+    if (v && !squadre.some(x => x.toUpperCase() === v.toUpperCase())) squadre.push(v);
+  };
+  if (nostroNome) aggiungi(nostroNome);
+  nostre.forEach(m => aggiungi(m.opponent));
+
+  /* E poi si impara dal resto del documento: le squadre che non abbiamo
+   * incontrato si ricavano dalle coppie in cui l'altra e` nota. */
+  const tutte = squadre.length ? imparaSquadre(righe, squadre) : [];
+
+  // Dal piu` lungo al piu` corto: due nomi che cominciano uguali si
+  // distinguono solo provando il lungo per primo.
+  const vocabolario = [...tutte].sort((a, b) => b.length - a.length);
+
+  const partite = [];
+  const nonLette = [];
+  let giornataCorrente = null;
+  let ultimaAndata = 0;
+
+  righe.forEach((line, i) => {
+    const fip = line.match(GIORNATA_FIP);
+    if (fip) {
+      const n = parseInt(fip[1], 10);
+      if (/ritorno/i.test(fip[2])) giornataCorrente = ultimaAndata + n;
+      else { if (n > ultimaAndata) ultimaAndata = n; giornataCorrente = n; }
+      return;
+    }
+
+    const dateMatch = line.match(DATE_RE);
+    if (!dateMatch) return;
+    const giornataMatch = line.match(GIORNATA_RE);
+    const coppia = coppiaDi(line);
+    if (!coppia) return;
+
+    let casa = null;
+    let fuori = null;
+
+    const conSeparatore = coppia.match(PAIR_RE);
+    if (conSeparatore) {
+      casa = conSeparatore[1].trim();
+      fuori = conSeparatore[2].trim();
+    } else {
+      const s = spezzaCoppia(coppia, vocabolario);
+      if (!s) { nonLette.push(coppia); return; }
+      casa = s.casa;
+      fuori = s.fuori || nomeVicino(righe, i, vocabolario);
+      if (!fuori) { nonLette.push(coppia); return; }
+    }
+
+    if (!casa || !fuori || casa.toUpperCase() === fuori.toUpperCase()) {
+      nonLette.push(coppia);
+      return;
+    }
+    if (RIPOSO.test(casa) || RIPOSO.test(fuori)) return;
+
+    const timeMatch = line.match(TIME_RE);
+    partite.push({
+      giornata: giornataMatch
+        ? parseInt(giornataMatch[1] || giornataMatch[2], 10)
+        : giornataCorrente,
+      date: normalizeDate(dateMatch[1], dateMatch[2], dateMatch[3]),
+      time: timeMatch ? `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}` : null,
+      home_team: casa,
+      away_team: fuori,
+      sourceLine: line
+    });
+  });
+
+  return { partite, squadre: tutte, nostroNome, nonLette };
 }

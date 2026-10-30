@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { state } from '../state.js';
 import { Croce } from './icone.jsx';
 import { bulkInsertMatches } from '../api/calendar.js';
-import { parseMatchesFromLines } from '../utils/calendarioTesto.js';
+import { bulkInsertLeagueMatches } from '../api/leagueMatches.js';
+import { parseMatchesFromLines, leggiGirone } from '../utils/calendarioTesto.js';
 import { Pannello, Etichetta, Pulsante, cx, AzioneRiga } from './ui.jsx';
 import { Finestra, Campo, Testo, Data, Scelta, Spunta } from './moduli.jsx';
 import { CASA, TRASFERTA, IGNOTO, doveSiGioca } from '../utils/dove.js';
@@ -61,6 +62,11 @@ function daLetta(m) {
 
 export function CaricaCalendario({ onChiudi, onFatto }) {
   const [righe, setRighe] = useState(null);      // null = non si è ancora letto niente
+  /* IL GIRONE: tutte le partite del documento, anche fra altre due squadre.
+   * Non si verificano una per una — settantadue righe non si guardano — ma si
+   * caricano, perché sono quelle che poi fanno la classifica. */
+  const [girone, setGirone] = useState(null);
+  const [conGirone, setConGirone] = useState(true);
   const [testo, setTesto] = useState('');
   const [lavora, setLavora] = useState('');
   const [errore, setErrore] = useState('');
@@ -95,6 +101,7 @@ export function CaricaCalendario({ onChiudi, onFatto }) {
     }
     setErrore('');
     setRighe(trovate.map(daLetta));
+    setGirone(leggiGirone(righeTesto, nostroNome));
   }
 
   async function daPdf(file) {
@@ -145,9 +152,29 @@ export function CaricaCalendario({ onChiudi, onFatto }) {
       );
       (creati || []).forEach(c => state.calendar.push(c));
       const saltate = buone.length - (creati || []).length;
+
+      /* E il girone, per la classifica. Se questo non riesce il calendario e`
+       * comunque salvato: si dice e si va avanti, perche` perdere le proprie
+       * partite per colpa di quelle degli altri non ha senso. */
+      let inGirone = 0;
+      let gironeRotto = false;
+      if (conGirone && girone && girone.partite.length > 0) {
+        try {
+          const messe = await bulkInsertLeagueMatches(
+            state.teamProfile.id, state.activeSectorId, girone.partite
+          );
+          inGirone = (messe || []).length;
+        } catch (e) {
+          console.error(e);
+          gironeRotto = true;
+        }
+      }
+
       onFatto(
         (creati || []).length + ' partite in calendario'
         + (saltate > 0 ? ' · ' + saltate + ' già presenti' : '')
+        + (inGirone > 0 ? ' · ' + inGirone + ' del girone per la classifica' : '')
+        + (gironeRotto ? ' · le partite del girone non si sono salvate' : '')
       );
       onChiudi();
     } catch (e) {
@@ -232,6 +259,43 @@ export function CaricaCalendario({ onChiudi, onFatto }) {
         </div>
       ) : (
         <div className="space-y-2.5">
+          {/* IL GIRONE, IN BLOCCO E NON RIGA PER RIGA.
+              Le nostre partite si verificano una per una: sono quelle che si
+              guardano ogni settimana, e una data sbagliata manda la squadra
+              nel posto sbagliato. Le altre settantadue no — nessuno le guarda
+              una per una — ma sono quelle che fanno la classifica: caricate
+              adesso, durante la stagione resta da scrivere solo il punteggio.
+
+              I nomi delle squadre non li sa il lettore: li impara dalle
+              NOSTRE partite, perche` in un girone all'italiana le
+              incontriamo tutte. Per questo il conto delle squadre va
+              mostrato: se sono meno di quelle del girone, qualche partita
+              degli altri non e` stata letta. */}
+          {girone && girone.partite.length > 0 && (
+            <Pannello className="pad-pannello-stretto">
+              <Spunta
+                checked={conGirone}
+                onChange={e => setConGirone(e.target.checked)}
+                etichetta={'Carica anche le ' + girone.partite.length
+                  + ' partite del girone, per la classifica'}
+              />
+              <p className="mt-2.5 text-[12.5px] leading-relaxed text-tenue">
+                Sono tutte le partite del documento, comprese quelle fra altre due squadre:
+                vengono caricate <b>senza punteggio</b>, così durante la stagione in
+                «Risultati» resta da scrivere solo quello e la classifica si aggiorna da sé.
+                {' '}Squadre riconosciute: <b>{girone.squadre.length}</b>.
+                {girone.nonLette.length > 0 && (
+                  <>
+                    {' '}<span className="text-ambra">
+                      {girone.nonLette.length} accoppiamenti non si sono potuti leggere:
+                      quelli si inseriscono a mano da «Risultati».
+                    </span>
+                  </>
+                )}
+              </p>
+            </Pannello>
+          )}
+
           {righe.map((r, i) => (
             <Pannello
               key={i}

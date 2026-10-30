@@ -39,6 +39,42 @@ export async function saveLeagueMatch(teamId, sectorId, row, seasonId = stagione
   return data;
 }
 
+/* IL GIRONE INTERO IN UN COLPO, dal calendario caricato.
+ *
+ * Settantadue accoppiamenti scritti a mano sono il pomeriggio che caricare un
+ * calendario doveva far risparmiare. Si inseriscono SENZA punteggi: durante la
+ * stagione resta da scrivere solo quelli, e la classifica si aggiorna.
+ *
+ * `ignoreDuplicates` non e` una comodita`, e` la cosa che rende il
+ * ricaricamento sicuro: a febbraio, ricaricando il PDF perche` tre partite
+ * sono state rinviate, le righe gia` presenti NON si toccano — e quindi i
+ * punteggi gia` inseriti non si perdono. Il vincolo che le riconosce e`
+ * `league_matches_unique`, su settore, giornata e le due squadre.
+ */
+export async function bulkInsertLeagueMatches(teamId, sectorId, rows, seasonId = stagioneAttiva()) {
+  const righe = (rows || []).filter(r => r && r.home_team && r.away_team);
+  if (righe.length === 0) return [];
+
+  const { data, error } = await supabase.from('league_matches')
+    .upsert(righe.map(r => ({
+      team_id: teamId,
+      sector_id: sectorId,
+      season_id: seasonId || null,
+      giornata: r.giornata == null ? null : r.giornata,
+      date: r.date || null,
+      phase: r.phase || 'regular',
+      home_team: String(r.home_team).trim(),
+      away_team: String(r.away_team).trim()
+    })), {
+      onConflict: 'sector_id,giornata,home_team,away_team',
+      ignoreDuplicates: true
+    })
+    .select();
+
+  if (error) throw describeSaveError(error);
+  return data || [];
+}
+
 export async function removeLeagueMatch(id) {
   const { data, error } = await supabase.from('league_matches').delete()
     .eq('id', id).select();

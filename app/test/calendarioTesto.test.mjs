@@ -1,5 +1,5 @@
 import { describe, test, is, ok, eq } from './run.mjs';
-import { parseMatchesFromLines } from '../src/utils/calendarioTesto.js';
+import { parseMatchesFromLines, leggiGirone } from '../src/utils/calendarioTesto.js';
 
 /* LEGGERE IL CALENDARIO FEDERALE.
  *
@@ -225,5 +225,112 @@ describe('senza il nostro nome, un calendario federale non si può spezzare', ()
   test('nessuna partita, invece di nomi tagliati a caso', () => {
     is(parseMatchesFromLines(FIP, '').length, 0);
     is(parseMatchesFromLines(FIP, 'Squadra Che Non Gioca Qui').length, 0);
+  });
+});
+
+/* ========================================================================= */
+/* TUTTE LE PARTITE DEL GIRONE                                               */
+/* ========================================================================= */
+/*
+ * Il calendario sono le nostre partite. La CLASSIFICA si fa coi risultati di
+ * tutti, e inserire a mano gli accoppiamenti di un girone da nove squadre —
+ * settantadue partite fra andata e ritorno — è il pomeriggio che caricare un
+ * calendario doveva far risparmiare.
+ *
+ * Le coppie delle altre squadre non si possono spezzare: «A.S.D. KALKIS A.S.D.
+ * MENS SANA MASCALUCIA» sono due nomi senza niente in mezzo. Ma in un girone
+ * all'italiana noi incontriamo tutte, quindi dalle NOSTRE partite escono i nomi
+ * di tutte — e con quel vocabolario ogni coppia si spezza.
+ */
+
+const GIRONE = FIP.concat([
+  // La nostra partita con Adrano: serve perche` in un girone all'italiana noi
+  // incontriamo tutte, ed e` da li` che escono i nomi. Senza, questo esempio
+  // sarebbe un calendario in cui non abbiamo mai giocato contro mezzo girone
+  // — cioe` una cosa che non esiste.
+  '4 Giornata - andata del 2026-12-06',
+  'CESTISTICA ETNEA BASKET SPORTING CLUB ADRANO ASD 06/12/26 - 17:00',
+  '002625',
+  'PALACATANIA - Corso Indipendenza CATANIA (CT)',
+  '3 Giornata - andata del 2026-11-29',
+  'SPORTING CLUB ADRANO ASD 29/11/26 - 18:00',
+  'A.S.D. KALKIS',
+  '002619',
+  'TENSOSTRUTTURA - Via A. Spampinato c/o Villa Co ADRANO (CT)'
+]);
+
+describe('il girone intero, imparando i nomi dalle nostre partite', () => {
+  const g = leggiGirone(GIRONE, NOI);
+
+  test('impara il nostro nome come lo scrive il documento', () => {
+    is(g.nostroNome, 'CESTISTICA ETNEA BASKET');
+  });
+
+  test('e i nomi delle squadre che abbiamo incontrato', () => {
+    ok(g.squadre.includes('A.S.D. MENS SANA MASCALUCIA'), 'manca Mens Sana');
+    ok(g.squadre.includes('ASD BP BASKET POINT ACI SANT\'A'), 'manca Basket Point');
+    ok(g.squadre.includes('CESTISTICA ETNEA BASKET'), 'manchiamo noi');
+  });
+
+  test('spezza anche le coppie di due squadre che non siamo noi', () => {
+    const altra = g.partite.find(m =>
+      m.home_team === 'A.S.D. KALKIS' && m.away_team === 'A.S.D. MENS SANA MASCALUCIA');
+    ok(altra, 'la partita fra Kalkis e Mens Sana non è stata letta');
+    is(altra.date, '2026-11-13');
+    is(altra.giornata, 1);
+  });
+
+  test('e dà le partite nella forma del database: casa e trasferta', () => {
+    const nostra = g.partite.find(m => m.home_team === 'CESTISTICA ETNEA BASKET');
+    is(nostra.away_team, 'ASD BP BASKET POINT ACI SANT\'A');
+  });
+
+  test('UNA COPPIA ANDATA A CAPO si ricompone dalla riga vicina', () => {
+    /* Nel PDF vero una riga su settantadue ha la seconda squadra sulla riga
+     * sotto. Il nome deve essere ESATTAMENTE uno di quelli noti: una riga che
+     * «somiglia» a un nome non basta per inventare una partita. */
+    const spezzata = g.partite.find(m => m.date === '2026-11-29');
+    ok(spezzata, 'la partita andata a capo non è stata letta');
+    is(spezzata.home_team, 'SPORTING CLUB ADRANO ASD');
+    is(spezzata.away_team, 'A.S.D. KALKIS');
+  });
+
+  test('niente coppie perse per strada', () => {
+    is(g.nonLette.length, 0);
+  });
+
+  test('e il ritorno continua a contare anche qui', () => {
+    const ritorno = g.partite.find(m => m.date === '2027-01-31');
+    is(ritorno.giornata, 3);
+  });
+});
+
+describe('senza sapere chi siamo, il girone non si legge', () => {
+  test('nessun vocabolario, nessuna partita inventata', () => {
+    const g = leggiGirone(GIRONE, '');
+    is(g.partite.length, 0);
+    is(g.squadre.length, 0);
+  });
+
+  test('e senza righe non si lancia', () => {
+    is(leggiGirone(null, NOI).partite.length, 0);
+    is(leggiGirone([], NOI).partite.length, 0);
+  });
+});
+
+describe('il campo deve avere la forma di un campo', () => {
+  test('un nome di squadra sotto la riga non diventa un luogo', () => {
+    /* Quando la coppia va a capo, sotto la riga della partita c'è il nome
+     * dell'altra squadra: scritto come luogo manderebbe la squadra a giocare
+     * in una palestra che non esiste. */
+    const righe = [
+      '1 Giornata - andata del 2026-11-15',
+      'CESTISTICA ETNEA BASKET 15/11/26 - 17:00',
+      'A.S.D. KALKIS',
+      '002614'
+    ];
+    const m = parseMatchesFromLines(righe, NOI)[0];
+    ok(m, 'la partita non è stata letta');
+    is(m.location, null);
   });
 });
