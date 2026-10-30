@@ -66,7 +66,13 @@ export async function bulkInsertLeagueMatches(teamId, sectorId, rows, seasonId =
       home_team: String(r.home_team).trim(),
       away_team: String(r.away_team).trim()
     })), {
-      onConflict: 'sector_id,giornata,home_team,away_team',
+      /* Le colonne devono essere ESATTAMENTE quelle dell'indice unico, e
+       * dalla 063 l'indice contiene anche la stagione: senza, fra un anno la
+       * prima giornata con le stesse due squadre verrebbe rifiutata come un
+       * doppione. Se qui si dichiarassero quattro colonne e l'indice ne avesse
+       * cinque, Postgres rifiuterebbe tutto l'inserimento — ed e` il caso che
+       * `descriviErroreSaveError` spiega per nome. */
+      onConflict: 'sector_id,season_id,giornata,home_team,away_team',
       ignoreDuplicates: true
     })
     .select();
@@ -114,6 +120,17 @@ function describeSaveError(error) {
   }
   if (/league_matches/.test(msg) && /does not exist|schema cache/.test(msg)) {
     return new Error('Manca la tabella league_matches: esegui la migrazione 018 su Supabase, poi riprova.');
+  }
+  /* L'inserimento in blocco dichiara le colonne dell'indice unico. Se l'indice
+   * e` ancora quello vecchio — senza la stagione — Postgres non trova niente
+   * che corrisponda e rifiuta tutto. Il suo messaggio e` corretto e non dice
+   * cosa fare. */
+  if (/ON CONFLICT/i.test(msg) && /unique|exclusion/i.test(msg)) {
+    return new Error(
+      'Il calendario del girone non si e` potuto salvare: esegui la migrazione 063 su '
+      + 'Supabase, poi riprova. Serve perché l’indice che riconosce i doppioni deve '
+      + 'conoscere anche la stagione: altrimenti fra un anno la prima giornata verrebbe rifiutata.'
+    );
   }
   return error;
 }
