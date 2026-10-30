@@ -1,13 +1,22 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
 import { computeRecord, computeStreak } from '../utils/stats.js';
 import { fetchStandings, upsertStanding, removeStanding } from '../api/standings.js';
+import { fetchLeagueMatches, saveLeagueMatch, removeLeagueMatch } from '../api/leagueMatches.js';
+import { updateCalendarMatch } from '../api/calendar.js';
+import { computeStandings } from '../utils/standingsCalc.js';
+import {
+  soloRegolare, siCalcola, nostraPartita, rigaDiCalendario,
+  perGiornata, giornataInCorso
+} from '../utils/campionato.js';
 import { currentSport } from '../utils/sports/index.js';
 import { canEditHome, managesSector, isAdmin } from '../utils/permissions.js';
 import { fetchDeletedGames, ripristinaTabellino } from '../api/games.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Amichevole, cx } from './ui.jsx';
-import { Interruttore, Modulo, Conferma, Campo, Testo, Spunta, useAvviso } from './moduli.jsx';
+import {
+  Interruttore, Modulo, Conferma, Campo, Testo, Data, Scelta, Spunta, useAvviso
+} from './moduli.jsx';
 import { IconaSezione, Chevron } from './icone.jsx';
 import { Referto } from './Referto.jsx';
 
@@ -52,14 +61,25 @@ function valoreExtra(riga, voce) {
   return typeof v === 'number' ? v : (parseInt(v, 10) || 0);
 }
 
-function Tabellone({ puoiModificare, onModifica, onAggiungi }) {
+/* LA TABELLA, DA QUALUNQUE DELLE DUE PARTI ARRIVI.
+ *
+ * Le righe gliele passa chi la disegna: calcolate dai risultati quando ce ne
+ * sono, digitate a mano quando non ce ne sono. Le due forme combaciano —
+ * `computeStandings` scrive gli extra in `stats`, come la tabella digitata —
+ * quindi qui non c'e` nessun ramo: cambia la provenienza, non il disegno.
+ *
+ * Quello che cambia e` cosa si puo` TOCCARE. Una riga calcolata non si
+ * modifica: si modifica il risultato da cui viene, altrimenti la correzione
+ * sparirebbe al prossimo conto senza dire niente.
+ */
+function Tabellone({ righe: dafuori, calcolata, puoiModificare, onModifica, onAggiungi }) {
   const noi = ((state.teamProfile || {}).name || '').trim().toLowerCase();
   const { st, fatti, subiti } = vociExtra();
 
   // A parita' di punti conta la differenza fra segnati e subiti: e' il criterio
   // che usano quasi tutti i campionati, e senza di quello due squadre appaiate
   // si ordinerebbero a caso a ogni ricaricamento.
-  const righe = [...state.standings].sort((a, b) =>
+  const righe = [...(dafuori || state.standings)].sort((a, b) =>
     (b.points - a.points)
     || (b.wins - a.wins)
     || ((valoreExtra(b, fatti) - valoreExtra(b, subiti)) - (valoreExtra(a, fatti) - valoreExtra(a, subiti)))
@@ -68,8 +88,11 @@ function Tabellone({ puoiModificare, onModifica, onAggiungi }) {
   if (righe.length === 0) {
     return (
       <Vuoto>
-        Nessuna classifica caricata per questa categoria.
-        {puoiModificare && ' Aggiungi le squadre del girone: bastano nome, giocate e punti.'}
+        Nessuna classifica per questa categoria.
+        {puoiModificare && ' Il modo che si aggiorna da solo e` inserire i RISULTATI delle'
+          + ' partite del girone, da «Risultati»: la classifica viene da se`, con i punti'
+          + ' dello sport. Altrimenti si possono scrivere le righe a mano, ma vanno'
+          + ' riscritte ogni domenica.'}
       </Vuoto>
     );
   }
@@ -442,13 +465,272 @@ function Storico({ onCambiato }) {
   );
 }
 
+/* ------------------------------------------------------------- i risultati */
+/* I RISULTATI DEL GIRONE, GIORNATA PER GIORNATA.
+ *
+ * E` la schermata che mancava, e senza la quale la classifica non si poteva
+ * aggiornare: il calcolo c'era, i risultati non si potevano inserire da
+ * nessuna parte.
+ *
+ * Si inseriscono TUTTE le partite, non solo le nostre: una classifica si fa
+ * coi risultati di tutti. La nostra, quando arriva, aggiorna anche la riga di
+ * calendario — perche` due schermate che si contraddicono sullo stesso evento
+ * sono peggio di una sola incompleta.
+ */
+function Risultati({ partite, puoiModificare, onNuovo, onApri }) {
+  const gruppi = perGiornata(partite);
+  const noi = (state.teamProfile || {}).name;
+
+  return (
+    <div className="space-y-4">
+      {puoiModificare && (
+        <Pulsante variante="primario" className="w-full" onClick={onNuovo}>
+          + Risultato
+        </Pulsante>
+      )}
+
+      {gruppi.length === 0 ? (
+        <Vuoto>
+          Nessun risultato inserito.
+          {puoiModificare && ' Si inseriscono tutte le partite del girone, non solo le nostre:'
+            + ' una classifica si fa coi risultati di tutti. La nostra, quando la inserisci,'
+            + ' aggiorna anche il calendario.'}
+        </Vuoto>
+      ) : gruppi.map(gr => (
+        <div key={gr.giornata == null ? 'senza' : gr.giornata}>
+          <Etichetta className="mb-2.5">
+            {gr.giornata == null ? 'Senza giornata' : gr.giornata + 'ª giornata'}
+          </Etichetta>
+          <Pannello className="overflow-hidden">
+            {gr.partite.map((m, i) => {
+              const nostra = nostraPartita(m, noi);
+              const daGiocare = m.home_score == null || m.away_score == null;
+              return (
+                <div
+                  key={m.id || i}
+                  onClick={puoiModificare ? () => onApri(m) : undefined}
+                  className={cx(
+                    'flex items-center gap-3 px-4 py-3 text-[13.5px] sm:px-5',
+                    i > 0 && 'border-t border-bordo/6',
+                    puoiModificare && 'cursor-pointer transition-colors hover:bg-pannello/8',
+                    nostra && 'bg-blu/6'
+                  )}
+                >
+                  <span className="min-w-0 flex-1 truncate text-right">{m.home_team}</span>
+                  <span className={cx(
+                    'cifra shrink-0 rounded-lg px-2.5 py-1 text-[14px] font-bold',
+                    daGiocare ? 'bg-pannello/10 text-tenue' : 'bg-pannello/14'
+                  )}>
+                    {daGiocare ? '–' : m.home_score + ' - ' + m.away_score}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{m.away_team}</span>
+                </div>
+              );
+            })}
+          </Pannello>
+        </div>
+      ))}
+
+      {partite.length > 0 && (
+        <p className="text-[12.5px] leading-relaxed text-tenue">
+          Le nostre partite hanno il fondo azzurro. Un trattino al posto del punteggio vuol dire
+          che la partita e` in calendario ma non ancora giocata: la classifica la ignora.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------- modulo risultato */
+function ModuloRisultato({ partita, partite, onChiudi, onTogli, onFatto }) {
+  const sport = currentSport();
+  const [giornata, setGiornata] = useState(
+    partita && partita.giornata != null ? String(partita.giornata)
+      : String(giornataInCorso(partite))
+  );
+  const [data, setData] = useState(partita ? (partita.date || '') : '');
+  const [fase, setFase] = useState(partita ? (partita.phase || 'regular') : 'regular');
+  const [casa, setCasa] = useState(partita ? partita.home_team : '');
+  const [fuori, setFuori] = useState(partita ? partita.away_team : '');
+  const [puntiCasa, setPuntiCasa] = useState(
+    partita && partita.home_score != null ? String(partita.home_score) : ''
+  );
+  const [puntiFuori, setPuntiFuori] = useState(
+    partita && partita.away_score != null ? String(partita.away_score) : ''
+  );
+
+  const nostroNome = (state.teamProfile || {}).name || '';
+
+  return (
+    <Modulo
+      titolo={partita ? 'Risultato' : 'Nuovo risultato'}
+      sotto="Una partita del girone, anche fra due squadre che non siamo noi."
+      etichettaInvia="Salva"
+      onChiudi={onChiudi}
+      azioniExtra={partita
+        ? (
+          <button
+            onClick={onTogli}
+            className="text-[12.5px] font-semibold text-rosso transition-colors hover:brightness-110"
+          >
+            Togli
+          </button>
+        )
+        : null}
+      onInvia={async () => {
+        const c = casa.trim();
+        const f = fuori.trim();
+        if (!c || !f) return 'Scrivi il nome di entrambe le squadre.';
+        if (c.toLowerCase() === f.toLowerCase()) return 'Le due squadre devono essere diverse.';
+        const pc = puntiCasa.trim() === '' ? null : parseInt(puntiCasa, 10);
+        const pf = puntiFuori.trim() === '' ? null : parseInt(puntiFuori, 10);
+        /* O tutti e due o nessuno: con un punteggio solo non si sa chi ha
+         * vinto, e una riga mezza riempita in classifica non ci va. Meglio
+         * dirlo adesso che farla sparire dal conto senza spiegazioni. */
+        if ((pc == null) !== (pf == null)) {
+          return 'Scrivi tutti e due i punteggi, oppure nessuno dei due.';
+        }
+
+        const salvata = await saveLeagueMatch(state.teamProfile.id, state.activeSectorId, {
+          id: partita ? partita.id : null,
+          giornata: giornata.trim() ? parseInt(giornata, 10) : null,
+          date: data || null,
+          phase: fase,
+          home_team: c,
+          away_team: f,
+          home_score: pc,
+          away_score: pf
+        }, state.activeSeasonId);
+
+        /* SE IL RISULTATO E` NOSTRO, il calendario si allinea: quella partita
+         * smette di risultare «da giocare». Se questo non riesce il risultato
+         * e` comunque salvato — si dice e si va avanti, perche` un calendario
+         * non allineato non vale la perdita dell'inserimento. */
+        const riga = rigaDiCalendario(state.calendar, salvata, nostroNome);
+        if (riga) {
+          const nostra = nostraPartita(salvata, nostroNome);
+          try {
+            const agg = await updateCalendarMatch(riga.id, {
+              played: true, team_score: nostra.nostriPunti, opp_score: nostra.loroPunti
+            });
+            Object.assign(riga, agg);
+            onFatto('Risultato salvato, e il calendario è aggiornato');
+            return undefined;
+          } catch (e) {
+            console.error(e);
+            onFatto('Risultato salvato, ma il calendario non si è aggiornato');
+            return undefined;
+          }
+        }
+        onFatto('Risultato salvato');
+        return undefined;
+      }}
+    >
+      <div className="grid grid-cols-2 gap-3">
+        <Campo etichetta="Giornata">
+          <Testo
+            inputMode="numeric"
+            value={giornata}
+            onChange={e => setGiornata(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))}
+          />
+        </Campo>
+        <Campo etichetta="Data">
+          <Data value={data} onChange={e => setData(e.target.value)} />
+        </Campo>
+      </div>
+
+      <Campo etichetta="In casa">
+        <Testo value={casa} onChange={e => setCasa(e.target.value)} autoFocus />
+      </Campo>
+      <Campo etichetta="In trasferta">
+        <Testo value={fuori} onChange={e => setFuori(e.target.value)} />
+      </Campo>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Campo etichetta={sport.match.scoreLabel + ' in casa'}>
+          <Testo
+            inputMode="numeric"
+            value={puntiCasa}
+            onChange={e => setPuntiCasa(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+            className="text-center text-[20px] font-bold"
+          />
+        </Campo>
+        <Campo etichetta={sport.match.scoreLabel + ' in trasferta'}>
+          <Testo
+            inputMode="numeric"
+            value={puntiFuori}
+            onChange={e => setPuntiFuori(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+            className="text-center text-[20px] font-bold"
+          />
+        </Campo>
+      </div>
+
+      <Campo etichetta="Fase">
+        <Scelta value={fase} onChange={e => setFase(e.target.value)}>
+          <option value="regular">Stagione regolare</option>
+          <option value="playoff">Playoff</option>
+        </Scelta>
+      </Campo>
+
+      <p className="text-[12.5px] leading-relaxed text-tenue">
+        Solo la stagione regolare fa classifica: i playoff sono un altro tabellone, e sommarli
+        al girone darebbe una classifica che non esiste in nessun documento.
+        {' '}Senza punteggi la partita resta in elenco come da giocare.
+      </p>
+    </Modulo>
+  );
+}
+
 /* --------------------------------------------------------------------------- */
 export function Classifica() {
+  const sport = currentSport();
+  const { st } = vociExtra();
   const [vista, setVista] = useState('classifica');
   const [modulo, setModulo] = useState(null);        // null | {} | riga
   const [daRimuovere, setDaRimuovere] = useState(null);
   const [, ridisegna] = useState(0);
   const avvisa = useAvviso();
+
+  /* I RISULTATI DEL GIRONE.
+   *
+   * Non stanno nello `state` globale perche` non li guarda nessun'altra
+   * schermata, e si caricano all'apertura della sezione: una tabella che puo`
+   * non esistere ancora non deve impedire di consultare la classifica, quindi
+   * un errore qui diventa un elenco vuoto e non una schermata rotta. */
+  const [risultati, setRisultati] = useState([]);
+  const [moduloRisultato, setModuloRisultato] = useState(null);
+  const [risultatoDaTogliere, setRisultatoDaTogliere] = useState(null);
+
+  async function ricaricaRisultati() {
+    if (inCampione()) { setRisultati([]); return; }
+    try {
+      setRisultati(await fetchLeagueMatches(state.activeSectorId, state.activeSeasonId) || []);
+    } catch (e) {
+      console.error(e);
+      setRisultati([]);
+    }
+  }
+
+  useEffect(() => { ricaricaRisultati(); }, [state.activeSectorId, state.activeSeasonId]);
+
+  /* QUALE CLASSIFICA VALE non e` una preferenza da chiedere: lo dicono i dati.
+   * Appena esiste un risultato giocato si calcola; finche` non ce n'e` nessuno
+   * resta quella digitata, cosi` chi aveva gia` scritto la sua tabella non la
+   * perde e chi inserisce il primo risultato non deve anche ricordarsi di
+   * cambiare un interruttore.
+   *
+   * Le righe digitate restano in gioco anche quando si calcola: servono da
+   * elenco delle squadre del girone, cosi` chi non ha ancora giocato compare
+   * a zero invece di non esserci. */
+  const calcolata = siCalcola(risultati);
+  const righeClassifica = calcolata
+    ? computeStandings(
+      soloRegolare(risultati),
+      sport,
+      (state.teamProfile || {}).name,
+      (state.standings || []).map(r => r.team_name)
+    )
+    : null;
 
   const puoiModificare = canEditHome(state.currentUser) && managesSector(state.currentUser, state.activeSectorId, state.staffSectors);
   const record = computeRecord(state.history);
@@ -482,19 +764,77 @@ export function Classifica() {
           valore={vista}
           onCambia={setVista}
           voci={[
-            { id: 'classifica', testo: 'Classifica', conteggio: state.standings.length || null },
+            {
+              id: 'classifica',
+              testo: 'Classifica',
+              conteggio: (righeClassifica || state.standings).length || null
+            },
+            { id: 'risultati', testo: 'Risultati', conteggio: risultati.length || null },
             { id: 'storico', testo: 'Storico', conteggio: state.history.length || null }
           ]}
         />
       </div>
 
       {vista === 'classifica' ? (
-        <Tabellone
+        <>
+          <Tabellone
+            righe={righeClassifica}
+            calcolata={calcolata}
+            puoiModificare={puoiModificare}
+            onModifica={(r) => setModulo(r)}
+            onAggiungi={() => setModulo({})}
+          />
+          {/* DA DOVE VIENE QUESTA TABELLA.
+              Senza dirlo, chi corregge una riga a mano e la vede tornare come
+              prima crede che l'app non salvi. */}
+          <p className="text-[12.5px] leading-relaxed text-tenue">
+            {calcolata
+              ? 'Calcolata dai risultati del girone: ' + st.pointsHint
+                + ' Per correggerla si corregge il risultato, da «Risultati».'
+              : 'Scritta a mano. Inserendo i risultati delle partite da «Risultati», la classifica'
+                + ' si calcola da sola e non va più riscritta ogni domenica.'}
+          </p>
+        </>
+      ) : vista === 'risultati' ? (
+        <Risultati
+          partite={risultati}
           puoiModificare={puoiModificare}
-          onModifica={(r) => setModulo(r)}
-          onAggiungi={() => setModulo({})}
+          onNuovo={() => setModuloRisultato({})}
+          onApri={(m) => setModuloRisultato(m)}
         />
       ) : <Storico onCambiato={(msg) => { ridisegna(n => n + 1); avvisa(msg); }} />}
+
+      {moduloRisultato && (
+        <ModuloRisultato
+          partita={moduloRisultato.id ? moduloRisultato : null}
+          partite={risultati}
+          onChiudi={() => setModuloRisultato(null)}
+          onTogli={() => { const m = moduloRisultato; setModuloRisultato(null); setRisultatoDaTogliere(m); }}
+          onFatto={async (msg) => {
+            setModuloRisultato(null);
+            await ricaricaRisultati();
+            ridisegna(n => n + 1);
+            avvisa(msg);
+          }}
+        />
+      )}
+
+      {risultatoDaTogliere && (
+        <Conferma
+          titolo="Togliere questo risultato?"
+          testo={`${risultatoDaTogliere.home_team} – ${risultatoDaTogliere.away_team}`
+            + ' esce dal girone, e la classifica si ricalcola senza questa partita.'}
+          etichetta="Togli"
+          onChiudi={() => setRisultatoDaTogliere(null)}
+          onConferma={async () => {
+            await removeLeagueMatch(risultatoDaTogliere.id);
+            setRisultatoDaTogliere(null);
+            await ricaricaRisultati();
+            ridisegna(n => n + 1);
+            avvisa('Risultato tolto');
+          }}
+        />
+      )}
 
       {modulo && (
         <ModuloSquadra
