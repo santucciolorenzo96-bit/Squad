@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { state } from '../state.js';
 import { Matita, Croce, Stretta, Chevron } from './icone.jsx';
 import { Referto } from './Referto.jsx';
+import { CaricaCalendario } from './CalendarioCarica.jsx';
 import { updateCalendarMatch, removeCalendarMatch } from '../api/calendar.js';
 import { canEditHome, managesSector } from '../utils/permissions.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Stato, Amichevole, cx, AzioneRiga, TINTA_DOVE } from './ui.jsx';
@@ -61,6 +62,7 @@ export function Calendario() {
   const [modulo, setModulo] = useState(null);
   const [risultato, setRisultato] = useState(null);
   const [daRimuovere, setDaRimuovere] = useState(null);
+  const [carica, setCarica] = useState(false);
   const [referto, setReferto] = useState(null);
   const [, ridisegna] = useState(0);
   const avvisa = useAvviso();
@@ -80,7 +82,15 @@ export function Calendario() {
       <Titolo
         sopra="Categoria"
         azione={puoiModificare
-          ? <Pulsante variante="primario" onClick={() => setModulo({})}>+ Partita</Pulsante>
+          ? (
+            <div className="flex shrink-0 items-center gap-2">
+              {/* «Carica» prima di «+ Partita», perche` e` quello che si cerca
+                  a settembre: un campionato sono ventisei partite, e
+                  ventisei volte un modulo non e` caricare un calendario. */}
+              <Pulsante onClick={() => setCarica(true)}>Carica</Pulsante>
+              <Pulsante variante="primario" onClick={() => setModulo({})}>+ Partita</Pulsante>
+            </div>
+          )
           : null}
       >
         Calendario
@@ -101,7 +111,9 @@ export function Calendario() {
         <Vuoto>
           {vista === 'giocate'
             ? 'Nessuna partita ancora giocata.'
-            : 'Nessuna partita in calendario. Puoi caricare il PDF del calendario federale dall’app attuale.'}
+            : puoiModificare
+              ? 'Nessuna partita in calendario. Con «Carica» si legge il PDF della federazione — o si incolla il testo — e si controllano le partite una per una prima di salvarle.'
+              : 'Nessuna partita in calendario.'}
         </Vuoto>
       ) : (
         <div className="space-y-2.5">
@@ -227,6 +239,13 @@ export function Calendario() {
       )}
 
       {referto && <Referto partita={referto} onChiudi={() => setReferto(null)} />}
+
+      {carica && (
+        <CaricaCalendario
+          onChiudi={() => setCarica(false)}
+          onFatto={(msg) => { ridisegna(n => n + 1); avvisa(msg); }}
+        />
+      )}
 
       {daRimuovere && (
         <Conferma

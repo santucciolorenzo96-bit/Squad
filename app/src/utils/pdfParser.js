@@ -1,21 +1,30 @@
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js';
+import { parseMatchesFromLines } from './calendarioTesto.js';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+/* IL LETTORE DI PDF.
+ *
+ * Qui resta solo quello che ha bisogno di un browser: aprire il documento e
+ * ricavarne le righe di testo. La REGOLA che da quelle righe ricava le partite
+ * sta in `calendarioTesto.js`, senza nessun import, dove si puo' provare.
+ *
+ * `parseMatchesFromLines` si riesporta perche' chi legge un PDF vuole tutte e
+ * due le cose, e perche' la vecchia schermata importa da qui.
+ */
 
-const DATE_RE = /\b(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})\b/;
-const TIME_RE = /\b(\d{1,2})[:.](\d{2})\b/;
-const GIORNATA_RE = /giornata\s*n?\.?\s*(\d+)|(\d+)\s*[ªa°]?\s*giornata/i;
-const LOCATION_RE = /\s+(?:presso|c\/o)\s+(.+)$/i;
-const PAIR_RE = /^(.+?)\s+[-–]\s+(.+)$/;
-
-function normalizeDate(d, m, y) {
-  if (y.length === 2) y = (Number(y) < 70 ? '20' : '19') + y;
-  const dd = d.padStart(2, '0');
-  const mm = m.padStart(2, '0');
-  return `${y}-${mm}-${dd}`;
+// In un browser il worker c'e'; in Node — nei test — `GlobalWorkerOptions` non
+// esiste, e assegnarci sopra lanciava prima che qualunque funzione fosse
+// raggiungibile. Una guardia di tre parole al posto di un modulo inservibile.
+if (pdfjsLib.GlobalWorkerOptions) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 }
 
-async function extractTextLines(arrayBuffer) {
+/* Le righe di un PDF, ricostruite.
+ *
+ * Un PDF non ha righe: ha pezzi di testo con una posizione. Si raggruppano per
+ * coordinata verticale e si ordinano per quella orizzontale, che e' il modo in
+ * cui un umano legge la pagina.
+ */
+export async function extractTextLines(arrayBuffer) {
   const doc = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
   const lines = [];
   for (let pageNum = 1; pageNum <= doc.numPages; pageNum++) {
@@ -37,47 +46,4 @@ async function extractTextLines(arrayBuffer) {
   return lines;
 }
 
-function parseMatchesFromLines(lines, teamName) {
-  const teamLower = (teamName || '').trim().toLowerCase();
-  const matches = [];
-  lines.forEach(line => {
-    const dateMatch = line.match(DATE_RE);
-    if (!dateMatch) return;
-    const timeMatch = line.match(TIME_RE);
-    const giornataMatch = line.match(GIORNATA_RE);
-
-    let rest = line.replace(DATE_RE, ' ').replace(TIME_RE, ' ');
-    if (giornataMatch) rest = rest.replace(giornataMatch[0], ' ');
-    rest = rest.replace(/\s+/g, ' ').trim();
-    rest = rest.replace(/^[-–]+\s*/, '').replace(/\s*[-–]+$/, '').trim();
-
-    const locationMatch = rest.match(LOCATION_RE);
-    let location = null;
-    if (locationMatch) { location = locationMatch[1].trim(); rest = rest.replace(LOCATION_RE, '').trim(); }
-
-    const pairMatch = rest.match(PAIR_RE);
-    if (!pairMatch) return;
-    const teamA = pairMatch[1].trim();
-    const teamB = pairMatch[2].trim();
-    if (!teamA || !teamB) return;
-
-    let home = null;
-    let opponent = null;
-    if (teamLower && teamA.toLowerCase().includes(teamLower)) { home = true; opponent = teamB; }
-    else if (teamLower && teamB.toLowerCase().includes(teamLower)) { home = false; opponent = teamA; }
-    else { opponent = teamB; }
-
-    matches.push({
-      giornata: giornataMatch ? parseInt(giornataMatch[1] || giornataMatch[2], 10) : null,
-      date: normalizeDate(dateMatch[1], dateMatch[2], dateMatch[3]),
-      time: timeMatch ? `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}` : null,
-      opponent,
-      home,
-      location,
-      sourceLine: line
-    });
-  });
-  return matches;
-}
-
-export { extractTextLines, parseMatchesFromLines };
+export { parseMatchesFromLines };
