@@ -67,12 +67,28 @@ export function CaricaCalendario({ onChiudi, onFatto }) {
 
   const nostroNome = (state.teamProfile || {}).name || '';
 
+  /* QUANDO NON SI RICONOSCE NIENTE, DIRE QUALE DELLE DUE COSE E` ANDATA
+     STORTA.
+     Il messaggio diceva «non ho riconosciuto nessuna partita, riprova con un
+     altro file», e mandava a cercare un file diverso quando il file era
+     perfetto: letto, 242 righe di testo vero, e zero partite riconosciute
+     perche` quel formato non si conosceva. Sono due guasti diversi e vogliono
+     due risposte diverse, quindi il messaggio dice quante righe ha letto —
+     cioe` che il documento sta bene — e poi la causa che in un calendario
+     federale e` quasi sempre quella vera: il nome della societa`.
+     Il calendario federale si spezza sul nostro nome, perche` fra le due
+     squadre non c'e` nessun separatore. Se in SQUAD la societa` si chiama in
+     un modo e nel documento in un altro, non si trova niente. */
   function leggiRighe(righeTesto, provenienza) {
+    const quante = (righeTesto || []).filter(r => String(r || '').trim()).length;
     const trovate = parseMatchesFromLines(righeTesto, nostroNome);
     if (trovate.length === 0) {
       setErrore(
-        'Non ho riconosciuto nessuna partita ' + provenienza + '. '
-        + 'Puoi aggiungerle a mano qui sotto, oppure chiudere e riprovare con un altro file.'
+        'Ho letto ' + provenienza + ' (' + quante + ' righe di testo) ma non ho riconosciuto '
+        + 'nessuna partita. Nei calendari della federazione le due squadre non hanno un '
+        + 'separatore, quindi la riga si riconosce dal nome della società: sto cercando '
+        + '«' + (nostroNome || '—') + '». Se nel documento è scritto in un altro modo, '
+        + 'correggi il nome in Squadra e riprova — oppure aggiungi le partite a mano qui sotto.'
       );
       setRighe([rigaVuota()]);
       return;
@@ -89,7 +105,7 @@ export function CaricaCalendario({ onChiudi, onFatto }) {
       const buf = await file.arrayBuffer();
       // pdf.js si carica SOLO qui: chi incolla il testo non lo paga.
       const { extractTextLines } = await import('../utils/pdfParser.js');
-      leggiRighe(await extractTextLines(buf), 'in questo PDF');
+      leggiRighe(await extractTextLines(buf), 'il PDF');
     } catch (e) {
       console.error(e);
       setErrore(
@@ -189,8 +205,10 @@ export function CaricaCalendario({ onChiudi, onFatto }) {
               {lavora === 'pdf' ? 'Sto leggendo…' : 'Scegli il file PDF'}
             </label>
             <p className="mt-3 text-[12.5px] leading-relaxed text-tenue">
-              Riconosce data, ora, giornata, avversario e campo. Dove non riconosce il nostro
-              nome lascia «da definire» invece di indovinare.
+              Riconosce i due formati in circolazione: quello della federazione — dove fra le
+              due squadre non c'è nessun separatore, la giornata sta su una riga a sé e il
+              campo due righe sotto — e quello con «Squadra A - Squadra B».
+              Dove non riconosce il nostro nome lascia «da definire» invece di indovinare.
             </p>
           </Pannello>
 
@@ -206,7 +224,7 @@ export function CaricaCalendario({ onChiudi, onFatto }) {
             <Pulsante
               className="mt-3 w-full"
               disabled={!testo.trim() || !!lavora}
-              onClick={() => leggiRighe(testo.split(/\r?\n/), 'nel testo incollato')}
+              onClick={() => leggiRighe(testo.split(/\r?\n/), 'il testo incollato')}
             >
               Leggi il testo
             </Pulsante>
