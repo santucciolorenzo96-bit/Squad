@@ -3,6 +3,7 @@ import { state } from '../state.js';
 import { Croce } from './icone.jsx';
 import { bulkInsertMatches } from '../api/calendar.js';
 import { bulkInsertLeagueMatches } from '../api/leagueMatches.js';
+import { bulkInsertStandings } from '../api/standings.js';
 import { parseMatchesFromLines, leggiGirone } from '../utils/calendarioTesto.js';
 import { Pannello, Etichetta, Pulsante, cx, AzioneRiga } from './ui.jsx';
 import { Finestra, Campo, Testo, Data, Scelta, Spunta } from './moduli.jsx';
@@ -164,6 +165,16 @@ export function CaricaCalendario({ onChiudi, onFatto }) {
             state.teamProfile.id, state.activeSectorId, girone.partite
           );
           inGirone = (messe || []).length;
+
+          /* E LE SQUADRE DEL GIRONE, come righe di classifica a zero.
+           * Servono a due cose e nessuna e` la classifica — quella si calcola
+           * dai risultati: una squadra che non ha ancora giocato compare
+           * comunque in tabella, e ogni squadra ha una riga a cui attaccare il
+           * logo. Le righe che c'erano non si toccano. */
+          const nuoveSquadre = await bulkInsertStandings(
+            state.teamProfile.id, state.activeSectorId, girone.squadre, girone.nostroNome
+          );
+          (nuoveSquadre || []).forEach(s => state.standings.push(s));
         } catch (e) {
           console.error(e);
           gironeRotto = true;

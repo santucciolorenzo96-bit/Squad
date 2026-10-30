@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { state } from '../state.js';
 import { computeRecord, computeStreak } from '../utils/stats.js';
-import { fetchStandings, upsertStanding, removeStanding } from '../api/standings.js';
+import {
+  fetchStandings, upsertStanding, removeStanding,
+  uploadTeamLogo, removeTeamLogo, fetchTeamLogoUrls
+} from '../api/standings.js';
 import { fetchLeagueMatches, saveLeagueMatch, removeLeagueMatch } from '../api/leagueMatches.js';
 import { updateCalendarMatch } from '../api/calendar.js';
 import { computeStandings } from '../utils/standingsCalc.js';
 import {
   soloRegolare, siCalcola, nostraPartita, rigaDiCalendario,
-  perGiornata, giornataInCorso
+  perGiornata, giornataInCorso, partiteDi, numeriSquadra
 } from '../utils/campionato.js';
 import { currentSport } from '../utils/sports/index.js';
 import { canEditHome, managesSector, isAdmin } from '../utils/permissions.js';
@@ -15,7 +18,7 @@ import { fetchDeletedGames, ripristinaTabellino } from '../api/games.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Amichevole, cx } from './ui.jsx';
 import {
-  Interruttore, Modulo, Conferma, Campo, Testo, Data, Scelta, Spunta, useAvviso
+  Interruttore, Modulo, Conferma, Finestra, Campo, Testo, Data, Scelta, Spunta, useAvviso
 } from './moduli.jsx';
 import { IconaSezione, Chevron } from './icone.jsx';
 import { Referto } from './Referto.jsx';
@@ -72,7 +75,7 @@ function valoreExtra(riga, voce) {
  * modifica: si modifica il risultato da cui viene, altrimenti la correzione
  * sparirebbe al prossimo conto senza dire niente.
  */
-function Tabellone({ righe: dafuori, calcolata, puoiModificare, onModifica, onAggiungi }) {
+function Tabellone({ righe: dafuori, calcolata, loghi, puoiModificare, onApri, onAggiungi }) {
   const noi = ((state.teamProfile || {}).name || '').trim().toLowerCase();
   const { st, fatti, subiti } = vociExtra();
 
@@ -130,11 +133,17 @@ function Tabellone({ righe: dafuori, calcolata, puoiModificare, onModifica, onAg
               return (
                 <tr
                   key={r.id || r.team_name}
-                  onClick={puoiModificare ? () => onModifica(r) : undefined}
+                  /* LA RIGA SI APRE PER TUTTI, non solo per chi modifica.
+                     Prima il tocco apriva il modulo di modifica, quindi a chi
+                     non amministra la riga non faceva niente: l'unico modo di
+                     sapere com'era andata una squadra era guardare i numeri di
+                     quella riga. Adesso porta alla sua scheda — le sue
+                     partite, i suoi punti fatti e subiti — e la modifica sta
+                     dentro, dove la vede chi puo' farla. */
+                  onClick={() => onApri(r)}
                   className={cx(
-                    'relative border-b border-bordo/6 last:border-b-0',
-                    nostra ? 'bg-blu/10' : 'hover:bg-pannello/8',
-                    puoiModificare && 'cursor-pointer'
+                    'relative cursor-pointer border-b border-bordo/6 last:border-b-0',
+                    nostra ? 'bg-blu/10' : 'hover:bg-pannello/8'
                   )}
                 >
                   <td className="relative px-4 py-3 text-[13px] text-tenue">
@@ -142,7 +151,15 @@ function Tabellone({ righe: dafuori, calcolata, puoiModificare, onModifica, onAg
                     {i + 1}
                   </td>
                   <td className={cx('px-2 py-3 text-[13.5px]', nostra ? 'font-bold' : 'font-medium')}>
-                    {r.team_name}
+                    {/* IL LOGO, PRIMA DEL NOME.
+                        In un girone di nove società scritte tutte in
+                        maiuscolo — «A.S.D. MENS SANA MASCALUCIA», «ASS.DIL.
+                        POL. ARETUSA» — si riconosce la forma prima della
+                        parola: il logo fa trovare la riga senza leggerla. */}
+                    <span className="flex items-center gap-2">
+                      <LogoSquadra nome={r.team_name} url={loghi && loghi[(r.team_name || '').trim().toLowerCase()]} dim={22} />
+                      <span className="min-w-0 truncate">{r.team_name}</span>
+                    </span>
                   </td>
                   <td className="cifra px-3 py-3 text-right text-[13px] text-soffuso">{r.played}</td>
                   <td className="cifra px-3 py-3 text-right text-[13px] text-verde">{r.wins}</td>
@@ -465,6 +482,220 @@ function Storico({ onCambiato }) {
   );
 }
 
+/* ---------------------------------------------------------------- il logo */
+/* Il logo di una squadra, o le sue iniziali.
+ *
+ * Senza logo si mostrano le iniziali e non un riquadro vuoto: un buco in una
+ * colonna fa sembrare rotta la tabella, due lettere dicono «questo logo non
+ * c'e' ancora». `object-contain` e non `cover`: lo stemma di una societa' non
+ * si taglia per far quadrare un cerchio.
+ */
+function LogoSquadra({ nome, url, dim = 22 }) {
+  const sigle = String(nome || '?').trim().split(/\s+/)
+    .filter(w => /[A-Za-z]/.test(w))
+    .map(w => w.replace(/[^A-Za-z]/g, '')[0])
+    .filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
+
+  return (
+    <span
+      className="grid shrink-0 place-items-center overflow-hidden rounded-md bg-pannello/14 text-[9px] font-bold text-tenue"
+      style={{ width: dim, height: dim }}
+      aria-hidden="true"
+    >
+      {url
+        ? <img src={url} alt="" className="h-full w-full object-contain" />
+        : sigle}
+    </span>
+  );
+}
+
+/* ------------------------------------------------------- la scheda squadra */
+/* COME E` ANDATA UNA SQUADRA.
+ *
+ * Dalla classifica si vedono nove righe di numeri. La domanda che viene dopo
+ * — «con chi ha perso?», «quanti ne prende in trasferta?» — non aveva una
+ * risposta: la riga era il punto di arrivo.
+ *
+ * Qui ci sono le sue partite in ordine di giornata, comprese quelle da
+ * giocare, e i suoi numeri con le medie. I totali NON si ricontano: vengono
+ * dalla riga di classifica, calcolata una volta con le regole dello sport.
+ * Due aritmetiche sulla stessa cosa prima o poi dicono due numeri diversi.
+ */
+function SchedaSquadra({ riga, rigaSalvata, partite, sport, logo, puoiModificare, onChiudi, onModifica, onLogo }) {
+  const { st, fatti, subiti } = vociExtra();
+  const n = numeriSquadra(riga, sport);
+  const sue = partiteDi(soloRegolare(partite), riga.team_name);
+  const [lavora, setLavora] = useState('');
+  const [errore, setErrore] = useState('');
+
+  const unaCifra = (v) => (v == null ? '—' : v.toFixed(1).replace('.', ','));
+
+  async function cambiaLogo(file) {
+    if (!file) return;
+    setErrore('');
+    if (!rigaSalvata || !rigaSalvata.id) {
+      setErrore(
+        'Questa squadra non ha ancora una riga in classifica a cui attaccare il logo. '
+        + 'Caricando il calendario le righe si creano da sole; altrimenti aggiungila con «+ Squadra».'
+      );
+      return;
+    }
+    setLavora('logo');
+    try {
+      const est = (file.name || '').toLowerCase().endsWith('.svg') ? 'svg'
+        : (file.name || '').toLowerCase().endsWith('.jpg') ? 'jpg'
+          : (file.name || '').toLowerCase().endsWith('.jpeg') ? 'jpg'
+            : (file.name || '').toLowerCase().endsWith('.webp') ? 'webp' : 'png';
+      const aggiornata = await uploadTeamLogo(state.teamProfile.id, rigaSalvata.id, file, est);
+      onLogo(aggiornata);
+    } catch (e) {
+      console.error(e);
+      setErrore((e && e.message) || 'Non e` stato possibile caricare il logo.');
+    } finally {
+      setLavora('');
+    }
+  }
+
+  async function togliLogo() {
+    setErrore('');
+    setLavora('logo');
+    try {
+      onLogo(await removeTeamLogo(rigaSalvata.id));
+    } catch (e) {
+      console.error(e);
+      setErrore((e && e.message) || 'Non e` stato possibile togliere il logo.');
+    } finally {
+      setLavora('');
+    }
+  }
+
+  return (
+    <Finestra
+      titolo={riga.team_name}
+      sotto={n.giocate > 0
+        ? n.giocate + (n.giocate === 1 ? ' partita giocata' : ' partite giocate')
+          + ' · ' + n.punti + ' punti in classifica'
+        : 'Nessuna partita giocata'}
+      larga
+      onChiudi={onChiudi}
+      azioni={
+        <>
+          {errore && (
+            <div className="mb-3 rounded-lg bg-rosso/12 px-3.5 py-2.5 text-[12.5px] leading-snug text-rosso">
+              {errore}
+            </div>
+          )}
+          <div className="flex items-center justify-end gap-2">
+            {puoiModificare && rigaSalvata && (
+              <button
+                onClick={() => { onChiudi(); onModifica(rigaSalvata); }}
+                className="mr-auto text-[12.5px] font-semibold text-tenue transition-colors hover:text-testo"
+              >
+                Modifica la riga
+              </button>
+            )}
+            <Pulsante onClick={onChiudi}>Chiudi</Pulsante>
+          </div>
+        </>
+      }
+    >
+      {/* IL LOGO, grande, con il comando per cambiarlo accanto. */}
+      <div className="flex items-center gap-4">
+        <LogoSquadra nome={riga.team_name} url={logo} dim={64} />
+        {puoiModificare && (
+          <div className="min-w-0 flex-1">
+            <label className="inline-flex cursor-pointer items-center rounded-lg vetro orlo px-3 py-2 text-[12.5px] font-semibold text-soffuso transition-colors hover:text-testo">
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                className="hidden"
+                onChange={e => cambiaLogo(e.target.files && e.target.files[0])}
+              />
+              {lavora === 'logo' ? 'Carico…' : (logo ? 'Cambia logo' : 'Carica il logo')}
+            </label>
+            {logo && (
+              <button
+                onClick={togliLogo}
+                disabled={!!lavora}
+                className="ml-2 text-[12.5px] font-semibold text-rosso transition-colors hover:brightness-110"
+              >
+                Togli
+              </button>
+            )}
+            <p className="mt-2 text-[12px] leading-relaxed text-tenue">
+              PNG, JPG, WEBP o SVG. Non viene tagliato: lo stemma si vede per intero.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* I NUMERI. Le medie sono la cosa che la classifica non dice: due
+          squadre a pari punti con quaranta punti di differenza nei subiti sono
+          due squadre diverse. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          ['Giocate', String(n.giocate)],
+          [st.winLabel === 'V' ? 'Vinte' : (st.winLabel || 'Vinte'), String(n.vinte)],
+          [st.hasDraws ? 'Pari' : null, st.hasDraws ? String(n.pari) : null],
+          ['Perse', String(n.perse)],
+          [fatti ? fatti.label : null, fatti ? String(n.fatti) : null],
+          [subiti ? subiti.label : null, subiti ? String(n.subiti) : null],
+          ['Differenza', (n.differenza > 0 ? '+' : '') + n.differenza],
+          [fatti ? 'Media ' + fatti.short : null, fatti ? unaCifra(n.mediaFatti) : null],
+          [subiti ? 'Media ' + subiti.short : null, subiti ? unaCifra(n.mediaSubiti) : null]
+        ].filter(([e, v]) => e && v != null).map(([etichetta, valore]) => (
+          <div key={etichetta} className="rounded-lg bg-pannello/8 px-3 py-2.5">
+            <div className="cifra text-[18px] font-bold leading-none">{valore}</div>
+            <Etichetta className="mt-1.5">{etichetta}</Etichetta>
+          </div>
+        ))}
+      </div>
+
+      {/* LE SUE PARTITE. Anche quelle da giocare: una scheda che mostra solo
+          le giocate fa sembrare finito un campionato a metà. */}
+      <div>
+        <Etichetta className="mb-2.5">Le sue partite</Etichetta>
+        {sue.length === 0 ? (
+          <Vuoto>Nessuna partita di questa squadra nei risultati inseriti.</Vuoto>
+        ) : (
+          <Pannello className="overflow-hidden">
+            {sue.map((x, i) => (
+              <div
+                key={i}
+                className={cx(
+                  'flex items-center gap-3 px-4 py-2.5 text-[13px]',
+                  i > 0 && 'border-t border-bordo/6'
+                )}
+              >
+                <span className="cifra w-8 shrink-0 text-tenue">
+                  {x.giornata == null ? '—' : x.giornata + 'ª'}
+                </span>
+                <span className="w-12 shrink-0 text-[11px] font-bold uppercase tracking-etichetta text-tenue">
+                  {x.inCasa ? 'casa' : 'fuori'}
+                </span>
+                <span className="min-w-0 flex-1 truncate">{x.avversario}</span>
+                {x.giocata ? (
+                  <span className={cx(
+                    'cifra shrink-0 rounded-lg px-2.5 py-1 text-[13px] font-bold',
+                    x.pari ? 'bg-pannello/14 text-soffuso'
+                      : x.vinta ? 'bg-verde/16 text-verde' : 'bg-rosso/14 text-rosso'
+                  )}>
+                    {x.punti} - {x.subiti}
+                  </span>
+                ) : (
+                  <span className="shrink-0 rounded-lg bg-pannello/10 px-2.5 py-1 text-[12px] font-semibold text-tenue">
+                    da giocare
+                  </span>
+                )}
+              </div>
+            ))}
+          </Pannello>
+        )}
+      </div>
+    </Finestra>
+  );
+}
+
 /* ------------------------------------------------------------- i risultati */
 /* I RISULTATI DEL GIRONE, GIORNATA PER GIORNATA.
  *
@@ -698,6 +929,11 @@ export function Classifica() {
    * non esistere ancora non deve impedire di consultare la classifica, quindi
    * un errore qui diventa un elenco vuoto e non una schermata rotta. */
   const [risultati, setRisultati] = useState([]);
+  const [squadra, setSquadra] = useState(null);     // la scheda aperta
+  /* I loghi, per nome: le righe della classifica calcolata hanno il nome e non
+   * l'identificativo della riga salvata, e il nome e` l'unica cosa che le due
+   * forme hanno in comune. */
+  const [loghi, setLoghi] = useState({});
   const [moduloRisultato, setModuloRisultato] = useState(null);
   const [risultatoDaTogliere, setRisultatoDaTogliere] = useState(null);
 
@@ -712,6 +948,22 @@ export function Classifica() {
   }
 
   useEffect(() => { ricaricaRisultati(); }, [state.activeSectorId, state.activeSeasonId]);
+
+  /* I loghi si chiedono una volta per categoria, con una richiesta per tutti.
+   * Se il deposito non c'e` ancora — migrazione 063 non eseguita — la
+   * classifica si vede uguale, senza loghi: un logo mancante non vale una
+   * schermata rotta. */
+  async function ricaricaLoghi() {
+    if (inCampione()) { setLoghi({}); return; }
+    try {
+      setLoghi(await fetchTeamLogoUrls(state.standings || []) || {});
+    } catch (e) {
+      console.error(e);
+      setLoghi({});
+    }
+  }
+
+  useEffect(() => { ricaricaLoghi(); }, [state.activeSectorId, state.activeSeasonId]);
 
   /* QUALE CLASSIFICA VALE non e` una preferenza da chiedere: lo dicono i dati.
    * Appena esiste un risultato giocato si calcola; finche` non ce n'e` nessuno
@@ -780,8 +1032,9 @@ export function Classifica() {
           <Tabellone
             righe={righeClassifica}
             calcolata={calcolata}
+            loghi={loghi}
             puoiModificare={puoiModificare}
-            onModifica={(r) => setModulo(r)}
+            onApri={(r) => setSquadra(r)}
             onAggiungi={() => setModulo({})}
           />
           {/* DA DOVE VIENE QUESTA TABELLA.
@@ -803,6 +1056,32 @@ export function Classifica() {
           onApri={(m) => setModuloRisultato(m)}
         />
       ) : <Storico onCambiato={(msg) => { ridisegna(n => n + 1); avvisa(msg); }} />}
+
+      {squadra && (
+        <SchedaSquadra
+          riga={squadra}
+          /* La riga SALVATA, cercata per nome: e` quella che porta il logo e
+             che si puo` modificare a mano. La riga mostrata in tabella puo`
+             essere calcolata dai risultati, e quella non ha un id. */
+          rigaSalvata={(state.standings || []).find(x =>
+            String(x.team_name || '').trim().toLowerCase()
+              === String(squadra.team_name || '').trim().toLowerCase()) || null}
+          partite={risultati}
+          sport={sport}
+          logo={loghi[String(squadra.team_name || '').trim().toLowerCase()]}
+          puoiModificare={puoiModificare}
+          onChiudi={() => setSquadra(null)}
+          onModifica={(r) => setModulo(r)}
+          onLogo={async (aggiornata) => {
+            // La riga in memoria e la mappa dei loghi: senza, il logo nuovo si
+            // vedrebbe solo ricaricando l'app.
+            const riga = (state.standings || []).find(x => x.id === aggiornata.id);
+            if (riga) Object.assign(riga, aggiornata);
+            await ricaricaLoghi();
+            ridisegna(n => n + 1);
+          }}
+        />
+      )}
 
       {moduloRisultato && (
         <ModuloRisultato

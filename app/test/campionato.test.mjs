@@ -1,7 +1,7 @@
 import { describe, test, is, ok, eq } from './run.mjs';
 import {
   soloRegolare, giocate, siCalcola, nostraPartita, rigaDiCalendario,
-  perGiornata, giornataInCorso
+  perGiornata, giornataInCorso, partiteDi, numeriSquadra
 } from '../src/utils/campionato.js';
 import { computeStandings } from '../src/utils/standingsCalc.js';
 import { BASKET } from '../src/utils/sports/basket.js';
@@ -206,5 +206,90 @@ describe('dai risultati alla classifica, per davvero', () => {
     const conVuota = [...partite, p({ giornata: 3, home_team: 'Basket Point', away_team: 'Virtus Ragalna', home_score: null, away_score: null })];
     const t2 = computeStandings(soloRegolare(conVuota), BASKET, NOI);
     is(t2.find(r => r.team_name === 'Basket Point').played, 1);
+  });
+});
+
+describe('le partite di una squadra, dal suo punto di vista', () => {
+  const partite = [
+    p({ giornata: 2, home_team: 'Basket Point', away_team: 'Virtus Ragalna', home_score: 50, away_score: 60 }),
+    p({ giornata: 1, home_team: 'Cestistica Etnea', away_team: 'Basket Point', home_score: 70, away_score: 60 }),
+    p({ giornata: 3, home_team: 'Basket Point', away_team: 'Azzurra', home_score: null, away_score: null }),
+    p({ giornata: null, home_team: 'Azzurra', away_team: 'Virtus Ragalna', home_score: 40, away_score: 41 })
+  ];
+  const sue = partiteDi(partite, 'Basket Point');
+
+  test('solo le sue, in ordine di giornata', () => {
+    is(sue.length, 3);
+    is(sue[0].giornata, 1);
+    is(sue[1].giornata, 2);
+    is(sue[2].giornata, 3);
+  });
+
+  test('i punteggi girati dalla sua parte', () => {
+    // Giornata 1: ha perso in trasferta 60-70.
+    is(sue[0].inCasa, false);
+    is(sue[0].punti, 60);
+    is(sue[0].subiti, 70);
+    is(sue[0].vinta, false);
+    is(sue[0].avversario, 'Cestistica Etnea');
+  });
+
+  test('e le vittorie', () => {
+    is(sue[1].inCasa, true);
+    is(sue[1].vinta, false);   // 50-60 in casa: persa
+  });
+
+  test('LE PARTITE DA GIOCARE RESTANO, e «vinta» è null', () => {
+    /* «Non ha vinto» e «non ha ancora giocato» sono due cose diverse: un
+     * colore che le mescola racconta una sconfitta che non c'è stata. */
+    is(sue[2].giocata, false);
+    is(sue[2].vinta, null);
+  });
+
+  test('quelle senza giornata vanno in fondo', () => {
+    const altre = partiteDi(partite, 'Virtus Ragalna');
+    is(altre[altre.length - 1].giornata, null);
+  });
+
+  test('una squadra che non c’è non ha partite', () => {
+    is(partiteDi(partite, 'Nessuno').length, 0);
+    is(partiteDi(null, 'Basket Point').length, 0);
+  });
+});
+
+describe('i numeri di una squadra, con le medie', () => {
+  const partite = [
+    p({ giornata: 1, home_team: 'Cestistica Etnea', away_team: 'Basket Point', home_score: 70, away_score: 60 }),
+    p({ giornata: 2, home_team: 'Azzurra', away_team: 'Cestistica Etnea', home_score: 61, away_score: 75 })
+  ];
+  const tabella = computeStandings(soloRegolare(partite), BASKET, NOI);
+  const noi = numeriSquadra(tabella.find(r => r.is_us), BASKET);
+
+  test('i totali vengono dalla tabella, non si ricontano', () => {
+    is(noi.giocate, 2);
+    is(noi.vinte, 2);
+    is(noi.punti, 4);
+    is(noi.fatti, 145);
+    is(noi.subiti, 121);
+    is(noi.differenza, 24);
+  });
+
+  test('e le medie si dividono', () => {
+    is(noi.mediaFatti, 72.5);
+    is(noi.mediaSubiti, 60.5);
+  });
+
+  test('SENZA PARTITE GIOCATE LA MEDIA È NULL, non zero', () => {
+    // Una squadra che non ha ancora giocato non ha una media di zero punti:
+    // non ha una media.
+    const vuota = numeriSquadra({ team_name: 'X', played: 0, stats: {} }, BASKET);
+    is(vuota.mediaFatti, null);
+    is(vuota.mediaSubiti, null);
+    is(vuota.giocate, 0);
+  });
+
+  test('e senza riga non si lancia', () => {
+    is(numeriSquadra(null, BASKET).giocate, 0);
+    is(numeriSquadra(undefined, BASKET).punti, 0);
   });
 });

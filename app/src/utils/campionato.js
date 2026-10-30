@@ -137,3 +137,82 @@ export function giornataInCorso(partite) {
   });
   return massima > 0 ? massima : 1;
 }
+
+/* LE PARTITE DI UNA SQUADRA, dal suo punto di vista.
+ *
+ * `nostraPartita` sa già girare una riga dal punto di vista di un nome — e
+ * quel nome non deve essere il nostro: è parametrico, e quindi serve anche per
+ * guardare una squadra avversaria dalla sua parte.
+ *
+ * Si tengono anche le partite SENZA punteggio: sono il calendario di quella
+ * squadra, e vederle in fondo dice quante ne ha ancora da giocare. Una scheda
+ * che mostra solo le giocate fa sembrare finito un campionato a metà.
+ */
+export function partiteDi(partite, nome) {
+  return (Array.isArray(partite) ? partite : [])
+    .map(m => {
+      const vista = nostraPartita(m, nome);
+      if (!vista) return null;
+      const giocata = vista.nostriPunti != null && vista.loroPunti != null;
+      return {
+        partita: m,
+        giornata: m.giornata == null ? null : Number(m.giornata),
+        date: m.date || null,
+        inCasa: vista.inCasa,
+        avversario: vista.avversario,
+        punti: vista.nostriPunti,
+        subiti: vista.loroPunti,
+        giocata,
+        // `null` e non `false` per una partita da giocare: «non ha vinto» e
+        // «non ha ancora giocato» sono due cose diverse, e un colore che le
+        // mescola racconta una sconfitta che non c'è stata.
+        vinta: giocata ? vista.nostriPunti > vista.loroPunti : null,
+        pari: giocata ? vista.nostriPunti === vista.loroPunti : null
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      // Per giornata, e le senza giornata in fondo: è l'ordine in cui un
+      // campionato si legge.
+      if (a.giornata == null) return b.giornata == null ? 0 : 1;
+      if (b.giornata == null) return -1;
+      return a.giornata - b.giornata;
+    });
+}
+
+/* I NUMERI DI UNA RIGA DI CLASSIFICA, con le medie.
+ *
+ * I totali li ha già calcolati `computeStandings` con le regole dello sport:
+ * qui non si ricontano, si dividono. Ricontarli vorrebbe dire una seconda
+ * aritmetica che prima o poi dice un numero diverso dalla tabella accanto.
+ *
+ * Le medie sono `null` senza partite giocate, non zero: una squadra che non ha
+ * ancora giocato non ha una media di zero punti, non ha una media.
+ */
+export function numeriSquadra(riga, sport) {
+  const extras = ((sport && sport.standings) || {}).extras || [];
+  const chiaveFatti = (extras.find(e => e.role === 'scored') || {}).key;
+  const chiaveSubiti = (extras.find(e => e.role === 'conceded') || {}).key;
+  const stats = (riga && riga.stats) || {};
+  const num = (k) => {
+    const v = k ? stats[k] : null;
+    return typeof v === 'number' ? v : (parseInt(v, 10) || 0);
+  };
+
+  const giocate = Math.max(0, Number((riga || {}).played) || 0);
+  const fatti = num(chiaveFatti);
+  const subiti = num(chiaveSubiti);
+
+  return {
+    giocate,
+    vinte: Number((riga || {}).wins) || 0,
+    pari: Number((riga || {}).draws) || 0,
+    perse: Number((riga || {}).losses) || 0,
+    punti: Number((riga || {}).points) || 0,
+    fatti,
+    subiti,
+    differenza: fatti - subiti,
+    mediaFatti: giocate ? fatti / giocate : null,
+    mediaSubiti: giocate ? subiti / giocate : null
+  };
+}
