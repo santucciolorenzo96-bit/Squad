@@ -17,6 +17,7 @@ import { currentSport } from '../utils/sports/index.js';
 import { canEditHome, managesSector, isAdmin } from '../utils/permissions.js';
 import { fetchDeletedGames, ripristinaTabellino } from '../api/games.js';
 import { inCampione } from './campione.js';
+import { partiteGiocate, comeTabellini } from '../utils/giocate.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Amichevole, cx } from './ui.jsx';
 import {
   Interruttore, Modulo, Conferma, Finestra, Campo, Testo, Data, Scelta, Spunta, useAvviso
@@ -427,7 +428,17 @@ function Cestino({ onCambiato }) {
 /* ----------------------------------------------------------------- lo storico */
 function Storico({ onCambiato }) {
   const [referto, setReferto] = useState(null);
-  const partite = [...state.history].reverse();   // la più recente per prima
+  /* LO STESSO ELENCO DI «CALENDARIO · GIOCATE».
+   *
+   * Qui c'era `state.history`, cioe` i soli tabellini archiviati: una partita
+   * il cui punteggio e` stato scritto a mano in calendario, senza scout, non
+   * compariva. Due elenchi diversi della stessa cosa.
+   *
+   * Ora la regola e` una — `utils/giocate.js` — e le due schermate mostrano le
+   * stesse partite. Il disegno resta diverso perche` qui serve un'altra cosa:
+   * la lettera dell'esito, che scorrendo l'elenco racconta l'andamento senza
+   * leggere i punteggi. */
+  const partite = partiteGiocate(state.calendar, state.history);
   if (partite.length === 0) {
     /* Il cestino c'è anche a storico vuoto, e proprio lì serve: uno storico
        vuoto è esattamente il momento in cui si cerca una partita che non si
@@ -441,39 +452,57 @@ function Storico({ onCambiato }) {
   }
   return (
     <div className="space-y-2.5">
-      {partite.map((g, i) => {
-        const vinta = g.teamScore > g.oppScore;
-        const pari = g.teamScore === g.oppScore;
+      {partite.map(g => {
+        const conPunteggio = g.nostriPunti != null && g.loroPunti != null;
+        const vinta = conPunteggio && g.nostriPunti > g.loroPunti;
+        const pari = conPunteggio && g.nostriPunti === g.loroPunti;
         return (
-          // Quello che lo scout ha raccolto durante la partita finora si
-          // poteva leggere solo mentre la partita era aperta. Adesso la riga
-          // si apre, e dentro c'e' tutto: set, fasi, rotazioni, tabellino.
+          /* Quello che lo scout ha raccolto si legge aprendo la riga: dentro
+             c'e` tutto — set, fasi, rotazioni, tabellino. Ma solo DOVE un
+             tabellino c'e`: un risultato scritto a mano non ne ha uno, e una
+             riga che si apre su una schermata vuota e` peggio di una riga che
+             non si apre. */
           <Pannello
-            key={i}
-            onClick={() => setReferto(g)}
-            className="flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-pannello/8 sm:px-5"
+            key={g.chiave}
+            onClick={g.tabellino ? () => setReferto(g.tabellino) : undefined}
+            className={cx(
+              'flex items-center gap-3 px-4 py-3 sm:px-5',
+              g.tabellino && 'cursor-pointer transition-colors hover:bg-pannello/8'
+            )}
           >
             {/* La lettera dell'esito prima di tutto: scorrendo l'elenco si
                 legge l'andamento senza leggere i punteggi. */}
             <span className={cx(
               'grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[13px] font-bold',
-              pari ? 'bg-pannello/14 text-soffuso' : vinta ? 'bg-verde/16 text-verde' : 'bg-rosso/14 text-rosso'
+              !conPunteggio ? 'bg-pannello/10 text-tenue'
+                : pari ? 'bg-pannello/14 text-soffuso'
+                  : vinta ? 'bg-verde/16 text-verde' : 'bg-rosso/14 text-rosso'
             )}>
-              {pari ? 'N' : vinta ? 'V' : 'S'}
+              {!conPunteggio ? '·' : pari ? 'N' : vinta ? 'V' : 'S'}
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="truncate text-[13.5px] font-semibold">{g.oppName || 'Avversari'}</span>
+                <span className="truncate text-[13.5px] font-semibold">{g.avversario || 'Avversari'}</span>
               </div>
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12.5px] text-tenue">
-                {g.date && <span>{fmtData(g.date)}</span>}
-                {g.friendly && <Amichevole />}
+                {g.data && <span>{fmtData(g.data)}</span>}
+                {g.giornata != null && <span>{g.giornata}ª giornata</span>}
+                {g.amichevole && <Amichevole />}
+                {/* Il punteggio in calendario era un altro: vince il
+                    tabellino, ma non si tace l'altro numero. */}
+                {g.discorde && (
+                  <span className="text-ambra">
+                    in calendario {g.puntiCalendario.us}–{g.puntiCalendario.them}
+                  </span>
+                )}
               </div>
             </div>
             <div className="shrink-0 text-[16px] font-bold">
-              {g.teamScore}<span className="mx-1 text-tenue">–</span>{g.oppScore}
+              {conPunteggio
+                ? <>{g.nostriPunti}<span className="mx-1 text-tenue">–</span>{g.loroPunti}</>
+                : <span className="text-[13px] font-semibold text-tenue">da inserire</span>}
             </div>
-            <Chevron dim={16} className="shrink-0 text-tenue" />
+            {g.tabellino && <Chevron dim={16} className="shrink-0 text-tenue" />}
           </Pannello>
         );
       })}
@@ -1067,8 +1096,14 @@ export function Classifica() {
     : null;
 
   const puoiModificare = canEditHome(state.currentUser) && managesSector(state.currentUser, state.activeSectorId, state.staffSectors);
-  const record = computeRecord(state.history);
-  const serie = computeStreak(state.history);
+  /* IL BILANCIO CONTA LE STESSE PARTITE DELL'ELENCO.
+   *
+   * Leggeva `state.history`, cioe` i soli tabellini: una partita vinta col
+   * punteggio scritto a mano in calendario non entrava nel record — la squadra
+   * aveva vinto e il riquadro diceva un'altra cosa. */
+  const giocateTutte = comeTabellini(partiteGiocate(state.calendar, state.history));
+  const record = computeRecord(giocateTutte);
+  const serie = computeStreak(giocateTutte);
 
   return (
     <div className="sezioni">

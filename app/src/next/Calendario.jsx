@@ -3,6 +3,9 @@ import { state } from '../state.js';
 import { Matita, Croce, Stretta, Chevron } from './icone.jsx';
 import { Referto } from './Referto.jsx';
 import { CaricaCalendario } from './CalendarioCarica.jsx';
+import { partiteGiocate, comeRigaDiCalendario } from '../utils/giocate.js';
+import { upsertOurLeagueMatch } from '../api/leagueMatches.js';
+import { nomeDiLega } from '../utils/campionato.js';
 import { updateCalendarMatch, removeCalendarMatch } from '../api/calendar.js';
 import { canEditHome, managesSector } from '../utils/permissions.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Stato, Amichevole, cx, AzioneRiga, TINTA_DOVE } from './ui.jsx';
@@ -72,8 +75,21 @@ export function Calendario() {
 
   const prossime = state.calendar.filter(m => !m.played)
     .sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
-  const giocate = state.calendar.filter(m => m.played)
-    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  /* LE GIOCATE SONO QUELLE DI TUTTI, non solo le righe di calendario.
+   *
+   * Qui c'era `state.calendar.filter(m => m.played)`, e lo Storico in
+   * Classifica era un altro elenco: i tabellini archiviati. Due elenchi
+   * diversi della stessa cosa, che non concordavano — una partita seguita con
+   * lo scout senza una riga di calendario stava solo nello Storico, una col
+   * punteggio scritto a mano solo qui, e una con tutte e due compariva in
+   * entrambi come se fossero due partite.
+   *
+   * La regola sta in `utils/giocate.js`, dove si puo` provare, e restituisce
+   * ogni partita UNA volta. `comeRigaDiCalendario` le da` la forma su cui
+   * questa riga e` costruita, cosi` l'elenco si unisce senza rifare il
+   * disegno. */
+  const giocate = partiteGiocate(state.calendar, state.history)
+    .map(comeRigaDiCalendario);
 
   const elenco = vista === 'giocate' ? giocate : prossime;
 
@@ -172,6 +188,19 @@ export function Calendario() {
                       <Stato tono="fermo">Risultato da inserire</Stato>
                     </div>
                   )}
+                  {/* I DUE PUNTEGGI NON COINCIDONO.
+                      Vince il tabellino — e` il risultato segnato azione per
+                      azione — ma l'altro numero esiste ancora da qualche
+                      parte, e scegliere in silenzio vorrebbe dire lasciarlo
+                      trovare a qualcuno fra sei mesi. */}
+                  {m.voce && m.voce.discorde && (
+                    <div className="mt-1.5">
+                      <Stato tono="attesa">
+                        In calendario era scritto {m.voce.puntiCalendario.us}–{m.voce.puntiCalendario.them}:
+                        vale il tabellino
+                      </Stato>
+                    </div>
+                  )}
                 </div>
 
                 {m.played ? (
@@ -183,9 +212,9 @@ export function Calendario() {
                      risultato scritto a mano — resta un numero e basta: una
                      riga che si apre su una schermata vuota e' peggio di una
                      riga che non si apre. */
-                  tabellinoDi(m) ? (
+                  (m.voce ? m.voce.tabellino : tabellinoDi(m)) ? (
                     <button
-                      onClick={() => setReferto(tabellinoDi(m))}
+                      onClick={() => setReferto(m.voce ? m.voce.tabellino : tabellinoDi(m))}
                       title="Apri il referto"
                       className="flex shrink-0 items-center gap-1 rounded-lg px-1.5 py-1 transition-colors hover:bg-pannello/12"
                     >
@@ -205,7 +234,11 @@ export function Calendario() {
                   </Pulsante>
                 ) : null}
 
-                {puoiModificare && (
+                {/* I comandi del calendario non hanno niente su cui agire
+                    quando dietro non c'e` una riga: una partita che esiste
+                    solo come tabellino non si modifica da qui, si corregge
+                    dal referto. */}
+                {puoiModificare && !m.soloTabellino && (
                   <div className="flex shrink-0 items-center gap-1">
                     <AzioneRiga etichetta="Modifica" onClick={() => setModulo(m)}>
                       <Matita />
@@ -234,7 +267,14 @@ export function Calendario() {
         <ModuloRisultato
           partita={risultato}
           onChiudi={() => setRisultato(null)}
-          onFatto={() => { ridisegna(n => n + 1); avvisa('Risultato salvato'); }}
+          /* Il modulo puo` restituire un avviso: quando il risultato e`
+             salvato ma in classifica non e` entrato, quella e` la cosa da
+             dire — «Risultato salvato» da solo nasconderebbe metà di cosa e`
+             successo. */
+          onFatto={(avviso) => {
+            ridisegna(n => n + 1);
+            avvisa(avviso || 'Risultato salvato', avviso ? 'errore' : undefined);
+          }}
         />
       )}
 
@@ -375,13 +415,47 @@ function ModuloRisultato({ partita, onChiudi, onFatto }) {
       onChiudi={onChiudi}
       onInvia={async () => {
         if (nostri === '' || loro === '') return 'Inserisci tutti e due i punteggi.';
+        const nostriPunti = parseInt(nostri, 10);
+        const loroPunti = parseInt(loro, 10);
         const agg = await updateCalendarMatch(partita.id, {
-          team_score: parseInt(nostri, 10),
-          opp_score: parseInt(loro, 10),
+          team_score: nostriPunti,
+          opp_score: loroPunti,
           played: true
         });
         Object.assign(partita, agg);
-        onFatto();
+
+        /* E IN CLASSIFICA, come quando la partita la chiude lo scout.
+         *
+         * Senza questo, «inserisco il punteggio a mano» riempiva il calendario
+         * e la classifica restava ferma: lo stesso numero da scrivere due
+         * volte, in due schermate, e la seconda si dimentica.
+         *
+         * Niente per le amichevoli — non stanno in nessun girone — e se non
+         * riesce il risultato e` comunque salvato: lo si dice e si va avanti. */
+        let avviso = null;
+        if (!partita.friendly) {
+          try {
+            const messa = await upsertOurLeagueMatch(state.teamProfile.id, state.activeSectorId, {
+              giornata: partita.giornata,
+              date: partita.date,
+              ourName: nomeDiLega(state.standings, (state.teamProfile || {}).name),
+              opponent: partita.opponent,
+              isHome: doveSiGioca(partita) === CASA ? true
+                : (doveSiGioca(partita) === TRASFERTA ? false : null),
+              ourScore: nostriPunti,
+              oppScore: loroPunti
+            });
+            if (!messa) {
+              avviso = 'Risultato salvato. In classifica non e` entrato: non risulta da che '
+                + 'parte si e` giocata — scrivilo da Classifica · Risultati, oppure dichiara '
+                + 'il campo con «Modifica».';
+            }
+          } catch (e) {
+            console.error(e);
+            avviso = 'Risultato salvato, ma la classifica non si e` aggiornata.';
+          }
+        }
+        onFatto(avviso);
       }}
     >
       <div className="grid grid-cols-2 gap-3">
