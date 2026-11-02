@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { state } from '../state.js';
 import { Matita, Croce } from './icone.jsx';
 import { updateTeam, uploadTeamLogo, regenerateInviteCode } from '../api/teams.js';
-import { resizeImageFile, resizeLogoWithTransparency, imageHasAlpha } from '../utils/image.js';
+import { normalizzaLogo, imageHasAlpha } from '../utils/image.js';
 import { createSector, renameSector, removeSector } from '../api/sectors.js';
 import { fetchSeasons, createSeason, updateSeason, removeSeason, reopenSeason } from '../api/seasons.js';
 import { orderedSectors } from '../utils/sectors.js';
@@ -148,9 +148,17 @@ function ModuloLogo({ logo, lavora, onLavora, onChiudi, onFatto, avvisa }) {
     let url = null;
     (async () => {
       try {
-        const blob = scontorna
-          ? await resizeLogoWithTransparency(logo.file, 512)
-          : await resizeImageFile(logo.file, 512, { format: 'png' });
+        /* QUADRATO E CENTRATO, come i loghi delle avversarie.
+         *
+         * Nella scheda della prossima partita i due stemmi stanno affiancati
+         * nello stesso riquadro: se il nostro conserva le sue proporzioni e
+         * quello dell'altra squadra e` stato uniformato, i due si vedono di
+         * due scale diverse — ed e` l'unico posto dell'app dove si guardano
+         * uno accanto all'altro.
+         *
+         * L'interruttore dello scontorno resta quello di prima: qui si passa
+         * la scelta, non si indovina. */
+        const blob = await normalizzaLogo(logo.file, 512, { scontorna });
         if (!vivo) return;
         url = URL.createObjectURL(blob);
         setAnteprima({ blob, url });

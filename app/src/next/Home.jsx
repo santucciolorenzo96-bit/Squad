@@ -1,6 +1,7 @@
 import React from 'react';
 import { state } from '../state.js';
 import { standingsPosition, computeRecord, computeTeamPPG } from '../utils/stats.js';
+import { logoDi } from '../utils/campionato.js';
 import { canEditHome, managesSector } from '../utils/permissions.js';
 import { teamInitials } from '../utils/theme.js';
 import { Pannello, Etichetta, Stato, Vuoto, Titolo, Pulsante, Amichevole, cx } from './ui.jsx';
@@ -76,6 +77,14 @@ function Apertura({ partita, onSezione }) {
   const posLoro = standingsPosition(state.standings, partita.opponent);
   const posNoi = standingsPosition(state.standings, noi);
   const logoNostro = (state.teamProfile || {}).logo_url || null;
+  /* IL LOGO DELL'AVVERSARIO, che qui non c'era mai stato: il riquadro riceveva
+   * `null` dalla parte loro, perché quando questa scheda è stata scritta i
+   * loghi delle altre squadre non esistevano. Adesso stanno sulla riga di
+   * classifica, e la scheda della prossima partita è il posto dove uno stemma
+   * serve più che altrove — è quella che si guarda il sabato. */
+  const logoAvversario = logoDi(partita.opponent, state.loghiSquadre, {
+    nostroNome: noi, logoNostro
+  });
 
   // Una partita passata e mai segnata non è "giocata": è da fare, ed è
   // esattamente il caso che non deve passare inosservato.
@@ -129,7 +138,7 @@ function Apertura({ partita, onSezione }) {
             <div className="min-w-0 flex-1 text-center">
               <Stemma
                 nome={casa ? noi : partita.opponent}
-                url={casa ? logoNostro : null}
+                url={casa ? logoNostro : logoAvversario}
               />
               <div className="mt-2.5 text-[clamp(16px,3.6vw,25px)] font-bold leading-tight tracking-tight">
                 {casa ? noi : partita.opponent}
@@ -148,7 +157,7 @@ function Apertura({ partita, onSezione }) {
             <div className="min-w-0 flex-1 text-center">
               <Stemma
                 nome={casa ? partita.opponent : noi}
-                url={casa ? null : logoNostro}
+                url={casa ? logoAvversario : logoNostro}
               />
               <div className="mt-2.5 text-[clamp(16px,3.6vw,25px)] font-bold leading-tight tracking-tight">
                 {casa ? partita.opponent : noi}

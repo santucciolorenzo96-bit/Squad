@@ -216,3 +216,60 @@ export function numeriSquadra(riga, sport) {
     mediaSubiti: giocate ? subiti / giocate : null
   };
 }
+
+/* SIAMO NOI?
+ *
+ * Il nome con cui una società si chiama in anagrafica e quello con cui la
+ * scrive la federazione non sono lo stesso: «Cestistica Etnea» contro
+ * «CESTISTICA ETNEA BASKET». Confrontandoli per intero non combaciano, e da
+ * quel confronto dipendono tre cose che l'utente vede:
+ *
+ *   — la riga della propria squadra evidenziata in classifica;
+ *   — il logo della propria società, che vive in un altro posto
+ *     (`teams.logo_url`) e si attacca per nome;
+ *   — la posizione in classifica mostrata nella scheda della prossima partita.
+ *
+ * Tutte e tre non funzionavano, e il sintomo era uno solo: «perché il nostro
+ * logo non appare?».
+ *
+ * LA REGOLA NON È «CONTIENE», ed è importante: una società che si chiama
+ * «Basket» riconoscerebbe come propria ogni squadra del girone. Il nome corto
+ * deve stare all'INIZIO o alla FINE di quello lungo, e su un confine di parola
+ * — «CESTISTICA ETNEA BASKET» comincia con «Cestistica Etnea» seguito da uno
+ * spazio — e deve essere lungo almeno cinque caratteri, perché con tre lettere
+ * le coincidenze non sono coincidenze.
+ */
+export function siamoNoi(nome, nostroNome) {
+  const a = chiave(nome);
+  const b = chiave(nostroNome);
+  if (!a || !b) return false;
+  if (a === b) return true;
+
+  const lungo = a.length >= b.length ? a : b;
+  const corto = a.length >= b.length ? b : a;
+  if (corto.length < 5) return false;
+
+  if (lungo.startsWith(corto) && lungo.charAt(corto.length) === ' ') return true;
+  if (lungo.endsWith(corto) && lungo.charAt(lungo.length - corto.length - 1) === ' ') return true;
+  return false;
+}
+
+/* IL LOGO DI UNA SQUADRA, da qualunque dei due posti arrivi.
+ *
+ * Quelli delle avversarie stanno sulla riga di classifica (`logo_path`, da cui
+ * si ricava un URL firmato); il nostro vive in `teams.logo_url`, perché è il
+ * logo della società e lo si carica una volta sola da Squadra.
+ *
+ * Il più specifico vince: se qualcuno ha caricato un logo sulla NOSTRA riga di
+ * classifica, è quello che voleva vedere in classifica. Altrimenti si ricade
+ * sul logo della società — che è la risposta a «perché il nostro non appare
+ * in automatico?»: appariva solo caricandolo due volte.
+ */
+export function logoDi(nome, loghi, { nostroNome, logoNostro } = {}) {
+  const k = chiave(nome);
+  if (!k) return null;
+  const suo = (loghi || {})[k];
+  if (suo) return suo;
+  if (logoNostro && siamoNoi(nome, nostroNome)) return logoNostro;
+  return null;
+}

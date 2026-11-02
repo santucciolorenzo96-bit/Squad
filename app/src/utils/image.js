@@ -125,3 +125,99 @@ export async function resizeLogoWithTransparency(file, maxDim, { hard = 34, soft
   ctx.putImageData(imgData, 0, 0);
   return toBlob(c, 'png');
 }
+
+/* IL RIQUADRO CHE CONTIENE IL MARCHIO.
+ *
+ * Due loghi possono avere lo stesso numero di pixel e sembrare di due
+ * dimensioni diverse: uno stretto intorno allo stemma, l'altro con due dita di
+ * aria tutt'intorno. Nel riquadro della classifica il secondo si vede piccolo,
+ * e la colonna sembra fatta male anche quando ogni immagine è a posto.
+ *
+ * Qui si trova il rettangolo dei pixel che si vedono — alfa sopra la soglia —
+ * così da poter buttare l'aria e ridare a tutti la stessa scala.
+ *
+ * Sta fuori dal disegno su tela, senza toccare `document`, perché è l'unica
+ * parte con una logica da sbagliare: un logo tutto trasparente, uno pieno fino
+ * al bordo, un'immagine alta un pixel.
+ */
+export function riquadroVisibile(dati, larghezza, altezza, soglia = 8) {
+  const W = Math.max(0, Math.floor(larghezza) || 0);
+  const H = Math.max(0, Math.floor(altezza) || 0);
+  if (!dati || W === 0 || H === 0) return null;
+
+  let x1 = W, y1 = H, x2 = -1, y2 = -1;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (dati[(y * W + x) * 4 + 3] <= soglia) continue;
+      if (x < x1) x1 = x;
+      if (x > x2) x2 = x;
+      if (y < y1) y1 = y;
+      if (y > y2) y2 = y;
+    }
+  }
+  // Tutto trasparente: non c'è niente da ritagliare, e un riquadro di
+  // larghezza negativa manderebbe `drawImage` a disegnare il nulla.
+  if (x2 < x1 || y2 < y1) return null;
+  return { x: x1, y: y1, w: x2 - x1 + 1, h: y2 - y1 + 1 };
+}
+
+/* UN LOGO UNIFORME: fondo trasparente, quadrato, stessa scala per tutti.
+ *
+ * Tre passaggi, e ognuno risponde a una cosa che si vede guardando nove loghi
+ * in colonna:
+ *
+ *   1. il FONDO diventa trasparente (`resizeLogoWithTransparency`), altrimenti
+ *      un PNG con il fondo bianco è un rettangolo bianco in mezzo a una
+ *      tabella scura;
+ *   2. si butta l'ARIA intorno al marchio, perché è quella che fa sembrare
+ *      piccolo un logo grande;
+ *   3. si centra in un QUADRATO con un margine uguale per tutti: da lì in poi
+ *      qualunque riquadro dell'app li mostra alla stessa scala, senza che il
+ *      disegno debba sapere com'era fatto il file.
+ *
+ * Esce sempre un PNG: il JPEG non ha canale alfa, e salvare in JPEG
+ * appiattirebbe la trasparenza appena ottenuta sul fondo pieno che si stava
+ * togliendo.
+ */
+export async function normalizzaLogo(file, lato = 512, { margine = 0.06, scontorna = null } = {}) {
+  /* Scontornare o no.
+   *
+   * `null` (il caso normale) decide da sé: se il file ha già un canale alfa lo
+   * si lascia stare, perché il riconoscimento automatico su un PNG pulito può
+   * solo peggiorarlo. `true` e `false` sono la scelta di chi carica, dove
+   * quella scelta esiste — nella schermata della società c'è un interruttore,
+   * e un interruttore che non cambia niente è peggio di un interruttore che
+   * non c'è. */
+  const gia = scontorna == null
+    ? await imageHasAlpha(file).catch(() => false)
+    : !scontorna;
+  const sorgente = gia
+    ? await resizeImageFile(file, lato, { format: 'png' })
+    : await resizeLogoWithTransparency(file, lato);
+
+  const img = await loadImage(sorgente);
+  const misura = document.createElement('canvas');
+  misura.width = img.width;
+  misura.height = img.height;
+  const mctx = misura.getContext('2d');
+  mctx.drawImage(img, 0, 0);
+  const dati = mctx.getImageData(0, 0, img.width, img.height).data;
+
+  const r = riquadroVisibile(dati, img.width, img.height);
+  // Niente di visibile: si restituisce quello che c'era, invece di un quadrato
+  // vuoto. Un logo che non si vede è un problema del file, non di questa
+  // funzione, e cancellarlo non aiuta chi lo ha caricato.
+  if (!r) return sorgente;
+
+  const c = document.createElement('canvas');
+  c.width = lato;
+  c.height = lato;
+  const ctx = c.getContext('2d');
+  const utile = lato * (1 - 2 * Math.max(0, Math.min(0.3, margine)));
+  const scala = Math.min(utile / r.w, utile / r.h);
+  const w = Math.max(1, Math.round(r.w * scala));
+  const h = Math.max(1, Math.round(r.h * scala));
+  ctx.drawImage(img, r.x, r.y, r.w, r.h, Math.round((lato - w) / 2), Math.round((lato - h) / 2), w, h);
+
+  return toBlob(c, 'png');
+}

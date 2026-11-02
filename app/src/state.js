@@ -12,6 +12,11 @@ export const state = {
   myAvatarUrl: null,   // URL firmato della propria foto, valido un'ora
   seasons: [],
   activeSeasonId: null,
+  /* I loghi delle squadre del girone, per nome minuscolo. Stanno nello stato
+   * perché li guardano due schermate — la classifica e la prossima partita in
+   * Home — e chiederli due volte vorrebbe dire due richieste di URL firmati
+   * per gli stessi nove file. */
+  loghiSquadre: {},
   linkedPlayers: [],   // per Genitore/Atleta: i giocatori a cui è collegato
   familySectorIds: [], // per Genitore/Atleta: unione dei settori dei giocatori collegati
   roster: [],

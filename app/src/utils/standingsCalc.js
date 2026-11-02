@@ -1,3 +1,5 @@
+import { siamoNoi } from './campionato.js';
+
 // Classifica calcolata dai risultati, non digitata.
 //
 // Le regole cambiano con lo sport — due punti a vittoria nel basket, 3-1-0 nel
@@ -53,7 +55,11 @@ export function computeStandings(matches, sport, ourName, knownTeams = []) {
   const concededKey = (st.extras.find(e => e.role === 'conceded') || {}).key;
 
   return Object.values(table)
-    .map(r => ({ ...r, is_us: keyOf(r.team_name) === keyOf(ourName) }))
+    /* «Siamo noi» con la regola che tiene conto di come scrive i nomi la
+     * federazione: in anagrafica «Cestistica Etnea», nel PDF «CESTISTICA
+     * ETNEA BASKET». Col confronto esatto la nostra riga non si riconosceva,
+     * e restava senza evidenziazione e senza logo. */
+    .map(r => ({ ...r, is_us: siamoNoi(r.team_name, ourName) }))
     .sort((a, b) => {
       if (b.points !== a.points) return b.points - a.points;
       // A pari punti conta la differenza fra fatti e subiti, che è il criterio

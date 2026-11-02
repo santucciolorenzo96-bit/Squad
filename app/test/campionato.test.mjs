@@ -1,7 +1,7 @@
 import { describe, test, is, ok, eq } from './run.mjs';
 import {
   soloRegolare, giocate, siCalcola, nostraPartita, rigaDiCalendario,
-  perGiornata, giornataInCorso, partiteDi, numeriSquadra
+  perGiornata, giornataInCorso, partiteDi, numeriSquadra, siamoNoi, logoDi
 } from '../src/utils/campionato.js';
 import { computeStandings } from '../src/utils/standingsCalc.js';
 import { BASKET } from '../src/utils/sports/basket.js';
@@ -291,5 +291,74 @@ describe('i numeri di una squadra, con le medie', () => {
   test('e senza riga non si lancia', () => {
     is(numeriSquadra(null, BASKET).giocate, 0);
     is(numeriSquadra(undefined, BASKET).punti, 0);
+  });
+});
+
+describe('siamo noi? il nome della federazione non è quello dell’anagrafica', () => {
+  test('identici: sì', () => {
+    is(siamoNoi('Cestistica Etnea', 'Cestistica Etnea'), true);
+    is(siamoNoi('CESTISTICA ETNEA', '  cestistica etnea '), true);
+  });
+
+  test('il nome federale è il nostro più una sigla: sì', () => {
+    // È il caso vero: nel PDF siamo «CESTISTICA ETNEA BASKET».
+    is(siamoNoi('CESTISTICA ETNEA BASKET', 'Cestistica Etnea'), true);
+    is(siamoNoi('CESTISTICA ETNEA BASKET ASD', 'Cestistica Etnea'), true);
+  });
+
+  test('o la sigla sta davanti: sì', () => {
+    is(siamoNoi('ASD CESTISTICA ETNEA', 'Cestistica Etnea'), true);
+  });
+
+  test('NON È «CONTIENE»: un pezzo in mezzo non basta', () => {
+    /* Con «contiene», una società che si chiama «Basket» riconoscerebbe come
+     * propria ogni squadra del girone. */
+    is(siamoNoi('POL. CESTISTICA ETNEA ASD', 'Cestistica Etnea'), false);
+    is(siamoNoi('ASD BP BASKET POINT', 'Basket'), false);
+  });
+
+  test('e un nome corto non basta: con tre lettere le coincidenze non lo sono', () => {
+    is(siamoNoi('ASD BASKET POINT', 'ASD'), false);
+  });
+
+  test('altre squadre: no', () => {
+    is(siamoNoi('A.S.D. MENS SANA MASCALUCIA', 'Cestistica Etnea'), false);
+  });
+
+  test('senza nomi non si lancia', () => {
+    is(siamoNoi('', 'Cestistica Etnea'), false);
+    is(siamoNoi(null, null), false);
+  });
+});
+
+describe('il logo di una squadra, da qualunque dei due posti arrivi', () => {
+  const loghi = { 'a.s.d. mens sana mascalucia': 'https://x/mens.png' };
+
+  test('quello dell’avversaria viene dalla sua riga di classifica', () => {
+    is(logoDi('A.S.D. MENS SANA MASCALUCIA', loghi), 'https://x/mens.png');
+  });
+
+  test('IL NOSTRO RICADE SU QUELLO DELLA SOCIETÀ, anche col nome federale', () => {
+    // È la risposta a «perché il nostro logo non appare in automatico?»
+    is(logoDi('CESTISTICA ETNEA BASKET', loghi, {
+      nostroNome: 'Cestistica Etnea', logoNostro: 'https://x/noi.png'
+    }), 'https://x/noi.png');
+  });
+
+  test('ma il più specifico vince: un logo sulla nostra riga passa davanti', () => {
+    is(logoDi('CESTISTICA ETNEA BASKET', { 'cestistica etnea basket': 'https://x/riga.png' }, {
+      nostroNome: 'Cestistica Etnea', logoNostro: 'https://x/noi.png'
+    }), 'https://x/riga.png');
+  });
+
+  test('e chi non ha logo non prende il nostro', () => {
+    is(logoDi('A.S.D. KALKIS', loghi, {
+      nostroNome: 'Cestistica Etnea', logoNostro: 'https://x/noi.png'
+    }), null);
+  });
+
+  test('senza niente, null', () => {
+    is(logoDi('', {}), null);
+    is(logoDi('X', null), null);
   });
 });

@@ -8,9 +8,10 @@ import {
 import { fetchLeagueMatches, saveLeagueMatch, removeLeagueMatch } from '../api/leagueMatches.js';
 import { updateCalendarMatch } from '../api/calendar.js';
 import { computeStandings } from '../utils/standingsCalc.js';
+import { normalizzaLogo } from '../utils/image.js';
 import {
   soloRegolare, siCalcola, nostraPartita, rigaDiCalendario,
-  perGiornata, giornataInCorso, partiteDi, numeriSquadra
+  perGiornata, giornataInCorso, partiteDi, numeriSquadra, logoDi
 } from '../utils/campionato.js';
 import { currentSport } from '../utils/sports/index.js';
 import { canEditHome, managesSector, isAdmin } from '../utils/permissions.js';
@@ -157,7 +158,14 @@ function Tabellone({ righe: dafuori, calcolata, loghi, puoiModificare, onApri, o
                         POL. ARETUSA» — si riconosce la forma prima della
                         parola: il logo fa trovare la riga senza leggerla. */}
                     <span className="flex items-center gap-2">
-                      <LogoSquadra nome={r.team_name} url={loghi && loghi[(r.team_name || '').trim().toLowerCase()]} dim={22} />
+                      <LogoSquadra
+                        nome={r.team_name}
+                        url={logoDi(r.team_name, loghi, {
+                          nostroNome: (state.teamProfile || {}).name,
+                          logoNostro: (state.teamProfile || {}).logo_url
+                        })}
+                        dim={22}
+                      />
                       <span className="min-w-0 truncate">{r.team_name}</span>
                     </span>
                   </td>
@@ -542,11 +550,23 @@ function SchedaSquadra({ riga, rigaSalvata, partite, sport, logo, puoiModificare
     }
     setLavora('logo');
     try {
-      const est = (file.name || '').toLowerCase().endsWith('.svg') ? 'svg'
-        : (file.name || '').toLowerCase().endsWith('.jpg') ? 'jpg'
-          : (file.name || '').toLowerCase().endsWith('.jpeg') ? 'jpg'
-            : (file.name || '').toLowerCase().endsWith('.webp') ? 'webp' : 'png';
-      const aggiornata = await uploadTeamLogo(state.teamProfile.id, rigaSalvata.id, file, est);
+      /* UNIFORMATO PRIMA DI SALIRE.
+       *
+       * Nove loghi caricati come arrivano sono nove dimensioni e nove fondi
+       * diversi: uno stretto intorno allo stemma, uno con due dita d'aria, uno
+       * col fondo bianco che in una tabella scura e` un rettangolo bianco.
+       * `normalizzaLogo` toglie il fondo, butta l'aria e centra tutto in un
+       * quadrato di 512: da li` in poi qualunque riquadro li mostra alla
+       * stessa scala, senza che il disegno debba sapere com'era il file.
+       *
+       * Un SVG non si tocca: e` gia` scalabile e senza fondo, e passarlo per
+       * una tela lo trasformerebbe in un disegno a pixel — piu` grande e meno
+       * nitido di quello che era. */
+      const svg = /svg/i.test(file.type || '') || /[.]svg$/i.test(file.name || '');
+      const pronto = svg ? file : await normalizzaLogo(file, 512);
+      const aggiornata = await uploadTeamLogo(
+        state.teamProfile.id, rigaSalvata.id, pronto, svg ? 'svg' : 'png'
+      );
       onLogo(aggiornata);
     } catch (e) {
       console.error(e);
@@ -930,10 +950,7 @@ export function Classifica() {
    * un errore qui diventa un elenco vuoto e non una schermata rotta. */
   const [risultati, setRisultati] = useState([]);
   const [squadra, setSquadra] = useState(null);     // la scheda aperta
-  /* I loghi, per nome: le righe della classifica calcolata hanno il nome e non
-   * l'identificativo della riga salvata, e il nome e` l'unica cosa che le due
-   * forme hanno in comune. */
-  const [loghi, setLoghi] = useState({});
+  const [uniformo, setUniformo] = useState('');
   const [moduloRisultato, setModuloRisultato] = useState(null);
   const [risultatoDaTogliere, setRisultatoDaTogliere] = useState(null);
 
@@ -949,21 +966,66 @@ export function Classifica() {
 
   useEffect(() => { ricaricaRisultati(); }, [state.activeSectorId, state.activeSeasonId]);
 
-  /* I loghi si chiedono una volta per categoria, con una richiesta per tutti.
-   * Se il deposito non c'e` ancora — migrazione 063 non eseguita — la
-   * classifica si vede uguale, senza loghi: un logo mancante non vale una
-   * schermata rotta. */
+  /* I loghi stanno nello stato, caricati con la categoria: li guarda anche la
+   * scheda della prossima partita in Home, e chiederli due volte vorrebbe dire
+   * due richieste di URL firmati per gli stessi file. Qui si ricaricano solo
+   * dopo che uno e` cambiato. */
   async function ricaricaLoghi() {
-    if (inCampione()) { setLoghi({}); return; }
+    if (inCampione()) { state.loghiSquadre = {}; return; }
     try {
-      setLoghi(await fetchTeamLogoUrls(state.standings || []) || {});
+      state.loghiSquadre = await fetchTeamLogoUrls(state.standings || []) || {};
     } catch (e) {
       console.error(e);
-      setLoghi({});
+      state.loghiSquadre = {};
     }
   }
 
-  useEffect(() => { ricaricaLoghi(); }, [state.activeSectorId, state.activeSeasonId]);
+  /* UNIFORMARE I LOGHI GIA` CARICATI.
+   *
+   * Da adesso un logo si uniforma mentre lo si carica. Ma quelli messi prima
+   * sono salvati come sono arrivati — nove dimensioni e nove fondi diversi —
+   * e la risposta «ricaricali tutti a mano» fa rifare un lavoro gia` fatto.
+   *
+   * Qui si riprendono dal deposito, si passano per la stessa macchina e si
+   * risalvano. Uno per uno e non tutti insieme: una societa` con venti squadre
+   * farebbe venti caricamenti in parallelo su una rete di palestra, e il
+   * conteggio che avanza dice che sta succedendo qualcosa.
+   *
+   * Gli SVG si saltano: sono gia` scalabili e senza fondo, e passarli per una
+   * tela li trasformerebbe in disegni a pixel.
+   */
+  async function uniformaLoghi() {
+    const conLogo = (state.standings || []).filter(r => r.logo_path);
+    if (conLogo.length === 0) return;
+    setUniformo('1 di ' + conLogo.length);
+    let fatti = 0;
+    let falliti = 0;
+    for (let i = 0; i < conLogo.length; i++) {
+      const riga = conLogo[i];
+      setUniformo((i + 1) + ' di ' + conLogo.length);
+      if (/[.]svg$/i.test(riga.logo_path)) continue;
+      try {
+        const url = state.loghiSquadre[String(riga.team_name || '').trim().toLowerCase()];
+        if (!url) { falliti += 1; continue; }
+        const risposta = await fetch(url);
+        if (!risposta.ok) { falliti += 1; continue; }
+        const pronto = await normalizzaLogo(await risposta.blob(), 512);
+        const aggiornata = await uploadTeamLogo(state.teamProfile.id, riga.id, pronto, 'png');
+        Object.assign(riga, aggiornata);
+        fatti += 1;
+      } catch (e) {
+        console.error(e);
+        falliti += 1;
+      }
+    }
+    setUniformo('');
+    await ricaricaLoghi();
+    ridisegna(n => n + 1);
+    avvisa(
+      fatti + (fatti === 1 ? ' logo uniformato' : ' loghi uniformati')
+      + (falliti > 0 ? ' · ' + falliti + ' non si sono potuti rifare' : '')
+    );
+  }
 
   /* QUALE CLASSIFICA VALE non e` una preferenza da chiedere: lo dicono i dati.
    * Appena esiste un risultato giocato si calcola; finche` non ce n'e` nessuno
@@ -1032,7 +1094,7 @@ export function Classifica() {
           <Tabellone
             righe={righeClassifica}
             calcolata={calcolata}
-            loghi={loghi}
+            loghi={state.loghiSquadre}
             puoiModificare={puoiModificare}
             onApri={(r) => setSquadra(r)}
             onAggiungi={() => setModulo({})}
@@ -1040,6 +1102,18 @@ export function Classifica() {
           {/* DA DOVE VIENE QUESTA TABELLA.
               Senza dirlo, chi corregge una riga a mano e la vede tornare come
               prima crede che l'app non salvi. */}
+          {puoiModificare && (state.standings || []).some(r => r.logo_path) && (
+            <button
+              onClick={uniformaLoghi}
+              disabled={!!uniformo}
+              className="text-[12.5px] font-semibold text-tenue transition-colors hover:text-testo disabled:opacity-50"
+            >
+              {uniformo
+                ? 'Uniformo i loghi… ' + uniformo
+                : 'Uniforma i loghi già caricati'}
+            </button>
+          )}
+
           <p className="text-[12.5px] leading-relaxed text-tenue">
             {calcolata
               ? 'Calcolata dai risultati del girone: ' + st.pointsHint
@@ -1068,7 +1142,12 @@ export function Classifica() {
               === String(squadra.team_name || '').trim().toLowerCase()) || null}
           partite={risultati}
           sport={sport}
-          logo={loghi[String(squadra.team_name || '').trim().toLowerCase()]}
+          /* `logoDi` e non una lettura secca della mappa: la nostra riga non
+             ha un logo suo e ricade su quello della societa`. */
+          logo={logoDi(squadra.team_name, state.loghiSquadre, {
+            nostroNome: (state.teamProfile || {}).name,
+            logoNostro: (state.teamProfile || {}).logo_url
+          })}
           puoiModificare={puoiModificare}
           onChiudi={() => setSquadra(null)}
           onModifica={(r) => setModulo(r)}

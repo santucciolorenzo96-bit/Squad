@@ -179,7 +179,7 @@ export async function loadSectorData(sectorId) {
   if (!sectorId) {
     state.roster = []; state.history = []; state.liveGame = null;
     state.nextMatch = null; state.standings = []; state.trainings = []; state.calendar = [];
-    state.trainingRecurrences = [];
+    state.trainingRecurrences = []; state.loghiSquadre = {};
     return;
   }
   const [roster, history, liveGame, nextMatch, standings, trainings, calendar, trainingRecurrences] = await Promise.all([
@@ -200,6 +200,18 @@ export async function loadSectorData(sectorId) {
   state.trainings = trainings;
   state.calendar = calendar;
   state.trainingRecurrences = trainingRecurrences;
+
+  /* I LOGHI, DOPO LA CLASSIFICA perché vengono da lei: una richiesta sola per
+   * tutti, e se il deposito non c'è ancora — migrazione 063 non eseguita — si
+   * resta senza loghi invece di far fallire il caricamento di una categoria.
+   * Un logo mancante non vale una schermata vuota. */
+  try {
+    const { fetchTeamLogoUrls } = await import('./api/standings.js');
+    state.loghiSquadre = await fetchTeamLogoUrls(standings) || {};
+  } catch (e) {
+    console.error(e);
+    state.loghiSquadre = {};
+  }
 }
 
 export async function switchSector(sectorId) {

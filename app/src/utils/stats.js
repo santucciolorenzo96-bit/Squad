@@ -1,4 +1,5 @@
 import { BASKET } from './sports/basket.js';
+import { siamoNoi } from './campionato.js';
 
 // Questo modulo non sa più cos'è la pallacanestro: riceve il descrittore dello
 // sport e itera le voci che dichiara. Il basket resta il default di ogni
@@ -76,7 +77,12 @@ export function findSeasonRow(season, player) {
 export function standingsPosition(standings, teamName) {
   if (!teamName || standings.length === 0) return null;
   const sorted = [...standings].sort((a, b) => b.points - a.points);
-  const idx = sorted.findIndex(r => r.team_name.trim().toLowerCase() === teamName.trim().toLowerCase());
+  /* `siamoNoi` e non un confronto esatto: il nome della federazione e quello
+   * dell'anagrafica non sono lo stesso — «CESTISTICA ETNEA BASKET» contro
+   * «Cestistica Etnea» — e con il confronto esatto la nostra posizione nella
+   * scheda della prossima partita non compariva mai. Per le avversarie il
+   * nome viene dalla stessa fonte dei risultati, quindi combacia da solo. */
+  const idx = sorted.findIndex(r => siamoNoi(r.team_name, teamName));
   return idx >= 0 ? idx + 1 : null;
 }
 
