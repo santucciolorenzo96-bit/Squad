@@ -11,7 +11,7 @@ import { computeStandings } from '../utils/standingsCalc.js';
 import { normalizzaLogo } from '../utils/image.js';
 import {
   soloRegolare, siCalcola, nostraPartita, rigaDiCalendario,
-  perGiornata, giornataInCorso, partiteDi, numeriSquadra, logoDi
+  perGiornata, giornataInCorso, partiteDi, numeriSquadra, logoDi, siamoNoi, nomeDiLega
 } from '../utils/campionato.js';
 import { currentSport } from '../utils/sports/index.js';
 import { canEditHome, managesSector, isAdmin } from '../utils/permissions.js';
@@ -77,7 +77,7 @@ function valoreExtra(riga, voce) {
  * sparirebbe al prossimo conto senza dire niente.
  */
 function Tabellone({ righe: dafuori, calcolata, loghi, puoiModificare, onApri, onAggiungi }) {
-  const noi = ((state.teamProfile || {}).name || '').trim().toLowerCase();
+  const nostroNome = (state.teamProfile || {}).name;
   const { st, fatti, subiti } = vociExtra();
 
   // A parita' di punti conta la differenza fra segnati e subiti: e' il criterio
@@ -128,7 +128,14 @@ function Tabellone({ righe: dafuori, calcolata, loghi, puoiModificare, onApri, o
           </thead>
           <tbody>
             {righe.map((r, i) => {
-              const nostra = (r.team_name || '').trim().toLowerCase() === noi;
+              /* LA RIGA NOSTRA.
+                 `is_us` quando c'e` — lo mette la classifica calcolata e lo
+                 scrive il caricamento del girone — e la somiglianza quando
+                 non c'e`, perche` una classifica scritta a mano puo` avere il
+                 nome federale. Col confronto esatto di prima la riga della
+                 nostra squadra restava senza evidenziazione per chi ha
+                 caricato il calendario. */
+              const nostra = r.is_us != null ? !!r.is_us : siamoNoi(r.team_name, nostroNome);
               const mf = media(valoreExtra(r, fatti), r.played);
               const ms = media(valoreExtra(r, subiti), r.played);
               return (
@@ -728,9 +735,11 @@ function SchedaSquadra({ riga, rigaSalvata, partite, sport, logo, puoiModificare
  * calendario — perche` due schermate che si contraddicono sullo stesso evento
  * sono peggio di una sola incompleta.
  */
-function Risultati({ partite, puoiModificare, onNuovo, onApri }) {
+function Risultati({ partite, nomeLega, puoiModificare, onNuovo, onApri }) {
   const gruppi = perGiornata(partite);
-  const noi = (state.teamProfile || {}).name;
+  // Il nome con cui ci chiama il campionato: col nome della societa` le nostre
+  // partite non si riconoscevano, e il fondo azzurro non compariva su nessuna.
+  const noi = nomeLega;
 
   return (
     <div className="space-y-4">
@@ -793,7 +802,7 @@ function Risultati({ partite, puoiModificare, onNuovo, onApri }) {
 }
 
 /* ------------------------------------------------------- modulo risultato */
-function ModuloRisultato({ partita, partite, onChiudi, onTogli, onFatto }) {
+function ModuloRisultato({ partita, partite, nomeLega, onChiudi, onTogli, onFatto }) {
   const sport = currentSport();
   const [giornata, setGiornata] = useState(
     partita && partita.giornata != null ? String(partita.giornata)
@@ -810,7 +819,9 @@ function ModuloRisultato({ partita, partite, onChiudi, onTogli, onFatto }) {
     partita && partita.away_score != null ? String(partita.away_score) : ''
   );
 
-  const nostroNome = (state.teamProfile || {}).name || '';
+  // Quello con cui ci chiama il campionato, non quello dell'anagrafica: e`
+  // con questo che si riconosce la riga di calendario da aggiornare.
+  const nostroNome = nomeLega || (state.teamProfile || {}).name || '';
 
   return (
     <Modulo
@@ -1036,12 +1047,21 @@ export function Classifica() {
    * Le righe digitate restano in gioco anche quando si calcola: servono da
    * elenco delle squadre del girone, cosi` chi non ha ancora giocato compare
    * a zero invece di non esserci. */
+  /* IL NOME CON CUI CI CHIAMA QUESTO CAMPIONATO, trovato una volta.
+   *
+   * Da qui in avanti tutti i confronti con i risultati sono ESATTI: il nome
+   * della societa` serve a mostrare, questo a confrontare. Senza, la nostra
+   * partita inserita in «Risultati» non riconosceva la sua riga di calendario
+   * — «Cestistica Etnea» contro «CESTISTICA ETNEA BASKET» — e quella partita
+   * restava «da giocare» per sempre. */
+  const nomeLega = nomeDiLega(state.standings, (state.teamProfile || {}).name);
+
   const calcolata = siCalcola(risultati);
   const righeClassifica = calcolata
     ? computeStandings(
       soloRegolare(risultati),
       sport,
-      (state.teamProfile || {}).name,
+      nomeLega,
       (state.standings || []).map(r => r.team_name)
     )
     : null;
@@ -1125,6 +1145,7 @@ export function Classifica() {
       ) : vista === 'risultati' ? (
         <Risultati
           partite={risultati}
+          nomeLega={nomeLega}
           puoiModificare={puoiModificare}
           onNuovo={() => setModuloRisultato({})}
           onApri={(m) => setModuloRisultato(m)}
@@ -1166,6 +1187,7 @@ export function Classifica() {
         <ModuloRisultato
           partita={moduloRisultato.id ? moduloRisultato : null}
           partite={risultati}
+          nomeLega={nomeLega}
           onChiudi={() => setModuloRisultato(null)}
           onTogli={() => { const m = moduloRisultato; setModuloRisultato(null); setRisultatoDaTogliere(m); }}
           onFatto={async (msg) => {

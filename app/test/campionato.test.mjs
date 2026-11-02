@@ -1,7 +1,8 @@
 import { describe, test, is, ok, eq } from './run.mjs';
 import {
   soloRegolare, giocate, siCalcola, nostraPartita, rigaDiCalendario,
-  perGiornata, giornataInCorso, partiteDi, numeriSquadra, siamoNoi, logoDi
+  perGiornata, giornataInCorso, partiteDi, numeriSquadra, siamoNoi, logoDi,
+  nomeDiLega
 } from '../src/utils/campionato.js';
 import { computeStandings } from '../src/utils/standingsCalc.js';
 import { BASKET } from '../src/utils/sports/basket.js';
@@ -360,5 +361,45 @@ describe('il logo di una squadra, da qualunque dei due posti arrivi', () => {
   test('senza niente, null', () => {
     is(logoDi('', {}), null);
     is(logoDi('X', null), null);
+  });
+});
+
+describe('come ci chiama questo campionato', () => {
+  /* Il nome da mostrare e il nome con cui ci chiama la federazione sono due
+   * cose diverse. La seconda si trova UNA volta nell'elenco delle squadre, e
+   * da lì in poi i confronti con i risultati sono esatti invece di somiglianze
+   * — che è la ragione per cui non serve rinominare la società. */
+  const girone = [
+    { team_name: 'A.S.D. KALKIS', is_us: false },
+    { team_name: 'CESTISTICA ETNEA BASKET', is_us: true },
+    { team_name: 'ASS.DIL. POL. ARETUSA', is_us: false }
+  ];
+
+  test('la riga contrassegnata «siamo noi»', () => {
+    is(nomeDiLega(girone, 'Cestistica Etnea'), 'CESTISTICA ETNEA BASKET');
+  });
+
+  test('senza contrassegno si cerca quella che somiglia', () => {
+    const senza = girone.map(r => ({ ...r, is_us: false }));
+    is(nomeDiLega(senza, 'Cestistica Etnea'), 'CESTISTICA ETNEA BASKET');
+  });
+
+  test('senza girone caricato resta il nome della società', () => {
+    is(nomeDiLega([], 'Cestistica Etnea'), 'Cestistica Etnea');
+    is(nomeDiLega(null, 'Cestistica Etnea'), 'Cestistica Etnea');
+  });
+
+  test('e con quel nome il confronto coi risultati torna ESATTO', () => {
+    /* È il punto di tutto: `nostraPartita` continua a confrontare per intero —
+     * quindi una società che si chiama «Basket» non si prende le partite di
+     * tutti — e funziona perché le si passa il nome giusto. */
+    const nome = nomeDiLega(girone, 'Cestistica Etnea');
+    const m = p({ home_team: 'CESTISTICA ETNEA BASKET', away_team: 'A.S.D. KALKIS' });
+    ok(nostraPartita(m, nome), 'la nostra partita non è stata riconosciuta');
+    is(nostraPartita(m, 'Cestistica Etnea'), null);   // col nome breve, no
+  });
+
+  test('una riga senza nome non viene scelta', () => {
+    is(nomeDiLega([{ team_name: '  ', is_us: true }], 'Cestistica Etnea'), 'Cestistica Etnea');
   });
 });

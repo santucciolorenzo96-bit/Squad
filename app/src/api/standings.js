@@ -1,6 +1,7 @@
 import { supabase } from '../supabaseClient.js';
 import { esigiRiga } from './scrittura.js';
 import { stagioneAttiva } from './stagione.js';
+import { siamoNoi } from '../utils/campionato.js';
 
 export async function fetchStandings(sectorId, seasonId) {
   let q = supabase.from('standings').select('*').eq('sector_id', sectorId);
@@ -60,7 +61,6 @@ export async function bulkInsertStandings(teamId, sectorId, nomi, nostroNome, se
   const nuovi = puliti.filter(n => !giaCi.has(chiave(n)));
   if (nuovi.length === 0) return [];
 
-  const noi = chiave(nostroNome || '');
   const { data, error } = await supabase.from('standings')
     .insert(nuovi.map(n => ({
       team_id: teamId,
@@ -68,7 +68,11 @@ export async function bulkInsertStandings(teamId, sectorId, nomi, nostroNome, se
       season_id: seasonId || null,
       team_name: n,
       played: 0, wins: 0, draws: 0, losses: 0, points: 0,
-      is_us: noi ? chiave(n) === noi : false
+      /* `siamoNoi` e non un confronto esatto: il nome imparato dal documento
+       * e quello dell'anagrafica possono differire per una sigla, e questa
+       * riga e` quella da cui poi si ricava «come ci chiama il campionato».
+       * Sbagliarla qui vorrebbe dire sbagliare tutti i confronti dopo. */
+      is_us: siamoNoi(n, nostroNome)
     })))
     .select();
   if (error) throw error;

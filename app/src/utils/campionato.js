@@ -273,3 +273,41 @@ export function logoDi(nome, loghi, { nostroNome, logoNostro } = {}) {
   if (logoNostro && siamoNoi(nome, nostroNome)) return logoNostro;
   return null;
 }
+
+/* COME CI CHIAMA QUESTO CAMPIONATO.
+ *
+ * Due nomi per la stessa società: «Cestistica Etnea» in anagrafica,
+ * «CESTISTICA ETNEA BASKET» nei documenti della federazione.
+ *
+ * La tentazione è rinominare la società col nome federale, per averne uno
+ * solo. Sarebbe un errore, e per tre ragioni:
+ *
+ *   — quel nome è in maiuscolo e porta le sigle. Finisce nel tabellone durante
+ *     la partita, nell'intestazione di ogni referto, nella scheda della
+ *     prossima partita: posti dove si legge di sfuggita e dove ventitré
+ *     caratteri in maiuscolo vengono troncati;
+ *   — cambia da un documento all'altro. «BASKET», «ASD», «POL.», «S.S.D.»:
+ *     allineandosi a questo PDF si sbaglia col prossimo, e la coincidenza
+ *     tornerebbe a rompersi senza dirlo;
+ *   — una società con due sezioni ha DUE nomi federali, uno per federazione.
+ *     Il nome della società non può essere entrambi.
+ *
+ * Il nome da mostrare e il nome con cui ci chiama il campionato sono due cose
+ * diverse. La seconda però non va indovinata ogni volta: si trova UNA volta
+ * nell'elenco delle squadre del girone — la riga contrassegnata «siamo noi» —
+ * e da lì in poi i confronti con i risultati sono esatti, non somiglianze.
+ *
+ * `siamoNoi` resta, e serve esattamente per trovare quella riga la prima volta
+ * e per attaccare il logo della società al nome federale.
+ */
+export function nomeDiLega(standings, nostroNome) {
+  const righe = Array.isArray(standings) ? standings : [];
+  const nostra = righe.find(r => r && r.is_us && String(r.team_name || '').trim());
+  if (nostra) return String(nostra.team_name).trim();
+  // Nessuna riga contrassegnata: si cerca quella che somiglia, e la si usa
+  // senza scriverla da nessuna parte.
+  const simile = righe.find(r => r && siamoNoi(r.team_name, nostroNome));
+  if (simile) return String(simile.team_name).trim();
+  // Nessun girone caricato: il nome della società è l'unico che c'è.
+  return String(nostroNome || '').trim();
+}

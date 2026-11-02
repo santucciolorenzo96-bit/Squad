@@ -1,7 +1,7 @@
 import React from 'react';
 import { state } from '../state.js';
 import { standingsPosition, computeRecord, computeTeamPPG } from '../utils/stats.js';
-import { logoDi } from '../utils/campionato.js';
+import { logoDi, nomeDiLega } from '../utils/campionato.js';
 import { canEditHome, managesSector } from '../utils/permissions.js';
 import { teamInitials } from '../utils/theme.js';
 import { Pannello, Etichetta, Stato, Vuoto, Titolo, Pulsante, Amichevole, cx } from './ui.jsx';
@@ -75,7 +75,9 @@ function Apertura({ partita, onSezione }) {
   const scaduta = g != null && g < 0;
   const noi = (state.teamProfile || {}).name || 'Noi';
   const posLoro = standingsPosition(state.standings, partita.opponent);
-  const posNoi = standingsPosition(state.standings, noi);
+  // Con il nome di lega: in classifica la nostra riga porta il nome federale,
+  // e cercandola col nome dell'anagrafica la posizione non compariva.
+  const posNoi = standingsPosition(state.standings, nomeDiLega(state.standings, noi));
   const logoNostro = (state.teamProfile || {}).logo_url || null;
   /* IL LOGO DELL'AVVERSARIO, che qui non c'era mai stato: il riquadro riceveva
    * `null` dalla parte loro, perché quando questa scheda è stata scritta i
