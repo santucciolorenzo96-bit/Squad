@@ -311,3 +311,32 @@ export function nomeDiLega(standings, nostroNome) {
   // Nessun girone caricato: il nome della società è l'unico che c'è.
   return String(nostroNome || '').trim();
 }
+
+/* QUALE RIGA DEL GIRONE È LA NOSTRA, IN UNA GIORNATA.
+ *
+ * Serve a far entrare in classifica il risultato di una partita segnata con lo
+ * scout, aggiornando la riga che il calendario aveva già caricato invece di
+ * crearne una seconda.
+ *
+ * L'ancoraggio è la GIORNATA più il nostro nome, e non la coppia dei due nomi.
+ * Con la coppia basta che l'avversario sia scritto in modo diverso nelle due
+ * schermate — e succede, perché caricando il calendario i nomi federali si
+ * possono accorciare — e il risultato finirebbe su una riga nuova: due righe
+ * per la stessa partita, una col punteggio e una «da giocare».
+ *
+ * In un girone una squadra gioca una partita per giornata, quindi la giornata
+ * e il nostro nome identificano una riga sola. Se ce ne fosse più di una —
+ * un recupero inserito a mano nella stessa giornata — non si indovina: si
+ * restituisce null e il risultato si scrive a mano, che è il caso prudente.
+ */
+export function rigaNostraDiGiornata(righe, nomeLega, giornata) {
+  const noi = chiave(nomeLega);
+  if (!noi) return null;
+  const g = giornata == null ? null : Number(giornata);
+
+  const nostre = (Array.isArray(righe) ? righe : []).filter(m => m
+    && (m.giornata == null ? null : Number(m.giornata)) === g
+    && (chiave(m.home_team) === noi || chiave(m.away_team) === noi));
+
+  return nostre.length === 1 ? nostre[0] : null;
+}

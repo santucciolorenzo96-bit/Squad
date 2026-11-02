@@ -2,7 +2,7 @@ import { describe, test, is, ok, eq } from './run.mjs';
 import {
   soloRegolare, giocate, siCalcola, nostraPartita, rigaDiCalendario,
   perGiornata, giornataInCorso, partiteDi, numeriSquadra, siamoNoi, logoDi,
-  nomeDiLega
+  nomeDiLega, rigaNostraDiGiornata
 } from '../src/utils/campionato.js';
 import { computeStandings } from '../src/utils/standingsCalc.js';
 import { BASKET } from '../src/utils/sports/basket.js';
@@ -401,5 +401,54 @@ describe('come ci chiama questo campionato', () => {
 
   test('una riga senza nome non viene scelta', () => {
     is(nomeDiLega([{ team_name: '  ', is_us: true }], 'Cestistica Etnea'), 'Cestistica Etnea');
+  });
+});
+
+describe('quale riga del girone è la nostra, in una giornata', () => {
+  /* Serve a far entrare in classifica il risultato segnato con lo scout
+   * aggiornando la riga che il calendario aveva già caricato. L'ancoraggio è la
+   * giornata più il nostro nome, non la coppia: con la coppia basta che
+   * l'avversario sia scritto in modo diverso nelle due schermate e il
+   * risultato finisce su una riga nuova — due righe per la stessa partita. */
+  const NOSTRO = 'CESTISTICA ETNEA BASKET';
+  const girone = [
+    p({ giornata: 1, home_team: NOSTRO, away_team: 'ASD BP BASKET POINT ACI SANT’A', home_score: null, away_score: null }),
+    p({ giornata: 1, home_team: 'A.S.D. KALKIS', away_team: 'ASS.DIL. POL. ARETUSA', home_score: null, away_score: null }),
+    p({ giornata: 2, home_team: 'A.S.D. MENS SANA MASCALUCIA', away_team: NOSTRO, home_score: null, away_score: null })
+  ];
+
+  test('in casa', () => {
+    is(rigaNostraDiGiornata(girone, NOSTRO, 1).away_team, 'ASD BP BASKET POINT ACI SANT’A');
+  });
+
+  test('in trasferta', () => {
+    is(rigaNostraDiGiornata(girone, NOSTRO, 2).home_team, 'A.S.D. MENS SANA MASCALUCIA');
+  });
+
+  test('NON DIPENDE DAL NOME DELL’AVVERSARIO, che può essere scritto diverso', () => {
+    // È il punto: l'avversario in calendario può essere stato accorciato.
+    ok(rigaNostraDiGiornata(girone, NOSTRO, 1), 'la riga non è stata trovata');
+  });
+
+  test('una giornata in cui non giochiamo: null', () => {
+    is(rigaNostraDiGiornata(girone, NOSTRO, 3), null);
+  });
+
+  test('DUE RIGHE NOSTRE NELLA STESSA GIORNATA: null, non si indovina', () => {
+    /* Un recupero inserito a mano. Scegliere a caso vorrebbe dire scrivere il
+     * punteggio sulla partita sbagliata, che in classifica non si vede. */
+    const doppio = [...girone, p({ giornata: 1, home_team: NOSTRO, away_team: 'A.S.D. KALKIS' })];
+    is(rigaNostraDiGiornata(doppio, NOSTRO, 1), null);
+  });
+
+  test('senza nome o senza righe: null', () => {
+    is(rigaNostraDiGiornata(girone, '', 1), null);
+    is(rigaNostraDiGiornata(null, NOSTRO, 1), null);
+  });
+
+  test('e una partita senza giornata si cerca fra quelle senza giornata', () => {
+    const senza = [p({ giornata: null, home_team: NOSTRO, away_team: 'X' })];
+    ok(rigaNostraDiGiornata(senza, NOSTRO, null), 'non trovata');
+    is(rigaNostraDiGiornata(senza, NOSTRO, 1), null);
   });
 });

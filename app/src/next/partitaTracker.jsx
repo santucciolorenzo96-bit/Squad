@@ -4,6 +4,9 @@ import { state } from '../state.js';
 import { saveLiveGame, endGame, reopenGameForFix } from '../api/games.js';
 import { fetchPlayerPhotoUrls } from '../api/roster.js';
 import { updateCalendarMatch } from '../api/calendar.js';
+import { upsertOurLeagueMatch } from '../api/leagueMatches.js';
+import { nomeDiLega } from '../utils/campionato.js';
+import { doveSiGioca, CASA, TRASFERTA } from '../utils/dove.js';
 import { currentSport } from '../utils/sports/index.js';
 import {
   situazionePeriodo, etichettaPalla, partitaDecisa, periodiMassimi,
@@ -2219,6 +2222,51 @@ export function Tracker({ onFinita, onEsci }) {
                 state.calendar = state.calendar.map(m => (m.id === rigaCalendario.id ? { ...m, ...agg } : m));
               } catch (e) { console.error(e); }
             }
+
+            /* E IN CLASSIFICA.
+             *
+             * Era l'ultimo pezzo che mancava perche` «segno la partita» e «la
+             * classifica si aggiorna» fossero un gesto solo: il risultato
+             * arrivava in calendario e si fermava li`, e in classifica andava
+             * riscritto a mano in «Risultati» — due volte lo stesso numero, e
+             * la seconda si dimentica.
+             *
+             * Non per le AMICHEVOLI: non stanno in nessun girone, e un'amichevole
+             * in classifica sarebbe un risultato inventato.
+             *
+             * Il nome e` quello con cui ci chiama il campionato e non quello
+             * dell'anagrafica: con il secondo la riga del girone non si
+             * riconosce e ne nascerebbe una seconda, una col punteggio e una
+             * «da giocare».
+             *
+             * Se non riesce, la partita e` comunque archiviata: il risultato si
+             * puo` sempre scrivere da «Risultati», perdere il tabellino no. */
+            if (!g.friendly && !inCampione()) {
+              try {
+                const messa = await upsertOurLeagueMatch(state.teamProfile.id, g.sectorId, {
+                  giornata: rigaCalendario ? rigaCalendario.giornata : null,
+                  date: rigaCalendario ? rigaCalendario.date : oggiISO(),
+                  ourName: nomeDiLega(state.standings, (state.teamProfile || {}).name),
+                  opponent: g.oppName,
+                  isHome: doveSiGioca(rigaCalendario) === CASA ? true
+                    : (doveSiGioca(rigaCalendario) === TRASFERTA ? false : null),
+                  ourScore: g.teamScore,
+                  oppScore: g.oppScore
+                });
+                /* `null` vuol dire che non c'era una riga del girone da
+                 * aggiornare e non si sapeva da che parte si e` giocato: una
+                 * riga nuova sarebbe stata una supposizione, e in classifica
+                 * una supposizione vale come un errore. Lo si dice. */
+                if (!messa) {
+                  avvisa(
+                    'Partita archiviata. In classifica non e` entrata: non risulta da che parte '
+                    + 'si e` giocata, scrivila da Classifica · Risultati.',
+                    'errore'
+                  );
+                }
+              } catch (e) { console.error(e); }
+            }
+
             cancellaCopia(g.sectorId);
             state.liveGame = null;
             state.undoStack = [];

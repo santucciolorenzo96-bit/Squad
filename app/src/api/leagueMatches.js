@@ -1,6 +1,7 @@
 import { supabase } from '../supabaseClient.js';
 import { esigiRiga } from './scrittura.js';
 import { stagioneAttiva } from './stagione.js';
+import { rigaNostraDiGiornata } from '../utils/campionato.js';
 
 // Risultati del girone: tutte le partite del campionato, comprese le nostre.
 // È da qui che si calcola la classifica, invece di digitarla riga per riga.
@@ -88,28 +89,71 @@ export async function removeLeagueMatch(id) {
   esigiRiga(data, 'eliminare la partita di campionato');
 }
 
-// La nostra partita seguita con lo scout non deve diventare una seconda verità:
-// se in quella giornata esiste già la riga di quell'accoppiamento la si
-// aggiorna, altrimenti la si crea. Così il risultato entra in classifica una
-// volta sola, da qualunque strada arrivi.
+/* IL NOSTRO RISULTATO IN CLASSIFICA.
+ *
+ * La partita segnata con lo scout non deve diventare una seconda verità: se la
+ * riga di quella giornata c'è già — l'ha caricata il calendario — si scrive il
+ * punteggio su quella. Così il risultato entra in classifica una volta sola, da
+ * qualunque strada arrivi.
+ *
+ * SI RICONOSCE PER GIORNATA E NOSTRO NOME, non per la coppia dei due nomi.
+ * Basta che l'avversario sia scritto in modo diverso fra calendario e girone —
+ * e succede, perché caricando il calendario i nomi federali si possono
+ * accorciare — e il punteggio finirebbe su una riga nuova: due righe per la
+ * stessa partita, una col punteggio e una «da giocare».
+ *
+ * E QUANDO LA RIGA C'È, I NOMI RESTANO I SUOI. Sono quelli del documento
+ * federale, cioè quelli con cui la classifica conta tutte le altre partite:
+ * sovrascriverli con la nostra versione accorciata spaccherebbe la squadra in
+ * due righe di classifica.
+ *
+ * Restituisce `null` quando non sa dove si è giocata e non c'è una riga da cui
+ * dedurlo: senza quel dato una riga nuova sarebbe una supposizione, e in
+ * classifica una supposizione vale come un errore.
+ */
 export async function upsertOurLeagueMatch(teamId, sectorId, { giornata, date, ourName, opponent, isHome, ourScore, oppScore, seasonId = stagioneAttiva(), phase, roundLabel }) {
-  const home_team = isHome ? ourName : opponent;
-  const away_team = isHome ? opponent : ourName;
-  const home_score = isHome ? ourScore : oppScore;
-  const away_score = isHome ? oppScore : ourScore;
-
-  let query = supabase.from('league_matches').select('id')
-    .eq('sector_id', sectorId).eq('home_team', home_team).eq('away_team', away_team);
+  // Le righe di quella giornata: sono poche, e bastano per riconoscere la
+  // nostra senza dipendere da come è scritto l'avversario.
+  let query = supabase.from('league_matches').select('*').eq('sector_id', sectorId);
   if (seasonId) query = query.eq('season_id', seasonId);
   query = giornata == null ? query.is('giornata', null) : query.eq('giornata', giornata);
-  const { data: found, error: findErr } = await query.maybeSingle();
-  if (findErr) throw findErr;
+  const { data: righe, error: errLettura } = await query;
+  if (errLettura) throw describeSaveError(errLettura);
+
+  const nostra = rigaNostraDiGiornata(righe, ourName, giornata);
+
+  if (nostra) {
+    const basso = (s) => String(s || '').trim().toLowerCase();
+    // L'orientamento lo dice la RIGA e non il calendario: il documento
+    // federale è l'autorità su chi gioca in casa, e se in calendario quel
+    // campo era rimasto «da definire» qui non serve più indovinarlo.
+    const inCasa = basso(nostra.home_team) === basso(ourName);
+    return saveLeagueMatch(teamId, sectorId, {
+      id: nostra.id,
+      giornata: nostra.giornata,
+      date: nostra.date || date || null,
+      phase: nostra.phase || phase || 'regular',
+      round_label: nostra.round_label || roundLabel || null,
+      home_team: nostra.home_team,
+      away_team: nostra.away_team,
+      home_score: inCasa ? ourScore : oppScore,
+      away_score: inCasa ? oppScore : ourScore
+    }, seasonId);
+  }
+
+  // Nessuna riga: si crea, ma solo se si sa da che parte si è giocato.
+  if (isHome !== true && isHome !== false) return null;
 
   return saveLeagueMatch(teamId, sectorId, {
-    id: found ? found.id : null,
-    giornata: giornata ?? null, date: date || null,
-    phase: phase || 'regular', round_label: roundLabel || null,
-    home_team, away_team, home_score, away_score
+    id: null,
+    giornata: giornata == null ? null : giornata,
+    date: date || null,
+    phase: phase || 'regular',
+    round_label: roundLabel || null,
+    home_team: isHome ? ourName : opponent,
+    away_team: isHome ? opponent : ourName,
+    home_score: isHome ? ourScore : oppScore,
+    away_score: isHome ? oppScore : ourScore
   }, seasonId);
 }
 
