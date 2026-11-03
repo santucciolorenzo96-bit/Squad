@@ -14,6 +14,7 @@ import { assignStaffToSector, removeStaffFromSector, fetchStaffSectors } from '.
 import { fetchFamilyLinksForTeam, linkProfileToPlayer, unlinkProfileFromPlayer } from '../api/family.js';
 import { fetchInvites, createInvite, revokeInvite } from '../api/invites.js';
 import { orderedSectors } from '../utils/sectors.js';
+import { postiRimasti } from '../utils/codiceCategoria.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Scheletro, Stato, Avatar, cx, Cerca, NessunRisultato, AzioneRiga } from './ui.jsx';
 import { Modulo, Conferma, Campo, Testo, Scelta, Spunta, ErroreCaricamento, useAvviso } from './moduli.jsx';
@@ -50,7 +51,9 @@ export function Utenti() {
           entrare solo come atleta o genitore, e solo dopo che lo confermi tu: un codice che gira in una chat
           non dice chi è la persona che l’ha usato. Un <b className="text-testo">invito</b> vale per una persona
           sola, una volta sola, porta già con sé ruolo, categorie e collegamento — ed è l’unico modo per far
-          entrare chi dovrà gestire qualcosa.
+          entrare chi dovrà gestire qualcosa. E ogni allenatore ha il
+          <b className="text-testo"> codice della sua categoria</b>, nella Rosa: lo manda ai suoi atleti,
+          che entrano come atleti di quella categoria e aspettano che sia lui a confermarli.
         </p>
       </Pannello>
 
@@ -136,7 +139,11 @@ function Anticamera({ avvisa }) {
   );
 }
 
-function ModuloIscritto({ iscritto, onChiudi, onFatto }) {
+/* Lo usa anche la Rosa, per chi e` entrato col codice della categoria: e`
+   lo stesso gesto — guardo chi e`, lo confermo, lo collego alla sua scheda — e
+   farne due copie vorrebbe dire che fra sei mesi una delle due sara` piu`
+   vecchia dell'altra. */
+export function ModuloIscritto({ iscritto, onChiudi, onFatto }) {
   const rosa = state.roster || [];
   const proposto = proponiAtleta(iscritto.claim_note, rosa);
   const altri = altriCandidati(iscritto.claim_note, rosa);
@@ -251,7 +258,19 @@ function statoInvito(inv) {
   if (inv.used_at) return { key: 'usato', label: 'Usato', tono: 'buono' };
   if (inv.revoked_at) return { key: 'revocato', label: 'Revocato', tono: 'fermo' };
   if (inv.expires_at && new Date(inv.expires_at) <= new Date()) return { key: 'scaduto', label: 'Scaduto', tono: 'fermo' };
+  // Un codice di categoria vale per piu` persone: finisce quando i posti sono
+  // finiti, e `used_at` lo dice solo dall'ultimo ingresso in poi.
+  if (postiRimasti(inv) <= 0) return { key: 'usato', label: 'Esaurito', tono: 'buono' };
   return { key: 'valido', label: 'Valido', tono: 'attesa' };
+}
+
+// Quante persone possono entrare con questo codice. Uno e` l'invito
+// nominativo di sempre e non si dice: dirlo sarebbe rumore su ogni riga.
+function quantiPosti(inv) {
+  const max = inv.max_uses == null ? 1 : Number(inv.max_uses);
+  if (max <= 1) return null;
+  const usati = inv.uses == null ? 0 : Number(inv.uses);
+  return usati + ' di ' + max + (usati === 1 ? ' persona entrata' : ' persone entrate');
 }
 
 function Inviti({ avvisa }) {
@@ -373,7 +392,8 @@ function RigaInvito({ inv, onRevoca, avvisa }) {
             )}
           </div>
           <p className="mt-2 text-[12.5px] text-tenue">
-            {inv.expires_at ? 'Scade il ' + fmtData(inv.expires_at) : 'Senza scadenza'}
+            {quantiPosti(inv) ? quantiPosti(inv) + ' · ' : ''}
+            {inv.expires_at ? 'scade il ' + fmtData(inv.expires_at) : 'senza scadenza'}
           </p>
         </>
       ) : (

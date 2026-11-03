@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient.js';
+import { entraConInvito } from './api/invites.js';
 
 const PENDING_KEY = 'bbapp_pending_team_action';
 
@@ -39,10 +40,13 @@ export async function runPendingAction(action) {
   } else if (action.type === 'join_invite') {
     // Ruolo, categorie e collegamento alla scheda sono gia' scritti
     // nell'invito: qui non si sceglie piu' niente.
-    const { error } = await supabase.rpc('join_team_with_invite', {
-      p_code: action.inviteCode, p_display_name: action.displayName
-    });
-    if (error) throw error;
+    //
+    // Il nome dell'atleta serve lo stesso, e per un codice CONDIVISO serve
+    // eccome: un codice per piu' persone non puo' portare una scheda — la
+    // seconda si ritroverebbe collegata alla prima — quindi chi conferma ha
+    // soltanto quel nome per riconoscere chi e' entrato. Per un atleta il
+    // nome e' il suo, e il database lo prende dal nome che ha scritto.
+    await entraConInvito(action.inviteCode, action.displayName, action.claim);
   }
   clearPendingAction();
 }
@@ -138,7 +142,7 @@ export async function createTeamAndAdmin({ email, password, activationCode, team
 export async function joinTeamByCode({ email, password, inviteCode, displayName, role, personale, claim }) {
   const data = await signUpUser(email, password);
   const action = personale
-    ? { type: 'join_invite', inviteCode, displayName }
+    ? { type: 'join_invite', inviteCode, displayName, claim: claim || null }
     : { type: 'join_team', inviteCode, displayName, role: role || 'genitore', claim: claim || null };
   if (!data.session) { savePendingAction(action); return { needsEmailConfirmation: true }; }
   await runActionAfterSignup(action);

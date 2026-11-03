@@ -5,7 +5,7 @@ import { ROLES, SELF_SIGNUP_ROLES } from '../utils/permissions.js';
 import { login as apiLogin, createTeamAndAdmin, joinTeamByCode, resendConfirmation, requestPasswordReset, checkActivationCode, logout } from '../auth.js';
 import { supabase } from '../supabaseClient.js';
 import { fetchTeamByInviteCode } from '../api/teams.js';
-import { fetchInvitePreview } from '../api/invites.js';
+import { fetchInvitePreview, entraConInvito } from '../api/invites.js';
 import { acceptPrivacy } from '../api/privacy.js';
 import { Pannello, Etichetta, Pulsante, cx } from './ui.jsx';
 import { Campo, Testo, Scelta, Spunta } from './moduli.jsx';
@@ -584,6 +584,20 @@ function Entra({ onEntrato, onIndietro, onConferma, onAttivazione }) {
                     categorie: {invito.sector_names.join(', ')}
                   </div>
                 )}
+                {/* UN CODICE CONDIVISO NON E' UN INVITO NOMINATIVO.
+                    Un invito nominativo l'ha fatto qualcuno per te, e vale da
+                    solo come approvazione. Un codice mandato nel gruppo della
+                    categoria no: lo si gira, e chi lo riceve per terzo non
+                    l'ha ricevuto da nessuno. Quindi si aspetta una conferma —
+                    e chi conferma ha solo il nome scritto qui sotto per
+                    riconoscere chi e' entrato. */}
+                {invito.condiviso && (
+                  <p className="mt-2.5 text-[12.5px] leading-relaxed text-ambra">
+                    Scrivi nome e cognome come sono in rosa: il tuo allenatore li usa per
+                    riconoscerti e collegarti alla tua scheda. Finché non ti conferma vedrai
+                    una sala d&rsquo;attesa.
+                  </p>
+                )}
               </div>
             ) : (
               <>
@@ -882,13 +896,15 @@ export function CompletaIscrizione({ email, erroreIniziale, onFatto }) {
         // Prima l'invito nominativo, poi il codice societa': stesso ordine
         // della registrazione, per la stessa ragione.
         const inv = await fetchInvitePreview(c).catch(() => null);
-        const { error } = inv
-          ? await supabase.rpc('join_team_with_invite', { p_code: c, p_display_name: nome.trim() })
-          : await supabase.rpc('join_team', {
-              p_invite_code: c, p_display_name: nome.trim(), p_role: ruolo,
-              p_claim: atleta.trim() || null
-            });
-        if (error) throw error;
+        if (inv) {
+          await entraConInvito(c, nome.trim(), atleta.trim());
+        } else {
+          const { error } = await supabase.rpc('join_team', {
+            p_invite_code: c, p_display_name: nome.trim(), p_role: ruolo,
+            p_claim: atleta.trim() || null
+          });
+          if (error) throw error;
+        }
       } else {
         if (!attivazione.trim()) { setErrore('Serve il codice di attivazione che ti ha dato l’amministratore.'); setLavora(false); return; }
         if (!societa.trim()) { setErrore('Scrivi il nome della società.'); setLavora(false); return; }

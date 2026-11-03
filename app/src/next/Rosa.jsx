@@ -6,6 +6,7 @@ import { canEditRoster, managesSector } from '../utils/permissions.js';
 import { computeSeasonStats, findSeasonRow } from '../utils/stats.js';
 import { currentSport } from '../utils/sports/index.js';
 import { inCampione } from './campione.js';
+import { CodiceCategoria } from './CodiceCategoria.jsx';
 import { Etichetta, Titolo, Vuoto, Scheletro, Avatar, cx, AzioneRiga } from './ui.jsx';
 import { Conferma, useAvviso } from './moduli.jsx';
 import { dividiNome } from '../utils/format.js';
@@ -181,6 +182,13 @@ export function Rosa() {
       >
         Rosa
       </Titolo>
+
+      {/* Il codice da mandare ai propri atleti, e chi e` entrato con quello e
+          aspetta. Sta qui e non in Utenti perche` «il codice per i miei
+          atleti» e` una domanda che viene guardando i propri atleti, e Utenti
+          e` una schermata da amministratore. Si mostra solo a chi gestisce
+          questa categoria. */}
+      <CodiceCategoria />
 
       {!caricato ? (
         <Scheletro righe={5} />
