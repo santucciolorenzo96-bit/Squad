@@ -68,3 +68,61 @@ from pg_policies
 where tablename = 'objects'
   and (qual || coalesce(with_check, '')) like '%player-photos%'
 order by policyname;
+
+
+-- ------------------------------------------------------------------ PASSO 3
+-- IL CASO CHE RESTA: UN COLLEGAMENTO SBAGLIATO.
+--
+-- Se quell'account risulta `atleta` senza settori, nel codice e nelle policy
+-- non ha nessuna strada per CAMBIARE la foto di un altro. Una sola cosa può
+-- aver prodotto quello che è stato visto: essere collegato — in
+-- `profile_players` — anche all'atleta di un altro. In quel caso può mandare
+-- una PROPOSTA sulla scheda di quell'atleta, e una proposta sulla scheda
+-- altrui, vista da chi non sa com'è fatto il meccanismo, sembra una foto
+-- cambiata.
+--
+-- Non lo è: la proposta non cambia niente per nessuno — in rosa, nello scout e
+-- nel referto si legge `photo_path`, la pubblicata — e pubblicarla resta di
+-- admin, presidente, allenatore o staff del settore.
+--
+-- Questa query cerca i collegamenti che non tornano.
+
+select
+  p.display_name                         as utente,
+  p.role                                 as ruolo,
+  count(*)                               as atleti_collegati,
+  string_agg(pl.name, ', ' order by pl.name) as quali,
+  case
+    when p.role = 'atleta' and count(*) > 1
+      then 'DA GUARDARE: un atleta collegato a più di una scheda'
+    when p.role = 'atleta' and max(pl.name) is distinct from p.display_name
+      then 'da guardare: nome diverso da quello della scheda collegata'
+    else 'normale'
+  end                                    as verdetto
+from profile_players pp
+join profiles p on p.id = pp.profile_id
+join players pl on pl.id = pp.player_id
+group by p.id, p.display_name, p.role
+order by
+  case when p.role = 'atleta' and count(*) > 1 then 0 else 1 end,
+  p.display_name;
+
+
+-- ------------------------------------------------------------------ PASSO 4
+-- Le proposte di fotografia in attesa, con chi le ha mandate.
+-- Una proposta arrivata da una persona che non c'entra con quell'atleta è il
+-- sintomo diretto di un collegamento sbagliato.
+
+select
+  pl.name                                as atleta,
+  chi.display_name                       as proposta_da,
+  chi.role                               as ruolo_di_chi_propone,
+  pl.photo_pending_at                    as quando,
+  exists (
+    select 1 from profile_players pp
+     where pp.profile_id = chi.id and pp.player_id = pl.id
+  )                                      as e_collegato_a_questo_atleta
+from players pl
+left join profiles chi on chi.id = pl.photo_pending_by
+where pl.photo_pending_path is not null
+order by pl.photo_pending_at desc nulls last;

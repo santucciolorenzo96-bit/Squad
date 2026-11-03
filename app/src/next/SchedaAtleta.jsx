@@ -6,6 +6,7 @@ import {
   uploadPlayerPhoto, getPlayerPhotoSignedUrl, chooseMyNumber, chooseMyPosition,
   proposePlayerPhoto, publishProposedPhoto, rejectProposedPhoto
 } from '../api/roster.js';
+import { fetchProfileNames } from '../api/profiles.js';
 import { senzaNumero, numeriLiberi, obiezioneNumero, normalizzaNumero } from '../utils/maglie.js';
 import {
   fetchDevelopment, saveDevelopment,
@@ -813,6 +814,28 @@ function Obiettivi({ p, righe, famiglia, puoiScrivere, onCambiato, avvisa }) {
  */
 function FotoProposta({ p, url, puoiDecidere, onFatto, avvisa }) {
   const [lavora, setLavora] = useState(false);
+  /* CHI L'HA MANDATA.
+   *
+   * Il pannello diceva «l'ha mandata la famiglia», e il dato c'era: la
+   * migrazione 042 scrive `photo_pending_by`. Senza il nome, chi approva non
+   * ha modo di accorgersi di una proposta arrivata dalla persona sbagliata —
+   * e un collegamento sbagliato in `profile_players` e` un errore che si fa
+   * una volta e poi non si vede piu`. Col nome accanto alla foto, quella
+   * stessa svista diventa una cosa che salta agli occhi nel momento in cui
+   * qualcuno guarda la proposta.
+   */
+  const [chi, setChi] = useState(null);
+
+  useEffect(() => {
+    let vivo = true;
+    if (!p.photo_pending_by || inCampione()) { setChi(null); return undefined; }
+    fetchProfileNames([p.photo_pending_by])
+      .then(m => { if (vivo) setChi(m[p.photo_pending_by] || null); })
+      // Un nome che non si riesce a leggere non vale un errore in faccia a
+      // chi sta solo guardando una fotografia.
+      .catch(() => {});
+    return () => { vivo = false; };
+  }, [p.photo_pending_by]);
 
   async function decidi(pubblica) {
     setLavora(true);
@@ -855,9 +878,17 @@ function FotoProposta({ p, url, puoiDecidere, onFatto, avvisa }) {
         <Etichetta>Fotografia proposta</Etichetta>
         <p className="mt-1.5 text-[13px] leading-relaxed text-soffuso">
           {puoiDecidere
-            ? 'L’ha mandata la famiglia. Finché non la pubblichi, in rosa e nello scout resta quella di prima.'
+            ? (chi ? 'L’ha mandata ' + chi + '.' : 'L’ha mandata la famiglia.')
+              + ' Finché non la pubblichi, in rosa e nello scout resta quella di prima.'
             : 'È arrivata alla società. Comparirà in rosa quando l’avranno vista.'}
         </p>
+        {/* Il nome di chi ha proposto, e quando: se la proposta arriva da
+            qualcuno che non c'entra con questo atleta, e` qui che si vede. */}
+        {puoiDecidere && chi && p.photo_pending_at && (
+          <p className="mt-1 text-[12px] text-tenue">
+            {chi} · {fmtData(String(p.photo_pending_at).slice(0, 10))}
+          </p>
+        )}
 
         {puoiDecidere && (
           <div className="mt-3 flex flex-wrap gap-2">

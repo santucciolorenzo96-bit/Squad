@@ -41,6 +41,27 @@ export async function fetchTeamStaff(teamId) {
   return data;
 }
 
+/* I NOMI DI QUALCHE PROFILO, in una richiesta.
+ *
+ * `fetchTeamStaff` esclude di proposito genitori e atleti — e` l'elenco dello
+ * staff — quindi non serve a dare un nome a chi ha proposto una fotografia,
+ * che e` proprio una famiglia. Qui si chiede per identificativo: `profiles`
+ * e` leggibile da tutta la societa` (`profiles_select_team`).
+ *
+ * Restituisce una mappa id -> nome. Un identificativo che non si riesce a
+ * leggere semplicemente non c'e`: chi chiama mostra quello che ha.
+ */
+export async function fetchProfileNames(ids) {
+  const puliti = [...new Set((ids || []).filter(Boolean))];
+  if (puliti.length === 0) return {};
+  const { data, error } = await supabase.from('profiles')
+    .select('id, display_name').in('id', puliti);
+  if (error) throw error;
+  const mappa = {};
+  (data || []).forEach(r => { if (r && r.id) mappa[r.id] = r.display_name || ''; });
+  return mappa;
+}
+
 // Riservata agli amministratori: la policy di update diretta su profiles esiste
 // solo per loro (vedi migrazione 009).
 export async function updateProfile(id, patch) {
