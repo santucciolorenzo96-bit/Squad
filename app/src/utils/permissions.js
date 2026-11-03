@@ -304,3 +304,39 @@ export function canUploadDocuments(user, sectorId, staffSectors) {
 export function isLinkedUser(user) {
   return !!user && LINKED_ROLES.includes(user.role);
 }
+
+/* CHI SEI, E COSA GESTISCI: SONO DUE DOMANDE DIVERSE.
+ *
+ * Giorgio è atleta della DR2 e allenatore dell'Open A. Nel database le due cose
+ * stanno in due posti e non si pestano i piedi: il RUOLO (`profiles.role`) con
+ * le categorie assegnate dice cosa gestisce, il COLLEGAMENTO
+ * (`profile_players`) dice di quale scheda è la persona.
+ *
+ * Il programma però chiedeva «chi sei?» al ruolo, con `isLinkedUser` — vero
+ * solo per `genitore` e `atleta`. Per Giorgio, che è `allenatore`, la risposta
+ * era no, e quindi:
+ *
+ *   — nel suo Profilo non c'erano i suoi atleti né LE SUE QUOTE: paga la
+ *     quota della DR2 e non la vedeva;
+ *   — sulla sua scheda non poteva proporre la propria fotografia né scegliere
+ *     il proprio numero di maglia;
+ *   — negli allenamenti della DR2 non poteva avvisare di una propria assenza;
+ *   — e nel Profilo vedeva una sola delle sue due categorie, perché le due
+ *     strade erano in alternativa invece di sommarsi.
+ *
+ * Nessuna di queste è una questione di POTERE: sono le cose che uno fa su di
+ * sé. Vanno chieste al collegamento, e queste due funzioni esistono perché la
+ * prossima volta la domanda si faccia a lei e non al ruolo.
+ *
+ * `isLinkedUser` resta, e serve ancora: decide QUALE INTERFACCIA si riceve —
+ * un allenatore vede la vista dello staff anche se è anche atleta, ed è
+ * giusto, perché quella vista è per chi gestisce.
+ */
+export function haUnaScheda(linkedPlayers) {
+  return (linkedPlayers || []).some(p => p && p.id);
+}
+
+export function eIlSuoAtleta(linkedPlayers, playerId) {
+  if (!playerId) return false;
+  return (linkedPlayers || []).some(p => p && p.id === playerId);
+}

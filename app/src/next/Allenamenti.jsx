@@ -318,10 +318,12 @@ export function Allenamenti() {
    *
    * Se la migrazione 041 non c'e' ancora, non succede niente: l'elenco resta
    * vuoto e la schermata e' quella di prima. */
+  /* Gli atleti di cui si puo` avvisare l'assenza sono quelli COLLEGATI a chi
+   * guarda, non quelli di un ruolo: un allenatore che gioca in un'altra
+   * categoria deve poter avvisare per se` stesso. */
   const famiglia = isLinkedUser(state.currentUser);
-  const mieiAtleti = famiglia
-    ? (state.linkedPlayers || []).filter(lp => state.roster.some(p => p.id === lp.id))
-    : [];
+  const mieiAtleti = (state.linkedPlayers || [])
+    .filter(lp => state.roster.some(p => p.id === lp.id));
 
   /* LE OCCORRENZE DEI GIORNI FISSI NASCONO QUI.
    *
@@ -461,7 +463,7 @@ export function Allenamenti() {
                   t={t}
                   puoiModificare={puoiModificare}
                   avvisati={puoiModificare ? avvisatiPer(t.id) : 0}
-                  onAvvisa={famiglia && mieiAtleti.length > 0 && t.date >= oggi
+                  onAvvisa={mieiAtleti.length > 0 && t.date >= oggi
                     ? (x) => setAvvisoPer(x) : null}
                   onApri={(x) => setModulo(x)}
                   onPresenze={(x) => setPresenze(x)}

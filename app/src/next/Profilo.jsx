@@ -3,8 +3,8 @@ import { state } from '../state.js';
 import { updateMyProfile, uploadMyAvatar, setMyAvatar, removeMyAvatar, getAvatarUrl } from '../api/profiles.js';
 import { resizeImageFile } from '../utils/image.js';
 import { changePassword, logout } from '../auth.js';
-import { roleLabel, isLinkedUser, isAdmin } from '../utils/permissions.js';
-import { sectorFullName } from '../utils/sectors.js';
+import { roleLabel, isLinkedUser, isAdmin, haUnaScheda } from '../utils/permissions.js';
+import { sectorFullName, sectorIdsFor } from '../utils/sectors.js';
 import { PASSWORD_MIN, passwordProblem } from '../utils/format.js';
 import { inCampione } from './campione.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Avatar, Stato, cx } from './ui.jsx';
@@ -50,11 +50,19 @@ export function Profilo({ tema, onTema }) {
     }
   }
 
-  const mieiSettori = isAdmin(u)
-    ? state.sectors
-    : isLinkedUser(u)
-      ? state.sectors.filter(s => state.familySectorIds.includes(s.id))
-      : state.sectors.filter(s => (state.staffSectors[u.id] || []).includes(s.id));
+  /* LE CATEGORIE SI SOMMANO, non si escludono.
+   *
+   * Era un'alternativa: o quelle in cui si gioca, o quelle che si gestiscono.
+   * Chi e` atleta di una categoria e allenatore di un'altra ne vedeva una
+   * sola — e dipendeva dal ruolo quale delle due. `sectorIdsFor` e` la stessa
+   * regola che usa il router per decidere a cosa si ha accesso: una sola, e
+   * fa l'unione. */
+  const idMiei = sectorIdsFor(u, {
+    staffSectors: state.staffSectors,
+    familySectorIds: state.familySectorIds,
+    sectors: state.sectors
+  });
+  const mieiSettori = state.sectors.filter(s => idMiei.includes(s.id));
 
   return (
     <div className="sezioni">
@@ -130,7 +138,10 @@ export function Profilo({ tema, onTema }) {
         </Pannello>
       </div>
 
-      {isLinkedUser(u) && (
+      {/* «I tuoi atleti» e «Le tue quote» dipendono dal COLLEGAMENTO e non dal
+          ruolo: un allenatore che e` anche atleta ha una scheda e paga una
+          quota, e con la domanda fatta al ruolo non vedeva nessuna delle due. */}
+      {haUnaScheda(state.linkedPlayers) && (
         <div>
           <Etichetta className="mb-2.5">I tuoi atleti</Etichetta>
           <Pannello className="overflow-hidden">
@@ -156,7 +167,7 @@ export function Profilo({ tema, onTema }) {
         </div>
       )}
 
-      {isLinkedUser(u) && state.linkedPlayers.length > 0 && <LeMieQuote />}
+      {haUnaScheda(state.linkedPlayers) && <LeMieQuote />}
 
       {/* -------------------------------------------------- impostazioni */}
       <div>

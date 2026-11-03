@@ -15,7 +15,8 @@ import {
   MAX_SCHEDA_MB, TIPI_SCHEDA
 } from '../api/development.js';
 import {
-  canReviewDocuments, isLinkedUser, canEditHome, managesSector, canManagePlayer, canUploadDocuments
+  canReviewDocuments, isLinkedUser, canEditHome, managesSector, canManagePlayer, canUploadDocuments,
+  eIlSuoAtleta
 } from '../utils/permissions.js';
 import { tipiDocumento } from '../utils/sports/index.js';
 import { docStatus, DOC_STATE, ageFrom } from '../utils/docStatus.js';
@@ -99,7 +100,11 @@ export function SchedaAtleta({ playerId, onChiudi }) {
   // la matita anche agli altri non dava loro un permesso in più — dava un
   // errore in più.
   const puoiCambiareFoto = canManagePlayer(state.currentUser, state.activeSectorId, state.staffSectors);
-  const mioAtleta = famiglia && state.linkedPlayers.some(lp => lp.id === playerId);
+  /* LA PROPRIA SCHEDA SI RICONOSCE DAL COLLEGAMENTO, non dal ruolo.
+   * Con `famiglia &&` davanti, un allenatore che e` anche atleta non poteva
+   * proporre la propria fotografia ne` scegliere il proprio numero: il ruolo
+   * diceva che non era nessuno. */
+  const mioAtleta = eIlSuoAtleta(state.linkedPlayers, playerId);
 
   function carica_tutto() {
     if (inCampione()) {
