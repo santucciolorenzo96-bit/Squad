@@ -1101,15 +1101,19 @@ export function Classifica() {
    * Leggeva `state.history`, cioe` i soli tabellini: una partita vinta col
    * punteggio scritto a mano in calendario non entrava nel record — la squadra
    * aveva vinto e il riquadro diceva un'altra cosa. */
-  const giocateTutte = comeTabellini(partiteGiocate(state.calendar, state.history));
-  const record = computeRecord(giocateTutte);
-  const serie = computeStreak(giocateTutte);
+  const giocate = partiteGiocate(state.calendar, state.history);
+  const conPunteggio = comeTabellini(giocate);
+  const record = computeRecord(conPunteggio);
+  const serie = computeStreak(conPunteggio);
 
   return (
     <div className="sezioni">
       <Titolo sopra="Categoria">Classifica</Titolo>
 
-      {state.history.length > 0 && (
+      {/* Il riquadro si mostra quando ci sono partite giocate, non quando ci
+          sono tabellini: con i soli risultati scritti a mano restava nascosto
+          mentre i numeri c'erano. */}
+      {giocate.length > 0 && (
         <Pannello className="pad-pannello-stretto">
           <div className="flex items-center gap-2.5">
             <IconaSezione id="classifica" dim={26} />
@@ -1139,7 +1143,7 @@ export function Classifica() {
               conteggio: (righeClassifica || state.standings).length || null
             },
             { id: 'risultati', testo: 'Risultati', conteggio: risultati.length || null },
-            { id: 'storico', testo: 'Storico', conteggio: state.history.length || null }
+            { id: 'storico', testo: 'Storico', conteggio: giocate.length || null }
           ]}
         />
       </div>

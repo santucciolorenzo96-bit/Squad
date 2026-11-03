@@ -2,6 +2,7 @@ import React from 'react';
 import { state } from '../state.js';
 import { standingsPosition, computeRecord, computeTeamPPG } from '../utils/stats.js';
 import { logoDi, nomeDiLega } from '../utils/campionato.js';
+import { partiteGiocate, comeTabellini } from '../utils/giocate.js';
 import { canEditHome, managesSector } from '../utils/permissions.js';
 import { teamInitials } from '../utils/theme.js';
 import { Pannello, Etichetta, Stato, Vuoto, Titolo, Pulsante, Amichevole, cx } from './ui.jsx';
@@ -220,13 +221,26 @@ function ProssimoAllenamento({ onSezione }) {
 
 /* ---------------------------------------------------------------- stagione */
 function Stagione() {
-  const record = computeRecord(state.history);
-  const ppg = computeTeamPPG(state.history);
-  const pos = state.teamProfile ? standingsPosition(state.standings, state.teamProfile.name) : null;
-  if (state.history.length === 0 && !pos) return null;
+  /* LE STESSE PARTITE CHE SI VEDONO IN «GIOCATE».
+   *
+   * Leggeva `state.history`, cioe` i soli tabellini archiviati: una partita
+   * vinta col punteggio scritto a mano in calendario non entrava nel bilancio
+   * — la squadra aveva vinto e questo riquadro diceva un'altra cosa. E` la
+   * stessa correzione fatta in Classifica, portata dove il numero si guarda
+   * per primo: questa e` la schermata che si apre.
+   */
+  const giocate = comeTabellini(partiteGiocate(state.calendar, state.history));
+  const record = computeRecord(giocate);
+  const ppg = computeTeamPPG(giocate);
+  /* E la posizione col nome di lega: in classifica la nostra riga porta il
+   * nome federale, e cercandola col nome dell'anagrafica non si trovava. */
+  const pos = state.teamProfile
+    ? standingsPosition(state.standings, nomeDiLega(state.standings, state.teamProfile.name))
+    : null;
+  if (giocate.length === 0 && !pos) return null;
 
   const celle = [
-    { v: state.history.length ? `${record.w}–${record.l}` : '—', e: 'vinte–perse' },
+    { v: giocate.length ? `${record.w}–${record.l}` : '—', e: 'vinte–perse' },
     { v: pos ? `${pos}ª` : '—', e: 'in classifica' },
     { v: ppg ? Math.round(ppg) : '—', e: 'punti a partita' }
   ];
