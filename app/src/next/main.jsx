@@ -146,7 +146,7 @@ function NastroOspite({ societa }) {
 function Guasto({ errore, onEsci }) {
   const testo = (errore && errore.message) || 'Il database non ha risposto.';
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center px-5 py-10">
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center px-5 pb-10 pt-[max(2.5rem,calc(env(safe-area-inset-top)+1rem))]">
       <div className="w-full max-w-md text-center">
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-rosso/14 text-[22px]">
           !
@@ -188,7 +188,7 @@ function Guasto({ errore, onEsci }) {
 function InAttesa({ onEsci }) {
   const u = state.currentUser || {};
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center px-5 py-10">
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center px-5 pb-10 pt-[max(2.5rem,calc(env(safe-area-inset-top)+1rem))]">
       <div className="w-full max-w-md text-center">
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-ambra/14 text-[22px]">
           ⏳

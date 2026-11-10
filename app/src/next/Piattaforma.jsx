@@ -376,7 +376,7 @@ export function ConsoleSuperAdmin({ email, onIscriviti, onCampione }) {
 function ConsoleDentro({ email, onIscriviti, onCampione }) {
   const avvisa = useAvviso();
   return (
-    <div className="mx-auto min-h-[100dvh] w-full max-w-[46rem] px-5 py-10">
+    <div className="mx-auto min-h-[100dvh] w-full max-w-[46rem] px-5 pb-10 pt-[max(2.5rem,calc(env(safe-area-inset-top)+1rem))]">
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <img className="marchio-simbolo h-12 w-12 shrink-0" alt="" />

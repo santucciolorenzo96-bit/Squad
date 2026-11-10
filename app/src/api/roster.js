@@ -2,6 +2,7 @@ import { supabase } from '../supabaseClient.js';
 import { esigiRiga } from './scrittura.js';
 import { stagioneAttiva } from './stagione.js';
 import { giornoISO } from '../utils/format.js';
+import { descriviErroreCaricamento } from '../utils/documenti.js';
 
 // La rosa è di una stagione: la stessa persona può essere nell'Under 15
 // quest'anno e nell'Under 17 il prossimo, e le due rose restano distinte.
@@ -301,14 +302,26 @@ export async function fetchDocumentsForPlayers(playerIds) {
 
 export async function uploadPlayerDocument(teamId, playerId, docType, blob, extension, uploadedBy, expiresAt) {
   const path = `${teamId}/${playerId}/${docType}_${Date.now()}.${extension}`;
-  const { error: upErr } = await supabase.storage.from('player-documents').upload(path, blob, { upsert: false });
-  if (upErr) throw upErr;
+  const { error: upErr } = await supabase.storage.from('player-documents')
+    .upload(path, blob, { upsert: false, contentType: blob && blob.type ? blob.type : undefined });
+  if (upErr) throw new Error(descriviErroreCaricamento(upErr));
+
   const { data, error } = await supabase.from('player_documents').insert({
     team_id: teamId, player_id: playerId, doc_type: docType,
     file_path: path, file_name: path.split('/').pop(),
     status: 'in_review', uploaded_by: uploadedBy, expires_at: expiresAt || null
   }).select().single();
-  if (error) throw error;
+
+  if (error || !data) {
+    /* IL FILE E' ARRIVATO, LA RIGA NO.
+       Sono due scritture separate: se la seconda cade — rete, policy — il file
+       resta nel bucket senza nessun documento che lo nomini, e chi ha caricato
+       vede un errore e riprova, lasciando un file orfano a ogni tentativo.
+       Si toglie quello che si e' appena messo; se anche questo fallisce non
+       c'e' altro da fare, e il messaggio all'utente resta quello giusto. */
+    await supabase.storage.from('player-documents').remove([path]).catch(() => {});
+    throw new Error(descriviErroreCaricamento(error || new Error('Il database non ha registrato il documento.')));
+  }
   return data;
 }
 

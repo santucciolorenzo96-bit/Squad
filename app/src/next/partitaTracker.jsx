@@ -1310,7 +1310,7 @@ export function Tracker({ onFinita, onEsci }) {
         {/* La via d'uscita sta dentro la parte che resta in cima: se scorresse
             via, per uscire da una partita bisognerebbe prima ritrovarla. */}
         {onEsci && (
-          <div className="mb-1.5 flex items-center justify-between gap-3 pt-[env(safe-area-inset-top)]">
+          <div className="mb-1.5 flex items-center justify-between gap-3">
             <button
               onClick={onEsci}
               className="-ml-1 rounded-lg px-2 py-1 text-[13px] font-semibold text-tenue transition-colors hover:text-testo"

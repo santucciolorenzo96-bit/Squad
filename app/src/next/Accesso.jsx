@@ -129,7 +129,7 @@ function NomeDellAtleta({ ruolo, valore, onCambia }) {
 
 function Colonna({ children, sotto }) {
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center px-5 py-10">
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center px-5 pb-10 pt-[max(2.5rem,calc(env(safe-area-inset-top)+1rem))]">
       <div className="w-full max-w-[24rem] animate-salita">
         {/* Il marchio: simbolo grande, la scritta sotto. È la prima cosa che
             si vede aprendo l'app, e prima dell'accesso non c'è nient'altro a

@@ -501,7 +501,15 @@ export function Guscio({ sezione, onSezione, sectorId, onSettore, chiaveContenut
   }, [sezione]);
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden">
+    /* LA SAFE-AREA IN ALTO STA QUI, sul contenitore piu' esterno.
+       Installata sull'iPhone la pagina passa sotto la barra di stato
+       (`black-translucent` + `viewport-fit=cover`): senza questo margine la
+       testata partiva a y=0 e l'orologio, il notch e il blur ci stavano sopra.
+       Sul contenitore e non sulla testata perche' sopra la testata puo'
+       esserci il nastro di chi guarda la societa' di un altro, e sarebbe lui a
+       finire sotto la barra. Dove non c'e' nessuna area (desktop, Android)
+       il valore e' zero e non cambia niente. */
+    <div className="flex h-[100dvh] flex-col overflow-hidden pt-[env(safe-area-inset-top)]">
       {nastro}
       <Testata onSezione={onSezione} sectorId={sectorId} onSettore={onSettore} strumenti={strumenti} />
       <div className="flex min-h-0 flex-1">

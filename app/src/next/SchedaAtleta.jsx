@@ -19,6 +19,7 @@ import {
   eIlSuoAtleta
 } from '../utils/permissions.js';
 import { tipiDocumento } from '../utils/sports/index.js';
+import { controllaFile, eFotografia, estensioneDa, FOTO_NON_LEGGIBILE } from '../utils/documenti.js';
 import { docStatus, DOC_STATE, ageFrom } from '../utils/docStatus.js';
 import { resizeImageFile } from '../utils/image.js';
 import { currentSport } from '../utils/sports/index.js';
@@ -1119,7 +1120,10 @@ function ModuloCaricamento({ p, tipo, onChiudi, onFatto }) {
       etichettaInvia="Carica"
       onChiudi={onChiudi}
       onInvia={async () => {
-        if (!file) return 'Scegli un file.';
+        // Prima si controlla il file, poi si tocca la rete: un file vuoto o
+        // troppo grande si scopre in un attimo, non dopo un caricamento.
+        const problema = controllaFile(file);
+        if (problema) return problema;
         if (certificato && !scadenza) {
           // Senza scadenza un certificato non può scadere, e Situazione non
           // può avvisare nessuno: è il dato che rende utile tutto il resto.
@@ -1130,12 +1134,20 @@ function ModuloCaricamento({ p, tipo, onChiudi, onFatto }) {
         let daInviare = file;
         // Le fotografie si riducono, i PDF no: un PDF ridimensionato non
         // esiste, e passarlo per un canvas lo distruggerebbe.
-        if (file.type && file.type.startsWith('image/')) {
-          daInviare = await resizeImageFile(file, 1600);
+        if (eFotografia(file)) {
+          /* Due modi di fallire, entrambi muti finora: `loadImage` rifiuta con
+             un Event (niente `.message`, quindi «Operazione non riuscita») e
+             `canvas.toBlob` restituisce null su un iPhone a corto di memoria
+             con una foto molto grande — e quel null andava dritto all'upload. */
+          try {
+            daInviare = await resizeImageFile(file, 1600);
+          } catch (e) {
+            return FOTO_NON_LEGGIBILE;
+          }
+          if (!daInviare) return FOTO_NON_LEGGIBILE;
         }
-        const est = (file.name.split('.').pop() || 'jpg').toLowerCase();
         await uploadPlayerDocument(
-          state.teamProfile.id, p.id, tipo.key, daInviare, est,
+          state.teamProfile.id, p.id, tipo.key, daInviare, estensioneDa(daInviare, file.name),
           state.currentUser.id, scadenza || null
         );
         onFatto();
@@ -1169,7 +1181,12 @@ function ModuloCaricamento({ p, tipo, onChiudi, onFatto }) {
           type="file"
           accept="image/*,application/pdf"
           className="hidden"
-          onChange={e => setFile(e.target.files && e.target.files[0])}
+          onChange={e => {
+            setFile(e.target.files && e.target.files[0]);
+            // Senza svuotarlo, riscegliere lo stesso file dopo un errore non
+            // scatena nessun evento: il pulsante sembra rotto.
+            e.target.value = '';
+          }}
         />
       </Campo>
 
