@@ -423,11 +423,13 @@ function SottoBarra({ sezione, onSezione }) {
  * HOME STA IN MEZZO. Non e' simmetria: e' il posto dove arriva il pollice
  * quando si prende il telefono, ed e' la voce da cui si riparte.
  *
- * IL FARO. La sezione aperta non e' segnata da un puntino ma da un alone del
- * SUO colore — blu per Home, verde per Allenamenti, viola per Squadra, ambra
- * per Partite, indaco per Societa' — che scivola da una casella all'altra e
- * cambia tinta strada facendo. Il colore lo si impara senza accorgersene, ed e'
- * l'unico segnale che funziona anche con la coda dell'occhio.
+ * LA LUCE. La sezione aperta non e' segnata da un puntino ma da un filo
+ * colorato in cima alla casella e da un velo dello stesso colore che scende
+ * sulla casella — blu per Home, verde per Allenamenti, viola per Squadra, ambra
+ * per Partite, indaco per Societa' — e scivola da una casella all'altra
+ * cambiando tinta strada facendo. Sta in cima e non dietro all'icona perche'
+ * cosi' non c'e' niente da allineare: ogni casella ha la stessa pila, con gli
+ * stessi spazi, e il colore si impara senza accorgersene.
  *
  * Nessuna misura presa in JavaScript: le caselle sono larghe uguali, quindi
  * l'alone si sposta di «una casella per indice» e lo puo' dire il CSS da solo.
@@ -460,8 +462,8 @@ function BarraMobile({ sezione, onSezione }) {
         '--faro': acceso ? tintaSezione(acceso.icona) : '0 0 0'
       }}
     >
-      <div className="relative flex pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2.5">
-        {/* L'alone sta prima delle caselle nel DOM, quindi resta dietro. */}
+      <div className="relative flex pb-[env(safe-area-inset-bottom)]">
+        {/* La luce sta prima delle caselle nel DOM, quindi resta dietro. */}
         {acceso && (
           <span className="barra-faro" aria-hidden="true"><i /></span>
         )}
@@ -474,10 +476,10 @@ function BarraMobile({ sezione, onSezione }) {
               key={v.id}
               onClick={() => { if (!aperta && g) onSezione(primaDi(g)); }}
               aria-current={aperta ? 'page' : undefined}
-              className="barra-voce relative flex flex-1 flex-col items-center gap-1.5 px-1 pb-0.5"
+              className="barra-voce relative flex min-w-0 flex-1 flex-col items-center gap-1 px-1 pb-2 pt-2.5"
             >
-              <IconaSezione id={v.icona} dim={40} className="barra-figura" />
-              <span className="barra-etichetta w-full truncate text-center text-[10.5px] font-bold uppercase tracking-[0.03em]">
+              <IconaSezione id={v.icona} dim={32} className="barra-figura" />
+              <span className="barra-etichetta w-full truncate text-center text-[11px] font-semibold leading-none">
                 {v.label}
               </span>
             </button>
@@ -509,7 +511,7 @@ export function Guscio({ sezione, onSezione, sectorId, onSettore, chiaveContenut
        esserci il nastro di chi guarda la societa' di un altro, e sarebbe lui a
        finire sotto la barra. Dove non c'e' nessuna area (desktop, Android)
        il valore e' zero e non cambia niente. */
-    <div className="flex h-[100dvh] flex-col overflow-hidden pt-[env(safe-area-inset-top)]">
+    <div className="flex h-[100dvh] flex-col overflow-hidden margine-notch">
       {nastro}
       <Testata onSezione={onSezione} sectorId={sectorId} onSettore={onSettore} strumenti={strumenti} />
       <div className="flex min-h-0 flex-1">
@@ -523,7 +525,7 @@ export function Guscio({ sezione, onSezione, sectorId, onSettore, chiaveContenut
             che c'e'. Gli `offsetTop` sono posizioni di impaginazione e non si
             muovono con le animazioni, che e' il motivo per cui si usano al
             posto dei rettangoli sullo schermo. */}
-        <main id="contenuto" className="relative min-w-0 flex-1 overflow-y-auto px-4 pb-[calc(6.25rem+env(safe-area-inset-bottom))] pt-6 sm:px-6 sm:pt-7 md:pb-10 md:pr-6 lg:pb-12 lg:pr-8">
+        <main id="contenuto" className="relative min-w-0 flex-1 overflow-y-auto px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-6 sm:px-6 sm:pt-7 md:pb-10 md:pr-6 lg:pb-12 lg:pr-8">
           <div className="mx-auto w-full max-w-[1120px]">
             <SottoBarra sezione={sezione} onSezione={onSezione} />
             {/* LA CHIAVE E' TUTTA LA TRANSIZIONE.

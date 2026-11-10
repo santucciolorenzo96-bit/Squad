@@ -716,25 +716,29 @@
 
   /* ==================== La barra di navigazione, sul telefono ====================
 
-     Cinque caselle larghe uguali e ferme. Niente scorrimento, niente scatto,
-     niente misure prese in JavaScript: se le caselle sono larghe uguali,
-     spostarsi di una casella vuol dire spostarsi del 100% della propria
-     larghezza, e questo il CSS lo sa fare da solo.
+     Cinque caselle larghe uguali e ferme, e dentro ogni casella SEMPRE la stessa
+     pila, con gli stessi spazi: icona, un respiro, nome. Prima l'alone stava
+     dietro all'icona ma non dietro al nome, e l'icona partiva piu' in basso
+     dell'alone: due cose che sembravano allineate e non lo erano.
 
-     IL FARO e' l'alone che sta dietro alla sezione aperta. Scivola da una
-     casella all'altra e CAMBIA COLORE strada facendo, prendendo quello della
-     sezione dove arriva: e' il segnale che funziona con la coda dell'occhio,
-     prima ancora di leggere il nome.
+     LA LUCE sta in CIMA alla casella aperta, non dietro all'icona: un filo
+     colorato sul bordo della barra e un velo dello stesso colore che scende
+     sulla casella e svanisce. Scivola da una casella all'altra cambiando tinta
+     strada facendo — blu Home, verde Allenamenti, viola Squadra, ambra Partite,
+     indaco Societa' — ed e' il segnale che si legge con la coda dell'occhio.
+     Non c'e' niente da allineare con l'icona, quindi non puo' essere storto.
 
-     Due elementi invece di uno: quello esterno e' largo quanto una casella e
-     si sposta con una trasformazione — che la scheda video sa fare senza
-     ridisegnare niente — e quello interno e' la pastiglia vera, ferma al suo
-     centro. Muovere direttamente la pastiglia vorrebbe dire animare la sua
-     posizione, cioe' rifare il calcolo del disegno a ogni fotogramma. */
+     Nessuna misura presa in JavaScript: le caselle sono uguali, spostarsi di una
+     casella vuol dire spostarsi del 100% della propria larghezza, e questo il
+     CSS lo sa fare da solo con una trasformazione, senza ridisegnare niente. */
+  .barra-voce {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   .barra-faro {
     position: absolute;
-    top: 0.3rem;
-    bottom: calc(0.3rem + env(safe-area-inset-bottom));
+    top: 0;
+    bottom: env(safe-area-inset-bottom);
     left: 0;
     width: calc(100% / var(--n, 5));
     transform: translateX(calc(var(--i, 0) * 100%));
@@ -744,51 +748,77 @@
     place-items: start center;
   }
 
+  /* Il velo: stessa tinta del filo, piena in alto e nulla in basso. La
+     maschera e' quella che lo fa svanire; il colore resta una proprieta' che si
+     puo' animare, quindi cambia tinta dolcemente insieme al filo. */
+  .barra-faro::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: rgb(var(--faro) / 0.17);
+    -webkit-mask-image: linear-gradient(to bottom, #000, transparent 85%);
+    mask-image: linear-gradient(to bottom, #000, transparent 85%);
+    transition: background-color 260ms ease;
+  }
+
   .barra-faro i {
+    position: relative;
     display: block;
-    height: 2.9rem;
-    width: 3.4rem;
-    border-radius: 1.15rem;
-    background-color: rgb(var(--faro) / 0.15);
-    box-shadow: 0 10px 22px -12px rgb(var(--faro) / 0.95);
-    /* Il colore cambia piu' in fretta di quanto l'alone si sposti: cosi' si
-       arriva gia' della tinta giusta invece di tingersi dopo essere arrivati. */
+    height: 3px;
+    width: 2.25rem;
+    border-radius: 0 0 3px 3px;
+    background-color: rgb(var(--faro));
+    box-shadow: 0 3px 14px 1px rgb(var(--faro) / 0.65);
     transition: background-color 260ms ease, box-shadow 260ms ease;
   }
 
-  /* L'icona aperta e' piu' grande e sollevata di un pelo; le altre stanno un
-     gradino sotto. Due stati, non una sfumatura continua: la barra e' ferma,
-     quindi non c'e' piu' niente da seguire con lo sguardo. */
+  /* Due stati, non una sfumatura: la barra e' ferma, non c'e' niente da
+     seguire con lo sguardo. L'icona aperta e' piena; le altre un gradino
+     sotto e un po' spente, ma non al punto da sembrare disattivate. */
   .barra-figura {
-    transform: scale(0.86);
-    transform-origin: center bottom;
-    transition: transform 260ms cubic-bezier(.22, 1, .36, 1);
+    transform: scale(0.88);
+    opacity: 0.74;
+    transition: transform 260ms cubic-bezier(.22, 1, .36, 1), opacity 220ms ease;
   }
 
   .barra-voce[aria-current='page'] .barra-figura {
-    transform: scale(1.06) translateY(-1px);
+    transform: scale(1.04);
+    opacity: 1;
   }
 
+  /* Il tocco si sente: l'icona si schiaccia finche' il dito e' sopra. */
+  .barra-voce:active .barra-figura { transform: scale(0.8); }
+
   /* Il nome: spento sulle altre, acceso e nel colore della sezione su quella
-     aperta. Regge anche senza colore — chi non distingue le tinte vede
-     comunque un nome pieno in mezzo a quattro sbiaditi. */
+     aperta. Regge anche senza colore: chi non distingue le tinte vede
+     comunque un nome pieno e piu' pesante in mezzo a quattro sbiaditi. */
   .barra-etichetta {
-    /* Spento, non illeggibile: a meta' opacita' il nome scendeva sotto il
-       contrasto minimo, e un menu si guarda anche di sfuggita. */
-    opacity: 0.62;
+    opacity: 0.7;
     transition: opacity 220ms ease, color 260ms ease;
   }
 
   .barra-voce[aria-current='page'] .barra-etichetta {
     opacity: 1;
+    font-weight: 700;
     color: rgb(var(--faro));
   }
 
   @media (prefers-reduced-motion: reduce) {
     .barra-faro,
+    .barra-faro::before,
     .barra-faro i,
     .barra-figura,
     .barra-etichetta { transition: none; }
+  }
+
+  /* IL MARGINE IN ALTO SOTTO IL NOTCH.
+     Installata sul telefono la pagina passa sotto la barra di stato: il margine
+     e' la safe-area, piu' un respiro di 0,6 rem che c'e' SOLO se la safe-area
+     esiste. `min(inset * 100, 0.6rem)` vale 0 dove l'inset e' 0 (desktop,
+     Android, Safari con la sua barra) e 0,6 rem dove e' 47px: cosi' non si
+     regala uno spazio vuoto a chi non ha il problema. */
+  .margine-notch {
+    padding-top: calc(env(safe-area-inset-top) + min(env(safe-area-inset-top) * 100, 0.6rem));
   }
 
   /* Il pannello che nasce dal gettone: parte piccolo dal punto toccato e si
@@ -816,7 +846,7 @@
   .pillola-attesa {
     position: fixed;
     left: 50%;
-    bottom: calc(6.5rem + env(safe-area-inset-bottom));
+    bottom: calc(5.5rem + env(safe-area-inset-bottom));
     transform: translateX(-50%);
     z-index: 40;
   }
