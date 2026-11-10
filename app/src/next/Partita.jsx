@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { nomeSquadra } from '../utils/nomiSquadra.js';
 import { state } from '../state.js';
 import { fetchLiveGame, fetchOpenGames, eliminaTabellino } from '../api/games.js';
 import { currentSport } from '../utils/sports/index.js';
@@ -50,7 +51,7 @@ function ScoutOccupato({ mano, partita, onPrendo, onIndietro }) {
         <Pannello alto className="pad-pannello-stretto">
           <Etichetta className="!text-ambra">Tabellino gia’ in mano</Etichetta>
           <p className="mt-3 text-[13.5px] leading-relaxed">
-            <b>{mano.nome}</b> sta segnando {partita.oppName ? '«' + partita.oppName + '»' : 'questa partita'} in
+            <b>{mano.nome}</b> sta segnando {partita.oppName ? '«' + nomeSquadra(partita.oppName) + '»' : 'questa partita'} in
             questo momento, da un altro dispositivo.
           </p>
           <p className="mt-2 text-[12.5px] leading-relaxed text-tenue">
@@ -96,7 +97,7 @@ function PartitaInCorso({ sport, onRientra, onScarta }) {
           <div className="mt-3 flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <div className="truncate text-[15px] font-bold">
-                {(state.teamProfile || {}).name} – {g.oppName}
+                {(state.teamProfile || {}).name} – {nomeSquadra(g.oppName)}
               </div>
               <div className="mt-0.5 text-[12.5px] text-tenue">
                 {nomePeriodo(conf, g.quarter, { amichevole: g.friendly })}
@@ -266,7 +267,7 @@ export function Partita() {
             </Etichetta>
             <p className="mt-3 text-[13.5px] leading-relaxed">
               Su questo dispositivo c’è una partita contro{' '}
-              <b>{recupero.gioco.oppName}</b>, aggiornata {daQuanto(recupero)}
+              <b>{nomeSquadra(recupero.gioco.oppName)}</b>, aggiornata {daQuanto(recupero)}
               {recupero.sincronizzata ? '' : ' e non ancora spedita'}.
             </p>
             <p className="mt-2 text-[12.5px] leading-relaxed text-tenue">

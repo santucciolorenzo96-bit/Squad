@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { nomeSquadra } from '../utils/nomiSquadra.js';
 import { state } from '../state.js';
 import { currentSport } from '../utils/sports/index.js';
 import { refertoPartita, tabellaTabellino, quota, legendaColonne, falliSpeciali } from '../utils/referto.js';
@@ -621,7 +622,7 @@ export function Referto({ partita, onChiudi, onEliminata }) {
   return (
     <Finestra
       larga
-      titolo={nostri + ' – ' + (partita.oppName || 'Avversari')}
+      titolo={nostri + ' – ' + (nomeSquadra(partita.oppName) || 'Avversari')}
       sotto={[fmtData(partita.date), partita.friendly ? 'amichevole' : 'campionato'].filter(Boolean).join(' · ')}
       onChiudi={onChiudi}
       azioni={

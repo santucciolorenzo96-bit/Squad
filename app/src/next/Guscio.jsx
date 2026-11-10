@@ -240,11 +240,20 @@ function Categorie({ attiva, onCambia }) {
 }
 
 /* ------------------------------------------------------------------ testata */
-function Testata({ onSezione, sectorId, onSettore, strumenti }) {
+function Testata({ onSezione, sectorId, onSettore, strumenti, sottoLaBarraDiStato }) {
   const squadra = state.teamProfile || {};
   const utente = state.currentUser || {};
   return (
-    <header className="sticky top-0 z-30 shrink-0 vetro-alto border-b border-bordo/10">
+    /* LA TESTATA ARRIVA FINO AL BORDO, E IL CONTENUTO SCENDE.
+       Il margine del notch stava fuori, sul contenitore: la testata cominciava
+       sotto la barra di stato e sopra restava una fascia dello sfondo, con
+       l'orologio su un colore e la testata su un altro. Dentro, la superficie
+       sfumata della testata sale fino al bordo e l'orologio ci sta sopra, come
+       in un'app nativa; il contenuto scende dello stesso margine. */
+    <header className={cx(
+      'sticky top-0 z-30 shrink-0 vetro-alto border-b border-bordo/10',
+      sottoLaBarraDiStato && 'margine-notch'
+    )}>
       <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
         <button onClick={() => onSezione('home')} className="flex min-w-0 items-center gap-2.5 text-left">
           {/* Il simbolo di SQUAD, e accanto il nome della società. Il simbolo
@@ -423,13 +432,17 @@ function SottoBarra({ sezione, onSezione }) {
  * HOME STA IN MEZZO. Non e' simmetria: e' il posto dove arriva il pollice
  * quando si prende il telefono, ed e' la voce da cui si riparte.
  *
- * LA LUCE. La sezione aperta non e' segnata da un puntino ma da un filo
- * colorato in cima alla casella e da un velo dello stesso colore che scende
- * sulla casella — blu per Home, verde per Allenamenti, viola per Squadra, ambra
- * per Partite, indaco per Societa' — e scivola da una casella all'altra
- * cambiando tinta strada facendo. Sta in cima e non dietro all'icona perche'
- * cosi' non c'e' niente da allineare: ogni casella ha la stessa pila, con gli
- * stessi spazi, e il colore si impara senza accorgersene.
+ * LA CAPSULA. La sezione aperta non e' segnata da un puntino ma da una
+ * pastiglia del SUO colore — blu per Home, verde per Allenamenti, viola per
+ * Squadra, ambra per Partite, indaco per Societa' — dietro a icona e nome
+ * insieme. Scorre da una casella all'altra con una molla leggera e cambia
+ * tinta strada facendo; l'icona fa un piccolo «pop» quando la sezione si apre.
+ * Il colore si impara senza accorgersene ed e' il segnale che funziona anche
+ * con la coda dell'occhio.
+ *
+ * UN DOCK, NON UNA FASCIA. Sta staccato dai lati e dall'indicatore di casa, con
+ * l'area di tocco di una casella piu' alta di 44pt: le icone a trentadue pixel
+ * dentro una fascia da ottanta erano piccole e strette insieme.
  *
  * Nessuna misura presa in JavaScript: le caselle sono larghe uguali, quindi
  * l'alone si sposta di «una casella per indice» e lo puo' dire il CSS da solo.
@@ -454,7 +467,7 @@ function BarraMobile({ sezione, onSezione }) {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-50 vetro-alto border-t border-bordo/12 md:hidden"
+      className="barra-mobile md:hidden"
       aria-label="Sezioni"
       style={{
         '--n': voci.length,
@@ -462,10 +475,10 @@ function BarraMobile({ sezione, onSezione }) {
         '--faro': acceso ? tintaSezione(acceso.icona) : '0 0 0'
       }}
     >
-      <div className="relative flex pb-[env(safe-area-inset-bottom)]">
-        {/* La luce sta prima delle caselle nel DOM, quindi resta dietro. */}
+      <div className="barra-dock vetro-alto">
+        {/* La capsula sta prima delle caselle nel DOM, quindi resta dietro. */}
         {acceso && (
-          <span className="barra-faro" aria-hidden="true"><i /></span>
+          <span className="barra-capsula" aria-hidden="true"><i /></span>
         )}
 
         {voci.map(v => {
@@ -476,9 +489,9 @@ function BarraMobile({ sezione, onSezione }) {
               key={v.id}
               onClick={() => { if (!aperta && g) onSezione(primaDi(g)); }}
               aria-current={aperta ? 'page' : undefined}
-              className="barra-voce relative flex min-w-0 flex-1 flex-col items-center gap-1 px-1 pb-2 pt-2.5"
+              className="barra-voce"
             >
-              <IconaSezione id={v.icona} dim={32} className="barra-figura" />
+              <IconaSezione id={v.icona} dim={44} className="barra-figura" />
               <span className="barra-etichetta w-full truncate text-center text-[11px] font-semibold leading-none">
                 {v.label}
               </span>
@@ -511,9 +524,9 @@ export function Guscio({ sezione, onSezione, sectorId, onSettore, chiaveContenut
        esserci il nastro di chi guarda la societa' di un altro, e sarebbe lui a
        finire sotto la barra. Dove non c'e' nessuna area (desktop, Android)
        il valore e' zero e non cambia niente. */
-    <div className="flex h-[100dvh] flex-col overflow-hidden margine-notch">
+    <div className={cx('flex h-[100dvh] flex-col overflow-hidden', nastro && 'margine-notch')}>
       {nastro}
-      <Testata onSezione={onSezione} sectorId={sectorId} onSettore={onSettore} strumenti={strumenti} />
+      <Testata onSezione={onSezione} sectorId={sectorId} onSettore={onSettore} strumenti={strumenti} sottoLaBarraDiStato={!nastro} />
       <div className="flex min-h-0 flex-1">
         <Colonna sezione={sezione} onSezione={onSezione} />
         {/* `relative` non serve a posizionare niente qui dentro: serve a fare
@@ -525,7 +538,7 @@ export function Guscio({ sezione, onSezione, sectorId, onSettore, chiaveContenut
             che c'e'. Gli `offsetTop` sono posizioni di impaginazione e non si
             muovono con le animazioni, che e' il motivo per cui si usano al
             posto dei rettangoli sullo schermo. */}
-        <main id="contenuto" className="relative min-w-0 flex-1 overflow-y-auto px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-6 sm:px-6 sm:pt-7 md:pb-10 md:pr-6 lg:pb-12 lg:pr-8">
+        <main id="contenuto" className="relative min-w-0 flex-1 overflow-y-auto px-4 sotto-la-barra pt-6 sm:px-6 sm:pt-7 md:pb-10 md:pr-6 lg:pb-12 lg:pr-8">
           <div className="mx-auto w-full max-w-[1120px]">
             <SottoBarra sezione={sezione} onSezione={onSezione} />
             {/* LA CHIAVE E' TUTTA LA TRANSIZIONE.

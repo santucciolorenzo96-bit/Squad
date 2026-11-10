@@ -2,6 +2,7 @@ import React from 'react';
 import { state } from '../state.js';
 import { standingsPosition, computeRecord, computeTeamPPG } from '../utils/stats.js';
 import { logoDi, nomeDiLega } from '../utils/campionato.js';
+import { nomeSquadra } from '../utils/nomiSquadra.js';
 import { partiteGiocate, comeTabellini } from '../utils/giocate.js';
 import { canEditHome, managesSector } from '../utils/permissions.js';
 import { teamInitials } from '../utils/theme.js';
@@ -137,36 +138,42 @@ function Apertura({ partita, onSezione }) {
         <div className="px-5 py-7 sm:px-7 sm:py-9">
           {/* I due nomi hanno lo stesso peso: sono due squadre, non un titolo
               e un sottotitolo. Il "vs" li separa piccolo in mezzo. */}
-          <div className="flex items-start gap-3 sm:gap-5">
-            <div className="min-w-0 flex-1 text-center">
+          {/* LA POSIZIONE STA IN FONDO ALLA COLONNA, NON SOTTO IL NOME.
+              Era appesa al nome: con «Cestistica Etnea» su una riga e un
+              avversario su tre, i due «1ª» e «2ª» stavano a quote diverse e
+              non si leggevano come una coppia. Le due colonne sono alte uguale
+              (il contenitore le stira) e il numero va in fondo a ciascuna:
+              qualunque sia la lunghezza dei nomi, stanno sulla stessa linea. */}
+          <div className="flex items-stretch gap-3 sm:gap-5">
+            <div className="flex min-w-0 flex-1 flex-col items-center text-center">
               <Stemma
                 nome={casa ? noi : partita.opponent}
                 url={casa ? logoNostro : logoAvversario}
               />
               <div className="mt-2.5 text-[clamp(16px,3.6vw,25px)] font-bold leading-tight tracking-tight">
-                {casa ? noi : partita.opponent}
+                {nomeSquadra(casa ? noi : partita.opponent)}
               </div>
               {/* Solo la posizione in classifica: dove si gioca lo dice la
                   pastiglia in cima, e lo dice della partita. */}
               {(casa ? posNoi : posLoro) && (
-                <Etichetta className="mt-1.5">
+                <Etichetta className="mt-auto pt-2.5">
                   <span className="cifra text-soffuso">{casa ? posNoi : posLoro}ª</span>
                 </Etichetta>
               )}
             </div>
-            <div className="mt-2 grid h-9 w-9 shrink-0 place-items-center rounded-full vetro orlo text-[12px] font-bold text-tenue sm:mt-3.5">
+            <div className="mt-2 grid h-9 w-9 shrink-0 place-items-center self-start rounded-full vetro orlo text-[12px] font-bold text-tenue sm:mt-3.5">
               vs
             </div>
-            <div className="min-w-0 flex-1 text-center">
+            <div className="flex min-w-0 flex-1 flex-col items-center text-center">
               <Stemma
                 nome={casa ? partita.opponent : noi}
                 url={casa ? logoAvversario : logoNostro}
               />
               <div className="mt-2.5 text-[clamp(16px,3.6vw,25px)] font-bold leading-tight tracking-tight">
-                {casa ? partita.opponent : noi}
+                {nomeSquadra(casa ? partita.opponent : noi)}
               </div>
               {(casa ? posLoro : posNoi) && (
-                <Etichetta className="mt-1.5">
+                <Etichetta className="mt-auto pt-2.5">
                   <span className="cifra text-soffuso">{casa ? posLoro : posNoi}ª</span>
                 </Etichetta>
               )}

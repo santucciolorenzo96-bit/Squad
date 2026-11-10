@@ -716,85 +716,125 @@
 
   /* ==================== La barra di navigazione, sul telefono ====================
 
-     Cinque caselle larghe uguali e ferme, e dentro ogni casella SEMPRE la stessa
-     pila, con gli stessi spazi: icona, un respiro, nome. Prima l'alone stava
-     dietro all'icona ma non dietro al nome, e l'icona partiva piu' in basso
-     dell'alone: due cose che sembravano allineate e non lo erano.
+     UN DOCK CHE GALLEGGIA. Non e' piu' una fascia a tutta larghezza incollata
+     al bordo, con le icone strette dentro: e' una barra staccata dai lati e
+     dall'indicatore di casa dell'iPhone, con gli angoli larghi, vetro e ombra.
+     Le icone non erano troppo piccole per colpa della barra: erano il 75% del
+     loro riquadro e il riquadro era di 32px, quindi 24px di disegno — meno di
+     quanto raccomandi qualunque linea guida (24-28pt), con un'area di tocco da
+     44pt tutta da costruire attorno. Qui il disegno e' di 33px e la casella e'
+     alta 64.
 
-     LA LUCE sta in CIMA alla casella aperta, non dietro all'icona: un filo
-     colorato sul bordo della barra e un velo dello stesso colore che scende
-     sulla casella e svanisce. Scivola da una casella all'altra cambiando tinta
-     strada facendo — blu Home, verde Allenamenti, viola Squadra, ambra Partite,
-     indaco Societa' — ed e' il segnale che si legge con la coda dell'occhio.
-     Non c'e' niente da allineare con l'icona, quindi non puo' essere storto.
+     LA CAPSULA e' la sezione aperta. Una pastiglia del SUO colore — blu Home,
+     verde Allenamenti, viola Squadra, ambra Partite, indaco Societa' — sta
+     dietro a icona E nome insieme (prima l'alone copriva l'icona e lasciava il
+     nome fuori: due cose che sembravano un gruppo e non lo erano). Scorre da una
+     casella all'altra con una molla leggera: supera di un pelo la meta' e ci
+     torna, che e' quello che da' alla barra l'aria di un oggetto e non di un
+     disegno. Cambia tinta strada facendo, piu' in fretta di quanto si sposti,
+     cosi' arriva gia' del colore giusto.
 
-     Nessuna misura presa in JavaScript: le caselle sono uguali, spostarsi di una
-     casella vuol dire spostarsi del 100% della propria larghezza, e questo il
-     CSS lo sa fare da solo con una trasformazione, senza ridisegnare niente. */
+     L'ICONA fa un piccolo «pop» quando la sezione si apre: si abbassa e rimbalza
+     in su. Non e' un'animazione scritta a mano per quel momento: la regola
+     `aria-current` comincia a valere nell'istante del tocco, e il browser fa
+     partire l'animazione da solo.
+
+     Nessuna misura presa in JavaScript: le caselle sono uguali, quindi la
+     capsula si sposta di «una casella per indice» e lo dice il CSS con una
+     trasformazione, che la scheda video fa senza ridisegnare niente. */
+  .barra-mobile {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    padding: 0 0.75rem calc(env(safe-area-inset-bottom) * 0.55 + 0.5rem);
+    /* Il contenitore e' largo quanto lo schermo ma non deve rubare i tocchi ai
+       lati del dock: li riceve solo il dock. */
+    pointer-events: none;
+  }
+
+  .barra-dock {
+    --pad: 0.375rem;
+    pointer-events: auto;
+    position: relative;
+    display: flex;
+    padding: var(--pad);
+    border-radius: 1.75rem;
+    border: 1px solid rgb(var(--bordo) / 0.14);
+    box-shadow:
+      0 16px 36px -12px rgb(0 0 0 / 0.55),
+      inset 0 1px 0 rgb(255 255 255 / 0.07);
+  }
+
+  .barra-capsula {
+    position: absolute;
+    top: var(--pad);
+    bottom: var(--pad);
+    left: var(--pad);
+    width: calc((100% - var(--pad) * 2) / var(--n, 5));
+    transform: translateX(calc(var(--i, 0) * 100%));
+    /* La molla: il secondo controllo oltre 1 e' l'oltrepassare e tornare. */
+    transition: transform 460ms cubic-bezier(.34, 1.32, .64, 1);
+    pointer-events: none;
+    padding: 0 0.1875rem;
+  }
+
+  .barra-capsula i {
+    display: block;
+    height: 100%;
+    border-radius: 1.3rem;
+    background-color: rgb(var(--faro) / 0.17);
+    box-shadow:
+      inset 0 0 0 1px rgb(var(--faro) / 0.3),
+      0 10px 24px -12px rgb(var(--faro) / 0.9);
+    transition: background-color 240ms ease, box-shadow 240ms ease;
+  }
+
   .barra-voce {
     -webkit-tap-highlight-color: transparent;
-  }
-
-  .barra-faro {
-    position: absolute;
-    top: 0;
-    bottom: env(safe-area-inset-bottom);
-    left: 0;
-    width: calc(100% / var(--n, 5));
-    transform: translateX(calc(var(--i, 0) * 100%));
-    transition: transform 380ms cubic-bezier(.22, 1, .36, 1);
-    pointer-events: none;
-    display: grid;
-    place-items: start center;
-  }
-
-  /* Il velo: stessa tinta del filo, piena in alto e nulla in basso. La
-     maschera e' quella che lo fa svanire; il colore resta una proprieta' che si
-     puo' animare, quindi cambia tinta dolcemente insieme al filo. */
-  .barra-faro::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-color: rgb(var(--faro) / 0.17);
-    -webkit-mask-image: linear-gradient(to bottom, #000, transparent 85%);
-    mask-image: linear-gradient(to bottom, #000, transparent 85%);
-    transition: background-color 260ms ease;
-  }
-
-  .barra-faro i {
     position: relative;
-    display: block;
-    height: 3px;
-    width: 2.25rem;
-    border-radius: 0 0 3px 3px;
-    background-color: rgb(var(--faro));
-    box-shadow: 0 3px 14px 1px rgb(var(--faro) / 0.65);
-    transition: background-color 260ms ease, box-shadow 260ms ease;
+    z-index: 1;
+    min-width: 0;
+    flex: 1 1 0;
+    height: 4rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.125rem;
+    padding: 0 0.125rem;
+    transition: transform 140ms ease;
   }
 
-  /* Due stati, non una sfumatura: la barra e' ferma, non c'e' niente da
-     seguire con lo sguardo. L'icona aperta e' piena; le altre un gradino
-     sotto e un po' spente, ma non al punto da sembrare disattivate. */
+  /* Il tocco si sente: tutta la casella si schiaccia finche' il dito e' sopra. */
+  .barra-voce:active { transform: scale(0.93); }
+
   .barra-figura {
-    transform: scale(0.88);
-    opacity: 0.74;
-    transition: transform 260ms cubic-bezier(.22, 1, .36, 1), opacity 220ms ease;
+    display: block;
+    transform: scale(0.94);
+    opacity: 0.82;
+    transition: transform 300ms cubic-bezier(.34, 1.32, .64, 1), opacity 220ms ease;
   }
 
   .barra-voce[aria-current='page'] .barra-figura {
-    transform: scale(1.04);
+    transform: scale(1.06) translateY(-1px);
     opacity: 1;
+    animation: barra-pop 440ms cubic-bezier(.34, 1.32, .64, 1);
   }
 
-  /* Il tocco si sente: l'icona si schiaccia finche' il dito e' sopra. */
-  .barra-voce:active .barra-figura { transform: scale(0.8); }
+  @keyframes barra-pop {
+    0%   { transform: scale(0.8) translateY(2px); }
+    55%  { transform: scale(1.16) translateY(-3px); }
+    100% { transform: scale(1.06) translateY(-1px); }
+  }
 
   /* Il nome: spento sulle altre, acceso e nel colore della sezione su quella
      aperta. Regge anche senza colore: chi non distingue le tinte vede
      comunque un nome pieno e piu' pesante in mezzo a quattro sbiaditi. */
   .barra-etichetta {
-    opacity: 0.7;
-    transition: opacity 220ms ease, color 260ms ease;
+    opacity: 0.72;
+    transition: opacity 220ms ease, color 240ms ease;
   }
 
   .barra-voce[aria-current='page'] .barra-etichetta {
@@ -804,21 +844,31 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .barra-faro,
-    .barra-faro::before,
-    .barra-faro i,
+    .barra-capsula,
+    .barra-capsula i,
+    .barra-voce,
     .barra-figura,
     .barra-etichetta { transition: none; }
+    .barra-voce[aria-current='page'] .barra-figura { animation: none; }
+  }
+
+  /* LO SPAZIO SOTTO IL CONTENUTO, per non finire dietro al dock: la sua altezza
+     (4rem piu' due volte il margine interno) piu' la distanza dal bordo. Solo
+     sul telefono: dove la barra non c'e' non si regala spazio vuoto. */
+  @media (max-width: 767px) {
+    .sotto-la-barra {
+      padding-bottom: calc(6.75rem + env(safe-area-inset-bottom) * 0.55);
+    }
   }
 
   /* IL MARGINE IN ALTO SOTTO IL NOTCH.
      Installata sul telefono la pagina passa sotto la barra di stato: il margine
-     e' la safe-area, piu' un respiro di 0,6 rem che c'e' SOLO se la safe-area
+     e' la safe-area, piu' un respiro di 1,1 rem che c'e' SOLO se la safe-area
      esiste. `min(inset * 100, 0.6rem)` vale 0 dove l'inset e' 0 (desktop,
-     Android, Safari con la sua barra) e 0,6 rem dove e' 47px: cosi' non si
+     Android, Safari con la sua barra) e 1,1 rem dove e' 47px: cosi' non si
      regala uno spazio vuoto a chi non ha il problema. */
   .margine-notch {
-    padding-top: calc(env(safe-area-inset-top) + min(env(safe-area-inset-top) * 100, 0.6rem));
+    padding-top: calc(env(safe-area-inset-top) + min(env(safe-area-inset-top) * 100, 1.1rem));
   }
 
   /* Il pannello che nasce dal gettone: parte piccolo dal punto toccato e si
@@ -846,7 +896,7 @@
   .pillola-attesa {
     position: fixed;
     left: 50%;
-    bottom: calc(5.5rem + env(safe-area-inset-bottom));
+    bottom: calc(7.5rem + env(safe-area-inset-bottom) * 0.55);
     transform: translateX(-50%);
     z-index: 40;
   }

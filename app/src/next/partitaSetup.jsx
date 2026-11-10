@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { nomeSquadra } from '../utils/nomiSquadra.js';
 import { state } from '../state.js';
 import { startGame } from '../api/games.js';
 import { currentSport } from '../utils/sports/index.js';
@@ -164,7 +165,7 @@ export function AvvioPartita({ onAvviata }) {
                 )}>
                   {etichettaDove(m)}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{m.opponent}</span>
+                <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{nomeSquadra(m.opponent)}</span>
                 <span className="shrink-0 text-[13px] text-tenue">
                   {etichettaGiorno(m.date, oggi)}{m.time ? ' · ' + m.time : ''}
                 </span>

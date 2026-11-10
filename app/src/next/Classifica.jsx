@@ -18,6 +18,7 @@ import { canEditHome, managesSector, isAdmin } from '../utils/permissions.js';
 import { fetchDeletedGames, ripristinaTabellino } from '../api/games.js';
 import { inCampione } from './campione.js';
 import { partiteGiocate, comeTabellini } from '../utils/giocate.js';
+import { nomeSquadra } from '../utils/nomiSquadra.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Amichevole, cx } from './ui.jsx';
 import {
   Interruttore, Modulo, Conferma, Finestra, Campo, Testo, Data, Scelta, Spunta, useAvviso
@@ -174,7 +175,7 @@ function Tabellone({ righe: dafuori, calcolata, loghi, puoiModificare, onApri, o
                         })}
                         dim={22}
                       />
-                      <span className="min-w-0 truncate">{r.team_name}</span>
+                      <span className="min-w-0 truncate">{nomeSquadra(r.team_name)}</span>
                     </span>
                   </td>
                   <td className="cifra px-3 py-3 text-right text-[13px] text-soffuso">{r.played}</td>
@@ -232,7 +233,7 @@ function ModuloSquadra({ riga, onChiudi, onFatto, onRimuovi }) {
 
   return (
     <Modulo
-      titolo={nuova ? 'Aggiungi una squadra' : riga.team_name}
+      titolo={nuova ? 'Aggiungi una squadra' : nomeSquadra(riga.team_name)}
       sotto={st.pointsHint}
       etichettaInvia={nuova ? 'Aggiungi' : 'Salva'}
       onChiudi={onChiudi}
@@ -403,7 +404,7 @@ function Cestino({ onCambiato }) {
         <div key={g.id} className="mt-2.5 flex items-center gap-3 rounded-lg bg-pannello/8 px-3.5 py-2.5">
           <div className="min-w-0 flex-1">
             <div className="truncate text-[13px] font-semibold">
-              {g.oppName || 'Avversari'} · {g.teamScore}–{g.oppScore}
+              {nomeSquadra(g.oppName) || 'Avversari'} · {g.teamScore}–{g.oppScore}
               {g.friendly ? ' · amichevole' : ''}
             </div>
             <div className="text-[12.5px] text-tenue">
@@ -627,7 +628,7 @@ function SchedaSquadra({ riga, rigaSalvata, partite, sport, logo, puoiModificare
 
   return (
     <Finestra
-      titolo={riga.team_name}
+      titolo={nomeSquadra(riga.team_name)}
       sotto={n.giocate > 0
         ? n.giocate + (n.giocate === 1 ? ' partita giocata' : ' partite giocate')
           + ' · ' + n.punti + ' punti in classifica'
@@ -805,14 +806,14 @@ function Risultati({ partite, nomeLega, puoiModificare, onNuovo, onApri }) {
                     nostra && 'bg-blu/6'
                   )}
                 >
-                  <span className="min-w-0 flex-1 truncate text-right">{m.home_team}</span>
+                  <span className="min-w-0 flex-1 truncate text-right">{nomeSquadra(m.home_team)}</span>
                   <span className={cx(
                     'cifra shrink-0 rounded-lg px-2.5 py-1 text-[14px] font-bold',
                     daGiocare ? 'bg-pannello/10 text-tenue' : 'bg-pannello/14'
                   )}>
                     {daGiocare ? '–' : m.home_score + ' - ' + m.away_score}
                   </span>
-                  <span className="min-w-0 flex-1 truncate">{m.away_team}</span>
+                  <span className="min-w-0 flex-1 truncate">{nomeSquadra(m.away_team)}</span>
                 </div>
               );
             })}
@@ -1241,7 +1242,7 @@ export function Classifica() {
       {risultatoDaTogliere && (
         <Conferma
           titolo="Togliere questo risultato?"
-          testo={`${risultatoDaTogliere.home_team} – ${risultatoDaTogliere.away_team}`
+          testo={`${nomeSquadra(risultatoDaTogliere.home_team)} – ${nomeSquadra(risultatoDaTogliere.away_team)}`
             + ' esce dal girone, e la classifica si ricalcola senza questa partita.'}
           etichetta="Togli"
           onChiudi={() => setRisultatoDaTogliere(null)}
@@ -1266,7 +1267,7 @@ export function Classifica() {
 
       {daRimuovere && (
         <Conferma
-          titolo={'Togliere ' + daRimuovere.team_name + '?'}
+          titolo={'Togliere ' + nomeSquadra(daRimuovere.team_name) + '?'}
           testo="Sparisce dalla classifica di questa categoria. Le partite giocate contro di loro restano nello storico."
           etichetta="Togli"
           onChiudi={() => setDaRimuovere(null)}

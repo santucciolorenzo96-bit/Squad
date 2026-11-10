@@ -6,6 +6,7 @@ import { CaricaCalendario } from './CalendarioCarica.jsx';
 import { partiteGiocate, comeRigaDiCalendario } from '../utils/giocate.js';
 import { upsertOurLeagueMatch } from '../api/leagueMatches.js';
 import { nomeDiLega } from '../utils/campionato.js';
+import { nomeSquadra } from '../utils/nomiSquadra.js';
 import { updateCalendarMatch, removeCalendarMatch } from '../api/calendar.js';
 import { canEditHome, managesSector } from '../utils/permissions.js';
 import { Pannello, Etichetta, Titolo, Pulsante, Vuoto, Stato, Amichevole, cx, AzioneRiga, TINTA_DOVE } from './ui.jsx';
@@ -168,7 +169,7 @@ export function Calendario() {
                     )}>
                       {etichettaDove(m)}
                     </span>
-                    <span className="truncate text-[14.5px] font-semibold leading-tight">{m.opponent}</span>
+                    <span className="truncate text-[14.5px] font-semibold leading-tight">{nomeSquadra(m.opponent)}</span>
                   </div>
                   {/* «amichevole» sta QUI e non accanto al nome.
                       Sulla riga del titolo non ci sta: con il riquadro della
@@ -290,7 +291,7 @@ export function Calendario() {
       {daRimuovere && (
         <Conferma
           titolo="Rimuovere la partita?"
-          testo={`${daRimuovere.opponent} · ${fmtData(daRimuovere.date)}. Viene tolta dal calendario.`}
+          testo={`${nomeSquadra(daRimuovere.opponent)} · ${fmtData(daRimuovere.date)}. Viene tolta dal calendario.`}
           etichetta="Rimuovi"
           onChiudi={() => setDaRimuovere(null)}
           onConferma={async () => {
@@ -411,7 +412,7 @@ function ModuloRisultato({ partita, onChiudi, onFatto }) {
   return (
     <Modulo
       titolo="Segna il risultato"
-      sotto={`${partita.opponent} · ${fmtData(partita.date)}`}
+      sotto={`${nomeSquadra(partita.opponent)} · ${fmtData(partita.date)}`}
       onChiudi={onChiudi}
       onInvia={async () => {
         if (nostri === '' || loro === '') return 'Inserisci tutti e due i punteggi.';
@@ -468,7 +469,7 @@ function ModuloRisultato({ partita, onChiudi, onFatto }) {
             autoFocus
           />
         </Campo>
-        <Campo etichetta={partita.opponent}>
+        <Campo etichetta={nomeSquadra(partita.opponent)}>
           <Testo
             inputMode="numeric"
             value={loro}

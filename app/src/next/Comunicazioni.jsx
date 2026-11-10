@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { nomeSquadra } from '../utils/nomiSquadra.js';
 import { state } from '../state.js';
 import {
   fetchCommunications, fetchMyCommunications, createCommunication,
@@ -356,7 +357,7 @@ function ModuloComunicazione({ onChiudi, onFatto }) {
   function applica(m) {
     if (!m) return;
     if (!titoloAMano) {
-      setTitolo(`${settore} — ${doveSiGioca(m) === TRASFERTA ? 'trasferta con' : 'partita con'} ${m.opponent}`);
+      setTitolo(`${settore} — ${doveSiGioca(m) === TRASFERTA ? 'trasferta con' : 'partita con'} ${nomeSquadra(m.opponent)}`);
     }
     setData(m.date || '');
     setInizio(m.time || '');
@@ -424,7 +425,7 @@ function ModuloComunicazione({ onChiudi, onFatto }) {
                     </span>
                     <span className={cx('min-w-0 flex-1 truncate text-[13.5px] font-semibold',
                       scelta && 'text-blu')}>
-                      {m.opponent}
+                      {nomeSquadra(m.opponent)}
                     </span>
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-tenue">

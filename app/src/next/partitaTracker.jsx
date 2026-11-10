@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { nomeSquadra } from '../utils/nomiSquadra.js';
 import { createPortal } from 'react-dom';
 import { state } from '../state.js';
 import { saveLiveGame, endGame, reopenGameForFix } from '../api/games.js';
@@ -1412,7 +1413,7 @@ export function Tracker({ onFinita, onEsci }) {
                   <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-ambra" aria-label="al servizio" />
                 )}
                 <span className="truncate text-[11px] font-bold uppercase tracking-etichetta text-tenue">
-                  {g.oppName}
+                  {nomeSquadra(g.oppName)}
                 </span>
               </div>
               {/* L'avversario in ambra e noi in verde: e` il vocabolario che
@@ -3710,7 +3711,7 @@ function ChiusuraPeriodo({ g, sport, onChiudi, onFatto }) {
             <Etichetta>Noi, dalle azioni</Etichetta>
             <div className="mt-2 text-[30px] font-bold leading-none text-verde">{nostriOra}</div>
           </div>
-          <Campo etichetta={g.oppName}>
+          <Campo etichetta={nomeSquadra(g.oppName)}>
             <Testo
               inputMode="numeric"
               value={loro}
