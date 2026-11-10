@@ -125,7 +125,10 @@ export function CodiceCategoria() {
               <Pulsante
                 className="py-2.5 text-[12px]"
                 onClick={async () => {
-                  const testo = messaggioDaMandare(codice.code, settore.name, (state.teamProfile || {}).name);
+                  // L'indirizzo e' quello da cui sta usando l'app: se un domani cambia dominio,
+                  // il messaggio segue senza che nessuno lo debba ricordare.
+                  const indirizzo = typeof window !== 'undefined' ? window.location.origin : '';
+                  const testo = messaggioDaMandare(codice.code, settore.name, (state.teamProfile || {}).name, indirizzo);
                   try { await navigator.clipboard.writeText(testo); avvisa('Messaggio copiato: incollalo nel gruppo'); }
                   catch (e) { avvisa('Copialo a mano: ' + codice.code); }
                 }}

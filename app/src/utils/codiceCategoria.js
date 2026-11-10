@@ -110,11 +110,16 @@ export function puoiInvitareNellaCategoria(user, sectorId, staffSectors) {
 }
 
 /* Il messaggio da mandare. Il codice da solo non dice cosa farne, e la
- * domanda che arriva dopo è sempre la stessa: «dove lo metto?». */
-export function messaggioDaMandare(codice, nomeCategoria, nomeSocieta) {
+ * domanda che arriva dopo è sempre la stessa: «dove lo metto?». E prima ancora:
+ * «dove mi registro?» — per questo c'è l'indirizzo dell'app, quando lo si
+ * conosce: un messaggio che dice «registrati» senza dire dove manda i ragazzi a
+ * chiedere in chat. */
+export function messaggioDaMandare(codice, nomeCategoria, nomeSocieta, indirizzo = '') {
   const dove = nomeSocieta ? ' di ' + nomeSocieta : '';
+  const link = String(indirizzo || '').trim();
   return 'Ciao! Per entrare su SQUAD con la squadra' + dove
     + (nomeCategoria ? ' (' + nomeCategoria + ')' : '')
-    + ': registrati con la tua email e inserisci il codice ' + codice
+    + (link ? ': apri ' + link + ', registrati' : ': registrati')
+    + ' con la tua email e inserisci il codice ' + codice
     + '. Scrivi il tuo nome e cognome come sono in rosa, così ti collego alla tua scheda.';
 }

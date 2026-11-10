@@ -197,6 +197,17 @@ describe('il messaggio da mandare', () => {
     ok(/in rosa/.test(messaggioDaMandare('ABC123', 'Open A', 'X')), 'non lo dice');
   });
 
+  test('dice DOVE registrarsi, quando l’indirizzo è noto', () => {
+    const m = messaggioDaMandare('ABC123', 'Open A', 'Cestistica Etnea', 'https://squad-steel.vercel.app');
+    ok(m.indexOf('https://squad-steel.vercel.app') >= 0, 'manca l’indirizzo');
+    ok(m.indexOf('ABC123') >= 0, 'manca il codice');
+  });
+
+  test('senza indirizzo il messaggio non ne inventa uno', () => {
+    ok(messaggioDaMandare('ABC123', 'Open A', 'X').indexOf('http') < 0);
+    ok(messaggioDaMandare('ABC123', 'Open A', 'X', '   ').indexOf('apri') < 0);
+  });
+
   test('senza società o categoria resta una frase sensata', () => {
     const m = messaggioDaMandare('ABC123', '', '');
     ok(m.indexOf('ABC123') >= 0, 'manca il codice');
