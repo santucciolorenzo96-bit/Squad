@@ -1,62 +1,84 @@
 -- ============================================================================
--- ACCOUNT «DARIO MORE»: CANCELLAZIONE
+-- DUE ACCOUNT DI PROVA DELLA PALLAVOLO: CANCELLAZIONE
 -- ============================================================================
--- NON SI ANNULLA. Lancia prima l'anteprima (_account_dario_anteprima.sql) e
--- controlla che sia l'account giusto.
+-- NON SI ANNULLA.
 --
--- Fa quello che fa il comando «Cancella l'account» della console SuperAdmin
--- (funzione delete_account, migrazione 032), senza la regola «deve rimanere un
+-- L'anteprima ha mostrato tre profili chiamati «Dario Morè»:
+--
+--   dariosquad@gmail.com      admin     Volley Demo Aurora   (pallavolo)  -> SI CANCELLA
+--   megadario93@hotmail.it    genitore  Volley Demo Aurora   (pallavolo)  -> SI CANCELLA
+--   dario.more993@gmail.com   atleta    Cestistica Etnea     (basket)     -> RESTA
+--
+-- Per questo si cancella per EMAIL ESATTA e non per nome: il nome e' lo stesso
+-- per tutti e tre, e un nome non distingue un account di prova da quello vero.
+--
+-- Fa quello che fa «Cancella l'account» nella console SuperAdmin (funzione
+-- delete_account, migrazione 032), senza la regola «deve rimanere un
 -- amministratore» che esiste solo nella schermata Utenti: cancella la riga in
--- auth.users, e con lei il profilo, i collegamenti agli atleti, le categorie
--- assegnate e l'indirizzo email, che torna libero. Quello che l'account ha
--- inserito nella societa' resta, e perde solo il nome dell'autore.
+-- auth.users, e con lei il profilo, i collegamenti agli atleti e le categorie
+-- assegnate. Le email tornano libere. Quello che hanno inserito nella societa'
+-- resta, e perde solo il nome dell'autore.
+--
+-- Dopo, Volley Demo Aurora non ha piu' nessun profilo: il tuo account
+-- SuperAdmin ci entra come amministratore, ma da li' non puo' approvare chi si
+-- iscrive con il codice (quella funzione cerca un profilo admin dentro la
+-- societa').
 --
 -- SI FERMA, SENZA CAMBIARE NIENTE, se:
---   · i profili che si chiamano cosi' non sono esattamente uno;
---   · quel profilo non sta in una societa' di PALLAVOLO (un omonimo nella
---     societa' di basket non si tocca);
---   · e' un amministratore di piattaforma.
---
--- Alla fine risponde con una riga che dice se e' sparito.
+--   · l'account da tenere non esiste, o e' fra quelli da cancellare;
+--   · i due account non sono esattamente due, tutti e due in una societa' di
+--     pallavolo;
+--   · uno dei due e' un amministratore di piattaforma.
 
 do $$
 declare
+  v_tengo uuid;
   v_n int;
-  v_id uuid;
-  v_email text;
-  v_societa text;
-  v_sport text;
-  v_owner boolean;
 begin
-  select count(*) into v_n from profiles where lower(display_name) like 'dario mor%';
-  if v_n <> 1 then
-    raise exception 'Trovo % profili che si chiamano Dario Mor..., ne serve esattamente uno. Nessuna modifica fatta.', v_n;
+  select id into v_tengo from auth.users where lower(email) = 'dario.more993@gmail.com';
+  if v_tengo is null then
+    raise exception 'Non trovo l''account da tenere (dario.more993@gmail.com). Nessuna modifica fatta.';
   end if;
 
-  select p.id, u.email::text, t.name, t.sport
-    into v_id, v_email, v_societa, v_sport
-  from profiles p
-  join auth.users u on u.id = p.id
-  left join teams t on t.id = p.team_id
-  where lower(p.display_name) like 'dario mor%';
-
-  if coalesce(lower(v_sport), '') <> 'pallavolo' then
-    raise exception 'Questo account sta nella societa'' «%» (sport: %), non in quella di pallavolo. Nessuna modifica fatta.',
-      coalesce(v_societa, 'nessuna'), coalesce(v_sport, 'nessuno');
+  select count(*) into v_n
+  from auth.users u
+  join profiles p on p.id = u.id
+  join teams t on t.id = p.team_id
+  where lower(u.email) in ('dariosquad@gmail.com', 'megadario93@hotmail.it')
+    and lower(t.sport) = 'pallavolo'
+    and u.id <> v_tengo;
+  if v_n <> 2 then
+    raise exception 'Trovo % account da cancellare in una societa'' di pallavolo, ne aspettavo 2. Nessuna modifica fatta.', v_n;
   end if;
 
-  select exists (select 1 from platform_owners o where o.user_id = v_id) into v_owner;
-  if v_owner then
-    raise exception 'E'' un amministratore di piattaforma: non lo cancello da qui. Nessuna modifica fatta.';
+  if exists (
+    select 1 from platform_owners o join auth.users u on u.id = o.user_id
+    where lower(u.email) in ('dariosquad@gmail.com', 'megadario93@hotmail.it')
+  ) then
+    raise exception 'Uno dei due e'' un amministratore di piattaforma: non lo cancello da qui. Nessuna modifica fatta.';
   end if;
 
-  delete from auth.users where id = v_id;
-  raise notice 'Cancellato % (%), societa'' %.', v_email, v_id, v_societa;
+  delete from auth.users
+   where lower(email) in ('dariosquad@gmail.com', 'megadario93@hotmail.it')
+     and id <> v_tengo;
+  get diagnostics v_n = row_count;
+
+  -- Se non sono esattamente due, si torna indietro: la funzione e' una sola
+  -- transazione e l'eccezione annulla anche la cancellazione appena fatta.
+  if v_n <> 2 then
+    raise exception 'Ho cancellato % account ma ne aspettavo 2. Annullo tutto.', v_n;
+  end if;
 end
 $$;
 
--- CONTROLLO: una riga sola. Deve dire true.
+-- CONTROLLO: una riga sola. Devono dire tutte e due true.
 select
-  not exists (select 1 from profiles where lower(display_name) like 'dario mor%') as account_sparito,
-  (select count(*) from profiles p join teams t on t.id = p.team_id
-    where lower(t.sport) = 'pallavolo' and p.role in ('admin', 'presidente') and p.active) as admin_rimasti_nelle_societa_di_pallavolo;
+  (select count(*) from auth.users
+    where lower(email) in ('dariosquad@gmail.com', 'megadario93@hotmail.it')) = 0 as due_account_cancellati,
+  exists (
+    select 1 from profiles p
+    join auth.users u on u.id = p.id
+    join teams t on t.id = p.team_id
+    where lower(u.email) = 'dario.more993@gmail.com'
+      and p.role = 'atleta' and t.name = 'Cestistica Etnea'
+  ) as account_da_tenere_intatto;
