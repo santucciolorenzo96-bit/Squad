@@ -41,7 +41,9 @@ export const TIPI = {
   dato_sensibile: { sezione: 'anagrafica', azione: 'Dato del tesseramento' },
   scheda_allenamento: { sezione: 'anagrafica', azione: 'Scheda di allenamento' },
   document_reviewed: { sezione: 'anagrafica', azione: 'Esito del documento' },
-  comunicazione: { sezione: 'comunicazioni', azione: 'Comunicazione' }
+  comunicazione: { sezione: 'comunicazioni', azione: 'Comunicazione' },
+  play_published: { sezione: 'schemi', azione: 'Nuovo schema' },
+  play_updated: { sezione: 'schemi', azione: 'Schema aggiornato' }
 };
 
 /* Un tipo mai visto non deve produrre una riga rotta.

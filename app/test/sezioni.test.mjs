@@ -45,11 +45,18 @@ describe('lo scout non e degli atleti', () => {
 });
 
 describe('cosa vede un atleta o un genitore', () => {
-  const atteso = ['home', 'rosa', 'anagrafica', 'allenamenti', 'comunicazioni', 'classifica', 'calendario'];
+  const atteso = ['home', 'rosa', 'anagrafica', 'schemi', 'allenamenti', 'comunicazioni', 'classifica', 'calendario'];
 
-  test('le sette sezioni della famiglia, e solo quelle', () => {
+  test('le otto sezioni della famiglia, e solo quelle', () => {
     is(vede(ATLETA).join(','), atteso.join(','));
     is(vede(GENITORE).join(','), atteso.join(','));
+  });
+
+  test('gli schemi si', () => {
+    // Li disegna l'allenatore e li rivedono gli atleti: in sola lettura, e solo
+    // quelli pubblicati — lo garantisce il database (migrazione 065).
+    is(vede(ATLETA).includes('schemi'), true);
+    is(vede(GENITORE).includes('schemi'), true);
   });
 
   test('niente presenze: la rilevazione e uno strumento dell allenatore', () => {

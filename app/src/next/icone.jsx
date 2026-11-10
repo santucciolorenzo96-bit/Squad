@@ -284,6 +284,17 @@ const G = {
     </>
   ),
 
+  // Schemi: due giocatori e il movimento che li collega, come sulla lavagna.
+  schemi: (
+    <>
+      <circle cx="6.4" cy="17.2" r="2.7" />
+      <circle cx="17.6" cy="6.8" r="2.7" />
+      <path d="M6.8 13.6c.2-3.7 2.6-6 6.4-6.2" stroke="#fff" strokeOpacity=".92" strokeWidth="1.9" strokeLinecap="round" fill="none" />
+      <path d="M11.6 4.9l2.8 2.4-2.9 2.3" stroke="#fff" strokeOpacity=".92" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path d="M10.4 18.2h6.4" stroke="#fff" strokeOpacity=".7" strokeWidth="1.7" strokeLinecap="round" strokeDasharray="2.2 2.4" fill="none" />
+    </>
+  ),
+
   // Profilo
   profilo: (
     <>
@@ -307,6 +318,7 @@ export const SEZIONI = {
   rosa: { tono: 'rosa', glifo: G.rosa },                // macro Squadra
   anagrafica: { tono: 'viola', glifo: G.anagrafica },
   comunicazioni: { tono: 'fucsia', glifo: G.comunicazioni },
+  schemi: { tono: 'ciano', glifo: G.schemi },
   allenamenti: { tono: 'verde', glifo: G.allenamenti }, // macro Allenamenti
   presenze: { tono: 'smeraldo', glifo: G.presenze },
   partita: { tono: 'corallo', glifo: G.partita },       // macro Partite

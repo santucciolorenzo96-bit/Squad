@@ -74,6 +74,9 @@ export const TABS = [
   { id: 'home', label: 'Home', group: 'settore', roles: [...MANAGER_ROLES, 'segnapunti', ...LINKED_ROLES], primary: true },
   { id: 'rosa', label: 'Rosa', group: 'settore', roles: [...ROSTER_ROLES, ...LINKED_ROLES] },
   { id: 'anagrafica', label: 'Anagrafica', group: 'settore', roles: [...MANAGER_ROLES, ...LINKED_ROLES] },
+  // Gli schemi li disegna l'allenatore e li rivedono tutti: staff e atleti in sola lettura.
+  // Cosa si vede lo decide il database (migrazione 065): le bozze solo a chi le modifica.
+  { id: 'schemi', label: 'Schemi', group: 'settore', roles: [...MANAGER_ROLES, ...LINKED_ROLES] },
   // alsoIf: visibile anche a chi ha quel permesso, oltre ai ruoli elencati
   // «Scout» e non «Partita»: dentro la macro Partite, «Partite > Partita» non
   // diceva cosa fosse. Scout e' anche la parola che si usa in palestra — «chi
@@ -127,7 +130,7 @@ export const TABS = [
  */
 export const MACRO = [
   { id: 'apertura', label: 'Home', icona: 'home', tabs: ['home'] },
-  { id: 'squadra', label: 'Squadra', icona: 'rosa', tabs: ['rosa', 'anagrafica', 'comunicazioni'] },
+  { id: 'squadra', label: 'Squadra', icona: 'rosa', tabs: ['rosa', 'schemi', 'anagrafica', 'comunicazioni'] },
   { id: 'palestra', label: 'Allenamenti', icona: 'allenamenti', tabs: ['allenamenti', 'presenze'] },
   { id: 'gare', label: 'Partite', icona: 'partita', tabs: ['calendario', 'partita', 'classifica', 'statistiche'] },
   { id: 'societa', label: 'Società', icona: 'squadra', tabs: ['situazione', 'documenti', 'finanza', 'utenti', 'squadra'] }

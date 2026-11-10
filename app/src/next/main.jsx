@@ -20,6 +20,7 @@ import { Situazione } from './Situazione.jsx';
 import { Comunicazioni } from './Comunicazioni.jsx';
 import { Documenti } from './Documenti.jsx';
 import { Utenti } from './Utenti.jsx';
+import { Schemi } from './Schemi.jsx';
 import { Squadra } from './Squadra.jsx';
 import { Profilo } from './Profilo.jsx';
 import { Finanza } from './Finanza.jsx';
@@ -675,6 +676,7 @@ function App() {
     statistiche: () => <Statistiche />,
     presenze: () => <Presenze />,
     comunicazioni: () => <Comunicazioni />,
+    schemi: () => <Schemi />,
     situazione: () => <Situazione onSezione={setSezione} />,
     documenti: () => <Documenti />,
     utenti: () => <Utenti />,

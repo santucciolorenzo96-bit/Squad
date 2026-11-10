@@ -108,7 +108,21 @@ with atteso(ordine, migrazione, descrizione, presente) as (
                  where table_name = 'games' and column_name = 'deleted_at')
          and exists (select 1 from pg_indexes
                      where indexname = 'games_one_live_per_sector'
-                       and indexdef like '%deleted_at IS NULL%'))
+                       and indexdef like '%deleted_at IS NULL%')),
+    (62, '062 cronometro',      'Il tempo della partita si salva col tabellino',
+         exists (select 1 from information_schema.columns
+                 where table_name = 'games' and column_name = 'clock_from')),
+    (63, '063 loghi squadre',   'Il logo di ogni squadra del girone',
+         exists (select 1 from information_schema.columns
+                 where table_name = 'standings' and column_name = 'logo_path')),
+    (64, '064 codice di categoria', 'Un codice per gli atleti di una categoria, e niente poteri a chi non gestisce',
+         exists (select 1 from information_schema.columns
+                 where table_name = 'invites' and column_name = 'max_uses')
+         and exists (select 1 from information_schema.columns
+                     where table_name = 'profiles' and column_name = 'invite_id')),
+    (65, '065 schemi',          'Gli schemi di gioco: disegnati dall''allenatore, rivisti dagli atleti',
+         to_regclass('public.plays') is not null
+         and exists (select 1 from pg_proc where proname = 'can_edit_plays'))
 )
 select
   migrazione,
